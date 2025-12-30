@@ -19,9 +19,9 @@
                         <NavLink :href="route('dashboard')" :active="route().current('dashboard')">
                             Dashboard
                         </NavLink>
-                        <NavLink :href="route('chat')" :active="route().current('chat')">
+                        <!-- <NavLink :href="route('chat')" :active="route().current('chat')">
                             Chat
-                        </NavLink>
+                        </NavLink> -->
                     </div>
 
                     <!-- User Menu -->
