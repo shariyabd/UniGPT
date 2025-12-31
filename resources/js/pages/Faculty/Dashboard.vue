@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import { router } from '@inertiajs/vue3';
 import {
     AcademicCapIcon,
     UserGroupIcon,
@@ -20,7 +21,8 @@ import {
     ExclamationTriangleIcon,
     CheckCircleIcon,
     ArrowTrendingUpIcon,
-    ArrowTrendingDownIcon
+    ArrowTrendingDownIcon,
+    SparklesIcon
 } from '@heroicons/vue/24/outline';
 
 // Faculty profile data
@@ -311,48 +313,55 @@ const researchData = ref({
 });
 
 // Quick actions
+// Quick actions - Updated with proper routing
 const quickActions = ref([
     {
         label: 'Create Assignment',
         description: 'Design new coursework',
         icon: PlusIcon,
         gradient: 'from-blue-500 to-indigo-600',
-        action: 'assignments.create'
+        action: 'assignments.create',
+        href: '/faculty/assignments/create'
     },
     {
         label: 'Grade Submissions',
         description: 'Review pending work',
         icon: DocumentTextIcon,
         gradient: 'from-orange-500 to-red-600',
-        action: 'grading.pending'
+        action: 'grading.pending',
+        href: '/faculty/grading'
     },
     {
         label: 'Course Analytics',
         description: 'View detailed insights',
         icon: ChartBarIcon,
         gradient: 'from-green-500 to-emerald-600',
-        action: 'analytics.courses'
+        action: 'analytics.courses',
+        href: '/faculty/analytics'
     },
     {
         label: 'AI Teaching Assistant',
-        description: 'Get AI-powered help',
-        icon: ChatBubbleLeftRightIcon,
-        gradient: 'from-purple-500 to-pink-600',
-        action: 'ai.assistant'
+        description: 'Generate quizzes & assignments',
+        icon: SparklesIcon,
+        gradient: 'from-purple-500 to-indigo-600',
+        action: 'ai-assistant',
+        href: '/faculty/ai-assistant'
     },
     {
         label: 'Upload Materials',
         description: 'Add course content',
         icon: BookOpenIcon,
         gradient: 'from-cyan-500 to-blue-600',
-        action: 'materials.upload'
+        action: 'materials.upload',
+        href: '/faculty/materials/upload'
     },
     {
         label: 'Schedule Office Hours',
         description: 'Set availability',
         icon: CalendarIcon,
         gradient: 'from-yellow-500 to-orange-600',
-        action: 'schedule.office'
+        action: 'schedule.office',
+        href: '/faculty/schedule'
     }
 ]);
 
@@ -421,15 +430,80 @@ const getScheduleIcon = (type) => {
 
 // Actions
 const navigateTo = (action) => {
-    alert(`Navigating to: ${action}`);
+    // Map actions to actual routes
+    const routeMap = {
+        // Course Management
+        'assignments.create': '/faculty/assignments/create',
+        'grading.pending': '/faculty/grading',
+        'analytics.courses': '/faculty/analytics',
+
+        // AI & Content
+        'ai.assistant': '/faculty/ai-assistant',
+        'ai-assistant': '/faculty/ai-assistant', // Alternative mapping
+        'materials.upload': '/faculty/materials/upload',
+
+        // Scheduling & Admin
+        'schedule.office': '/faculty/schedule',
+        'announcements.create': '/faculty/announcements',
+
+        // Student Management
+        'students.progress': '/faculty/students',
+        'feedback.pending': '/faculty/feedback',
+
+        // Research & Publications
+        'research.projects': '/faculty/research',
+        'publications.manage': '/faculty/publications',
+
+        // Settings & Profile
+        'profile.settings': '/faculty/profile',
+        'course.settings': '/faculty/courses/settings'
+    };
+
+    // Get the target route
+    const targetRoute = routeMap[action];
+
+    if (targetRoute) {
+        // Use Inertia router for navigation
+        router.visit(targetRoute);
+    } else if (action.startsWith('http')) {
+        // Handle external URLs
+        window.open(action, '_blank');
+    } else {
+        // Fallback for unmapped actions
+        console.warn(`No route mapping found for action: ${action}`);
+
+        // Try to construct a sensible route
+        const constructedRoute = `/faculty/${action.replace(/\./g, '/')}`;
+        router.visit(constructedRoute);
+    }
 };
 
+// Enhanced course navigation
 const viewCourse = (courseId) => {
-    alert(`Viewing course details for course ${courseId}`);
+    router.visit(`/faculty/courses/${courseId}`);
 };
 
-const contactStudent = (studentName) => {
-    alert(`Contacting student: ${studentName}`);
+// Student contact functionality
+const contactStudent = (studentName, studentId = null) => {
+    if (studentId) {
+        router.visit(`/faculty/students/${studentId}`);
+    } else {
+        // Open messaging interface
+        router.visit(`/faculty/messages?student=${encodeURIComponent(studentName)}`);
+    }
+};
+
+// Additional navigation helpers
+const navigateToAIAssistant = () => {
+    router.visit('/faculty/ai-assistant');
+};
+
+const navigateToUpload = () => {
+    router.visit('/faculty/materials/upload');
+};
+
+const navigateToGrading = () => {
+    router.visit('/faculty/grading');
 };
 </script>
 
@@ -641,7 +715,7 @@ const contactStudent = (studentName) => {
                                     <button
                                         v-for="action in quickActions"
                                         :key="action.label"
-                                        @click="navigateTo(action.action)"
+                                        @click="navigateTo(action.action || action.href)"
                                         class="group relative bg-gradient-to-br p-[2px] rounded-xl overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
                                         :class="action.gradient"
                                     >

@@ -13,6 +13,7 @@ import {
     BellIcon,
     SparklesIcon,
     DocumentTextIcon,
+    ArrowRightIcon,
     FireIcon
 } from '@heroicons/vue/24/outline';
 
@@ -150,7 +151,43 @@ const quickActions = ref([
         description: 'Course materials'
     }
 ]);
+// Add this after your existing ref declarations
+const materialsStats = ref({
+    total: 48,
+    viewed: 36,
+    pending: 12,
+    recentlyAdded: 5
+});
 
+const recentMaterials = ref([
+    {
+        id: 1,
+        title: 'Neural Networks Lecture',
+        course: 'Machine Learning',
+        week: 'Week 8',
+        type: 'lecture',
+        addedDate: '2024-01-15T10:00:00'
+    },
+    {
+        id: 2,
+        title: 'Database Assignment 3',
+        course: 'Database Systems',
+        week: 'Week 7',
+        type: 'assignment',
+        addedDate: '2024-01-14T15:30:00'
+    },
+    {
+        id: 3,
+        title: 'Network Security Reading',
+        course: 'Computer Networks',
+        week: 'Week 6',
+        type: 'reading',
+        addedDate: '2024-01-13T09:00:00'
+    }
+]);
+const navigateToMaterials = () => {
+    router.visit('/student/materials');
+};
 const roadmapPreview = ref({
     currentTopic: 'Database Management Systems - Normalization',
     progress: 67,
@@ -173,8 +210,8 @@ const getDeadlineColor = (daysLeft) => {
 </script>
 
 <template>
+    <div>
     <Head title="Student Dashboard" />
-
     <AppLayout>
         <div class="min-h-screen bg-gradient-to-br from-gray-50 via-white to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-950">
             <!-- Hero Section with Profile -->
@@ -388,7 +425,31 @@ const getDeadlineColor = (daysLeft) => {
                                 </div>
                             </div>
                         </div>
+                        <!-- Add this card to your existing dashboard grid (around line 580-600) -->
+<!-- Course Materials Card -->
+                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 cursor-pointer group"
+                    @click="navigateToMaterials">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-xl group-hover:scale-110 transition-transform">
+                        <DocumentTextIcon class="w-8 h-8 text-purple-600 dark:text-purple-400" />
                     </div>
+                    <ArrowRightIcon class="w-5 h-5 text-gray-400 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors" />
+                </div>
+                <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2">Course Materials</h3>
+                <p class="text-gray-600 dark:text-gray-400 text-sm mb-3">
+                    Access lecture notes, assignments, and course resources
+                </p>
+                <div class="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
+                    <span>📚 {{ materialsStats.total }} materials</span>
+                    <span>✅ {{ materialsStats.viewed }} viewed</span>
+                </div>
+                <div v-if="materialsStats.pending > 0" class="mt-2">
+                    <span class="inline-flex items-center gap-1 px-2 py-1 bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400 rounded-full text-xs font-medium">
+                        ⏰ {{ materialsStats.pending }} pending
+                    </span>
+                </div>
+                </div>
+                                </div>
 
                     <!-- Right Column - 1/3 width -->
                     <div class="space-y-8">
@@ -451,7 +512,8 @@ const getDeadlineColor = (daysLeft) => {
                             </button>
                         </div>
 
-                        <!-- Motivational Quote -->
+                        <!-- Motivational Quote
+                        -->
                         <div class="bg-gradient-to-br from-purple-600 to-pink-600 rounded-2xl shadow-lg p-6 text-white">
                             <div class="text-4xl mb-3">✨</div>
                             <p class="text-lg font-semibold mb-2 italic">
@@ -461,11 +523,13 @@ const getDeadlineColor = (daysLeft) => {
                                 — Nelson Mandela
                             </p>
                         </div>
+
                     </div>
                 </div>
             </div>
         </div>
     </AppLayout>
+    </div>
 </template>
 
 <style scoped>
