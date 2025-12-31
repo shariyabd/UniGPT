@@ -8,7 +8,7 @@ enum UserRole: string
     case FACULTY = 'faculty';
     case STUDENT = 'student';
 
-    public function label(): string
+    public function getLabel(): string
     {
         return match($this) {
             self::ADMIN => 'Administrator',
@@ -16,7 +16,29 @@ enum UserRole: string
             self::STUDENT => 'Student',
         };
     }
+    public function getDescription(): string
+    {
+        return match ($this) {
+            self::STUDENT => 'Regular university student with access to courses and materials',
+            self::FACULTY => 'Teaching faculty member with course management capabilities',
+            self::ADMIN => 'System administrator with full access and management permissions',
+        };
+    }
 
+    public function getSlug(): string
+    {
+        return strtoupper($this->value);
+    }
+
+    public static function getValues(): array
+    {
+        return array_column(self::cases(), 'value');
+    }
+
+    public static function getLabels(): array
+    {
+        return array_map(fn($role) => $role->getLabel(), self::cases());
+    }
     public function permissions(): array
     {
         return match($this) {
