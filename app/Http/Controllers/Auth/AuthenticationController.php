@@ -2,23 +2,28 @@
 
 namespace App\Http\Controllers\Auth;
 
-use App\Http\Controllers\Controller;
-use App\Models\User;
 use App\Models\Role;
-use App\Enums\UserRole;
-use Illuminate\Http\Request;
-use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\RateLimiter;
-use Illuminate\Support\Str;
-use Illuminate\Validation\Rules\Password;
-use Illuminate\Validation\ValidationException;
+use App\Models\User;
 use Inertia\Inertia;
 use Inertia\Response;
+use App\Enums\UserRole;
+use Illuminate\Support\Str;
+use Illuminate\Http\Request;
+use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Validation\Rules\Password;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Validation\ValidationException;
+use App\Domain\User\Services\UserManagementService;
 
 class AuthenticationController extends Controller
 {
+
+    public function __construct(
+        private UserManagementService $userService
+    ) {}
 
     public function create(): Response
     {
@@ -120,8 +125,12 @@ class AuthenticationController extends Controller
             ],
             'terms' => ['required', 'accepted'],
         ]);
-
-        $user = User::create([
+        $roleEnum = match ($validated['role']) {
+            'student' => UserRole::STUDENT,
+            'faculty' => UserRole::FACULTY,
+            'admin' => UserRole::ADMIN,
+        };
+        $userData = [
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
@@ -131,16 +140,9 @@ class AuthenticationController extends Controller
             'employee_id' => $validated['employee_id'] ?? null,
             'email_verified_at' => now(),
             'is_active' => true,
-        ]);
+        ];
 
-
-        $roleEnum = match ($validated['role']) {
-            'student' => UserRole::STUDENT,
-            'faculty' => UserRole::FACULTY,
-            'admin' => UserRole::ADMIN,
-        };
-
-        $user->assignRole($roleEnum);
+        $user = $this->userService->createUser($userData, $roleEnum);
         Auth::login($user);
 
 
