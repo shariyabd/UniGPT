@@ -13,10 +13,12 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->string('email')->unique();
-            $table->timestamp('email_verified_at')->nullable();
+            $table->timestamp(column: 'email_verified_at')->nullable();
             $table->string('password');
-            $table->string('department');
-            $table->string('semester')->nullable(); // For students
+            $table->foreignId('department_id')->constrained()
+                ->onUpdate('cascade')
+                ->onDelete('cascade');
+            $table->string('semester')->nullable();
             $table->string('student_id')->nullable()->unique();
             $table->string('employee_id')->nullable()->unique();
             $table->text('bio')->nullable();
@@ -28,7 +30,7 @@ return new class extends Migration
 
             // Indexes for performance
             $table->index(['email', 'is_active']);
-            $table->index('department');
+            $table->index('department_id');
             $table->index('semester');
             $table->index('student_id');
             $table->index('employee_id');

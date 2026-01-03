@@ -17,55 +17,28 @@ import {
     FireIcon
 } from '@heroicons/vue/24/outline';
 
-// Mock data - will be replaced with real data later
-const student = ref({
-    name: 'Alex Johnson',
-    studentId: 'CS2021001',
-    department: 'Computer Science Engineering',
-    year: '3rd Year',
-    semester: '5th Semester',
-    program: 'B.Tech',
-    avatar: 'https://ui-avatars.com/api/?name=Alex+Johnson&background=6366f1&color=fff&size=128'
+const props = defineProps({
+    user: Object,
+    permissions: Array,
+    student: Object,
+    stats: Array,
+    recentActivities: Array,
+    upcomingDeadlines: Array,
+    quickActions: Array
 });
 
-const stats = ref([
-    {
-        label: 'Attendance',
-        value: '87%',
-        change: '+5%',
-        trend: 'up',
-        icon: AcademicCapIcon,
-        color: 'green',
-        gradient: 'from-green-500 to-emerald-600'
-    },
-    {
-        label: 'Saved Answers',
-        value: '24',
-        change: '+3 today',
-        trend: 'up',
-        icon: BookmarkIcon,
-        color: 'blue',
-        gradient: 'from-blue-500 to-cyan-600'
-    },
-    {
-        label: 'Chat Sessions',
-        value: '156',
-        change: '+12 this week',
-        trend: 'up',
-        icon: ChatBubbleLeftRightIcon,
-        color: 'purple',
-        gradient: 'from-purple-500 to-pink-600'
-    },
-    {
-        label: 'Study Streak',
-        value: '7 days',
-        change: 'Keep going!',
-        trend: 'up',
-        icon: FireIcon,
-        color: 'orange',
-        gradient: 'from-orange-500 to-red-600'
-    }
-]);
+const iconMap = {
+    AcademicCapIcon,
+    ChartBarIcon,
+    DocumentTextIcon,
+    ClockIcon,
+    ChatBubbleLeftRightIcon,
+    BookmarkIcon,
+    SparklesIcon,
+    FireIcon,
+    CalendarIcon
+};
+
 
 const recentChats = ref([
     {
@@ -94,63 +67,8 @@ const recentChats = ref([
     }
 ]);
 
-const upcomingDeadlines = ref([
-    {
-        id: 1,
-        title: 'Mid-term Exam Registration',
-        date: '2024-01-15',
-        daysLeft: 3,
-        type: 'exam',
-        urgent: true
-    },
-    {
-        id: 2,
-        title: 'Project Submission - AI Lab',
-        date: '2024-01-20',
-        daysLeft: 8,
-        type: 'assignment',
-        urgent: false
-    },
-    {
-        id: 3,
-        title: 'Semester Fee Payment',
-        date: '2024-01-25',
-        daysLeft: 13,
-        type: 'fee',
-        urgent: false
-    }
-]);
 
-const quickActions = ref([
-    {
-        label: 'Start New Chat',
-        icon: ChatBubbleLeftRightIcon,
-        href: '/chat',
-        gradient: 'from-indigo-500 to-purple-600',
-        description: 'Ask anything academic'
-    },
-    {
-        label: 'View Roadmap',
-        icon: ChartBarIcon,
-        href: '/roadmap',
-        gradient: 'from-cyan-500 to-blue-600',
-        description: 'Your learning path'
-    },
-    {
-        label: 'Saved Answers',
-        icon: BookmarkIcon,
-        href: '/saved',
-        gradient: 'from-pink-500 to-rose-600',
-        description: 'Bookmarked content'
-    },
-    {
-        label: 'Documents',
-        icon: DocumentTextIcon,
-        href: '/documents',
-        gradient: 'from-green-500 to-emerald-600',
-        description: 'Course materials'
-    }
-]);
+
 // Add this after your existing ref declarations
 const materialsStats = ref({
     total: 48,
@@ -206,6 +124,29 @@ const getDeadlineColor = (daysLeft) => {
     if (daysLeft <= 3) return 'border-red-500 bg-red-50 dark:bg-red-900/20';
     if (daysLeft <= 7) return 'border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20';
     return 'border-green-500 bg-green-50 dark:bg-green-900/20';
+};
+
+const navigateToRoute = (routeName) => {
+    router.visit(route(routeName));
+};
+
+const getPriorityColor = (priority) => {
+    const colors = {
+        high: 'border-red-500 bg-red-50 dark:bg-red-900/20',
+        medium: 'border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20',
+        low: 'border-green-500 bg-green-50 dark:bg-green-900/20'
+    };
+    return colors[priority] || colors.low;
+};
+
+const getStatColor = (color) => {
+    const colors = {
+        green: 'from-green-500 to-emerald-600',
+        blue: 'from-blue-500 to-cyan-600',
+        purple: 'from-purple-500 to-indigo-600',
+        orange: 'from-orange-500 to-red-600'
+    };
+    return colors[color] || colors.blue;
 };
 </script>
 

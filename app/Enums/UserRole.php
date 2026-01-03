@@ -19,9 +19,9 @@ enum UserRole: string
     public function getDescription(): string
     {
         return match ($this) {
-            self::STUDENT => 'Regular university student with access to courses and materials',
-            self::FACULTY => 'Teaching faculty member with course management capabilities',
-            self::ADMIN => 'System administrator with full access and management permissions',
+            self::STUDENT => 'Access course materials, chat with AI tutor, track learning progress',
+            self::FACULTY => 'Manage courses, upload materials, use AI teaching assistant, view analytics',
+            self::ADMIN => 'System administration, user management, analytics dashboard, AI configuration',
         };
     }
 

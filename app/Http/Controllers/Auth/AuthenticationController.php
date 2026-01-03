@@ -3,12 +3,13 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Models\Role;
-use App\Models\User;
 use Inertia\Inertia;
 use Inertia\Response;
 use App\Enums\UserRole;
+use App\Models\Department;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
+use App\Domain\User\Models\User;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -27,7 +28,12 @@ class AuthenticationController extends Controller
 
     public function create(): Response
     {
-        return Inertia::render('Auth/Login');
+        $roles = Role::all();
+        $departments = Department::all();
+        return Inertia::render('Auth/Login',[
+            'roles' => $roles,
+            'departments' => $departments
+        ]);
     }
 
     public function store(Request $request): RedirectResponse
@@ -85,7 +91,6 @@ class AuthenticationController extends Controller
 
     public function register(Request $request): RedirectResponse
     {
-
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => [
@@ -107,7 +112,7 @@ class AuthenticationController extends Controller
             ],
             'password' => ['required', 'confirmed', Password::defaults()],
             'role' => ['required', 'string', 'in:student,faculty,admin'],
-            'department' => ['required', 'string', 'max:255'],
+            'department_id' => ['required', 'max:50'],
             'semester' => ['nullable', 'string', 'max:50'],
             'student_id' => [
                 'nullable',
@@ -134,7 +139,7 @@ class AuthenticationController extends Controller
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
-            'department' => $validated['department'],
+            'department_id' => $validated['department_id'],
             'semester' => $validated['semester'] ?? null,
             'student_id' => $validated['student_id'] ?? null,
             'employee_id' => $validated['employee_id'] ?? null,

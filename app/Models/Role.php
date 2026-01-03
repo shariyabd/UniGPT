@@ -16,6 +16,7 @@ class Role extends Model
         'name',
         'slug',
         'description',
+        'features',
         'is_active',
         'level'
     ];
@@ -23,6 +24,7 @@ class Role extends Model
     protected function casts(): array
     {
         return [
+            'features' => 'array',
             'is_active' => 'boolean',
         ];
     }

@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue';
-import { Head, Link, useForm, router } from '@inertiajs/vue3';
+import { Head, Link, useForm, router,usePage } from '@inertiajs/vue3';
+import { useToast } from "vue-toastification";
 import {
     UserIcon,
     EnvelopeIcon,
@@ -15,19 +16,18 @@ import {
     ExclamationTriangleIcon
 } from '@heroicons/vue/24/outline';
 
-
-// Component state
+const toast = useToast();
+const page = usePage();
 const isLogin = ref(true);
 const showPassword = ref(false);
-const selectedRole = ref('student');
+const selectedRole = ref('admin');
 const isLoading = ref(false);
 const emailDomain = ref('');
 
-// Form data
 const loginForm = useForm({
     email: '',
     password: '',
-    role: 'student',
+    role: 'admin',
     remember: false
 });
 
@@ -36,66 +36,55 @@ const signupForm = useForm({
     email: '',
     password: '',
     password_confirmation: '',
-    role: 'student',
-    department: '',
+    role: 'admin',
+    department_id: '',
     student_id: '',
     employee_id: '',
     terms: false
 });
 
-// Role configuration
-const roles = [
-    {
-        value: 'student',
-        label: 'Student',
-        description: 'Access course materials, chat with AI tutor, track learning progress',
+const props = defineProps({
+    roles: Array,
+    departments: Array
+});
+
+const roleUIMap = {
+    student: {
         icon: AcademicCapIcon,
         gradient: 'from-blue-500 to-cyan-600',
         bgGradient: 'from-blue-50 to-cyan-50 dark:from-blue-950/30 dark:to-cyan-950/30',
-        features: ['AI Study Assistant', 'Course Materials', 'Learning Roadmap', 'Progress Tracking']
     },
-    {
-        value: 'faculty',
-        label: 'Faculty',
-        description: 'Manage courses, upload materials, use AI teaching assistant, view analytics',
+    faculty: {
         icon: UserGroupIcon,
         gradient: 'from-green-500 to-emerald-600',
         bgGradient: 'from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30',
-        features: ['AI Teaching Assistant', 'Course Management', 'Student Analytics', 'Grading Tools']
     },
-    {
-        value: 'admin',
-        label: 'Administrator',
-        description: 'System administration, user management, analytics dashboard, AI configuration',
+    admin: {
         icon: ShieldCheckIcon,
         gradient: 'from-purple-500 to-pink-600',
         bgGradient: 'from-purple-50 to-pink-50 dark:from-purple-950/30 dark:to-pink-950/30',
-        features: ['User Management', 'System Analytics', 'AI Configuration', 'Content Moderation']
     }
-];
+};
 
-// University departments
-const departments = [
-    'Computer Science Engineering',
-    'Electrical Engineering',
-    'Mechanical Engineering',
-    'Civil Engineering',
-    'Electronics & Communication',
-    'Information Technology',
-    'Chemical Engineering',
-    'Biotechnology',
-    'Mathematics',
-    'Physics',
-    'Chemistry',
-    'Administration',
-    'Library Sciences',
-    'Academic Affairs'
-];
 
-// Computed properties
+const roles = computed(() =>
+    props.roles.map(r => ({
+        ...r,
+        value: r.slug.toLowerCase(),
+        label: r.name,
+        ...roleUIMap[r.slug.toLowerCase()]
+    }))
+);
+
+
+
+const departments = computed(() => props.departments || []);
+
+
 const currentRole = computed(() => {
-    return roles.find(role => role.value === selectedRole.value) || roles[0];
+    return roles.value.find(r => r.value === selectedRole.value) || roles.value[0];
 });
+
 
 const currentForm = computed(() => {
     return isLogin.value ? loginForm : signupForm;
@@ -193,41 +182,29 @@ const selectRole = (role) => {
     }
 };
 
+
 const handleSubmit = () => {
     if (isLoading.value) return;
+    const form = isLogin.value ? loginForm : signupForm;
+    const routeName = isLogin.value ? 'login.store' : 'register';
 
-    isLoading.value = true;
-
-    // Simulate authentication
-    setTimeout(() => {
-        if (isLogin.value) {
-            // Handle login
-            console.log('Login attempt:', loginForm.data());
-
-            // Redirect based on role
-           switch (loginForm.role) {
-                case 'admin':
-                    router.visit('/admin/dashboard');
-                    break;
-                case 'faculty':
-                    router.visit('/faculty/dashboard');
-                    break;
-                case 'student':
-                default:
-                    router.visit('/dashboard');
-            }
-        } else {
-            // Handle signup
-            console.log('Signup attempt:', signupForm.data());
-
-            // Show success message and redirect to login
-            alert('Account created successfully! Please log in.');
-            isLogin.value = true;
+    form.post(route(routeName), {
+        onStart: () => isLoading.value = true,
+        onFinish: () => isLoading.value = false,
+           onSuccess: (page) => {
+            const action = isLogin.value ? 'signed in' : 'registered';
+            toast.success(` Successfully ${action}! Redirecting to your dashboard...`, {
+                timeout: 3000,
+            });
+        },
+          onError: (errors) => {
+            console.error('Form validation errors:', errors);
+            handleFormErrors(errors);
         }
-
-        isLoading.value = false;
-    }, 2000);
+    });
 };
+
+
 
 const handleDemoLogin = (role) => {
     loginForm.email = role === 'admin' ? 'admin@university.edu' :
@@ -237,7 +214,6 @@ const handleDemoLogin = (role) => {
     loginForm.role = role;
     selectedRole.value = role;
 
-    // Use Inertia router for demo login too
     isLoading.value = true;
     setTimeout(() => {
         switch (role) {
@@ -254,6 +230,101 @@ const handleDemoLogin = (role) => {
         isLoading.value = false;
     }, 1000);
 };
+
+const handleFormErrors = (errors) => {
+    // Handle specific field errors
+    if (errors.email) {
+        toast.error(`📧 Email Error: ${errors.email[0]}`, {
+            timeout: 6000,
+        });
+    }
+
+    if (errors.password) {
+        toast.error(`🔒 Password Error: ${errors.password[0]}`, {
+            timeout: 6000,
+        });
+    }
+
+    if (errors.role) {
+        toast.error(`👤 Role Error: ${errors.role[0]}`, {
+            timeout: 6000,
+        });
+    }
+
+    if (errors.name) {
+        toast.error(`📝 Name Error: ${errors.name[0]}`, {
+            timeout: 6000,
+        });
+    }
+
+    if (errors.department) {
+        toast.error(`🏢 Department Error: ${errors.department[0]}`, {
+            timeout: 6000,
+        });
+    }
+       if (errors.student_id) {
+        toast.error(`🎓 Student ID Error: ${errors.student_id[0]}`, {
+            timeout: 6000,
+        });
+    }
+
+    if (errors.employee_id) {
+        toast.error(`💼 Employee ID Error: ${errors.employee_id[0]}`, {
+            timeout: 6000,
+        });
+    }
+
+    if (errors.terms) {
+        toast.error(`📋 Terms Error: ${errors.terms[0]}`, {
+            timeout: 6000,
+        });
+    }
+       if (Object.keys(errors).length === 1 && errors.email && errors.email[0].includes('credentials')) {
+        toast.error('🚫 Login Failed: Invalid email, password, or role combination', {
+            timeout: 7000,
+        });
+    }
+
+    // Handle rate limiting
+    if (errors.email && errors.email[0].includes('Too Many Attempts')) {
+        toast.error('⏳ Too many login attempts. Please wait before trying again.', {
+            timeout: 8000,
+        });
+    }
+
+    // Generic error for multiple fields
+    if (Object.keys(errors).length > 1) {
+        const errorCount = Object.keys(errors).length;
+        toast.error(`❌ Please fix ${errorCount} validation error${errorCount > 1 ? 's' : ''} and try again`, {
+            timeout: 5000,
+        });
+    }
+}
+watch(() => page.props.flash, (flash) => {
+    if (flash?.success) {
+        toast.success(flash.success, {
+            timeout: 5000,
+        });
+    }
+
+    if (flash?.error) {
+        toast.error(flash.error, {
+            timeout: 7000,
+        });
+    }
+
+    if (flash?.warning) {
+        toast.warning(flash.warning, {
+            timeout: 6000,
+        });
+    }
+
+    if (flash?.info) {
+        toast.info(flash.info, {
+            timeout: 5000,
+        });
+    }
+}, { deep: true, immediate: true });
 </script>
 
 
@@ -471,12 +542,14 @@ const handleDemoLogin = (role) => {
                                 Department *
                             </label>
                             <select
-                                v-model="signupForm.department"
+                                v-model="signupForm.department_id"
                                 required
                                 class="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white input-glow"
                             >
                                 <option value="">Select your department</option>
-                                <option v-for="dept in departments" :key="dept" :value="dept">{{ dept }}</option>
+                                <option v-for="dept in departments" :key="dept.id" :value="dept.id">
+                                    {{ dept.name }}
+                                </option>
                             </select>
                         </div>
 

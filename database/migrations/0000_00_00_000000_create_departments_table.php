@@ -3,30 +3,30 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use App\Enums\UserRole;
 
 return new class extends Migration
 {
+    /**
+     * Run the migrations.
+     */
     public function up(): void
     {
-        Schema::create('roles', function (Blueprint $table) {
+        Schema::create('departments', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
+            $table->string('name')->unique();
             $table->string('slug')->unique();
+            $table->string('code')->unique()->nullable();
             $table->text('description')->nullable();
-            $table->string('features')->nullable();
             $table->boolean('is_active')->default(true);
-            $table->integer('level')->default(1);
             $table->timestamps();
-
-            // Indexes
-            $table->index(['slug', 'is_active']);
-            $table->index('level');
         });
     }
 
+    /**
+     * Reverse the migrations.
+     */
     public function down(): void
     {
-        Schema::dropIfExists('roles');
+        Schema::dropIfExists('departments');
     }
 };
