@@ -52,6 +52,8 @@ class AuthenticationController extends Controller
 
         $user = User::where('email', $credentials['email'])->first();
 
+
+
         if (!$user || !$user->is_active) {
             RateLimiter::hit($this->throttleKey($request));
 

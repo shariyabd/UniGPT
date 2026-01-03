@@ -232,74 +232,32 @@ const handleDemoLogin = (role) => {
 };
 
 const handleFormErrors = (errors) => {
-    // Handle specific field errors
-    if (errors.email) {
-        toast.error(`📧 Email Error: ${errors.email[0]}`, {
-            timeout: 6000,
-        });
-    }
+    const keys = Object.keys(errors);
 
-    if (errors.password) {
-        toast.error(`🔒 Password Error: ${errors.password[0]}`, {
-            timeout: 6000,
-        });
-    }
+    keys.forEach(field => {
+        const messages = Array.isArray(errors[field]) ? errors[field] : [errors[field]];
 
-    if (errors.role) {
-        toast.error(`👤 Role Error: ${errors.role[0]}`, {
-            timeout: 6000,
-        });
-    }
+        messages.forEach(message => {
+            if (message.includes('Too Many Attempts')) {
+                toast.error('Too many login attempts. Please wait before trying again.', { timeout: 8000 });
+                return;
+            }
 
-    if (errors.name) {
-        toast.error(`📝 Name Error: ${errors.name[0]}`, {
-            timeout: 6000,
+            toast.error(`${formatField(field)}: ${message}`, { timeout: 6000 });
         });
-    }
+    });
 
-    if (errors.department) {
-        toast.error(`🏢 Department Error: ${errors.department[0]}`, {
-            timeout: 6000,
-        });
+    if (keys.length > 1) {
+        toast.error(`Please fix ${keys.length} validation errors and try again.`, { timeout: 5000 });
     }
-       if (errors.student_id) {
-        toast.error(`🎓 Student ID Error: ${errors.student_id[0]}`, {
-            timeout: 6000,
-        });
-    }
+};
 
-    if (errors.employee_id) {
-        toast.error(`💼 Employee ID Error: ${errors.employee_id[0]}`, {
-            timeout: 6000,
-        });
-    }
+const formatField = (field) => {
+    return field
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, c => c.toUpperCase());
+};
 
-    if (errors.terms) {
-        toast.error(`📋 Terms Error: ${errors.terms[0]}`, {
-            timeout: 6000,
-        });
-    }
-       if (Object.keys(errors).length === 1 && errors.email && errors.email[0].includes('credentials')) {
-        toast.error('🚫 Login Failed: Invalid email, password, or role combination', {
-            timeout: 7000,
-        });
-    }
-
-    // Handle rate limiting
-    if (errors.email && errors.email[0].includes('Too Many Attempts')) {
-        toast.error('⏳ Too many login attempts. Please wait before trying again.', {
-            timeout: 8000,
-        });
-    }
-
-    // Generic error for multiple fields
-    if (Object.keys(errors).length > 1) {
-        const errorCount = Object.keys(errors).length;
-        toast.error(`❌ Please fix ${errorCount} validation error${errorCount > 1 ? 's' : ''} and try again`, {
-            timeout: 5000,
-        });
-    }
-}
 watch(() => page.props.flash, (flash) => {
     if (flash?.success) {
         toast.success(flash.success, {
@@ -491,6 +449,10 @@ watch(() => page.props.flash, (flash) => {
                                     placeholder="Enter your full name"
                                 />
                             </div>
+                              <p v-if="signupForm.errors.name" class="mt-1 text-sm text-red-600 dark:text-red-400 flex items-center gap-1">
+                                <ExclamationTriangleIcon class="h-4 w-4" />
+                                {{ signupForm.errors.name }}
+                            </p>
                         </div>
 
                         <!-- Email -->
@@ -533,6 +495,10 @@ watch(() => page.props.flash, (flash) => {
                             </div>
                             <p v-if="emailValidation.message" :class="`mt-1 text-sm ${emailValidation.valid ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'} message-fade`">
                                 {{ emailValidation.message }}
+                            </p>
+                              <p v-if="signupForm.errors.name" class="mt-1 text-sm text-red-600 dark:text-red-400 flex items-center gap-1">
+                                <ExclamationTriangleIcon class="h-4 w-4" />
+                                {{ signupForm.errors.name }}
                             </p>
                         </div>
 

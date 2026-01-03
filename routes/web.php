@@ -6,6 +6,7 @@ use App\Http\Controllers\LegalController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Auth\AuthenticationController;
 use App\Http\Controllers\Faculty\FacultyDashboardController;
+use App\Http\Controllers\Student\StudentDashboardController;
 
 
 

@@ -65,13 +65,13 @@ class User extends Authenticatable
     public function hasRole(string|UserRole|array $roles): bool
     {
         if (is_string($roles) || $roles instanceof UserRole) {
-            $roleSlug = $roles instanceof UserRole ? $roles->getSlug() : strtoupper($roles);
+            $roleSlug = $roles instanceof UserRole ? $roles->getSlug() : $roles;
             return $this->roles->contains('slug', $roleSlug);
         }
 
         if (is_array($roles)) {
             $roleSlugs = array_map(function ($role) {
-                return $role instanceof UserRole ? $role->getSlug() : strtoupper($role);
+                return $role instanceof UserRole ? $role->getSlug() : $role;
             }, $roles);
 
             return $this->roles->whereIn('slug', $roleSlugs)->isNotEmpty();
