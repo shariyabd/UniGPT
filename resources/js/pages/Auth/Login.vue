@@ -101,7 +101,6 @@ const emailValidation = computed(() => {
         return { valid: false, message: 'Please enter a valid email address' };
     }
 
-    // Check university domain (relaxed for demo)
     const domain = email.split('@')[1]?.toLowerCase();
     if (domain && !domain.includes('edu') && !domain.includes('university') && !domain.includes('ac.') && !domain.includes('gmail')) {
         return { valid: false, message: 'Please use your university email address' };
@@ -141,13 +140,12 @@ const passwordStrength = computed(() => {
     return { strength, message, color };
 });
 
-// Auto-detect role from email domain
+
 watch(() => isLogin.value ? loginForm.email : signupForm.email, (email) => {
     if (email) {
         const domain = email.split('@')[1]?.toLowerCase();
         emailDomain.value = domain || '';
 
-        // Auto-detect role based on email patterns
         if (email.includes('student.') || email.includes('.student@')) {
             selectedRole.value = 'student';
             if (isLogin.value) loginForm.role = 'student';
@@ -164,10 +162,8 @@ watch(() => isLogin.value ? loginForm.email : signupForm.email, (email) => {
     }
 });
 
-// Actions
 const toggleMode = () => {
     isLogin.value = !isLogin.value;
-    // Reset forms
     loginForm.reset();
     signupForm.reset();
     selectedRole.value = 'student';
@@ -185,6 +181,7 @@ const selectRole = (role) => {
 
 const handleSubmit = () => {
     if (isLoading.value) return;
+    console.log(4364);
     const form = isLogin.value ? loginForm : signupForm;
     const routeName = isLogin.value ? 'login.store' : 'register';
 
@@ -221,6 +218,7 @@ const handleDemoLogin = (role) => {
                 router.visit('/admin/dashboard');
                 break;
             case 'faculty':
+                console.log('Navigating to faculty dashboard');
                 router.visit('/faculty/dashboard');
                 break;
             case 'student':

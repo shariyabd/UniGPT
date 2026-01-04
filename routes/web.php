@@ -1,5 +1,6 @@
 <?php
 
+use App\Domain\User\Models\User;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\LegalController;
@@ -34,8 +35,6 @@ Route::post('/logout', [AuthenticationController::class, 'destroy'])
 
 
 Route::middleware(['auth'])->group(function () {
-
-
     Route::middleware('role:student')->prefix('')->name('')->group(function () {
         Route::get('/dashboard', [StudentDashboardController::class, 'index'])->name('dashboard');
         Route::get('/chat', [StudentDashboardController::class, 'chat'])->name('chat');
@@ -46,7 +45,6 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/profile', [StudentDashboardController::class, 'profile'])->name('profile');
         Route::get('/settings', [StudentDashboardController::class, 'settings'])->name('settings');
     });
-
 
 
     Route::middleware('role:faculty')->prefix('faculty')->name('faculty.')->group(function () {
@@ -85,7 +83,7 @@ Route::middleware(['auth'])->group(function () {
 
         Route::get('/admin/users', function () {
             return Inertia::render('Admin/UserManagement', [
-                'users' => \App\Models\User::with('roles')->paginate(20),
+                'users' => User::with('roles')->paginate(20),
                 'roles' => \App\Models\Role::all(),
             ]);
         })->name('admin.users');

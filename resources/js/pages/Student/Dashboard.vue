@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import StatCard from '@/components/StatCard.vue';
+import LogoutButton from '@/components/LogoutButton.vue';
 import {
     AcademicCapIcon,
     BookmarkIcon,
@@ -14,7 +15,9 @@ import {
     SparklesIcon,
     DocumentTextIcon,
     ArrowRightIcon,
-    FireIcon
+    FireIcon,
+    UserIcon,
+    Cog6ToothIcon
 } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
@@ -187,7 +190,29 @@ const getStatColor = (color) => {
                                 </p>
                             </div>
                         </div>
+  <!-- Action Buttons -->
+                <div class="flex items-center gap-3 lg:flex-shrink-0">
+                    <!-- Profile Button -->
+                    <Link
+                        :href="route('profile')"
+                        class="flex items-center gap-2 px-4 py-2.5 bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 border border-white/20 hover:border-white/40 rounded-xl transition-all duration-200 hover:scale-105"
+                    >
+                        <UserIcon class="w-4 h-4" />
+                        <span class="text-sm font-medium">Profile</span>
+                    </Link>
 
+                    <!-- Settings Button -->
+                    <Link
+                        :href="route('settings')"
+                        class="flex items-center gap-2 px-4 py-2.5 bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 border border-white/20 hover:border-white/40 rounded-xl transition-all duration-200 hover:scale-105"
+                    >
+                        <Cog6ToothIcon class="w-4 h-4" />
+                        <span class="text-sm font-medium">Settings</span>
+                    </Link>
+
+                    <!-- Logout Button with Custom Styling -->
+                    <LogoutButton class="flex items-center gap-2 px-4 py-2.5 bg-red-500/20 backdrop-blur-sm text-white hover:bg-red-500/30 border border-red-400/30 hover:border-red-400/50 rounded-xl transition-all duration-200 hover:scale-105" />
+                </div>
                         <!-- Quick Stats Badge -->
                         <div class="flex flex-wrap gap-3">
                             <div class="bg-white/20 backdrop-blur-lg rounded-xl px-4 py-3 text-white">
@@ -494,5 +519,19 @@ const getStatColor = (color) => {
 .animate-gradient {
     background-size: 200% 200%;
     animation: gradient 15s ease infinite;
+}
+/* Custom logout button styling */
+.logout-wrapper :deep(.flex) {
+    @apply !bg-red-500/20 !border-red-400/30 !text-white;
+}
+
+.logout-wrapper :deep(.flex:hover) {
+    @apply !bg-red-500/30 !border-red-400/50 !text-white;
+}
+
+/* Backdrop blur effects */
+.bg-white\/20 {
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
 }
 </style>
