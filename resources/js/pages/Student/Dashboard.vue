@@ -281,7 +281,7 @@ const getStatColor = (color) => {
                                 <Link
                                     v-for="action in quickActions"
                                     :key="action.label"
-                                    :href="action.href"
+                                    :href="action.route"
                                     class="group relative bg-gradient-to-br p-[2px] rounded-xl overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
                                     :class="action.gradient"
                                 >
@@ -365,7 +365,7 @@ const getStatColor = (color) => {
                                     ></div>
                                 </div>
                                 <p class="text-sm text-white/80">
-                                    {{ roadmapPreview.completedTopics }} of {{ roadmapPreview.totalTopics }} topics completed
+                                   g {{ roadmapPreview.completedTopics }} of {{ roadmapPreview.totalTopics }} topics completed
                                 </p>
                             </div>
 

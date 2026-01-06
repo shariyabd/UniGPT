@@ -173,6 +173,16 @@ const selectRole = (role) => {
     selectedRole.value = role;
     if (isLogin.value) {
         loginForm.role = role;
+        if(role == "admin"){
+            loginForm.email = "admin@university.edu";
+            loginForm.password = "demo123";
+        }else if(role == "faculty"){
+            loginForm.email = "prof.smith@university.edu";
+            loginForm.password = "demo123";
+        }else if(role == "student"){
+            loginForm.email = "student@university.edu";
+            loginForm.password = "demo123";
+        }
     } else {
         signupForm.role = role;
     }
