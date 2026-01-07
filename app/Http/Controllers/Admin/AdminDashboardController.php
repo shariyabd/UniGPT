@@ -27,6 +27,7 @@ class AdminDashboardController extends Controller
             'recent_activities' => $this->getRecentActivities(),
             'system_health' => $this->getSystemHealth(),
         ]);
+
     }
 
     /**

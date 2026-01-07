@@ -1,11 +1,12 @@
 <?php
 
-use App\Domain\User\Models\User;
 use Inertia\Inertia;
+use App\Domain\User\Models\User;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\LegalController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Auth\AuthenticationController;
+use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Faculty\FacultyDashboardController;
 use App\Http\Controllers\Student\StudentDashboardController;
 
@@ -56,18 +57,7 @@ Route::middleware(['auth'])->group(function () {
 
 
     Route::middleware('role:admin')->group(function () {
-        Route::get('/admin/dashboard', function () {
-            return Inertia::render('Admin/Dashboard', [
-                'user' => auth()->user()->load('roles.permissions'),
-                'permissions' => auth()->user()->roles->flatMap->permissions->pluck('slug')->unique()->values(),
-                'statistics' => [
-                    'total_users' => 353,
-                    'active_users' => 34,
-                    'total_roles' => \App\Models\Role::count(),
-                    'total_permissions' => \App\Models\Permission::count(),
-                ]
-            ]);
-        })->name('admin.dashboard');
+        Route::get('/admin/dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
 
         Route::get('/admin/documents/upload', function () {
             return Inertia::render('Admin/DocumentUpload');
