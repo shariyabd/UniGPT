@@ -1,7 +1,15 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+
+const props = defineProps({
+    savedAnswers: { type: Array, default: () => [] },
+    folders: { type: Array, default: () => [] },
+    categories: { type: Array, default: () => [] },
+});
+
+const slugify = (s) => (s || 'general').toString().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 import {
     BookmarkIcon,
     MagnifyingGlassIcon,
@@ -47,164 +55,51 @@ const editingItem = ref(null);
 const showExportModal = ref(false);
 const expandedFolders = ref(new Set(['favorites', 'recent']));
 
-// Student context
+// Student context (from shared auth user)
+const authUser = computed(() => usePage().props.auth?.user ?? {});
 const studentContext = ref({
-    name: 'John Doe',
-    department: 'Computer Science Engineering',
-    semester: '5th Semester',
-    currentCourses: ['Database Systems', 'Machine Learning', 'Software Engineering', 'Computer Networks']
+    name: authUser.value.name ?? 'Student',
+    department: authUser.value.department?.name ?? '',
+    semester: authUser.value.semester ?? '',
+    currentCourses: []
 });
 
-// Mock saved answers data
-const savedAnswers = ref([
-    {
-        id: 1,
-        title: 'Database Normalization - 3NF Explained',
-        question: 'Can you explain Third Normal Form with practical examples?',
-        answer: 'Third Normal Form (3NF) eliminates transitive dependencies. A relation is in 3NF if it is in 2NF and no non-prime attribute is transitively dependent on the primary key...',
-        course: 'Database Systems',
-        category: 'Theory',
-        tags: ['DBMS', '3NF', 'Normalization', 'Database Design'],
-        confidence: 92,
-        sources: [
-            { title: 'Database Systems Textbook', page: 245, type: 'textbook' },
-            { title: 'DBMS Course Notes', page: 12, type: 'notes' }
-        ],
-        savedAt: '2024-01-15T14:30:00',
-        lastViewed: '2024-01-16T10:20:00',
-        viewCount: 5,
-        notes: 'Important for exam - remember the student example',
-        folder: 'exam-prep',
-        starred: true,
-        chatId: 'chat-123',
-        messageId: 'msg-456'
-    },
-    {
-        id: 2,
-        title: 'Neural Networks Implementation Guide',
-        question: 'How do I implement a basic neural network in Python?',
-        answer: 'Here\'s a step-by-step guide to implement a neural network from scratch using NumPy. We\'ll build a simple feedforward network with backpropagation...',
-        course: 'Machine Learning',
-        category: 'Implementation',
-        tags: ['Neural Networks', 'Python', 'NumPy', 'Backpropagation', 'Deep Learning'],
-        confidence: 88,
-        sources: [
-            { title: 'ML Course Materials', page: 78, type: 'slides' },
-            { title: 'Python ML Handbook', page: 156, type: 'handbook' }
-        ],
-        savedAt: '2024-01-14T16:45:00',
-        lastViewed: '2024-01-15T09:30:00',
-        viewCount: 12,
-        notes: 'Practice this for assignment 3',
-        folder: 'assignments',
-        starred: false,
-        chatId: 'chat-124',
-        messageId: 'msg-457'
-    },
-    {
-        id: 3,
-        title: 'Agile vs Waterfall Methodology Comparison',
-        question: 'What are the key differences between Agile and Waterfall?',
-        answer: 'Agile and Waterfall are two fundamental software development methodologies with distinct approaches. Waterfall follows a linear, sequential approach...',
-        course: 'Software Engineering',
-        category: 'Methodology',
-        tags: ['Agile', 'Waterfall', 'SDLC', 'Project Management', 'Software Development'],
-        confidence: 90,
-        sources: [
-            { title: 'SE Best Practices Guide', page: 34, type: 'guide' },
-            { title: 'Agile Manifesto', page: 1, type: 'document' }
-        ],
-        savedAt: '2024-01-13T11:15:00',
-        lastViewed: '2024-01-14T15:20:00',
-        viewCount: 8,
-        notes: 'Compare for project presentation',
-        folder: 'projects',
-        starred: true,
-        chatId: 'chat-125',
-        messageId: 'msg-458'
-    },
-    {
-        id: 4,
-        title: 'Network Security - Types of Attacks',
-        question: 'What are common network security attacks?',
-        answer: 'Network security attacks can be categorized into several types: 1. Passive attacks (eavesdropping, traffic analysis) 2. Active attacks (masquerading, replay attacks)...',
-        course: 'Computer Networks',
-        category: 'Security',
-        tags: ['Network Security', 'Attacks', 'Cybersecurity', 'Network Defense'],
-        confidence: 85,
-        sources: [
-            { title: 'Network Security Fundamentals', page: 89, type: 'textbook' },
-            { title: 'Security Protocols Guide', page: 23, type: 'guide' }
-        ],
-        savedAt: '2024-01-12T13:20:00',
-        lastViewed: '2024-01-13T08:45:00',
-        viewCount: 6,
-        notes: 'Review for security module test',
-        folder: 'study-notes',
-        starred: false,
-        chatId: 'chat-126',
-        messageId: 'msg-459'
-    },
-    {
-        id: 5,
-        title: 'Time Complexity Analysis - Big O Notation',
-        question: 'How do I analyze time complexity using Big O notation?',
-        answer: 'Big O notation describes the worst-case time complexity of algorithms. It focuses on how runtime grows with input size...',
-        course: 'Data Structures & Algorithms',
-        category: 'Theory',
-        tags: ['Big O', 'Time Complexity', 'Algorithms', 'Analysis', 'Performance'],
-        confidence: 94,
-        sources: [
-            { title: 'Algorithms Textbook', page: 67, type: 'textbook' },
-            { title: 'DSA Course Notes', page: 15, type: 'notes' }
-        ],
-        savedAt: '2024-01-11T10:30:00',
-        lastViewed: '2024-01-12T14:15:00',
-        viewCount: 15,
-        notes: 'Master this concept - frequently asked in interviews',
-        folder: 'interview-prep',
-        starred: true,
-        chatId: 'chat-127',
-        messageId: 'msg-460'
-    },
-    {
-        id: 6,
-        title: 'React Hooks - useState and useEffect',
-        question: 'How do React hooks work, specifically useState and useEffect?',
-        answer: 'React Hooks are functions that let you use state and lifecycle features in functional components. useState manages component state...',
-        course: 'Web Development',
-        category: 'Frontend',
-        tags: ['React', 'Hooks', 'JavaScript', 'Frontend', 'useState', 'useEffect'],
-        confidence: 91,
-        sources: [
-            { title: 'React Documentation', page: 45, type: 'documentation' },
-            { title: 'Modern JavaScript Guide', page: 234, type: 'guide' }
-        ],
-        savedAt: '2024-01-10T15:45:00',
-        lastViewed: '2024-01-11T12:30:00',
-        viewCount: 9,
-        notes: 'Practice with project examples',
-        folder: 'web-dev',
-        starred: false,
-        chatId: 'chat-128',
-        messageId: 'msg-461'
-    }
-]);
+// Saved answers from the server, mapped to this page's shape.
+const savedAnswers = ref(props.savedAnswers.map((a) => ({
+    id: a.id,
+    title: a.title,
+    question: a.question ?? '',
+    answer: a.answer ?? '',
+    course: a.category ?? 'General',
+    category: a.category ?? 'General',
+    tags: a.tags ?? [],
+    confidence: a.confidence ?? 0,
+    sources: a.sources ?? [],
+    savedAt: a.savedAt,
+    lastViewed: a.lastViewed ?? a.savedAt,
+    viewCount: a.viewCount ?? 0,
+    notes: a.notes ?? '',
+    folder: slugify(a.folder),
+    starred: a.starred ?? false,
+    chatId: a.chatId,
+})));
 
-// Folders/Collections
+// Folders: special (favorites/recent) + server-provided collections.
 const folders = ref([
     { id: 'favorites', name: 'Favorites', icon: '⭐', color: 'yellow', count: 0, description: 'Starred important answers' },
     { id: 'recent', name: 'Recently Viewed', icon: '🕒', color: 'blue', count: 0, description: 'Last 10 viewed answers' },
-    { id: 'exam-prep', name: 'Exam Preparation', icon: '📝', color: 'red', count: 0, description: 'Study materials for exams' },
-    { id: 'assignments', name: 'Assignments', icon: '📋', color: 'green', count: 0, description: 'Assignment help and solutions' },
-    { id: 'projects', name: 'Project Work', icon: '🚀', color: 'purple', count: 0, description: 'Project-related resources' },
-    { id: 'interview-prep', name: 'Interview Prep', icon: '💼', color: 'indigo', count: 0, description: 'Technical interview preparation' },
-    { id: 'study-notes', name: 'Study Notes', icon: '📚', color: 'cyan', count: 0, description: 'General study materials' },
-    { id: 'web-dev', name: 'Web Development', icon: '💻', color: 'pink', count: 0, description: 'Web development resources' }
+    ...props.folders.map((f) => ({
+        id: slugify(f.name),
+        name: f.name,
+        icon: '📁',
+        color: 'purple',
+        count: f.count,
+        description: '',
+    })),
 ]);
 
 // Filter options
-const categories = ref(['Theory', 'Implementation', 'Methodology', 'Security', 'Frontend', 'Backend', 'Database', 'Algorithms']);
+const categories = ref(props.categories.length ? props.categories : ['General']);
 const sortOptions = ref([
     { value: 'date_desc', label: 'Newest First' },
     { value: 'date_asc', label: 'Oldest First' },
@@ -382,38 +277,47 @@ const selectAllItems = () => {
 
 const toggleStar = (itemId) => {
     const item = savedAnswers.value.find(a => a.id === itemId);
-    if (item) {
-        item.starred = !item.starred;
-    }
+    if (!item) return;
+    item.starred = !item.starred;
+    router.patch(route('saved.update', itemId), { starred: item.starred }, {
+        preserveScroll: true,
+        preserveState: true,
+    });
 };
 
 const deleteItem = (itemId) => {
-    if (confirm('Are you sure you want to remove this saved answer?')) {
-        const index = savedAnswers.value.findIndex(a => a.id === itemId);
-        if (index !== -1) {
-            savedAnswers.value.splice(index, 1);
-        }
-        selectedItems.value.delete(itemId);
-    }
+    if (!confirm('Are you sure you want to remove this saved answer?')) return;
+    router.delete(route('saved.destroy', itemId), {
+        preserveScroll: true,
+        onSuccess: () => {
+            const index = savedAnswers.value.findIndex(a => a.id === itemId);
+            if (index !== -1) savedAnswers.value.splice(index, 1);
+            selectedItems.value.delete(itemId);
+        },
+    });
 };
 
 const bulkDelete = () => {
-    if (confirm(`Are you sure you want to remove ${selectedItems.value.size} saved answers?`)) {
-        selectedItems.value.forEach(itemId => {
-            const index = savedAnswers.value.findIndex(a => a.id === itemId);
-            if (index !== -1) {
-                savedAnswers.value.splice(index, 1);
-            }
-        });
-        selectedItems.value.clear();
-    }
+    if (!confirm(`Are you sure you want to remove ${selectedItems.value.size} saved answers?`)) return;
+    const ids = [...selectedItems.value];
+    ids.forEach((itemId) => {
+        router.delete(route('saved.destroy', itemId), { preserveScroll: true, preserveState: true });
+    });
+    savedAnswers.value = savedAnswers.value.filter((a) => !selectedItems.value.has(a.id));
+    selectedItems.value.clear();
 };
 
 const bulkMoveToFolder = (folderId) => {
+    const target = folders.value.find((f) => f.id === folderId);
+    const folderName = target ? target.name : folderId;
     selectedItems.value.forEach(itemId => {
         const item = savedAnswers.value.find(a => a.id === itemId);
         if (item) {
             item.folder = folderId;
+            router.patch(route('saved.update', itemId), { folder: folderName }, {
+                preserveScroll: true,
+                preserveState: true,
+            });
         }
     });
     selectedItems.value.clear();

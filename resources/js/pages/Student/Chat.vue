@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, nextTick, onMounted, watch } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
+import axios from 'axios';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import {
     ChatBubbleLeftRightIcon,
@@ -30,6 +31,12 @@ import {
     ClipboardDocumentCheckIcon
 } from '@heroicons/vue/24/outline';
 
+const props = defineProps({
+    sessions: { type: Array, default: () => [] },
+    studentContext: { type: Object, default: () => ({}) },
+    modes: { type: Array, default: () => [] },
+});
+
 // Component state
 const messageInput = ref('');
 const isTyping = ref(false);
@@ -42,37 +49,27 @@ const messagesContainer = ref(null);
 const searchQuery = ref('');
 const selectedChatHistory = ref(null);
 const currentMessageId = ref(null);
+const currentSessionId = ref(null);
 
-// Student context
+// Student context (from the authenticated user)
 const studentContext = ref({
-    name: 'John Doe',
-    department: 'Computer Science Engineering',
-    semester: '5th Semester',
-    year: '3rd Year',
-    currentCourses: ['Database Systems', 'Machine Learning', 'Software Engineering', 'Computer Networks']
+    name: props.studentContext.name ?? 'Student',
+    department: props.studentContext.department ?? '',
+    semester: props.studentContext.semester ?? '',
+    year: props.studentContext.year ?? '',
+    currentCourses: props.studentContext.currentCourses ?? []
 });
 
-// Chat modes
+// UI chat modes mapped to backend ChatMode enum values.
 const chatModes = [
-    {
-        id: 'simple',
-        label: 'Simple',
-        icon: '💬',
-        description: 'Quick, concise answers'
-    },
-    {
-        id: 'detailed',
-        label: 'Detailed',
-        icon: '📚',
-        description: 'In-depth explanations with examples'
-    },
-    {
-        id: 'exam',
-        label: 'Exam Mode',
-        icon: '🎯',
-        description: 'Exam-focused with key points'
-    }
+    { id: 'simple', label: 'Simple', icon: '💬', description: 'Quick, concise answers', backend: 'general' },
+    { id: 'detailed', label: 'Detailed', icon: '📚', description: 'In-depth explanations with examples', backend: 'academic' },
+    { id: 'exam', label: 'Exam Mode', icon: '🎯', description: 'Exam-focused with key points', backend: 'exam_prep' }
 ];
+
+const backendMode = computed(() =>
+    chatModes.find((m) => m.id === currentChatMode.value)?.backend ?? 'academic'
+);
 
 // Current chat messages
 const messages = ref([
@@ -107,79 +104,16 @@ I have access to your current courses: **${studentContext.value.currentCourses.j
     }
 ]);
 
-// Chat history (sidebar)
-const chatHistory = ref([
-    {
-        id: 1,
-        title: 'Database Normalization Help',
-        lastMessage: 'Can you explain 3NF with examples?',
-        timestamp: '2024-01-15T14:30:00',
-        messageCount: 8,
-        category: 'Database Systems',
-        tags: ['DBMS', 'Normalization', 'Theory']
-    },
-    {
-        id: 2,
-        title: 'Machine Learning Assignment',
-        lastMessage: 'Help with neural network implementation',
-        timestamp: '2024-01-14T10:20:00',
-        messageCount: 15,
-        category: 'Machine Learning',
-        tags: ['ML', 'Neural Networks', 'Assignment']
-    },
-    {
-        id: 3,
-        title: 'Software Engineering Process',
-        lastMessage: 'Agile vs Waterfall methodology',
-        timestamp: '2024-01-13T16:45:00',
-        messageCount: 6,
-        category: 'Software Engineering',
-        tags: ['SDLC', 'Agile', 'Process']
-    },
-    {
-        id: 4,
-        title: 'Network Security Questions',
-        lastMessage: 'Types of network attacks',
-        timestamp: '2024-01-12T11:30:00',
-        messageCount: 12,
-        category: 'Computer Networks',
-        tags: ['Security', 'Networks', 'Theory']
-    }
-]);
-
-// Mock sources for AI responses
-const mockSources = [
-    {
-        id: 1,
-        title: 'Computer Science Engineering Handbook 2024',
-        type: 'handbook',
-        page: 45,
-        section: '3.2 Academic Policies',
-        relevantText: 'Students must maintain a minimum attendance of 75% in all courses to be eligible for semester examinations.',
-        confidence: 0.95,
-        lastUpdated: '2024-01-01'
-    },
-    {
-        id: 2,
-        title: 'Database Systems - Course Syllabus',
-        type: 'syllabus',
-        page: 12,
-        section: 'Unit 3: Normalization',
-        relevantText: 'Third Normal Form (3NF) eliminates transitive dependencies. A relation is in 3NF if it is in 2NF and no non-prime attribute is transitively dependent on the primary key.',
-        confidence: 0.92,
-        lastUpdated: '2023-12-15'
-    },
-    {
-        id: 3,
-        title: 'CSE Department Guidelines',
-        type: 'guidelines',
-        page: 8,
-        section: 'Assignment Submission',
-        relevantText: 'All programming assignments must be submitted through the designated portal before the deadline. Late submissions will incur a 10% penalty per day.',
-        confidence: 0.88,
-        lastUpdated: '2024-01-10'
-    }
-];
+// Chat history (sidebar), from the server.
+const chatHistory = ref(props.sessions.map((s) => ({
+    id: s.id,
+    title: s.title,
+    lastMessage: s.lastMessage ?? '',
+    timestamp: s.timestamp,
+    messageCount: s.messageCount,
+    category: (s.mode || 'academic').replace('_', ' '),
+    tags: [],
+})));
 
 // Filtered chat history
 const filteredChatHistory = computed(() => {
@@ -188,9 +122,26 @@ const filteredChatHistory = computed(() => {
     const query = searchQuery.value.toLowerCase();
     return chatHistory.value.filter(chat =>
         chat.title.toLowerCase().includes(query) ||
-        chat.category.toLowerCase().includes(query) ||
-        chat.tags.some(tag => tag.toLowerCase().includes(query))
+        (chat.category || '').toLowerCase().includes(query)
     );
+});
+
+// Normalize a server message into the shape this template renders
+// (source confidence is 0-100 on the server; the template expects 0-1).
+const normalizeMessage = (msg) => ({
+    id: msg.id,
+    role: msg.role,
+    content: msg.content,
+    timestamp: msg.timestamp,
+    confidence: msg.confidence ?? 100,
+    saved: msg.saved ?? false,
+    contextRelevance: (msg.sources && msg.sources.length) ? 'course' : null,
+    followUpSuggestions: msg.followUpSuggestions ?? [],
+    sources: (msg.sources ?? []).map((s) => ({
+        ...s,
+        confidence: (s.confidence ?? 0) / 100,
+        lastUpdated: s.lastUpdated ?? null,
+    })),
 });
 
 // Current sources (for selected message)
@@ -247,202 +198,92 @@ const parseMessageContent = (content) => {
 };
 
 // Actions
+const upsertSession = (session) => {
+    const entry = {
+        id: session.id,
+        title: session.title,
+        lastMessage: '',
+        timestamp: session.timestamp,
+        messageCount: session.messageCount,
+        category: (session.mode || 'academic').replace('_', ' '),
+        tags: [],
+    };
+    const idx = chatHistory.value.findIndex((c) => c.id === session.id);
+    if (idx === -1) chatHistory.value.unshift(entry);
+    else chatHistory.value[idx] = { ...chatHistory.value[idx], ...entry };
+};
+
 const sendMessage = async () => {
     if (!messageInput.value.trim() || isTyping.value) return;
 
-    const userMessage = {
-        id: Date.now(),
+    const text = messageInput.value.trim();
+    messages.value.push({
+        id: 'u' + Date.now(),
         role: 'user',
-        content: messageInput.value.trim(),
+        content: text,
         timestamp: new Date().toISOString()
-    };
-
-    messages.value.push(userMessage);
-    const userInput = messageInput.value;
+    });
     messageInput.value = '';
-
-    // Show typing indicator
     isTyping.value = true;
     scrollToBottom();
 
-    // Simulate AI processing
-    setTimeout(() => {
-        const aiResponse = generateAIResponse(userInput);
-        messages.value.push(aiResponse);
+    try {
+        const { data } = await axios.post(route('chat.send'), {
+            message: text,
+            session_id: currentSessionId.value,
+            mode: backendMode.value,
+        });
+
+        currentSessionId.value = data.session.id;
+        selectedChatHistory.value = data.session.id;
+        upsertSession(data.session);
+
+        const assistant = normalizeMessage(data.assistantMessage);
+        messages.value.push(assistant);
+        currentSources.value = assistant.sources;
+        currentMessageId.value = assistant.id;
+    } catch (e) {
+        messages.value.push({
+            id: 'e' + Date.now(),
+            role: 'assistant',
+            content: 'Sorry, something went wrong while generating a response. Please try again.',
+            timestamp: new Date().toISOString(),
+            confidence: 0,
+            sources: [],
+            followUpSuggestions: [],
+            saved: false,
+        });
+    } finally {
         isTyping.value = false;
         scrollToBottom();
-    }, 2500);
-};
-
-const generateAIResponse = (userInput) => {
-    const responseId = Date.now() + 1;
-
-    // Mock AI responses based on input
-    let content, sources, confidence, followUps;
-
-    if (userInput.toLowerCase().includes('attendance')) {
-        content = `**📚 Attendance Requirements for CSE Department**
-
-Based on the **Computer Science Engineering Handbook 2024**, here are the attendance requirements:
-
-**Minimum Attendance Required:**
-• **75% attendance** in all courses (theory + practical)
-• Calculated separately for each subject
-• Both lecture and lab sessions count equally
-
-**Important Points:**
-• **Medical Leave:** Requires proper medical certificate
-• **Condonation:** Available in exceptional cases with valid documentation
-• **Shortage Consequences:** May result in detention from semester exams
-• **Make-up Classes:** Department may conduct additional sessions for coverage
-
-**How Attendance is Calculated:**
-\`Attendance % = (Classes Attended / Total Classes Conducted) × 100\`
-
-**Pro Tip:** Maintain 80%+ attendance to stay comfortably above the minimum requirement!
-
-*This information is sourced directly from your official CSE department handbook.*`;
-
-        sources = [mockSources[0]];
-        confidence = 95;
-        followUps = [
-            'What happens if I fall below 75% attendance?',
-            'How to apply for medical leave?',
-            'Show me my current attendance status',
-            'Can attendance shortage be condoned?'
-        ];
-    } else if (userInput.toLowerCase().includes('database') || userInput.toLowerCase().includes('normalization')) {
-        content = `**🗄️ Database Normalization - Third Normal Form (3NF)**
-
-**Definition:**
-A relation is in **Third Normal Form (3NF)** if:
-1. It is already in **Second Normal Form (2NF)**
-2. **No transitive dependencies** exist (non-prime attributes depend only on primary key)
-
-**Example - Student Course System:**
-
-**❌ Unnormalized Table:**
-\`Student(StudentID, Name, CourseID, CourseName, Instructor)\`
-
-**Problem:** CourseName and Instructor depend on CourseID, not StudentID (transitive dependency)
-
-**✅ 3NF Solution:**
-• \`Student(StudentID, Name, CourseID)\`
-• \`Course(CourseID, CourseName, Instructor)\`
-
-**Benefits of 3NF:**
-• **Eliminates redundancy** - Course info stored once
-• **Prevents update anomalies** - Change instructor in one place
-• **Maintains data integrity** - No inconsistent data
-
-**Quick Test for 3NF:**
-*"Can I change a non-key attribute without affecting the primary key relationship?"*
-If yes → likely needs normalization!
-
-**Next Steps:** Would you like to see BCNF (Boyce-Codd Normal Form) or practice more examples?`;
-
-        sources = [mockSources[1]];
-        confidence = 92;
-        followUps = [
-            'Show me BCNF with examples',
-            'Practice more 3NF problems',
-            'Explain 1NF and 2NF first',
-            'What are functional dependencies?'
-        ];
-    } else if (userInput.toLowerCase().includes('machine learning') || userInput.toLowerCase().includes('neural network')) {
-        content = `**🤖 Neural Networks in Machine Learning**
-
-**What are Neural Networks?**
-Neural networks are **computational models inspired by biological brain networks**, consisting of interconnected nodes (neurons) that process information.
-
-**Key Components:**
-• **Input Layer** - Receives data features
-• **Hidden Layer(s)** - Process and transform data
-• **Output Layer** - Produces final predictions
-• **Weights & Biases** - Learnable parameters
-
-**How They Work:**
-1. **Forward Propagation:** Data flows from input → hidden → output
-2. **Activation Functions:** Apply non-linearity (ReLU, Sigmoid, Tanh)
-3. **Backpropagation:** Adjust weights based on prediction errors
-4. **Training:** Repeat until model learns patterns
-
-**Common Applications:**
-• **Image Recognition** - CNN (Convolutional Neural Networks)
-• **Natural Language** - RNN, LSTM, Transformers
-• **Recommendation Systems** - Deep collaborative filtering
-• **Game Playing** - Reinforcement learning (AlphaGo)
-
-**For Your Assignment:**
-Start with a **simple perceptron**, then progress to **multi-layer networks**. Focus on understanding **gradient descent** and **loss functions** first.
-
-*Need help with specific implementation? I can guide you through TensorFlow or PyTorch code!*`;
-
-        sources = [mockSources[1], mockSources[2]];
-        confidence = 89;
-        followUps = [
-            'Show me Python code for neural networks',
-            'Explain backpropagation algorithm',
-            'Help with TensorFlow implementation',
-            'What are activation functions?'
-        ];
-    } else {
-        content = `**🎯 I'm here to help with your studies!**
-
-I understand you're asking about **"${userInput}"** - and I want to give you the most accurate, course-relevant answer possible.
-
-**To provide the best help, could you:**
-• **Specify the course** this relates to (${studentContext.value.currentCourses.join(', ')})
-• **Clarify the context** - is this for an assignment, exam prep, or general understanding?
-• **Add more details** about what specific aspect you need help with
-
-**I can assist with:**
-• **Detailed explanations** with examples and diagrams
-• **Step-by-step problem solving**
-• **Exam-focused summaries** and key points
-• **Assignment guidance** and best practices
-
-**Quick Examples:**
-*"Explain sorting algorithms for my Data Structures assignment"*
-*"Help me understand inheritance in Java for OOP exam"*
-*"What is the difference between TCP and UDP in networking?"*
-
-**Try one of the suggestions below, or rephrase your question with more context!**`;
-
-        sources = [];
-        confidence = 78;
-        followUps = [
-            'Help with Database Systems concepts',
-            'Machine Learning assignment questions',
-            'Software Engineering methodology',
-            'Computer Networks theory questions'
-        ];
     }
-
-    return {
-        id: responseId,
-        role: 'assistant',
-        content,
-        timestamp: new Date().toISOString(),
-        confidence,
-        sources,
-        contextRelevance: 'course',
-        isExpanded: false,
-        saved: false,
-        followUpSuggestions: followUps
-    };
 };
 
-const toggleSaved = (messageId) => {
+const toggleSaved = async (messageId) => {
     const message = messages.value.find(m => m.id === messageId);
-    if (message) {
-        message.saved = !message.saved;
+    if (!message || message.role !== 'assistant' || message.saved) return;
+
+    try {
+        await axios.post(route('saved.store'), { chat_message_id: messageId });
+        message.saved = true;
+    } catch (e) {
+        // ignore — flash handles errors
     }
 };
 
-const selectChatHistory = (chatId) => {
+const selectChatHistory = async (chatId) => {
     selectedChatHistory.value = chatId;
-    // Load chat history (mock implementation)
+    currentSessionId.value = chatId;
+
+    try {
+        const { data } = await axios.get(route('chat.session', chatId));
+        messages.value = data.messages.map(normalizeMessage);
+        const lastWithSources = [...messages.value].reverse().find(m => m.sources?.length);
+        currentSources.value = lastWithSources ? lastWithSources.sources : [];
+    } catch (e) {
+        // ignore
+    }
+    scrollToBottom();
 };
 
 const startVoiceInput = () => {
@@ -476,14 +317,26 @@ const askFollowUp = (question) => {
     sendMessage();
 };
 
+const welcomeMessage = ref(null);
+
 const newChat = () => {
-    messages.value = [messages.value[0]]; // Keep welcome message
+    messages.value = welcomeMessage.value ? [welcomeMessage.value] : [];
     currentSources.value = [];
     selectedChatHistory.value = null;
+    currentSessionId.value = null;
 };
 
 const exportChat = () => {
-    alert('Exporting chat with citations and sources...');
+    const text = messages.value
+        .map(m => `${m.role === 'user' ? 'You' : 'UniGPT'}: ${m.content}`)
+        .join('\n\n');
+    const blob = new Blob([text], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'unigpt-chat.txt';
+    a.click();
+    URL.revokeObjectURL(url);
 };
 
 const copyMessage = (content) => {
@@ -500,6 +353,8 @@ const autoResize = (event) => {
 
 // Lifecycle
 onMounted(() => {
+    // Capture the seeded welcome message so "New Chat" can restore it.
+    welcomeMessage.value = messages.value[0];
     scrollToBottom();
 
     // Auto-focus input
