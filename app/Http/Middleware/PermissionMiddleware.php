@@ -10,20 +10,21 @@ class PermissionMiddleware
 {
     public function handle(Request $request, Closure $next, string ...$permissions): Response
     {
-        if (!auth()->check()) {
+        if (! auth()->check()) {
             return redirect()->route('login');
         }
 
         $user = auth()->user();
 
-        if (!$user->is_active) {
+        if (! $user->is_active) {
             auth()->logout();
+
             return redirect()->route('login')->withErrors([
-                'email' => 'Your account has been deactivated. Please contact support.'
+                'email' => 'Your account has been deactivated. Please contact support.',
             ]);
         }
 
-        if (!$user->hasAnyPermission($permissions)) {
+        if (! $user->hasAnyPermission($permissions)) {
             \Log::warning('Unauthorized permission access attempt', [
                 'user_id' => $user->id,
                 'email' => $user->email,
@@ -34,7 +35,7 @@ class PermissionMiddleware
 
             if ($request->expectsJson()) {
                 return response()->json([
-                    'message' => 'You do not have the required permissions to access this resource.'
+                    'message' => 'You do not have the required permissions to access this resource.',
                 ], 403);
             }
 

@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Middleware;
 
 use Closure;
@@ -7,24 +8,24 @@ use Symfony\Component\HttpFoundation\Response;
 
 class RoleMiddleware
 {
-
     public function handle(Request $request, Closure $next, string ...$roles): Response
     {
 
-        if (!auth()->check()) {
+        if (! auth()->check()) {
             return redirect()->route('login');
         }
 
         $user = auth()->user();
 
-        if (!$user->is_active) {
+        if (! $user->is_active) {
             auth()->logout();
+
             return redirect()->route('login')->withErrors([
-                'email' => 'Your account has been deactivated. Please contact support.'
+                'email' => 'Your account has been deactivated. Please contact support.',
             ]);
         }
 
-        if (!$user->hasRole($roles)) {
+        if (! $user->hasRole($roles)) {
             // Log unauthorized access attempt
             \Log::warning('Unauthorized access attempt', [
                 'user_id' => $user->id,
