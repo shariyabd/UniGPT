@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import {
     DocumentTextIcon,
@@ -20,6 +20,11 @@ import {
     ChevronUpIcon
 } from '@heroicons/vue/24/outline';
 
+const props = defineProps({
+    pendingDocuments: { type: Array, default: () => [] },
+    stats: { type: Object, default: () => ({}) },
+});
+
 // Component state
 const selectedStatus = ref('all');
 const selectedPriority = ref('all');
@@ -27,124 +32,21 @@ const searchQuery = ref('');
 const selectedDocument = ref(null);
 const showPreviewModal = ref(false);
 const showCommentModal = ref(false);
+const commentMode = ref('comment'); // 'comment' | 'changes'
 const newComment = ref('');
 const expandedItems = ref(new Set());
 
-// Mock pending documents data
-const pendingDocuments = ref([
-    {
-        id: 1,
-        title: 'Computer Science Syllabus 2024-25',
-        description: 'Updated syllabus for Computer Science Engineering program including new AI/ML courses and revised curriculum structure.',
-        uploadedBy: {
-            name: 'Dr. Sarah Smith',
-            email: 'sarah.smith@university.edu',
-            role: 'Department Head',
-            avatar: 'https://ui-avatars.com/api/?name=Sarah+Smith&background=3b82f6&color=fff'
-        },
-        department: 'Computer Science Engineering',
-        category: 'Syllabus',
-        uploadDate: '2024-01-15T10:30:00',
-        size: '2.4 MB',
-        fileType: 'PDF',
-        priority: 'high',
-        status: 'pending',
-        tags: ['syllabus', 'cse', 'curriculum', '2024'],
-        comments: [
-            {
-                id: 1,
-                author: 'Admin Office',
-                content: 'Please review the new AI/ML course requirements. Need clarification on prerequisite courses.',
-                timestamp: '2024-01-15T14:20:00',
-                type: 'question'
-            },
-            {
-                id: 2,
-                author: 'Dr. Sarah Smith',
-                content: 'The prerequisites are listed in section 4.2. Students need to complete Data Structures and Algorithms first.',
-                timestamp: '2024-01-15T15:45:00',
-                type: 'response'
-            }
-        ],
-        version: '1.2',
-        approvalHistory: [
-            { action: 'submitted', by: 'Dr. Sarah Smith', date: '2024-01-15T10:30:00' },
-            { action: 'under_review', by: 'Admin Office', date: '2024-01-15T11:00:00' }
-        ],
-        previewUrl: '/documents/preview/cs-syllabus-2024.pdf',
-        downloadUrl: '/documents/download/cs-syllabus-2024.pdf'
-    },
-    {
-        id: 2,
-        title: 'Attendance Policy Update - Spring 2024',
-        description: 'Revised attendance policy with new guidelines for hybrid learning and medical leave procedures.',
-        uploadedBy: {
-            name: 'Prof. Michael Johnson',
-            email: 'michael.j@university.edu',
-            role: 'Academic Coordinator',
-            avatar: 'https://ui-avatars.com/api/?name=Michael+Johnson&background=10b981&color=fff'
-        },
-        department: 'Administration',
-        category: 'Policy',
-        uploadDate: '2024-01-14T09:15:00',
-        size: '856 KB',
-        fileType: 'DOCX',
-        priority: 'urgent',
-        status: 'pending',
-        tags: ['policy', 'attendance', 'spring2024'],
-        comments: [],
-        version: '2.0',
-        approvalHistory: [
-            { action: 'submitted', by: 'Prof. Michael Johnson', date: '2024-01-14T09:15:00' }
-        ],
-        previewUrl: '/documents/preview/attendance-policy-2024.docx',
-        downloadUrl: '/documents/download/attendance-policy-2024.docx'
-    },
-    {
-        id: 3,
-        title: 'Final Exam Schedule - Spring 2024',
-        description: 'Complete examination timetable for all undergraduate and postgraduate courses in Spring 2024 semester.',
-        uploadedBy: {
-            name: 'Dr. Emily Chen',
-            email: 'emily.chen@university.edu',
-            role: 'Examination Controller',
-            avatar: 'https://ui-avatars.com/api/?name=Emily+Chen&background=8b5cf6&color=fff'
-        },
-        department: 'Examination Board',
-        category: 'Schedule',
-        uploadDate: '2024-01-13T16:45:00',
-        size: '1.2 MB',
-        fileType: 'PDF',
-        priority: 'high',
-        status: 'under_review',
-        tags: ['exam', 'schedule', 'spring2024', 'timetable'],
-        comments: [
-            {
-                id: 1,
-                author: 'Academic Office',
-                content: 'There seems to be a conflict in the Computer Science exam dates. Please verify.',
-                timestamp: '2024-01-14T10:30:00',
-                type: 'issue'
-            }
-        ],
-        version: '1.0',
-        approvalHistory: [
-            { action: 'submitted', by: 'Dr. Emily Chen', date: '2024-01-13T16:45:00' },
-            { action: 'under_review', by: 'Academic Office', date: '2024-01-14T09:00:00' }
-        ],
-        previewUrl: '/documents/preview/exam-schedule-spring-2024.pdf',
-        downloadUrl: '/documents/download/exam-schedule-spring-2024.pdf'
-    }
-]);
+// Pending queue supplied by the server.
+const pendingDocuments = computed(() => props.pendingDocuments);
 
 // Filter options
-const statusOptions = [
-    { value: 'all', label: 'All Status', count: 8 },
-    { value: 'pending', label: 'Pending Review', count: 5 },
-    { value: 'under_review', label: 'Under Review', count: 2 },
-    { value: 'approved', label: 'Approved', count: 1 },
-    { value: 'rejected', label: 'Rejected', count: 0 }
-];
+const statusOptions = computed(() => [
+    { value: 'all', label: 'All Status', count: props.stats.pending ?? 0 },
+    { value: 'pending', label: 'Pending Review', count: props.stats.pending ?? 0 },
+    { value: 'processing', label: 'Processing', count: props.stats.processing ?? 0 },
+    { value: 'approved', label: 'Approved', count: props.stats.approved ?? 0 },
+    { value: 'rejected', label: 'Rejected', count: props.stats.rejected ?? 0 }
+]);
 
 const priorityOptions = [
     { value: 'all', label: 'All Priorities' },
@@ -249,69 +151,48 @@ const previewDocument = (document) => {
     showPreviewModal.value = true;
 };
 
-const openCommentModal = (document) => {
+const openCommentModal = (document, mode = 'comment') => {
     selectedDocument.value = document;
+    commentMode.value = mode;
     showCommentModal.value = true;
 };
 
 const addComment = () => {
-    if (!newComment.value.trim()) return;
+    if (!newComment.value.trim() || !selectedDocument.value) return;
 
-    const comment = {
-        id: Date.now(),
-        author: 'Admin Office',
-        content: newComment.value,
-        timestamp: new Date().toISOString(),
-        type: 'admin_comment'
-    };
+    const id = selectedDocument.value.id;
+    const routeName = commentMode.value === 'changes'
+        ? 'admin.documents.request-changes'
+        : 'admin.documents.comment';
 
-    selectedDocument.value.comments.push(comment);
-    newComment.value = '';
-    showCommentModal.value = false;
+    router.post(route(routeName, id), { comment: newComment.value }, {
+        preserveScroll: true,
+        onFinish: () => {
+            newComment.value = '';
+            showCommentModal.value = false;
+        },
+    });
 };
 
 const approveDocument = (document) => {
-    document.status = 'approved';
-    document.approvalHistory.push({
-        action: 'approved',
-        by: 'Admin Office',
-        date: new Date().toISOString()
-    });
-
-    // Show success notification
-    alert(`Document "${document.title}" has been approved!`);
+    router.post(route('admin.documents.approve', document.id), {}, { preserveScroll: true });
 };
 
-const rejectDocument = (document, reason = '') => {
-    document.status = 'rejected';
-    document.approvalHistory.push({
-        action: 'rejected',
-        by: 'Admin Office',
-        date: new Date().toISOString(),
-        reason: reason
-    });
+const rejectDocument = (document) => {
+    const reason = window.prompt('Reason for rejection:', '');
+    if (reason === null || reason.trim() === '') return;
 
-    if (reason) {
-        document.comments.push({
-            id: Date.now(),
-            author: 'Admin Office',
-            content: `Document rejected: ${reason}`,
-            timestamp: new Date().toISOString(),
-            type: 'rejection'
-        });
-    }
-
-    alert(`Document "${document.title}" has been rejected.`);
+    router.post(route('admin.documents.reject', document.id), { reason }, { preserveScroll: true });
 };
 
 const requestChanges = (document) => {
-    document.status = 'changes_requested';
-    openCommentModal(document);
+    openCommentModal(document, 'changes');
 };
 
 const downloadDocument = (document) => {
-    // Simulate download
-    alert(`Downloading: ${document.title}`);
+    if (document.downloadUrl) {
+        window.open(document.downloadUrl, '_blank');
+    }
 };
 </script>
 

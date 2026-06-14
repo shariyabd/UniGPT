@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import {
     CloudArrowUpIcon,
@@ -14,70 +14,40 @@ import {
     CalendarIcon
 } from '@heroicons/vue/24/outline';
 
+const props = defineProps({
+    departments: { type: Array, default: () => [] },
+    categories: { type: Array, default: () => [] },
+    recentUploads: { type: Object, default: () => ({ data: [] }) },
+});
+
 // Upload state management
 const dragActive = ref(false);
-const uploadProgress = ref({});
 const uploadedFiles = ref([]);
 const isUploading = ref(false);
 
 // Form data
 const uploadForm = ref({
-    department: '',
+    department_id: '',
     category: '',
     description: '',
     tags: [],
-    priority: 'normal',
-    visibility: 'public'
+    visibility: 'students'
 });
 
-const departments = [
-    'Computer Science Engineering',
-    'Electrical Engineering',
-    'Mechanical Engineering',
-    'Civil Engineering',
-    'Administration',
-    'Academic Office',
-    'Examination Board'
-];
+const departments = computed(() => props.departments);
+const categories = computed(() => props.categories);
 
-const categories = [
-    'Syllabus',
-    'Handbook',
-    'Policy',
-    'Schedule',
-    'Guidelines',
-    'Forms',
-    'Announcements'
-];
-
-const priorities = [
-    { value: 'low', label: 'Low Priority', color: 'blue' },
-    { value: 'normal', label: 'Normal', color: 'green' },
-    { value: 'high', label: 'High Priority', color: 'orange' },
-    { value: 'urgent', label: 'Urgent', color: 'red' }
-];
-
-// Mock uploaded files for demonstration
-const recentUploads = ref([
-    {
-        id: 1,
-        name: 'Computer_Science_Syllabus_2024.pdf',
-        size: '2.4 MB',
-        type: 'PDF',
-        uploadedAt: '2 hours ago',
-        status: 'approved',
-        department: 'CSE'
-    },
-    {
-        id: 2,
-        name: 'Attendance_Policy_Update.docx',
-        size: '856 KB',
-        type: 'DOCX',
-        uploadedAt: '1 day ago',
-        status: 'pending',
-        department: 'Administration'
-    }
-]);
+// Recent uploads from the server, normalized to the shape the sidebar renders.
+const recentUploads = computed(() => {
+    const rows = props.recentUploads?.data ?? props.recentUploads ?? [];
+    return rows.map((d) => ({
+        id: d.id,
+        name: d.title,
+        size: d.fileSize,
+        uploadedAt: d.uploadedAt,
+        status: d.status,
+    }));
+});
 
 // File handling functions
 const handleDrop = (e) => {
@@ -142,59 +112,54 @@ const removeFile = (fileId) => {
     uploadedFiles.value = uploadedFiles.value.filter(f => f.id !== fileId);
 };
 
-const startUpload = async () => {
-    if (uploadedFiles.value.length === 0) {
-        alert('Please select files to upload');
-        return;
-    }
+const priorities = [
+    { value: 'low', label: 'Low Priority', color: 'blue' },
+    { value: 'normal', label: 'Normal', color: 'green' },
+    { value: 'high', label: 'High Priority', color: 'orange' },
+    { value: 'urgent', label: 'Urgent', color: 'red' }
+];
 
-    if (!uploadForm.value.department || !uploadForm.value.category) {
-        alert('Please fill in department and category');
+const startUpload = async () => {
+    if (uploadedFiles.value.length === 0 || !uploadForm.value.category) {
         return;
     }
 
     isUploading.value = true;
 
-    // Simulate upload progress
-    for (let file of uploadedFiles.value) {
-        file.status = 'uploading';
-
-        // Simulate progress
-        for (let progress = 0; progress <= 100; progress += 10) {
-            file.progress = progress;
-            await new Promise(resolve => setTimeout(resolve, 100));
-        }
-
-        file.status = 'completed';
+    // Upload each selected file as its own document (one file per request).
+    for (const item of uploadedFiles.value) {
+        await new Promise((resolve) => {
+            router.post(route('admin.documents.store'), {
+                title: item.name.replace(/\.[^.]+$/, ''),
+                description: uploadForm.value.description,
+                department_id: uploadForm.value.department_id || null,
+                category: uploadForm.value.category,
+                visibility: uploadForm.value.visibility,
+                tags: uploadForm.value.tags,
+                file: item.file,
+            }, {
+                forceFormData: true,
+                preserveScroll: true,
+                onProgress: (event) => {
+                    item.status = 'uploading';
+                    item.progress = event?.percentage ?? 0;
+                },
+                onSuccess: () => { item.status = 'completed'; },
+                onError: () => { item.status = 'error'; },
+                onFinish: () => resolve(),
+            });
+        });
     }
 
     isUploading.value = false;
-
-    // Add to recent uploads
-    uploadedFiles.value.forEach(file => {
-        recentUploads.value.unshift({
-            id: Date.now() + Math.random(),
-            name: file.name,
-            size: file.size,
-            type: file.type,
-            uploadedAt: 'Just now',
-            status: 'pending',
-            department: uploadForm.value.department
-        });
-    });
-
-    // Reset form
     uploadedFiles.value = [];
     uploadForm.value = {
-        department: '',
+        department_id: '',
         category: '',
         description: '',
         tags: [],
-        priority: 'normal',
-        visibility: 'public'
+        visibility: 'students'
     };
-
-    alert('Files uploaded successfully and sent for approval!');
 };
 
 const addTag = (tag) => {
@@ -365,11 +330,11 @@ const getStatusColor = (status) => {
                                             Department *
                                         </label>
                                         <select
-                                            v-model="uploadForm.department"
+                                            v-model="uploadForm.department_id"
                                             class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
                                         >
                                             <option value="">Select Department</option>
-                                            <option v-for="dept in departments" :key="dept" :value="dept">{{ dept }}</option>
+                                            <option v-for="dept in departments" :key="dept.id" :value="dept.id">{{ dept.name }}</option>
                                         </select>
                                     </div>
 
@@ -412,9 +377,9 @@ const getStatusColor = (status) => {
                                             class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
                                         >
                                             <option value="public">Public (All Users)</option>
-                                            <option value="department">Department Only</option>
-                                            <option value="faculty">Faculty Only</option>
-                                            <option value="admin">Admin Only</option>
+                                            <option value="students">Students</option>
+                                            <option value="faculty">Faculty</option>
+                                            <option value="admins">Admin Only</option>
                                         </select>
                                     </div>
                                 </div>

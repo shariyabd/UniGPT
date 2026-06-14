@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import {
@@ -21,6 +21,14 @@ import {
     FolderIcon
 } from '@heroicons/vue/24/outline';
 
+const props = defineProps({
+    documents: { type: Object, default: () => ({ data: [] }) },
+    categories: { type: Array, default: () => [] },
+    departments: { type: Array, default: () => [] },
+    stats: { type: Object, default: () => ({}) },
+    filters: { type: Object, default: () => ({}) },
+});
+
 // Component state
 const viewMode = ref('grid');
 const selectedCategory = ref('all');
@@ -29,160 +37,71 @@ const selectedFileType = ref('all');
 const sortBy = ref('recent');
 const searchQuery = ref('');
 const showFilters = ref(false);
-const selectedDocuments = ref(new Set());
 
-// Mock documents data
-const documents = ref([
-    {
-        id: 1,
-        title: 'Computer Science Engineering Syllabus 2024-25',
-        description: 'Complete syllabus for CSE program including all courses, prerequisites, and learning outcomes for the academic year 2024-25.',
-        department: 'Computer Science Engineering',
-        category: 'Syllabus',
-        fileType: 'PDF',
-        size: '2.4 MB',
-        version: '2.1',
-        uploadDate: '2024-01-15T10:30:00',
-        lastModified: '2024-01-20T14:45:00',
-        uploadedBy: 'Dr. Sarah Smith',
-        status: 'approved',
-        views: 1234,
-        downloads: 456,
-        tags: ['syllabus', 'cse', 'curriculum', '2024'],
-        thumbnail: '/images/documents/pdf-thumbnail.png',
-        previewUrl: '/documents/preview/cse-syllabus-2024.pdf',
-        downloadUrl: '/documents/download/cse-syllabus-2024.pdf',
-        isBookmarked: true,
-        rating: 4.8
-    },
-    {
-        id: 2,
-        title: 'Academic Handbook 2024',
-        description: 'Comprehensive handbook covering all academic policies, procedures, and regulations for students and faculty.',
-        department: 'Administration',
-        category: 'Handbook',
-        fileType: 'PDF',
-        size: '5.2 MB',
-        version: '1.3',
-        uploadDate: '2024-01-10T09:15:00',
-        lastModified: '2024-01-18T16:20:00',
-        uploadedBy: 'Academic Office',
-        status: 'approved',
-        views: 2105,
-        downloads: 789,
-        tags: ['handbook', 'policies', 'academic', 'regulations'],
-        thumbnail: '/images/documents/handbook-thumbnail.png',
-        previewUrl: '/documents/preview/academic-handbook-2024.pdf',
-        downloadUrl: '/documents/download/academic-handbook-2024.pdf',
-        isBookmarked: false,
-        rating: 4.9
-    },
-    {
-        id: 3,
-        title: 'Final Exam Schedule Spring 2024',
-        description: 'Complete examination timetable for all undergraduate and postgraduate courses.',
-        department: 'Examination Board',
-        category: 'Schedule',
-        fileType: 'PDF',
-        size: '1.2 MB',
-        version: '1.0',
-        uploadDate: '2024-01-13T16:45:00',
-        lastModified: '2024-01-19T11:30:00',
-        uploadedBy: 'Dr. Emily Chen',
-        status: 'approved',
-        views: 892,
-        downloads: 234,
-        tags: ['exam', 'schedule', 'spring2024', 'timetable'],
-        thumbnail: '/images/documents/schedule-thumbnail.png',
-        previewUrl: '/documents/preview/exam-schedule-spring-2024.pdf',
-        downloadUrl: '/documents/download/exam-schedule-spring-2024.pdf',
-        isBookmarked: true,
-        rating: 4.7
-    },
-    {
-        id: 4,
-        title: 'Attendance Policy Update',
-        description: 'Revised attendance policy with new guidelines for hybrid learning and medical leave procedures.',
-        department: 'Administration',
-        category: 'Policy',
-        fileType: 'DOCX',
-        size: '856 KB',
-        version: '2.0',
-        uploadDate: '2024-01-14T09:15:00',
-        lastModified: '2024-01-17T15:20:00',
-        uploadedBy: 'Prof. Michael Johnson',
-        status: 'approved',
-        views: 567,
-        downloads: 123,
-        tags: ['policy', 'attendance', 'hybrid', 'guidelines'],
-        thumbnail: '/images/documents/docx-thumbnail.png',
-        previewUrl: '/documents/preview/attendance-policy-2024.docx',
-        downloadUrl: '/documents/download/attendance-policy-2024.docx',
-        isBookmarked: false,
-        rating: 4.5
-    }
+// Server documents, mapped to the shape this page's template renders.
+const documents = ref((props.documents?.data ?? []).map((d) => ({
+    id: d.id,
+    title: d.title,
+    description: d.description ?? '',
+    department: d.department ?? '—',
+    category: d.category,
+    fileType: (d.type ?? 'file').toUpperCase(),
+    size: d.fileSize,
+    version: d.version,
+    uploadDate: d.uploadedAt,
+    lastModified: d.uploadedAt,
+    uploadedBy: d.uploadedBy ?? 'Unknown',
+    status: d.status,
+    views: d.views,
+    downloads: d.downloads,
+    tags: d.tags ?? [],
+    downloadUrl: d.downloadUrl,
+    isBookmarked: false,
+    rating: null,
+})));
+
+// Filter options derived from server-provided facets.
+const categories = computed(() => [
+    { value: 'all', label: 'All Categories' },
+    ...props.categories.map((c) => ({ value: c.toLowerCase(), label: c })),
 ]);
 
-// Filter options
-const categories = [
-    { value: 'all', label: 'All Categories' },
-    { value: 'syllabus', label: 'Syllabus' },
-    { value: 'handbook', label: 'Handbook' },
-    { value: 'policy', label: 'Policy' },
-    { value: 'schedule', label: 'Schedule' },
-    { value: 'guidelines', label: 'Guidelines' }
-];
-
-const departments = [
+const departments = computed(() => [
     { value: 'all', label: 'All Departments' },
-    { value: 'cse', label: 'Computer Science' },
-    { value: 'ee', label: 'Electrical Engineering' },
-    { value: 'me', label: 'Mechanical Engineering' },
-    { value: 'administration', label: 'Administration' },
-    { value: 'examination', label: 'Examination Board' }
-];
+    ...props.departments.map((d) => ({ value: d.name, label: d.name })),
+]);
 
 const fileTypes = [
     { value: 'all', label: 'All Types' },
     { value: 'pdf', label: 'PDF' },
     { value: 'docx', label: 'Word Document' },
-    { value: 'pptx', label: 'PowerPoint' },
-    { value: 'xlsx', label: 'Excel' }
+    { value: 'txt', label: 'Text' },
+    { value: 'pptx', label: 'PowerPoint' }
 ];
 
 const sortOptions = [
     { value: 'recent', label: 'Most Recent' },
     { value: 'popular', label: 'Most Popular' },
     { value: 'downloads', label: 'Most Downloads' },
-    { value: 'alphabetical', label: 'A-Z' },
-    { value: 'rating', label: 'Highest Rated' }
+    { value: 'alphabetical', label: 'A-Z' }
 ];
 
-// Computed properties
+// Computed properties (in-page filtering of the loaded set)
 const filteredDocuments = computed(() => {
-    let filtered = documents.value;
+    let filtered = [...documents.value];
 
-    // Apply filters
     if (selectedCategory.value !== 'all') {
         filtered = filtered.filter(doc => doc.category.toLowerCase() === selectedCategory.value);
     }
 
     if (selectedDepartment.value !== 'all') {
-        filtered = filtered.filter(doc => {
-            const deptMatch = selectedDepartment.value;
-            return doc.department.toLowerCase().includes(deptMatch) ||
-                   deptMatch === 'cse' && doc.department.toLowerCase().includes('computer') ||
-                   deptMatch === 'ee' && doc.department.toLowerCase().includes('electrical') ||
-                   deptMatch === 'me' && doc.department.toLowerCase().includes('mechanical') ||
-                   deptMatch === 'examination' && doc.department.toLowerCase().includes('examination');
-        });
+        filtered = filtered.filter(doc => doc.department === selectedDepartment.value);
     }
 
     if (selectedFileType.value !== 'all') {
         filtered = filtered.filter(doc => doc.fileType.toLowerCase() === selectedFileType.value);
     }
 
-    // Apply search
     if (searchQuery.value) {
         const query = searchQuery.value.toLowerCase();
         filtered = filtered.filter(doc =>
@@ -193,7 +112,6 @@ const filteredDocuments = computed(() => {
         );
     }
 
-    // Apply sorting
     switch (sortBy.value) {
         case 'popular':
             return filtered.sort((a, b) => b.views - a.views);
@@ -201,11 +119,9 @@ const filteredDocuments = computed(() => {
             return filtered.sort((a, b) => b.downloads - a.downloads);
         case 'alphabetical':
             return filtered.sort((a, b) => a.title.localeCompare(b.title));
-        case 'rating':
-            return filtered.sort((a, b) => (b.rating || 0) - (a.rating || 0));
         case 'recent':
         default:
-            return filtered.sort((a, b) => new Date(b.lastModified) - new Date(a.lastModified));
+            return filtered;
     }
 });
 
@@ -247,18 +163,24 @@ const toggleBookmark = (docId) => {
     }
 };
 
-const downloadDocument = (document) => {
-    document.downloads++;
-    alert(`Downloading: ${document.title}`);
+const downloadDocument = (doc) => {
+    if (doc.downloadUrl) {
+        window.open(doc.downloadUrl, '_blank');
+        doc.downloads++;
+    }
 };
 
-const previewDocument = (document) => {
-    document.views++;
-    alert(`Opening preview: ${document.title}`);
+const previewDocument = (doc) => {
+    if (doc.downloadUrl) {
+        window.open(doc.downloadUrl, '_blank');
+        doc.views++;
+    }
 };
 
-const shareDocument = (document) => {
-    alert(`Sharing: ${document.title}`);
+const shareDocument = (doc) => {
+    if (doc.downloadUrl && navigator.clipboard) {
+        navigator.clipboard.writeText(window.location.origin + doc.downloadUrl);
+    }
 };
 
 const clearAllFilters = () => {
