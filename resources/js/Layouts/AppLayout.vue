@@ -1,10 +1,50 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import NavLink from '@/components/NavLink.vue';
 import FlashMessages from '@/components/FlashMessages.vue';
+import { usePermissions } from '@/composables/usePermissions';
+
+const { can, hasRole, primaryRole } = usePermissions();
 
 const showUserMenu = ref(false);
+
+// Per-role navigation. Each item names the route it points at and (optionally)
+// the permission required to use it — mirroring the server-side route matrix so
+// users never see a link the backend would reject. Items without a permission
+// are always shown to that role.
+const navByRole = {
+    student: [
+        { label: 'Dashboard', route: 'dashboard' },
+        { label: 'Chat', route: 'chat', permission: 'use_ai_chat' },
+        { label: 'Saved Answers', route: 'saved', permission: 'view_chat_history' },
+        { label: 'Roadmap', route: 'roadmap', permission: 'view_courses' },
+        { label: 'Documents', route: 'documents', permission: 'view_documents' },
+        { label: 'Materials', route: 'materials', permission: 'view_courses' },
+    ],
+    faculty: [
+        { label: 'Dashboard', route: 'faculty.dashboard' },
+        { label: 'Courses', route: 'faculty.courses', permission: 'view_courses' },
+        { label: 'AI Assistant', route: 'faculty.ai-assistant', permission: 'use_ai_chat' },
+        { label: 'Grading', route: 'faculty.grading', permission: 'grade_assignment' },
+    ],
+    admin: [
+        { label: 'Dashboard', route: 'admin.dashboard' },
+        { label: 'Users', route: 'admin.users', permission: 'view_users' },
+        { label: 'Roles', route: 'admin.roles', permission: 'manage_permissions' },
+        { label: 'Documents', route: 'admin.documents', permission: 'view_documents' },
+        { label: 'Approvals', route: 'admin.approvals', permission: 'approve_document' },
+        { label: 'Analytics', route: 'admin.analytics', permission: 'view_all_analytics' },
+        { label: 'Settings', route: 'admin.settings', permission: 'configure_ai' },
+        { label: 'Monitor', route: 'admin.monitor', permission: 'manage_system' },
+    ],
+};
+
+const navItems = computed(() => {
+    const items = navByRole[primaryRole.value] ?? [];
+
+    return items.filter((item) => !item.permission || can(item.permission));
+});
 
 // Close dropdown when clicking outside
 if (typeof window !== 'undefined') {
@@ -32,24 +72,15 @@ if (typeof window !== 'undefined') {
                         </Link>
                     </div>
 
-                    <!-- Navigation Links -->
+                    <!-- Navigation Links (role + permission aware) -->
                     <div class="hidden md:flex items-center space-x-6">
-                        <NavLink :href="route('dashboard')" :active="route().current('dashboard')">
-                            Dashboard
-                        </NavLink>
-                        <NavLink :href="route('chat')" :active="route().current('chat')">
-                            Chat
-                        </NavLink>
-                        <!-- FIXED: Add saved answers to nav -->
-                        <NavLink :href="route('saved')" :active="route().current('saved')">
-                            Saved Answers
-                        </NavLink>
-                        <NavLink :href="route('roadmap')" :active="route().current('roadmap')">
-                            Roadmap
-                        </NavLink>
-                        <NavLink href="/student/materials" :active="route().current('student.materials')">
-                            <DocumentTextIcon class="w-5 h-5" />
-                            Materials
+                        <NavLink
+                            v-for="item in navItems"
+                            :key="item.route"
+                            :href="route(item.route)"
+                            :active="route().current(item.route)"
+                        >
+                            {{ item.label }}
                         </NavLink>
                     </div>
 
@@ -70,26 +101,28 @@ if (typeof window !== 'undefined') {
 
                             <!-- Dropdown Menu -->
                             <div v-show="showUserMenu" class="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 py-1 z-50">
-                                <Link
-                                    href="/profile"
-                                    class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-slate-100 dark:hover:bg-slate-700"
-                                >
-                                    Profile
-                                </Link>
-                                <Link
-                                    href="/settings"
-                                    class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-slate-100 dark:hover:bg-slate-700"
-                                >
-                                    Settings
-                                </Link>
-                                <!-- FIXED: Add saved answers to user menu -->
-                                <Link
-                                    href="/saved"
-                                    class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-slate-100 dark:hover:bg-slate-700"
-                                >
-                                    📚 Saved Answers
-                                </Link>
-                                <hr class="my-1 border-slate-200 dark:border-slate-700">
+                                <template v-if="hasRole('student')">
+                                    <Link
+                                        href="/profile"
+                                        class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-slate-100 dark:hover:bg-slate-700"
+                                    >
+                                        Profile
+                                    </Link>
+                                    <Link
+                                        href="/settings"
+                                        class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-slate-100 dark:hover:bg-slate-700"
+                                    >
+                                        Settings
+                                    </Link>
+                                    <Link
+                                        v-if="can('view_chat_history')"
+                                        href="/saved"
+                                        class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-slate-100 dark:hover:bg-slate-700"
+                                    >
+                                        📚 Saved Answers
+                                    </Link>
+                                    <hr class="my-1 border-slate-200 dark:border-slate-700">
+                                </template>
                                 <Link
                                     :href="route('logout')"
                                     method="post"
