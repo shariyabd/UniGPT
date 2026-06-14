@@ -2,26 +2,25 @@
 
 namespace App\Http\Controllers\Auth;
 
-use App\Models\Role;
-use Inertia\Inertia;
-use Inertia\Response;
-use App\Enums\UserRole;
-use App\Models\Department;
-use Illuminate\Support\Str;
-use Illuminate\Http\Request;
 use App\Domain\User\Models\User;
+use App\Domain\User\Services\UserManagementService;
+use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
+use App\Models\Department;
+use App\Models\Role;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Http\RedirectResponse;
-use Illuminate\Validation\Rules\Password;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
-use App\Domain\User\Services\UserManagementService;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class AuthenticationController extends Controller
 {
-
     public function __construct(
         private UserManagementService $userService
     ) {}
@@ -30,9 +29,10 @@ class AuthenticationController extends Controller
     {
         $roles = Role::all();
         $departments = Department::all();
-        return Inertia::render('Auth/Login',[
+
+        return Inertia::render('Auth/Login', [
             'roles' => $roles,
-            'departments' => $departments
+            'departments' => $departments,
         ]);
     }
 
@@ -40,7 +40,6 @@ class AuthenticationController extends Controller
     {
 
         $this->ensureIsNotRateLimited($request);
-
 
         $credentials = $request->validate([
             'email' => ['required', 'string', 'email'],
@@ -52,9 +51,7 @@ class AuthenticationController extends Controller
 
         $user = User::where('email', $credentials['email'])->first();
 
-
-
-        if (!$user || !$user->is_active) {
+        if (! $user || ! $user->is_active) {
             RateLimiter::hit($this->throttleKey($request));
 
             throw ValidationException::withMessages([
@@ -62,8 +59,7 @@ class AuthenticationController extends Controller
             ]);
         }
 
-
-        if (!Hash::check($credentials['password'], $user->password)) {
+        if (! Hash::check($credentials['password'], $user->password)) {
             RateLimiter::hit($this->throttleKey($request));
 
             throw ValidationException::withMessages([
@@ -71,15 +67,13 @@ class AuthenticationController extends Controller
             ]);
         }
 
-
-        if (!$user->hasRole($credentials['role'])) {
+        if (! $user->hasRole($credentials['role'])) {
             RateLimiter::hit($this->throttleKey($request));
 
             throw ValidationException::withMessages([
                 'role' => 'You do not have access to the selected role.',
             ]);
         }
-
 
         RateLimiter::clear($this->throttleKey($request));
         Auth::login($user, $remember);
@@ -89,7 +83,6 @@ class AuthenticationController extends Controller
 
         return $this->redirectBasedOnRole($credentials['role']);
     }
-
 
     public function register(Request $request): RedirectResponse
     {
@@ -104,9 +97,9 @@ class AuthenticationController extends Controller
                 function ($attribute, $value, $fail) {
 
                     if (
-                        !str_contains($value, 'university.edu') &&
-                        !str_contains($value, '.edu') &&
-                        !str_contains($value, 'gmail.com')
+                        ! str_contains($value, 'university.edu') &&
+                        ! str_contains($value, '.edu') &&
+                        ! str_contains($value, 'gmail.com')
                     ) {
                         $fail('Please use a valid university email address.');
                     }
@@ -121,14 +114,14 @@ class AuthenticationController extends Controller
                 'string',
                 'max:50',
                 'unique:users',
-                'required_if:role,student'
+                'required_if:role,student',
             ],
             'employee_id' => [
                 'nullable',
                 'string',
                 'max:50',
                 'unique:users',
-                'required_if:role,faculty,admin'
+                'required_if:role,faculty,admin',
             ],
             'terms' => ['required', 'accepted'],
         ]);
@@ -152,19 +145,16 @@ class AuthenticationController extends Controller
         $user = $this->userService->createUser($userData, $roleEnum);
         Auth::login($user);
 
-
         $user->updateLastLogin();
 
         return $this->redirectBasedOnRole($validated['role']);
     }
 
-
     public function demoLogin(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'role' => ['required', 'string', 'in:student,faculty,admin']
+            'role' => ['required', 'string', 'in:student,faculty,admin'],
         ]);
-
 
         $demoCredentials = [
             'student' => [
@@ -178,25 +168,24 @@ class AuthenticationController extends Controller
             'admin' => [
                 'email' => 'admin@university.edu',
                 'password' => 'demo123',
-            ]
+            ],
         ];
 
         $credentials = $demoCredentials[$validated['role']];
 
         $user = User::where('email', $credentials['email'])->first();
 
-        if (!$user) {
+        if (! $user) {
             // If demo user doesn't exist, run the seeder
             \Artisan::call('db:seed', ['--class' => 'RBACSeeder']);
             $user = User::where('email', $credentials['email'])->first();
         }
 
-        if (!$user) {
+        if (! $user) {
             throw ValidationException::withMessages([
                 'role' => 'Demo user not found. Please ensure the database is seeded.',
             ]);
         }
-
 
         Auth::login($user);
         $user->updateLastLogin();
@@ -205,7 +194,6 @@ class AuthenticationController extends Controller
 
         return $this->redirectBasedOnRole($validated['role']);
     }
-
 
     public function destroy(Request $request): RedirectResponse
     {
@@ -227,10 +215,9 @@ class AuthenticationController extends Controller
         };
     }
 
-
     private function ensureIsNotRateLimited(Request $request): void
     {
-        if (!RateLimiter::tooManyAttempts($this->throttleKey($request), 5)) {
+        if (! RateLimiter::tooManyAttempts($this->throttleKey($request), 5)) {
             return;
         }
 
@@ -247,7 +234,7 @@ class AuthenticationController extends Controller
     private function throttleKey(Request $request): string
     {
         return Str::transliterate(
-            Str::lower($request->input('email')) . '|' . $request->ip()
+            Str::lower($request->input('email')).'|'.$request->ip()
         );
     }
 }

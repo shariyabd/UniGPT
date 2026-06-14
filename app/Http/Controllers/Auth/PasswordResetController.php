@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -12,12 +12,10 @@ use Inertia\Response;
 
 class PasswordResetController extends Controller
 {
-    
     public function create(): Response
     {
         return Inertia::render('Auth/ForgotPassword');
     }
-
 
     public function store(Request $request): RedirectResponse
     {
@@ -39,7 +37,6 @@ class PasswordResetController extends Controller
         ]);
     }
 
-
     public function edit(Request $request): Response
     {
         return Inertia::render('Auth/ResetPassword', [
@@ -47,7 +44,6 @@ class PasswordResetController extends Controller
             'email' => $request->email,
         ]);
     }
-
 
     public function update(Request $request): RedirectResponse
     {
