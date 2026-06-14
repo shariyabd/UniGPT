@@ -1,126 +1,68 @@
 <?php
-// app/Http/Controllers/Faculty/DashboardController.php
 
 namespace App\Http\Controllers\Faculty;
 
+use App\Domain\Academic\Services\CourseService;
+use App\Domain\User\Models\User;
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
+use App\Models\ActivityLog;
+use App\Models\AssignmentSubmission;
+use Illuminate\Database\Eloquent\Builder;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class FacultyDashboardController extends Controller
 {
-    /**
-     * Display the faculty dashboard
-     */
+    public function __construct(private readonly CourseService $courses) {}
+
     public function index(): Response
     {
-        $user = auth()->user()->load('roles.permissions');
+        $user = request()->user();
+        $courses = $this->courses->facultyCourses($user);
+
+        $totalStudents = $courses->sum('students');
+        $pendingGrading = $this->pendingGradingCount($user);
 
         return Inertia::render('Faculty/Dashboard', [
-            'user' => $user,
-            'permissions' => $user->roles->flatMap->permissions->pluck('slug')->unique()->values(),
-            'statistics' => $this->getFacultyStatistics(),
-            'recent_activities' => $this->getRecentActivities(),
-            'upcoming_tasks' => $this->getUpcomingTasks(),
+            'faculty' => [
+                'name' => $user->name,
+                'email' => $user->email,
+                'employeeId' => $user->employee_id,
+                'department' => $user->department?->name,
+                'avatar' => 'https://ui-avatars.com/api/?name='.urlencode($user->name).'&background=10b981&color=fff&size=128',
+            ],
+            'courseStats' => [
+                ['label' => 'Active Courses', 'value' => $courses->count(), 'icon' => 'BookOpenIcon', 'gradient' => 'from-blue-500 to-indigo-600'],
+                ['label' => 'Total Students', 'value' => $totalStudents, 'icon' => 'UsersIcon', 'gradient' => 'from-green-500 to-emerald-600'],
+                ['label' => 'Pending Grading', 'value' => $pendingGrading, 'icon' => 'DocumentTextIcon', 'gradient' => 'from-orange-500 to-red-600'],
+                ['label' => 'AI Queries', 'value' => $user->chatSessions()->count(), 'icon' => 'SparklesIcon', 'gradient' => 'from-purple-500 to-pink-600'],
+            ],
+            'activeCourses' => $courses,
+            'recentActivities' => $this->recentActivities($user),
         ]);
     }
 
-    /**
-     * Display AI assistant
-     */
-    public function aiAssistant(): Response
+    private function pendingGradingCount(User $faculty): int
     {
-        return Inertia::render('Faculty/AIAssistant');
+        return AssignmentSubmission::whereNull('grade')
+            ->whereHas('assignment.course', fn (Builder $q) => $q->where('faculty_id', $faculty->id))
+            ->count();
     }
 
     /**
-     * Display grading interface
+     * @return array<int, array<string, mixed>>
      */
-    public function grading(?string $courseId = null): Response
+    private function recentActivities(User $faculty): array
     {
-        return Inertia::render('Faculty/Grading', [
-            'courseId' => $courseId,
-            'pending_assignments' => $this->getPendingAssignments($courseId),
-            'courses' => $this->getFacultyCourses(),
-        ]);
-    }
-
-    /**
-     * Get faculty statistics
-     */
-    private function getFacultyStatistics(): array
-    {
-        return [
-            'total_courses' => 3,
-            'total_students' => 145,
-            'pending_assignments' => 28,
-            'completed_gradings' => 67,
-            'ai_assistant_usage' => 34,
-        ];
-    }
-
-    /**
-     * Get recent activities
-     */
-    private function getRecentActivities(): array
-    {
-        return [
-            [
-                'type' => 'grading',
-                'description' => 'Graded 5 assignments for Database Systems',
-                'timestamp' => now()->subHours(1),
-            ],
-            [
-                'type' => 'ai_assistant',
-                'description' => 'Generated quiz for Machine Learning course',
-                'timestamp' => now()->subHours(3),
-            ],
-            [
-                'type' => 'course',
-                'description' => 'Updated course materials for Software Engineering',
-                'timestamp' => now()->subHours(6),
-            ],
-        ];
-    }
-
-    /**
-     * Get upcoming tasks
-     */
-    private function getUpcomingTasks(): array
-    {
-        return [
-            [
-                'title' => 'Grade Database Systems Assignment 3',
-                'due_date' => now()->addDays(2),
-                'priority' => 'high',
-            ],
-            [
-                'title' => 'Prepare lecture for ML Neural Networks',
-                'due_date' => now()->addDays(3),
-                'priority' => 'medium',
-            ],
-        ];
-    }
-
-    /**
-     * Get pending assignments
-     */
-    private function getPendingAssignments(?string $courseId = null): array
-    {
-        // Placeholder for pending assignments logic
-        return [];
-    }
-
-    /**
-     * Get faculty courses
-     */
-    private function getFacultyCourses(): array
-    {
-        return [
-            ['id' => 1, 'name' => 'Database Systems', 'code' => 'CS301'],
-            ['id' => 2, 'name' => 'Machine Learning', 'code' => 'CS401'],
-            ['id' => 3, 'name' => 'Software Engineering', 'code' => 'CS302'],
-        ];
+        return ActivityLog::where('user_id', $faculty->id)
+            ->latest()
+            ->limit(6)
+            ->get()
+            ->map(fn (ActivityLog $log) => [
+                'id' => $log->id,
+                'type' => explode('.', $log->action)[0],
+                'description' => $log->description ?? $log->action,
+                'time' => $log->created_at?->diffForHumans(),
+            ])->all();
     }
 }

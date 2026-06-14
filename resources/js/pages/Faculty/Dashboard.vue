@@ -34,120 +34,94 @@ import {
     PaperAirplaneIcon
 } from '@heroicons/vue/24/outline';
 
-// Faculty information with enhanced data
-const faculty = ref({
-    name: 'Dr. Sarah Johnson',
-    department: 'Computer Science Engineering',
-    employeeId: 'FAC2024001',
-    email: 'sarah.johnson@university.edu',
-    avatar: 'https://ui-avatars.com/api/?name=Dr.+Sarah+Johnson&background=10b981&color=fff',
-    joinDate: '2015-07-01',
-    qualification: 'Ph.D. Computer Science, MIT',
-    specialization: ['Machine Learning', 'Data Science', 'AI Ethics'],
-    researchAreas: ['Artificial Intelligence', 'Natural Language Processing', 'Educational Technology'],
-    achievements: [
-        { title: 'Excellence in Teaching Award', year: '2023' },
-        { title: 'Best Research Paper', year: '2022' }
-    ],
-    totalPublications: 42,
-    citationIndex: 1250
+// Server-provided props
+const props = defineProps({
+    faculty: {
+        type: Object,
+        default: () => ({})
+    },
+    courseStats: {
+        type: Array,
+        default: () => []
+    },
+    activeCourses: {
+        type: Array,
+        default: () => []
+    },
+    recentActivities: {
+        type: Array,
+        default: () => []
+    }
 });
 
-// Course statistics with enhanced metrics
-const courseStats = ref([
-    {
-        label: 'Active Courses',
-        value: '6',
-        change: '+1 this semester',
-        trend: 'up',
-        icon: BookOpenIcon,
-        gradient: 'from-blue-500 to-cyan-600',
-        description: 'Currently teaching courses',
-        details: 'Undergraduate: 4, Graduate: 2'
-    },
-    {
-        label: 'Total Students',
-        value: '324',
-        change: '+23 this semester',
-        trend: 'up',
-        icon: UserGroupIcon,
-        gradient: 'from-green-500 to-emerald-600',
-        description: 'Enrolled across all courses',
-        details: 'Active enrollment count'
-    },
-    {
-        label: 'Pending Assignments',
-        value: '47',
-        change: '12 due today',
-        trend: 'neutral',
-        icon: DocumentTextIcon,
-        gradient: 'from-yellow-500 to-orange-600',
-        description: 'Awaiting grading',
-        details: 'Priority grading required'
-    },
-    {
-        label: 'AI Queries Today',
-        value: '89',
-        change: '+15 from yesterday',
-        trend: 'up',
-        icon: SparklesIcon,
-        gradient: 'from-purple-500 to-pink-600',
-        description: 'AI assistant usage',
-        details: 'Generated content count'
-    }
-]);
+// Faculty information — map server data into the field names the template uses,
+// keeping decorative fields (qualification, specialization, research areas,
+// achievements) static so the existing markup keeps rendering.
+const faculty = computed(() => ({
+    name: props.faculty.name ?? '',
+    department: props.faculty.department ?? '',
+    employeeId: props.faculty.employeeId ?? '',
+    email: props.faculty.email ?? '',
+    avatar: props.faculty.avatar
+        ?? `https://ui-avatars.com/api/?name=${encodeURIComponent(props.faculty.name ?? 'Faculty')}&background=10b981&color=fff`,
+    qualification: props.faculty.qualification ?? 'Ph.D.',
+    specialization: props.faculty.specialization ?? ['Machine Learning', 'Data Science', 'AI Ethics'],
+    researchAreas: props.faculty.researchAreas ?? ['Artificial Intelligence', 'Natural Language Processing', 'Educational Technology'],
+    achievements: props.faculty.achievements ?? [
+        { title: 'Excellence in Teaching Award', year: '2023' },
+        { title: 'Best Research Paper', year: '2022' }
+    ]
+}));
 
-// Active Courses Section
-const activeCourses = ref([
-    {
-        id: 1,
-        code: 'CS 401',
-        name: 'Machine Learning Fundamentals',
-        semester: 'Spring 2024',
-        students: 45,
-        progress: 75,
-        nextClass: '2024-01-15 10:00',
-        location: 'Room 205',
-        status: 'active',
-        completedLectures: 18,
-        totalLectures: 24,
-        averageGrade: 85.2,
-        attendanceRate: 88,
-        recentActivity: 'Quiz posted 2 hours ago'
-    },
-    {
-        id: 2,
-        code: 'CS 301',
-        name: 'Database Systems',
-        semester: 'Spring 2024',
-        students: 38,
-        progress: 65,
-        nextClass: '2024-01-15 14:00',
-        location: 'Lab 3',
-        status: 'active',
-        completedLectures: 15,
-        totalLectures: 20,
-        averageGrade: 78.9,
-        attendanceRate: 92,
-        recentActivity: 'Assignment graded'
-    },
-    {
-        id: 3,
-        code: 'CS 101',
-        name: 'Programming Fundamentals',
-        semester: 'Spring 2024',
-        students: 62,
-        progress: 85,
-        nextClass: '2024-01-16 09:00',
-        location: 'Room 101',
-        status: 'active',
-        completedLectures: 20,
-        totalLectures: 24,
-        averageGrade: 82.5,
-        attendanceRate: 95,
-        recentActivity: 'New material uploaded'
-    }
-]);
+// Course statistics — re-attach the heroicon components (icons can't cross the
+// JSON prop boundary) by mapping the server-provided icon key to a component.
+const statIconMap = {
+    BookOpenIcon,
+    UserGroupIcon,
+    DocumentTextIcon,
+    SparklesIcon,
+    ChartBarIcon
+};
+
+const courseStats = computed(() =>
+    props.courseStats.map((stat) => ({
+        ...stat,
+        icon: typeof stat.icon === 'string' ? (statIconMap[stat.icon] ?? ChartBarIcon) : (stat.icon ?? ChartBarIcon)
+    }))
+);
+
+// Active Courses Section — map server fields to the template's field names,
+// providing safe fallbacks for display-only fields not in the payload.
+const activeCourses = computed(() =>
+    props.activeCourses.map((course) => ({
+        id: course.id,
+        code: course.code,
+        name: course.name,
+        semester: course.semester,
+        students: course.students ?? 0,
+        progress: course.progress ?? 0,
+        averageGrade: course.averageGrade ?? 0,
+        status: course.status ?? 'active',
+        recentActivity: course.recentActivity
+            ?? `${course.materials ?? 0} materials • ${course.assignments ?? 0} assignments`
+    }))
+);
+
+// Recent activities — map server fields to the template's field names; the
+// icon is derived from `type` via getActivityIcon(), so only display fallbacks
+// for title/course/status/priority are added here.
+const recentActivities = computed(() =>
+    props.recentActivities.map((activity) => ({
+        id: activity.id,
+        type: activity.type,
+        title: activity.title ?? activity.description,
+        description: activity.description,
+        time: activity.time,
+        course: activity.course ?? '',
+        status: activity.status ?? 'completed',
+        priority: activity.priority ?? 'normal'
+    }))
+);
 
 // Student Insights Data
 const studentInsights = ref({
@@ -219,54 +193,6 @@ const quickActions = ref([
         type: 'secondary',
         badge: 'Updated',
         usageCount: 67
-    }
-]);
-
-// Recent activities with enhanced tracking
-const recentActivities = ref([
-    {
-        id: 1,
-        type: 'grading',
-        title: 'Graded Database Assignment',
-        description: '15 submissions completed with detailed feedback',
-        time: '2 hours ago',
-        icon: DocumentTextIcon,
-        status: 'completed',
-        course: 'CS 301',
-        priority: 'high'
-    },
-    {
-        id: 2,
-        type: 'ai_assistant',
-        title: 'Generated Quiz Questions',
-        description: 'Machine Learning fundamentals quiz with 20 questions',
-        time: '4 hours ago',
-        icon: SparklesIcon,
-        status: 'completed',
-        course: 'CS 401',
-        priority: 'medium'
-    },
-    {
-        id: 3,
-        type: 'student_contact',
-        title: 'Student Consultation',
-        description: 'Discussed final project requirements with Alex Chen',
-        time: '1 day ago',
-        icon: ChatBubbleLeftIcon,
-        status: 'completed',
-        course: 'CS 401',
-        priority: 'normal'
-    },
-    {
-        id: 4,
-        type: 'course_update',
-        title: 'Updated Course Material',
-        description: 'Added new lecture slides for Neural Networks',
-        time: '2 days ago',
-        icon: PresentationChartBarIcon,
-        status: 'completed',
-        course: 'CS 401',
-        priority: 'normal'
     }
 ]);
 
@@ -412,7 +338,7 @@ const handleQuickAction = (action) => {
 };
 
 const viewCourse = (courseId) => {
-    router.visit(`/faculty/courses/${courseId}`);
+    router.visit(route('faculty.courses.show', courseId));
 };
 
 const contactStudent = (studentName, studentId = null) => {

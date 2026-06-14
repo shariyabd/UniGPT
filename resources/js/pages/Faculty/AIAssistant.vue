@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, nextTick, onMounted } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
+import axios from 'axios';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import {
     ChatBubbleLeftRightIcon,
@@ -37,20 +38,31 @@ const currentMessage = ref('');
 const messagesContainer = ref(null);
 const showAllSections = ref(false);
 
-// Faculty context
-const facultyContext = ref({
-    name: 'Dr. Sarah Smith',
-    department: 'Computer Science Engineering',
-    courses: ['Database Systems', 'Machine Learning', 'Software Engineering'],
-    experience: '8 years'
+// Server-provided props
+const props = defineProps({
+    facultyContext: {
+        type: Object,
+        default: () => ({})
+    }
 });
+
+// Faculty context — the template renders each course as a string (select value
+// and sidebar label) and `courseTopics` is keyed by course name, so map the
+// server course objects ({ id, code, name }) down to their display names.
+const facultyContext = computed(() => ({
+    name: props.facultyContext.name ?? '',
+    department: props.facultyContext.department ?? '',
+    courses: (props.facultyContext.courses ?? []).map((course) =>
+        typeof course === 'string' ? course : course.name
+    )
+}));
 
 // Chat messages
 const messages = ref([
     {
         id: 1,
         role: 'assistant',
-        content: `Hello **Dr. ${facultyContext.value.name.split(' ')[1]}**! 👋
+        content: `Hello **${facultyContext.value.name || 'Professor'}**! 👋
 
 I'm your **AI Teaching Assistant**, specialized in helping faculty create engaging educational content and improve teaching effectiveness.
 
@@ -199,299 +211,167 @@ const sendMessage = async () => {
     };
 
     messages.value.push(userMessage);
-    const userInput = currentMessage.value;
+    const userInput = currentMessage.value.trim();
     currentMessage.value = '';
 
     isTyping.value = true;
     scrollToBottom();
 
-    setTimeout(() => {
-        const aiResponse = generateTeachingResponse(userInput);
-        messages.value.push(aiResponse);
+    try {
+        const { data } = await axios.post(route('faculty.ai-assistant.chat'), {
+            message: userInput
+        });
+        const reply = data.reply ?? {};
+
+        messages.value.push({
+            id: Date.now() + 1,
+            role: 'assistant',
+            content: reply.content ?? '',
+            timestamp: new Date().toISOString(),
+            suggestions: reply.follow_ups ?? []
+        });
+    } catch (error) {
+        messages.value.push({
+            id: Date.now() + 1,
+            role: 'assistant',
+            content: 'Sorry, I could not process that request. Please try again.',
+            timestamp: new Date().toISOString()
+        });
+    } finally {
         isTyping.value = false;
         scrollToBottom();
-    }, 1500);
+    }
 };
 
-const generateTeachingResponse = (userInput) => {
-    const responseId = Date.now() + 1;
-    let content;
+// Maps an API quiz question ({ id, question, options[], answer, explanation,
+// points }) into the field names the template renders: it needs `type` and
+// `correctAnswer` (MC = option index, true/false = boolean).
+const mapQuizQuestion = (question, index) => {
+    const hasOptions = Array.isArray(question.options) && question.options.length > 0;
+    let correctAnswer;
 
-    if (userInput.toLowerCase().includes('quiz') || userInput.toLowerCase().includes('questions')) {
-        content = `**Quiz Creation Assistant:**
-
-I can help you create a comprehensive quiz! Here are some options:
-
-**For "${userInput}":**
-• **Auto-Generate:** Use the Quiz Generator tab for instant quiz creation
-• **Question Types:** Multiple choice, true/false, short answer, essay questions
-• **Difficulty Levels:** Adjust complexity based on your students' level
-• **Bloom's Taxonomy:** Align questions with specific learning objectives
-
-**Quick Quiz Ideas:**
-• **Conceptual Questions:** Test understanding of key principles
-• **Application Problems:** Real-world scenarios and case studies
-• **Analysis Questions:** Compare and contrast different approaches
-• **Synthesis Tasks:** Combine concepts to solve complex problems
-
-**Pro Tips:**
-• Start with 5-10 questions for shorter quizzes
-• Mix question types to assess different skills
-• Include explanations to enhance learning
-• Set appropriate time limits based on complexity
-
-Would you like me to generate a specific quiz, or do you need help with question design strategies?`;
-    } else if (userInput.toLowerCase().includes('assignment') || userInput.toLowerCase().includes('project')) {
-        content = `**Assignment Design Helper:**
-
-Creating effective assignments is key to student learning! Let me help you design something impactful.
-
-**For "${userInput}":**
-• **Project-Based:** Hands-on application of course concepts
-• **Research-Oriented:** Deep dive into specific topics
-• **Collaborative:** Team-based learning experiences
-• **Portfolio:** Cumulative skill demonstration
-
-**Assignment Structure:**
-• **Clear Objectives:** What students will learn/demonstrate
-• **Detailed Instructions:** Step-by-step guidance
-• **Grading Rubric:** Transparent evaluation criteria
-• **Timeline:** Manageable milestones and deadlines
-
-**Best Practices:**
-• Align with course learning outcomes
-• Provide examples and resources
-• Include self-assessment opportunities
-• Offer multiple submission formats when appropriate
-
-**Assessment Ideas:**
-• Real-world problem solving
-• Case study analysis
-• Creative presentations
-• Peer review processes
-
-Head to the Assignment Creator tab to build a complete assignment with rubrics and guidelines!`;
-    } else if (userInput.toLowerCase().includes('explain') || userInput.toLowerCase().includes('teach')) {
-        content = `**Teaching Strategy Assistant:**
-
-Explaining complex concepts effectively is an art! Let me suggest some proven approaches for "${userInput}":
-
-**Pedagogical Strategies:**
-• **Analogies & Metaphors:** Connect new concepts to familiar experiences
-• **Scaffolding:** Break complex topics into manageable chunks
-• **Visual Learning:** Use diagrams, flowcharts, and mind maps
-• **Active Learning:** Engage students through hands-on activities
-
-**Explanation Techniques:**
-• **Tell-Show-Do:** Demonstrate, then let students practice
-• **Think-Pair-Share:** Collaborative concept exploration
-• **Real-World Examples:** Concrete applications of abstract ideas
-• **Progressive Disclosure:** Reveal complexity gradually
-
-**For Different Learning Styles:**
-• **Visual Learners:** Charts, graphs, color coding
-• **Auditory Learners:** Discussion, verbal explanations, music
-• **Kinesthetic Learners:** Hands-on activities, movement
-• **Reading/Writing:** Note-taking, written exercises
-
-**Engagement Boosters:**
-• Start with a hook or interesting question
-• Use storytelling to make content memorable
-• Encourage questions and curiosity
-• Provide immediate feedback and reinforcement
-
-What specific concept would you like help explaining to your students?`;
+    if (hasOptions) {
+        correctAnswer = question.options.findIndex((option) => option === question.answer);
+        if (correctAnswer === -1) {
+            correctAnswer = typeof question.answer === 'number' ? question.answer : 0;
+        }
     } else {
-        content = `**Teaching Insight:**
-
-Thank you for your question about "${userInput}". As your AI Teaching Assistant, I'm here to help you create engaging and effective learning experiences.
-
-**How I can assist you:**
-• **Curriculum Planning:** Develop course outlines and learning sequences
-• **Content Creation:** Generate quizzes, assignments, and activities
-• **Teaching Strategies:** Suggest pedagogical approaches for specific topics
-• **Assessment Design:** Create rubrics and evaluation criteria
-• **Student Engagement:** Recommend interactive and collaborative techniques
-
-**Quick Actions:**
-• Use specific prompts like "How do I teach [concept] to [level] students?"
-• Ask for "Create a quiz about [topic]" or "Design an assignment for [subject]"
-• Request "Explain [difficult concept] using analogies"
-• Say "Help me assess [skill] in my students"
-
-**Pro Tips:**
-• Be specific about your course level and student background
-• Mention any particular challenges you're facing
-• Let me know your preferred teaching style or constraints
-
-What specific teaching challenge can I help you with today?`;
+        correctAnswer = question.answer === true
+            || String(question.answer).toLowerCase() === 'true';
     }
 
     return {
-        id: responseId,
-        role: 'assistant',
-        content,
-        timestamp: new Date().toISOString(),
-        suggestions: [
-            'Generate a quiz for my next class',
-            'Create an assignment rubric',
-            'Explain a complex concept simply',
-            'Design interactive learning activities'
-        ]
+        id: question.id ?? index + 1,
+        type: hasOptions ? 'multiple-choice' : 'true-false',
+        question: question.question,
+        options: question.options ?? [],
+        correctAnswer,
+        explanation: question.explanation ?? null,
+        points: question.points ?? 1
     };
 };
 
 // Quiz generation
-const generateQuiz = () => {
+const generateQuiz = async () => {
     if (!isQuizFormValid.value) return;
 
     isGenerating.value = true;
 
-    setTimeout(() => {
+    try {
+        const { data } = await axios.post(route('faculty.ai-assistant.quiz'), {
+            topic: quizForm.value.topic,
+            course: quizForm.value.course,
+            difficulty: quizForm.value.difficulty,
+            questionCount: quizForm.value.questionCount
+        });
+        const quiz = data.quiz ?? {};
+        const questions = (quiz.questions ?? []).map(mapQuizQuestion);
+
         generatedContent.value = {
             type: 'quiz',
-            title: `${quizForm.value.topic} Quiz - ${quizForm.value.course}`,
+            title: quiz.title ?? `${quizForm.value.topic} Quiz - ${quizForm.value.course}`,
             course: quizForm.value.course,
-            topic: quizForm.value.topic,
-            difficulty: quizForm.value.difficulty,
-            totalQuestions: quizForm.value.questionCount,
+            topic: quiz.topic ?? quizForm.value.topic,
+            difficulty: quiz.difficulty ?? quizForm.value.difficulty,
+            totalQuestions: questions.length,
             timeLimit: quizForm.value.timeLimit,
-            instructions: `This quiz covers ${quizForm.value.topic} concepts for ${quizForm.value.course}. You have ${quizForm.value.timeLimit} minutes to complete ${quizForm.value.questionCount} questions.`,
-
-            questions: generateMockQuestions()
+            instructions: `This quiz covers ${quiz.topic ?? quizForm.value.topic} concepts for ${quizForm.value.course}. You have ${quizForm.value.timeLimit} minutes to complete ${questions.length} questions.`,
+            questions
         };
 
-        isGenerating.value = false;
         activeTab.value = 'preview';
-    }, 2000);
+    } finally {
+        isGenerating.value = false;
+    }
 };
 
-const generateMockQuestions = () => {
-    const questions = [];
-    const questionCount = Math.min(quizForm.value.questionCount, 15);
-
-    for (let i = 1; i <= questionCount; i++) {
-        if (quizForm.value.questionTypes.includes('multiple-choice') && i <= questionCount / 2) {
-            questions.push({
-                id: i,
-                type: 'multiple-choice',
-                question: `Which of the following best describes ${quizForm.value.topic}?`,
-                options: [
-                    'A fundamental concept in database design',
-                    'A method for optimizing queries',
-                    'A technique for data storage',
-                    'A security protocol'
-                ],
-                correctAnswer: 0,
-                explanation: quizForm.value.includeExplanations ? `This question tests understanding of ${quizForm.value.topic} fundamentals.` : null,
-                points: 2,
-                difficulty: quizForm.value.difficulty
-            });
-        } else if (quizForm.value.questionTypes.includes('true-false')) {
-            questions.push({
-                id: i,
-                type: 'true-false',
-                question: `${quizForm.value.topic} is essential for database integrity.`,
-                correctAnswer: true,
-                explanation: quizForm.value.includeExplanations ? `This statement is correct because ${quizForm.value.topic} ensures data consistency.` : null,
-                points: 1,
-                difficulty: quizForm.value.difficulty
-            });
-        }
+// Maps an API assignment task into a template "section". Tasks may be plain
+// strings or objects; the template section needs title/description/points/
+// requirements/deliverables.
+const mapAssignmentTask = (task, index, sectionPoints) => {
+    if (typeof task === 'string') {
+        return {
+            title: `Task ${index + 1}`,
+            description: task,
+            points: sectionPoints,
+            requirements: [task],
+            deliverables: []
+        };
     }
 
-    return questions;
+    return {
+        title: task.title ?? `Task ${index + 1}`,
+        description: task.description ?? '',
+        points: task.points ?? sectionPoints,
+        requirements: task.requirements ?? (task.description ? [task.description] : []),
+        deliverables: task.deliverables ?? []
+    };
+};
+
+// Maps an API rubric entry ({ criterion, points }) to the template's rubric
+// item ({ category, description, weight }) — weight is the criterion's share
+// of the total rubric points expressed as a percentage.
+const mapRubric = (rubric) => {
+    const totalPoints = (rubric ?? []).reduce((sum, item) => sum + (item.points ?? 0), 0);
+
+    return (rubric ?? []).map((item) => ({
+        category: item.criterion,
+        description: `Worth ${item.points} points`,
+        weight: totalPoints > 0 ? Math.round(((item.points ?? 0) / totalPoints) * 100) : 0
+    }));
 };
 
 // Assignment generation
-const generateAssignment = () => {
+const generateAssignment = async () => {
     if (!isAssignmentFormValid.value) return;
 
     isGenerating.value = true;
 
-    setTimeout(() => {
+    try {
+        const { data } = await axios.post(route('faculty.ai-assistant.assignment'), {
+            title: assignmentForm.value.title,
+            topics: assignmentForm.value.topics,
+            points: parseInt(assignmentForm.value.points)
+        });
+        const assignment = data.assignment ?? {};
+        const totalPoints = assignment.points ?? parseInt(assignmentForm.value.points);
+        const tasks = assignment.tasks ?? [];
+        const perTaskPoints = tasks.length > 0 ? Math.round(totalPoints / tasks.length) : totalPoints;
+
         generatedContent.value = {
             type: 'assignment',
-            title: `${assignmentForm.value.title} - ${assignmentForm.value.course}`,
-            description: `A comprehensive ${assignmentForm.value.type.toLowerCase()} focusing on ${assignmentForm.value.topics.join(', ')} with ${assignmentForm.value.difficulty} difficulty level.`,
+            title: assignment.title ?? `${assignmentForm.value.title} - ${assignmentForm.value.course}`,
+            description: assignment.description
+                ?? `A comprehensive ${assignmentForm.value.type.toLowerCase()} focusing on ${assignmentForm.value.topics.join(', ')}.`,
             course: assignmentForm.value.course,
             type: assignmentForm.value.type,
             topics: assignmentForm.value.topics,
             duration: assignmentForm.value.duration,
-            totalPoints: parseInt(assignmentForm.value.points),
+            totalPoints,
             dueDate: new Date(Date.now() + parseInt(assignmentForm.value.duration) * 24 * 60 * 60 * 1000).toLocaleDateString(),
             groupWork: assignmentForm.value.allowGroup,
-
-            sections: [
-                {
-                    title: 'Problem Analysis & Planning',
-                    description: 'Analyze the given problem statement and create a comprehensive solution plan.',
-                    points: 25,
-                    requirements: [
-                        'Identify key requirements and constraints',
-                        'Develop a step-by-step approach',
-                        'Consider edge cases and potential challenges'
-                    ],
-                    deliverables: ['Problem analysis document', 'Solution strategy']
-                },
-                {
-                    title: 'Implementation',
-                    description: 'Implement the solution using appropriate technologies and best practices.',
-                    points: 40,
-                    requirements: [
-                        'Follow coding standards and conventions',
-                        'Implement efficient algorithms',
-                        'Add appropriate comments and documentation'
-                    ],
-                    deliverables: ['Source code', 'Documentation', 'Unit tests']
-                },
-                {
-                    title: 'Testing & Validation',
-                    description: 'Thoroughly test your implementation and validate results.',
-                    points: 20,
-                    requirements: [
-                        'Create comprehensive test cases',
-                        'Validate output correctness',
-                        'Test edge cases and error handling'
-                    ],
-                    deliverables: ['Test cases', 'Test results', 'Error handling documentation']
-                },
-                {
-                    title: 'Report & Documentation',
-                    description: 'Create a detailed report explaining your approach and findings.',
-                    points: 15,
-                    requirements: [
-                        'Explain design decisions',
-                        'Discuss challenges and solutions',
-                        'Include performance analysis'
-                    ],
-                    deliverables: ['Technical report', 'User documentation']
-                }
-            ],
-
-            rubric: assignmentForm.value.includeRubric ? [
-                {
-                    category: 'Technical Excellence',
-                    description: 'Code quality, efficiency, and correctness',
-                    weight: 40
-                },
-                {
-                    category: 'Problem Solving',
-                    description: 'Approach to problem analysis and solution design',
-                    weight: 30
-                },
-                {
-                    category: 'Documentation',
-                    description: 'Quality of comments, reports, and documentation',
-                    weight: 20
-                },
-                {
-                    category: 'Presentation',
-                    description: 'Code organization and readability',
-                    weight: 10
-                }
-            ] : null,
-
+            sections: tasks.map((task, index) => mapAssignmentTask(task, index, perTaskPoints)),
+            rubric: assignmentForm.value.includeRubric ? mapRubric(assignment.rubric) : null,
             submissionGuidelines: [
                 {
                     type: 'Format',
@@ -510,7 +390,6 @@ const generateAssignment = () => {
                     detail: '10% deduction per day after due date'
                 }
             ],
-
             resources: assignmentForm.value.includeResources ? [
                 {
                     title: 'Official Documentation',
@@ -539,9 +418,10 @@ const generateAssignment = () => {
             ] : null
         };
 
-        isGenerating.value = false;
         activeTab.value = 'preview';
-    }, 2000);
+    } finally {
+        isGenerating.value = false;
+    }
 };
 
 // Action functions
