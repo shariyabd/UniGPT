@@ -33,17 +33,59 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'auth' => [
-                'user' => null, // Set to null for now, will be replaced with auth later
+                'user' => fn () => $this->resolveAuthUser($request),
             ],
             'flash' => [
-                'message' => fn() => $request->session()->get('message'),
-                'error' => fn() => $request->session()->get('error'),
-                'success' => fn() => $request->session()->get('success'),
+                'message' => fn () => $request->session()->get('message'),
+                'error' => fn () => $request->session()->get('error'),
+                'success' => fn () => $request->session()->get('success'),
             ],
-            'ziggy' => fn() => [
+            'ziggy' => fn () => [
                 ...(new Ziggy)->toArray(),
                 'location' => $request->url(),
             ],
+        ];
+    }
+
+    /**
+     * Build the shared authenticated-user payload consumed by every Vue page.
+     *
+     * @return array<string, mixed>|null
+     */
+    protected function resolveAuthUser(Request $request): ?array
+    {
+        $user = $request->user();
+
+        if (! $user) {
+            return null;
+        }
+
+        $user->loadMissing('roles.permissions', 'department');
+
+        $permissions = $user->roles
+            ->flatMap->permissions
+            ->pluck('slug')
+            ->unique()
+            ->values()
+            ->all();
+
+        return [
+            'id' => $user->id,
+            'name' => $user->name,
+            'display_name' => $user->display_name,
+            'email' => $user->email,
+            'avatar' => $user->avatar,
+            'bio' => $user->bio,
+            'semester' => $user->semester,
+            'identifier' => $user->identifier,
+            'student_id' => $user->student_id,
+            'employee_id' => $user->employee_id,
+            'is_active' => $user->is_active,
+            'department' => $user->department?->only(['id', 'name', 'slug', 'code']),
+            'roles' => $user->roles->pluck('slug')->values()->all(),
+            'permissions' => $permissions,
+            'primary_role' => $user->getPrimaryRole()?->slug,
+            'dashboard_route' => $user->getDashboardRoute(),
         ];
     }
 }
