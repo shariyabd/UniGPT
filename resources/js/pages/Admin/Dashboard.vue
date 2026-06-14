@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import LogoutButton from '@/components/LogoutButton.vue';
+import { usePermissions } from '@/composables/usePermissions';
 import {
     ShieldCheckIcon,
     UsersIcon,
@@ -25,121 +26,73 @@ import {
     ChartPieIcon
 } from '@heroicons/vue/24/outline';
 
-// System statistics
-const systemStats = ref([
-    {
-        label: 'Total Users',
-        value: '1,247',
-        change: '+12 this week',
-        trend: 'up',
-        icon: UsersIcon,
-        gradient: 'from-blue-500 to-cyan-600',
-        description: 'Registered users'
-    },
-    {
-        label: 'Active Sessions',
-        value: '89',
-        change: 'Real-time',
-        trend: 'neutral',
-        icon: ServerIcon,
-        gradient: 'from-green-500 to-emerald-600',
-        description: 'Current active users'
-    },
-    {
-        label: 'Documents',
-        value: '3,456',
-        change: '+89 today',
-        trend: 'up',
-        icon: DocumentIcon,
-        gradient: 'from-purple-500 to-pink-600',
-        description: 'Total documents'
-    },
-    {
-        label: 'System Health',
-        value: '99.8%',
-        change: 'Excellent',
-        trend: 'up',
-        icon: ShieldCheckIcon,
-        gradient: 'from-orange-500 to-red-600',
-        description: 'System uptime'
-    }
-]);
+// Props from the backend
+const props = defineProps({
+    systemStats: { type: Array, default: () => [] },
+    statistics: { type: Object, default: () => ({}) },
+    pendingDocuments: { type: Object, default: () => ({ data: [] }) },
+    recentActivities: { type: Array, default: () => [] },
+    systemHealth: { type: Object, default: () => ({}) }
+});
 
-// Pending documents for approval - YOUR ORIGINAL DESIGN
-const pendingDocuments = ref([
-    {
-        id: 1,
-        title: 'Machine Learning Course Materials',
-        author: 'Dr. Sarah Johnson',
-        department: 'Computer Science',
-        uploadDate: '2024-01-15',
-        size: '15.7 MB',
-        type: 'PDF',
-        status: 'pending',
+const { can } = usePermissions();
+
+// Map string icon identifiers from the server to Heroicon components
+const iconMap = {
+    UsersIcon,
+    ServerIcon,
+    DocumentIcon,
+    ShieldCheckIcon,
+    ChartBarSquareIcon,
+    BeakerIcon,
+    CheckCircleIcon,
+    ExclamationTriangleIcon,
+    ClockIcon,
+    Cog6ToothIcon,
+    CircleStackIcon,
+    CloudIcon,
+    CpuChipIcon,
+    ChartPieIcon
+};
+const resolveIcon = (icon) => iconMap[icon] || UsersIcon;
+
+// System statistics (mapped from server props)
+const systemStats = computed(() =>
+    (props.systemStats || []).map(stat => ({
+        ...stat,
+        icon: resolveIcon(stat.icon)
+    }))
+);
+
+// Pending documents for approval (mapped from paginator into template field names)
+const pendingDocuments = computed(() =>
+    (props.pendingDocuments?.data || []).map(doc => ({
+        id: doc.id,
+        title: doc.title,
+        author: doc.uploadedBy,
+        department: doc.category,
+        uploadDate: doc.uploadedAt,
+        size: doc.fileSize,
+        type: doc.type,
+        status: doc.status,
         urgent: false,
-        preview: 'Comprehensive materials covering neural networks and deep learning...'
-    },
-    {
-        id: 2,
-        title: 'Database Design Guidelines',
-        author: 'Prof. Michael Chen',
-        department: 'Information Technology',
-        uploadDate: '2024-01-14',
-        size: '8.3 MB',
-        type: 'PDF',
-        status: 'pending',
-        urgent: true,
-        preview: 'Updated guidelines for database normalization and optimization...'
-    },
-    {
-        id: 3,
-        title: 'Final Examination Schedule',
-        author: 'Admin Office',
-        department: 'Administration',
-        uploadDate: '2024-01-13',
-        size: '2.1 MB',
-        type: 'PDF',
-        status: 'pending',
-        urgent: true,
-        preview: 'Complete examination timetable for all courses...'
-    }
-]);
+        preview: ''
+    }))
+);
 
-// Recent activities
-const recentActivities = ref([
-    {
-        id: 1,
-        type: 'approval',
-        title: 'Approved "Database Systems Handbook"',
-        user: 'Admin',
-        time: '2 hours ago',
-        status: 'success'
-    },
-    {
-        id: 2,
-        type: 'upload',
-        title: 'New document uploaded by Dr. Williams',
-        user: 'Dr. Williams',
-        time: '4 hours ago',
-        status: 'info'
-    },
-    {
-        id: 3,
-        type: 'rejection',
-        title: 'Rejected "Outdated Course Material"',
-        user: 'Admin',
-        time: '6 hours ago',
-        status: 'error'
-    },
-    {
-        id: 4,
-        type: 'system',
-        title: 'System backup completed successfully',
-        user: 'System',
-        time: '8 hours ago',
-        status: 'success'
-    }
-]);
+// Recent activities (mapped from server props into template field names)
+const recentActivities = computed(() =>
+    (props.recentActivities || []).map(activity => ({
+        id: activity.id,
+        type: activity.type,
+        title: activity.description,
+        user: activity.user,
+        time: activity.timestamp,
+        status: activity.type === 'rejection' ? 'error'
+            : activity.type === 'upload' ? 'info'
+            : 'success'
+    }))
+);
 
 // Quick actions for admin
 const quickActions = ref([
@@ -233,35 +186,15 @@ const handleQuickAction = (action) => {
 };
 
 const approveDocument = (docId) => {
-    const doc = pendingDocuments.value.find(d => d.id === docId);
-    if (doc) {
-        doc.status = 'approved';
-        // Add to recent activities
-        recentActivities.value.unshift({
-            id: Date.now(),
-            type: 'approval',
-            title: `Approved "${doc.title}"`,
-            user: 'Admin',
-            time: 'Just now',
-            status: 'success'
-        });
-    }
+    router.post(route('admin.documents.approve', docId), {}, {
+        preserveScroll: true
+    });
 };
 
 const rejectDocument = (docId) => {
-    const doc = pendingDocuments.value.find(d => d.id === docId);
-    if (doc) {
-        doc.status = 'rejected';
-        // Add to recent activities
-        recentActivities.value.unshift({
-            id: Date.now(),
-            type: 'rejection',
-            title: `Rejected "${doc.title}"`,
-            user: 'Admin',
-            time: 'Just now',
-            status: 'error'
-        });
-    }
+    router.post(route('admin.documents.reject', docId), {}, {
+        preserveScroll: true
+    });
 };
 
 const getHealthColor = (percentage) => {
@@ -558,7 +491,7 @@ const getActivityColor = (status) => {
                                             <span class="text-xs text-gray-500 dark:text-gray-500">
                                                 {{ doc.uploadDate }}
                                             </span>
-                                            <div class="flex gap-2">
+                                            <div v-if="can('approve_document')" class="flex gap-2">
                                                 <button
                                                     @click="rejectDocument(doc.id)"
                                                     class="text-xs px-2 py-1 bg-red-100 hover:bg-red-200 text-red-700 dark:bg-red-900/30 dark:text-red-400 rounded transition-colors"
