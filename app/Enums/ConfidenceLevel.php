@@ -12,7 +12,7 @@ enum ConfidenceLevel: string
 
     public function label(): string
     {
-        return match($this) {
+        return match ($this) {
             self::VERY_LOW => 'Very Low',
             self::LOW => 'Low',
             self::MEDIUM => 'Medium',
@@ -23,7 +23,7 @@ enum ConfidenceLevel: string
 
     public function threshold(): float
     {
-        return match($this) {
+        return match ($this) {
             self::VERY_LOW => 0.0,
             self::LOW => 0.3,
             self::MEDIUM => 0.5,
@@ -34,7 +34,7 @@ enum ConfidenceLevel: string
 
     public function color(): string
     {
-        return match($this) {
+        return match ($this) {
             self::VERY_LOW => 'red',
             self::LOW => 'orange',
             self::MEDIUM => 'yellow',
@@ -45,7 +45,7 @@ enum ConfidenceLevel: string
 
     public static function fromScore(float $score): self
     {
-        return match(true) {
+        return match (true) {
             $score >= 0.9 => self::VERY_HIGH,
             $score >= 0.7 => self::HIGH,
             $score >= 0.5 => self::MEDIUM,

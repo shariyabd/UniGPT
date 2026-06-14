@@ -14,7 +14,7 @@ enum Language: string
 
     public function label(): string
     {
-        return match($this) {
+        return match ($this) {
             self::ENGLISH => 'English',
             self::ARABIC => 'العربية',
             self::SPANISH => 'Español',

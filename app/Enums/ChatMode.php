@@ -13,7 +13,7 @@ enum ChatMode: string
 
     public function label(): string
     {
-        return match($this) {
+        return match ($this) {
             self::GENERAL => 'General Chat',
             self::ACADEMIC => 'Academic Support',
             self::RESEARCH => 'Research Assistant',
@@ -25,7 +25,7 @@ enum ChatMode: string
 
     public function systemPrompt(): string
     {
-        return match($this) {
+        return match ($this) {
             self::GENERAL => 'You are a helpful university assistant.',
             self::ACADEMIC => 'You are an academic advisor helping students with coursework.',
             self::RESEARCH => 'You are a research assistant helping with academic research.',
