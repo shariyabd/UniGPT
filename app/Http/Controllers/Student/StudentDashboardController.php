@@ -1,324 +1,247 @@
 <?php
-// app/Http/Controllers/Student/DashboardController.php
 
 namespace App\Http\Controllers\Student;
 
+use App\Domain\Academic\Services\CourseService;
+use App\Domain\Chat\Document\Services\DocumentService;
+use App\Domain\User\Models\User;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\DocumentResource;
+use App\Models\ActivityLog;
+use App\Models\Assignment;
+use App\Models\Document;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class StudentDashboardController extends Controller
 {
-    /**
-     * Display the student dashboard
-     */
+    public function __construct(
+        private readonly DocumentService $documents,
+        private readonly CourseService $courses,
+    ) {}
+
     public function index(): Response
     {
-        $user = auth()->user()->load('roles.permissions');
+        $user = $this->user();
+        $courses = $this->courses->studentCourses($user);
+        $deadlines = $this->upcomingDeadlines($user);
 
         return Inertia::render('Student/Dashboard', [
-            // User data
-            'user' => auth()->user()->load('roles.permissions'),
-            'permissions' => auth()->user()->roles->flatMap->permissions->pluck('slug')->unique()->values(),
-
-            // Student-specific data
-            'student' => [
-                'name' => auth()->user()->name,
-                'email' => auth()->user()->email,
-                'student_id' => auth()->user()->student_id ?? 'CS2024001',
-                'department' => auth()->user()->department ?? 'Computer Science Engineering',
-                'year' => auth()->user()->academic_year ?? '3rd Year',
-                'semester' => auth()->user()->semester ?? '5th Semester',
-                'program' => auth()->user()->program ?? 'B.Tech',
-                'avatar' => auth()->user()->avatar ?? 'https://ui-avatars.com/api/?name=' . urlencode(auth()->user()->name) . '&background=6366f1&color=fff&size=128'
-            ],
-
-            // Dashboard statistics
+            'student' => $this->studentProfile($user),
             'stats' => [
-                [
-                    'label' => 'Attendance',
-                    'value' => '87%',
-                    'change' => '+5%',
-                    'trend' => 'up',
-                    'icon' => 'AcademicCapIcon',
-                    'color' => 'green'
-                ],
-                [
-                    'label' => 'GPA',
-                    'value' => '8.7',
-                    'change' => '+0.3',
-                    'trend' => 'up',
-                    'icon' => 'ChartBarIcon',
-                    'color' => 'blue'
-                ],
-                [
-                    'label' => 'Assignments',
-                    'value' => '12/15',
-                    'change' => '+2',
-                    'trend' => 'up',
-                    'icon' => 'DocumentTextIcon',
-                    'color' => 'purple'
-                ],
-                [
-                    'label' => 'Next Exam',
-                    'value' => '5 days',
-                    'change' => null,
-                    'trend' => 'neutral',
-                    'icon' => 'ClockIcon',
-                    'color' => 'orange'
-                ]
+                ['label' => 'Courses', 'value' => (string) $courses->count(), 'change' => null, 'trend' => 'neutral', 'icon' => 'AcademicCapIcon', 'color' => 'blue'],
+                ['label' => 'CGPA', 'value' => (string) $this->cgpa($user), 'change' => null, 'trend' => 'up', 'icon' => 'ChartBarIcon', 'color' => 'green'],
+                ['label' => 'Saved Answers', 'value' => (string) $user->savedAnswers()->count(), 'change' => null, 'trend' => 'neutral', 'icon' => 'BookmarkIcon', 'color' => 'purple'],
+                ['label' => 'Chat Sessions', 'value' => (string) $user->chatSessions()->count(), 'change' => null, 'trend' => 'neutral', 'icon' => 'ChatBubbleLeftRightIcon', 'color' => 'orange'],
             ],
-
-            // Recent activities
-            'recentActivities' => [
-                [
-                    'id' => 1,
-                    'type' => 'chat',
-                    'title' => 'Asked about Data Structures',
-                    'description' => 'Binary trees implementation',
-                    'time' => '2 hours ago',
-                    'icon' => 'ChatBubbleLeftRightIcon'
-                ],
-                [
-                    'id' => 2,
-                    'type' => 'assignment',
-                    'title' => 'Submitted ML Assignment',
-                    'description' => 'Linear regression analysis',
-                    'time' => '1 day ago',
-                    'icon' => 'DocumentTextIcon'
-                ],
-                [
-                    'id' => 3,
-                    'type' => 'bookmark',
-                    'title' => 'Saved Algorithm Notes',
-                    'description' => 'Sorting algorithms comparison',
-                    'time' => '3 days ago',
-                    'icon' => 'BookmarkIcon'
-                ]
-            ],
-
-            // Upcoming deadlines
-            'upcomingDeadlines' => [
-                [
-                    'id' => 1,
-                    'title' => 'Database Project',
-                    'course' => 'DBMS Lab',
-                    'due_date' => '2024-01-15',
-                    'days_left' => 3,
-                    'priority' => 'high'
-                ],
-                [
-                    'id' => 2,
-                    'title' => 'AI Assignment',
-                    'course' => 'Artificial Intelligence',
-                    'due_date' => '2024-01-18',
-                    'days_left' => 6,
-                    'priority' => 'medium'
-                ],
-                [
-                    'id' => 3,
-                    'title' => 'Research Paper',
-                    'course' => 'Software Engineering',
-                    'due_date' => '2024-01-25',
-                    'days_left' => 13,
-                    'priority' => 'low'
-                ]
-            ],
-
-            // Quick actions
-            'quickActions' => [
-                [
-                    'label' => 'Start AI Chat',
-                    'description' => 'Get instant help',
-                    'icon' => 'SparklesIcon',
-                    'route' => 'chat',
-                    'gradient' => 'from-purple-500 to-indigo-600'
-                ],
-                [
-                    'label' => 'View Roadmap',
-                    'description' => 'Track your progress',
-                    'icon' => 'FireIcon',
-                    'route' => 'roadmap',
-                    'gradient' => 'from-orange-500 to-red-600'
-                ],
-                [
-                    'label' => 'Browse Documents',
-                    'description' => 'Access course materials',
-                    'icon' => 'DocumentTextIcon',
-                    'route' => 'documents',
-                    'gradient' => 'from-blue-500 to-cyan-600'
-                ],
-                [
-                    'label' => 'Check Deadlines',
-                    'description' => 'Stay on track',
-                    'icon' => 'CalendarIcon',
-                    'route' => 'deadlines',
-                    'gradient' => 'from-green-500 to-emerald-600'
-                ]
-            ]
+            'recentActivities' => $this->recentActivities($user),
+            'upcomingDeadlines' => $deadlines,
+            'courses' => $courses,
+            'quickActions' => $this->quickActions(),
         ]);
     }
 
-    /**
-     * Display chat interface
-     */
-    public function chat(): Response
+    public function documents(Request $request): Response
     {
-        return Inertia::render('Student/Chat');
-    }
+        $user = $this->user();
+        $filters = $request->only(['category', 'search']);
 
-    /**
-     * Display saved answers
-     */
-    public function savedAnswers(): Response
-    {
-        return Inertia::render('Student/SavedAnswers', [
-            'saved_count' => $this->getSavedAnswersCount(),
-        ]);
-    }
-
-    /**
-     * Display academic roadmap
-     */
-    public function roadmap(): Response
-    {
-        return Inertia::render('Student/Roadmap', [
-            'progress' => $this->getAcademicProgress(),
-        ]);
-    }
-
-    /**
-     * Display documents
-     */
-    public function documents(): Response
-    {
         return Inertia::render('Student/Documents', [
-            'documents' => $this->getAvailableDocuments(),
+            'documents' => DocumentResource::collection($this->documents->libraryFor($user, $filters)),
+            'filters' => $filters,
+            'categories' => Document::approved()->visibleTo($user)
+                ->select('category')->distinct()->pluck('category'),
         ]);
     }
 
-    /**
-     * Display course materials
-     */
     public function materials(): Response
     {
+        $user = $this->user();
+
         return Inertia::render('Student/Materials', [
-            'materials' => $this->getCourseMaterials(),
+            'courses' => $this->courses->studentMaterials($user),
+            'enrolledCourses' => $this->courses->studentCourses($user),
         ]);
     }
 
-    /**
-     * Display user profile
-     */
+    public function roadmap(): Response
+    {
+        $user = $this->user();
+
+        return Inertia::render('Student/Roadmap', [
+            'roadmap' => $this->buildRoadmap($user),
+            'student' => $this->studentProfile($user),
+        ]);
+    }
+
     public function profile(): Response
     {
         return Inertia::render('Student/Profile', [
-            'user' => auth()->user()->load('roles'),
+            'user' => $this->user()->load('roles', 'department'),
         ]);
     }
 
-    /**
-     * Display settings
-     */
+    public function updateProfile(\App\Http\Requests\Student\UpdateProfileRequest $request): \Illuminate\Http\RedirectResponse
+    {
+        $this->user()->update($request->validated());
+
+        return back()->with('success', 'Profile updated.');
+    }
+
     public function settings(): Response
     {
         return Inertia::render('Student/Settings', [
-            'preferences' => $this->getUserPreferences(),
+            'preferences' => $this->user()->preferences ?? $this->defaultPreferences(),
         ]);
     }
 
-    /**
-     * Get student statistics
-     */
-    private function getStudentStatistics(): array
+    public function updateSettings(\App\Http\Requests\Student\UpdateSettingsRequest $request): \Illuminate\Http\RedirectResponse
     {
-        // Placeholder for actual statistics logic
+        $this->user()->update(['preferences' => $request->validated()]);
+
+        return back()->with('success', 'Settings saved.');
+    }
+
+    public function downloadDocument(Document $document)
+    {
+        \Illuminate\Support\Facades\Gate::authorize('download', $document);
+
+        $this->documents->recordDownload($document);
+
+        return Storage::disk('local')->download(
+            $document->file_path,
+            $document->original_filename ?? $document->title,
+        );
+    }
+
+    private function user(): User
+    {
+        return request()->user();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function studentProfile(User $user): array
+    {
         return [
-            'courses_enrolled' => 5,
-            'assignments_completed' => 23,
-            'total_chat_sessions' => 45,
-            'documents_downloaded' => 67,
-            'current_semester' => auth()->user()->semester ?? 'N/A',
+            'name' => $user->name,
+            'email' => $user->email,
+            'student_id' => $user->student_id,
+            'department' => $user->department?->name,
+            'semester' => $user->semester,
+            'avatar' => $user->avatar ?? 'https://ui-avatars.com/api/?name='.urlencode($user->name).'&background=6366f1&color=fff&size=128',
+            'cgpa' => $this->cgpa($user),
         ];
     }
 
     /**
-     * Get recent activities
+     * @return array<int, array<string, mixed>>
      */
-    private function getRecentActivities(): array
+    private function recentActivities(User $user): array
     {
-        // Placeholder for actual activities logic
+        return ActivityLog::where('user_id', $user->id)
+            ->latest()
+            ->limit(6)
+            ->get()
+            ->map(fn (ActivityLog $log) => [
+                'id' => $log->id,
+                'type' => explode('.', $log->action)[0],
+                'title' => $log->description ?? $log->action,
+                'description' => '',
+                'time' => $log->created_at?->diffForHumans(),
+                'icon' => 'ClockIcon',
+            ])->all();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function upcomingDeadlines(User $user): array
+    {
+        $courseIds = $user->enrolledCourses()->pluck('courses.id');
+
+        return Assignment::whereIn('course_id', $courseIds)
+            ->whereNotNull('due_at')
+            ->where('due_at', '>=', now())
+            ->with('course')
+            ->orderBy('due_at')
+            ->limit(5)
+            ->get()
+            ->map(fn (Assignment $a) => [
+                'id' => $a->id,
+                'title' => $a->title,
+                'course' => $a->course?->code,
+                'due_date' => $a->due_at?->toDateString(),
+                'days_left' => (int) now()->diffInDays($a->due_at, false),
+                'priority' => now()->diffInDays($a->due_at, false) <= 3 ? 'high' : (now()->diffInDays($a->due_at, false) <= 7 ? 'medium' : 'low'),
+            ])->all();
+    }
+
+    /**
+     * Build a semester-by-semester roadmap from enrolled courses.
+     *
+     * @return array<string, mixed>
+     */
+    private function buildRoadmap(User $user): array
+    {
+        $courses = $user->enrolledCourses()->with('faculty')->get();
+        $bysemester = $courses->groupBy('semester')->map(function ($group, $semester) {
+            return [
+                'semester' => $semester,
+                'title' => "Semester {$semester}",
+                'credits' => $group->sum('credits'),
+                'modules' => $group->map(fn ($c) => [
+                    'id' => $c->id,
+                    'title' => $c->name,
+                    'code' => $c->code,
+                    'status' => $c->pivot->status === 'completed' ? 'completed' : 'in-progress',
+                    'progress' => (int) $c->pivot->progress,
+                    'grade' => $c->pivot->grade,
+                    'credits' => $c->credits,
+                ])->values(),
+            ];
+        })->values();
+
         return [
-            [
-                'type' => 'chat',
-                'description' => 'Started AI chat session about Database Normalization',
-                'timestamp' => now()->subHours(2),
-            ],
-            [
-                'type' => 'document',
-                'description' => 'Downloaded lecture notes for Machine Learning',
-                'timestamp' => now()->subHours(5),
-            ],
-            [
-                'type' => 'assignment',
-                'description' => 'Submitted assignment for Software Engineering',
-                'timestamp' => now()->subDay(),
-            ],
+            'semesters' => $bysemester,
+            'overallProgress' => (int) round($courses->avg('pivot.progress') ?? 0),
+            'completedCredits' => $courses->where('pivot.status', 'completed')->sum('credits'),
+            'totalCredits' => max($courses->sum('credits'), 1),
+            'cgpa' => $this->cgpa($user),
+        ];
+    }
+
+    private function cgpa(User $user): float
+    {
+        $points = ['A' => 4.0, 'A-' => 3.7, 'B+' => 3.3, 'B' => 3.0, 'B-' => 2.7, 'C+' => 2.3, 'C' => 2.0, 'D' => 1.0, 'F' => 0.0];
+        $grades = $user->enrolledCourses()->get()
+            ->map(fn ($c) => $points[$c->pivot->grade] ?? null)
+            ->filter();
+
+        return $grades->isEmpty() ? 0.0 : round($grades->avg(), 2);
+    }
+
+    /**
+     * @return array<int, array<string, string>>
+     */
+    private function quickActions(): array
+    {
+        return [
+            ['label' => 'Start AI Chat', 'description' => 'Get instant help', 'icon' => 'SparklesIcon', 'route' => 'chat', 'gradient' => 'from-purple-500 to-indigo-600'],
+            ['label' => 'View Roadmap', 'description' => 'Track your progress', 'icon' => 'FireIcon', 'route' => 'roadmap', 'gradient' => 'from-orange-500 to-red-600'],
+            ['label' => 'Browse Documents', 'description' => 'Access course materials', 'icon' => 'DocumentTextIcon', 'route' => 'documents', 'gradient' => 'from-blue-500 to-cyan-600'],
+            ['label' => 'Saved Answers', 'description' => 'Your bookmarks', 'icon' => 'BookmarkIcon', 'route' => 'saved', 'gradient' => 'from-green-500 to-emerald-600'],
         ];
     }
 
     /**
-     * Get saved answers count
+     * @return array<string, mixed>
      */
-    private function getSavedAnswersCount(): int
+    private function defaultPreferences(): array
     {
-        // Placeholder - implement actual logic later
-        return 12;
-    }
-
-    /**
-     * Get academic progress
-     */
-    private function getAcademicProgress(): array
-    {
-        // Placeholder for roadmap logic
-        return [
-            'current_semester' => auth()->user()->semester ?? '5th Semester',
-            'completed_courses' => 18,
-            'remaining_courses' => 7,
-            'gpa' => 8.5,
-        ];
-    }
-
-    /**
-     * Get available documents
-     */
-    private function getAvailableDocuments(): array
-    {
-        // Placeholder for documents logic
-        return [];
-    }
-
-    /**
-     * Get course materials
-     */
-    private function getCourseMaterials(): array
-    {
-        // Placeholder for materials logic
-        return [];
-    }
-
-    /**
-     * Get user preferences
-     */
-    private function getUserPreferences(): array
-    {
-        // Placeholder for preferences logic
-        return [
-            'theme' => 'system',
-            'notifications' => true,
-            'language' => 'en',
-        ];
+        return ['theme' => 'system', 'notifications' => true, 'language' => 'en'];
     }
 }

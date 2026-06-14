@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import {
     DocumentTextIcon,
@@ -23,9 +23,27 @@ import {
     ChatBubbleLeftRightIcon
 } from '@heroicons/vue/24/outline';
 
+// Server props
+const props = defineProps({
+    documents: {
+        type: Object,
+        default: () => ({ data: [] })
+    },
+    filters: {
+        type: Object,
+        default: () => ({ category: '', search: '' })
+    },
+    categories: {
+        type: Array,
+        default: () => []
+    }
+});
+
+const page = usePage();
+
 // Component state
-const searchQuery = ref('');
-const selectedCategory = ref('all');
+const searchQuery = ref(props.filters?.search || '');
+const selectedCategory = ref(props.filters?.category || 'all');
 const selectedDepartment = ref('all');
 const selectedType = ref('all');
 const sortBy = ref('date_desc');
@@ -33,12 +51,15 @@ const viewMode = ref('grid');
 const showFilters = ref(false);
 const selectedDocuments = ref(new Set());
 
-// Student context
-const studentContext = ref({
-    name: 'John Doe',
-    department: 'Computer Science Engineering',
-    semester: '5th Semester',
-    currentCourses: ['Database Systems', 'Machine Learning', 'Software Engineering', 'Computer Networks']
+// Student context (derived from authenticated user)
+const studentContext = computed(() => {
+    const authUser = page.props?.auth?.user || {};
+    return {
+        name: authUser.name || 'Student',
+        department: authUser.department?.name || authUser.department || '',
+        semester: authUser.semester ? `${authUser.semester} Semester` : '',
+        currentCourses: []
+    };
 });
 
 // Sort options
@@ -50,64 +71,64 @@ const sortOptions = ref([
     { value: 'relevance', label: 'Most Relevant' }
 ]);
 
-// Document categories
-const categories = ref([
-    { id: 'all', name: 'All Documents', count: 245, icon: '📁', color: 'blue' },
-    { id: 'handbook', name: 'Academic Handbook', count: 15, icon: '📖', color: 'green' },
-    { id: 'syllabus', name: 'Course Syllabus', count: 48, icon: '📋', color: 'purple' },
-    { id: 'policies', name: 'University Policies', count: 23, icon: '📄', color: 'red' },
-    { id: 'schedules', name: 'Exam Schedules', count: 12, icon: '📅', color: 'yellow' },
-    { id: 'forms', name: 'Application Forms', count: 34, icon: '📝', color: 'indigo' },
-    { id: 'guidelines', name: 'Guidelines', count: 67, icon: '📚', color: 'cyan' },
-    { id: 'research', name: 'Research Papers', count: 89, icon: '🔬', color: 'pink' }
-]);
+// Category icon/color palette cycled for derived categories
+const categoryPalette = [
+    { icon: '📖', color: 'green' },
+    { icon: '📋', color: 'purple' },
+    { icon: '📄', color: 'red' },
+    { icon: '📅', color: 'yellow' },
+    { icon: '📝', color: 'indigo' },
+    { icon: '📚', color: 'cyan' },
+    { icon: '🔬', color: 'pink' }
+];
 
-// Mock documents data
-const documents = ref([
-    {
-        id: 1,
-        title: 'Computer Science Engineering Handbook 2024',
-        description: 'Complete academic handbook covering course structure, policies, and guidelines for CSE department.',
-        category: 'handbook',
-        department: 'Computer Science Engineering',
-        type: 'PDF',
-        fileSize: '2.4 MB',
-        pages: 156,
-        uploadedBy: 'Academic Office',
-        uploadedAt: '2024-01-15T10:30:00',
-        lastUpdated: '2024-01-10T14:20:00',
-        version: '2024.1',
-        downloads: 1247,
-        views: 3456,
-        tags: ['Academic', 'CSE', 'Policies', 'Guidelines'],
-        isBookmarked: false,
-        url: '/documents/cse-handbook-2024.pdf',
-        thumbnail: 'https://via.placeholder.com/200x280/3B82F6/FFFFFF?text=CSE+Handbook',
-        relevanceScore: 95
-    },
-    {
-        id: 2,
-        title: 'Database Systems Course Syllabus',
-        description: 'Detailed syllabus for Database Management Systems covering all units, assignments, and examination pattern.',
-        category: 'syllabus',
-        department: 'Computer Science Engineering',
-        type: 'PDF',
-        fileSize: '890 KB',
-        pages: 24,
-        uploadedBy: 'Dr. Sarah Smith',
-        uploadedAt: '2024-01-12T09:15:00',
-        lastUpdated: '2024-01-05T16:45:00',
-        version: '2024.1',
-        downloads: 892,
-        views: 2134,
-        tags: ['DBMS', 'Syllabus', 'Database', 'Course'],
-        isBookmarked: true,
-        url: '/documents/dbms-syllabus-2024.pdf',
-        thumbnail: 'https://via.placeholder.com/200x280/10B981/FFFFFF?text=DBMS+Syllabus',
-        relevanceScore: 88
-    }
-    // Add more mock documents...
-]);
+// Document categories derived from server props (with "all" option preserved)
+const categories = computed(() => {
+    const serverCategories = (props.categories || []).map((name, index) => {
+        const palette = categoryPalette[index % categoryPalette.length];
+        return {
+            id: name,
+            name,
+            count: documents.value.filter(doc => doc.category === name).length,
+            icon: palette.icon,
+            color: palette.color
+        };
+    });
+
+    return [
+        { id: 'all', name: 'All Documents', count: documents.value.length, icon: '📁', color: 'blue' },
+        ...serverCategories
+    ];
+});
+
+// Local bookmark state (keyed by document id)
+const bookmarkedIds = ref(new Set());
+
+// Documents derived from server props (mapped into template field names)
+const documents = computed(() => {
+    return (props.documents?.data || []).map(doc => ({
+        id: doc.id,
+        title: doc.title,
+        description: doc.description,
+        category: doc.category,
+        department: doc.department,
+        type: doc.type ? String(doc.type).toUpperCase() : '',
+        fileSize: doc.fileSize,
+        pages: doc.pages,
+        uploadedBy: doc.uploadedBy,
+        uploadedAt: doc.uploadedAt,
+        lastUpdated: doc.uploadedAt,
+        version: doc.version,
+        downloads: doc.downloads,
+        views: doc.views,
+        tags: doc.tags || [],
+        isBookmarked: bookmarkedIds.value.has(doc.id),
+        url: doc.downloadUrl,
+        downloadUrl: doc.downloadUrl,
+        thumbnail: `https://via.placeholder.com/200x280/3B82F6/FFFFFF?text=${encodeURIComponent(doc.type ? String(doc.type).toUpperCase() : 'DOC')}`,
+        relevanceScore: 0
+    }));
+});
 
 // Computed properties
 const filteredDocuments = computed(() => {
@@ -184,22 +205,24 @@ const getCategoryColor = (categoryId) => {
 
 // Actions
 const toggleBookmark = (documentId) => {
-    const doc = documents.value.find(d => d.id === documentId);
-    if (doc) {
-        doc.isBookmarked = !doc.isBookmarked;
+    if (bookmarkedIds.value.has(documentId)) {
+        bookmarkedIds.value.delete(documentId);
+    } else {
+        bookmarkedIds.value.add(documentId);
     }
+    bookmarkedIds.value = new Set(bookmarkedIds.value);
 };
 
 const downloadDocument = (document) => {
-    // Simulate download
-    document.downloads++;
-    alert(`Downloading: ${document.title}`);
+    if (document.downloadUrl) {
+        window.open(document.downloadUrl, '_blank');
+    }
 };
 
 const previewDocument = (document) => {
-    // Simulate document preview
-    document.views++;
-    alert(`Opening preview for: ${document.title}`);
+    if (document.downloadUrl) {
+        window.open(document.downloadUrl, '_blank');
+    }
 };
 
 const askAIAboutDocument = (document) => {

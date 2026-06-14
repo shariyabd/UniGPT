@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import {
     AcademicCapIcon,
@@ -31,26 +31,33 @@ import {
     LightBulbIcon
 } from '@heroicons/vue/24/outline';
 
+const props = defineProps({
+    roadmap: Object,
+    student: Object
+});
+
 // Component state
-const selectedSemester = ref(5); // Current semester
+const selectedSemester = ref(props.student?.semester ?? 1); // Current semester
 const viewMode = ref('timeline'); // timeline, grid, progress
-const expandedModules = ref(new Set([14, 15, 16])); // Currently expanded modules
+const expandedModules = ref(new Set()); // Currently expanded modules
 const showSkillsMap = ref(false);
 const selectedTrack = ref('core');
 
-// Student context
-const studentContext = ref({
-    name: 'John Doe',
-    studentId: 'CS2021001',
-    department: 'Computer Science Engineering',
-    currentSemester: 5,
-    totalSemesters: 8,
-    currentYear: '3rd Year',
-    overallProgress: 67,
-    cgpa: 8.2,
-    completedCredits: 120,
-    totalCredits: 180,
-    specialization: 'Machine Learning & AI'
+// Student context — mapped from server `student` + `roadmap` props.
+const studentContext = computed(() => {
+    const student = props.student || {};
+    const roadmap = props.roadmap || {};
+    return {
+        name: student.name,
+        studentId: student.student_id,
+        department: student.department ?? 'Not assigned',
+        currentSemester: student.semester,
+        currentYear: student.semester ? `Semester ${student.semester}` : '',
+        overallProgress: roadmap.overallProgress ?? 0,
+        cgpa: student.cgpa ?? roadmap.cgpa,
+        completedCredits: roadmap.completedCredits ?? 0,
+        totalCredits: roadmap.totalCredits ?? 0
+    };
 });
 
 // Learning tracks
@@ -62,185 +69,27 @@ const learningTracks = [
     { id: 'data-science', label: 'Data Science', icon: '📊', color: 'yellow' }
 ];
 
-// Comprehensive roadmap data
-const roadmapData = ref({
-    semesters: [
-        // Semester 1
-        {
-            semester: 1,
-            title: 'Foundation Year - Semester 1',
-            status: 'completed',
-            credits: 22,
-            gpa: 8.4,
-            modules: [
-                { id: 1, title: 'Mathematics I (Calculus)', status: 'completed', progress: 100, grade: 'A', credits: 4, difficulty: 'medium' },
-                { id: 2, title: 'Physics for Engineers', status: 'completed', progress: 100, grade: 'A-', credits: 3, difficulty: 'medium' },
-                { id: 3, title: 'Programming Fundamentals (C)', status: 'completed', progress: 100, grade: 'A+', credits: 4, difficulty: 'easy' },
-                { id: 4, title: 'English Communication', status: 'completed', progress: 100, grade: 'B+', credits: 3, difficulty: 'easy' },
-                { id: 5, title: 'Engineering Graphics', status: 'completed', progress: 100, grade: 'B', credits: 2, difficulty: 'easy' },
-                { id: 6, title: 'Basic Electronics', status: 'completed', progress: 100, grade: 'A-', credits: 3, difficulty: 'medium' },
-                { id: 7, title: 'Workshop Practice', status: 'completed', progress: 100, grade: 'A', credits: 1, difficulty: 'easy' }
-            ]
-        },
-
-        // Semester 2
-        {
-            semester: 2,
-            title: 'Foundation Year - Semester 2',
-            status: 'completed',
-            credits: 23,
-            gpa: 8.1,
-            modules: [
-                { id: 8, title: 'Mathematics II (Linear Algebra)', status: 'completed', progress: 100, grade: 'A', credits: 4, difficulty: 'hard' },
-                { id: 9, title: 'Chemistry for Engineers', status: 'completed', progress: 100, grade: 'B+', credits: 3, difficulty: 'medium' },
-                { id: 10, title: 'Data Structures (C++)', status: 'completed', progress: 100, grade: 'A+', credits: 4, difficulty: 'medium' },
-                { id: 11, title: 'Digital Logic Design', status: 'completed', progress: 100, grade: 'A-', credits: 3, difficulty: 'medium' },
-                { id: 12, title: 'Environmental Science', status: 'completed', progress: 100, grade: 'A', credits: 2, difficulty: 'easy' },
-                { id: 13, title: 'Computer Organization', status: 'completed', progress: 100, grade: 'B+', credits: 3, difficulty: 'medium' }
-            ]
-        },
-
-        // Semester 3
-        {
-            semester: 3,
-            title: 'Core Development - Semester 3',
-            status: 'completed',
-            credits: 24,
-            gpa: 8.5,
-            modules: [
-                { id: 14, title: 'Object-Oriented Programming (Java)', status: 'completed', progress: 100, grade: 'A+', credits: 4, difficulty: 'medium' },
-                { id: 15, title: 'Database Management Systems', status: 'completed', progress: 100, grade: 'A', credits: 4, difficulty: 'medium' },
-                { id: 16, title: 'Computer Networks', status: 'completed', progress: 100, grade: 'A-', credits: 3, difficulty: 'medium' },
-                { id: 17, title: 'Operating Systems', status: 'completed', progress: 100, grade: 'A', credits: 4, difficulty: 'hard' },
-                { id: 18, title: 'Mathematics III (Statistics)', status: 'completed', progress: 100, grade: 'B+', credits: 3, difficulty: 'hard' },
-                { id: 19, title: 'Software Engineering', status: 'completed', progress: 100, grade: 'A-', credits: 3, difficulty: 'medium' }
-            ]
-        },
-
-        // Semester 4
-        {
-            semester: 4,
-            title: 'Core Development - Semester 4',
-            status: 'completed',
-            credits: 23,
-            gpa: 8.3,
-            modules: [
-                { id: 20, title: 'Design & Analysis of Algorithms', status: 'completed', progress: 100, grade: 'A', credits: 4, difficulty: 'hard' },
-                { id: 21, title: 'Computer Architecture', status: 'completed', progress: 100, grade: 'A-', credits: 3, difficulty: 'medium' },
-                { id: 22, title: 'Theory of Computation', status: 'completed', progress: 100, grade: 'B+', credits: 3, difficulty: 'hard' },
-                { id: 23, title: 'Web Technologies', status: 'completed', progress: 100, grade: 'A+', credits: 4, difficulty: 'medium' },
-                { id: 24, title: 'Discrete Mathematics', status: 'completed', progress: 100, grade: 'A-', credits: 3, difficulty: 'hard' },
-                { id: 25, title: 'Human-Computer Interaction', status: 'completed', progress: 100, grade: 'A', credits: 2, difficulty: 'easy' }
-            ]
-        },
-
-        // Semester 5 (Current)
-        {
-            semester: 5,
-            title: 'Specialization - Semester 5 (Current)',
-            status: 'in-progress',
-            credits: 22,
+// Roadmap data — mapped from server `roadmap.semesters`. The template expects
+// each module to expose `difficulty` and a `code`-based title; map those in.
+const roadmapData = computed(() => {
+    const semesters = (props.roadmap?.semesters || []).map((semester) => {
+        const modules = (semester.modules || []).map((module) => ({
+            ...module,
+            difficulty: module.difficulty ?? 'medium'
+        }));
+        const allCompleted = modules.length > 0 && modules.every((module) => module.status === 'completed');
+        const anyActive = modules.some((module) => module.status === 'in-progress');
+        const status = allCompleted ? 'completed' : anyActive ? 'in-progress' : 'upcoming';
+        return {
+            semester: semester.semester,
+            title: semester.title,
+            status,
+            credits: semester.credits,
             gpa: null,
-            modules: [
-                {
-                    id: 26,
-                    title: 'Machine Learning Fundamentals',
-                    status: 'in-progress',
-                    progress: 75,
-                    grade: null,
-                    credits: 4,
-                    difficulty: 'hard',
-                    currentTopic: 'Neural Networks & Deep Learning',
-                    upcomingTopics: ['Convolutional Neural Networks', 'Natural Language Processing'],
-                    assignments: [
-                        { title: 'Linear Regression Implementation', due: '2024-01-25', status: 'completed' },
-                        { title: 'Neural Network from Scratch', due: '2024-02-10', status: 'in-progress' }
-                    ]
-                },
-                {
-                    id: 27,
-                    title: 'Database Systems Advanced',
-                    status: 'in-progress',
-                    progress: 80,
-                    grade: null,
-                    credits: 4,
-                    difficulty: 'medium',
-                    currentTopic: 'Database Normalization & Optimization',
-                    upcomingTopics: ['Distributed Databases', 'NoSQL Systems'],
-                    assignments: [
-                        { title: 'Database Design Project', due: '2024-01-30', status: 'pending' }
-                    ]
-                },
-                {
-                    id: 28,
-                    title: 'Software Engineering Project',
-                    status: 'in-progress',
-                    progress: 60,
-                    grade: null,
-                    credits: 3,
-                    difficulty: 'medium',
-                    currentTopic: 'Agile Development Methodologies',
-                    upcomingTopics: ['Testing Strategies', 'Deployment & DevOps'],
-                    assignments: [
-                        { title: 'Requirements Analysis', due: '2024-02-05', status: 'completed' },
-                        { title: 'System Design Document', due: '2024-02-20', status: 'pending' }
-                    ]
-                },
-                { id: 29, title: 'Computer Networks Security', status: 'in-progress', progress: 65, grade: null, credits: 3, difficulty: 'hard' },
-                { id: 30, title: 'Data Mining & Analytics', status: 'in-progress', progress: 70, grade: null, credits: 4, difficulty: 'hard' },
-                { id: 31, title: 'Professional Ethics', status: 'completed', progress: 100, grade: 'A', credits: 2, difficulty: 'easy' }
-            ]
-        },
-
-        // Semester 6 (Upcoming)
-        {
-            semester: 6,
-            title: 'Advanced Specialization - Semester 6',
-            status: 'upcoming',
-            credits: 21,
-            gpa: null,
-            modules: [
-                { id: 32, title: 'Artificial Intelligence', status: 'locked', progress: 0, grade: null, credits: 4, difficulty: 'hard', prerequisites: [26] },
-                { id: 33, title: 'Distributed Systems', status: 'locked', progress: 0, grade: null, credits: 4, difficulty: 'hard', prerequisites: [27, 29] },
-                { id: 34, title: 'Mobile Application Development', status: 'locked', progress: 0, grade: null, credits: 3, difficulty: 'medium', prerequisites: [23] },
-                { id: 35, title: 'Cloud Computing', status: 'locked', progress: 0, grade: null, credits: 3, difficulty: 'medium' },
-                { id: 36, title: 'Computer Vision', status: 'locked', progress: 0, grade: null, credits: 3, difficulty: 'hard', prerequisites: [26] },
-                { id: 37, title: 'Research Methodology', status: 'locked', progress: 0, grade: null, credits: 2, difficulty: 'medium' }
-            ]
-        },
-
-        // Semester 7
-        {
-            semester: 7,
-            title: 'Industry Integration - Semester 7',
-            status: 'upcoming',
-            credits: 18,
-            gpa: null,
-            modules: [
-                { id: 38, title: 'Capstone Project Phase I', status: 'locked', progress: 0, grade: null, credits: 6, difficulty: 'hard' },
-                { id: 39, title: 'Advanced Machine Learning', status: 'locked', progress: 0, grade: null, credits: 4, difficulty: 'hard', prerequisites: [26, 32] },
-                { id: 40, title: 'Blockchain Technology', status: 'locked', progress: 0, grade: null, credits: 3, difficulty: 'medium' },
-                { id: 41, title: 'Industry Internship', status: 'locked', progress: 0, grade: null, credits: 4, difficulty: 'medium' },
-                { id: 42, title: 'Technical Writing', status: 'locked', progress: 0, grade: null, credits: 1, difficulty: 'easy' }
-            ]
-        },
-
-        // Semester 8
-        {
-            semester: 8,
-            title: 'Final Project - Semester 8',
-            status: 'upcoming',
-            credits: 15,
-            gpa: null,
-            modules: [
-                { id: 43, title: 'Capstone Project Phase II', status: 'locked', progress: 0, grade: null, credits: 8, difficulty: 'hard' },
-                { id: 44, title: 'Comprehensive Viva', status: 'locked', progress: 0, grade: null, credits: 2, difficulty: 'medium' },
-                { id: 45, title: 'Industry Seminar', status: 'locked', progress: 0, grade: null, credits: 2, difficulty: 'easy' },
-                { id: 46, title: 'Placement Preparation', status: 'locked', progress: 0, grade: null, credits: 2, difficulty: 'medium' },
-                { id: 47, title: 'Entrepreneurship', status: 'locked', progress: 0, grade: null, credits: 1, difficulty: 'easy' }
-            ]
-        }
-    ]
+            modules
+        };
+    });
+    return { semesters };
 });
 
 // Skills mapping
@@ -311,12 +160,7 @@ const currentSemesterData = computed(() => {
     return roadmapData.value.semesters.find(s => s.semester === selectedSemester.value);
 });
 
-const overallProgress = computed(() => {
-    const totalModules = roadmapData.value.semesters.reduce((sum, sem) => sum + sem.modules.length, 0);
-    const completedModules = roadmapData.value.semesters.reduce((sum, sem) =>
-        sum + sem.modules.filter(mod => mod.status === 'completed').length, 0);
-    return Math.round((completedModules / totalModules) * 100);
-});
+const overallProgress = computed(() => props.roadmap?.overallProgress ?? 0);
 
 const currentSemesterProgress = computed(() => {
     const currentSem = currentSemesterData.value;
@@ -409,21 +253,20 @@ const toggleModuleExpansion = (moduleId) => {
     }
 };
 
-const startModule = (moduleId) => {
-    // Navigate to course/module content
-    alert(`Starting module ${moduleId} - would navigate to course content`);
+const startModule = () => {
+    router.visit('/student/materials');
 };
 
-const viewAssignment = (moduleId, assignmentTitle) => {
-    alert(`Opening assignment: ${assignmentTitle} for module ${moduleId}`);
+const viewAssignment = () => {
+    router.visit('/student/materials');
 };
 
 const downloadRoadmap = () => {
-    alert('Downloading personalized academic roadmap PDF...');
+    router.visit('/student/materials');
 };
 
 const getAIRecommendations = () => {
-    alert('Getting AI-powered study recommendations based on your progress...');
+    router.visit('/chat');
 };
 </script>
 

@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import {
     DocumentTextIcon,
@@ -31,6 +31,20 @@ import {
 } from '@heroicons/vue/24/outline';
 import { CheckCircleIcon as CheckCircleIconSolid } from '@heroicons/vue/24/solid';
 
+// Server props
+const props = defineProps({
+    courses: {
+        type: Array,
+        default: () => []
+    },
+    enrolledCourses: {
+        type: Array,
+        default: () => []
+    }
+});
+
+const pageData = usePage();
+
 // Component state
 const selectedSemester = ref(5);
 const searchQuery = ref('');
@@ -39,314 +53,128 @@ const selectedWeek = ref('all');
 const viewMode = ref('grid'); // grid or list
 const showFilters = ref(false);
 
-// Student context
-const studentContext = ref({
-    name: 'John Doe',
-    department: 'Computer Science Engineering',
-    semester: '5th Semester',
-    year: '3rd Year'
+// Tracks which materials have been opened/downloaded this session
+const viewedMaterialIds = ref(new Set());
+
+// Student context (derived from authenticated user)
+const studentContext = computed(() => {
+    const authUser = pageData.props?.auth?.user || {};
+    return {
+        name: authUser.name || 'Student',
+        department: authUser.department?.name || authUser.department || '',
+        semester: authUser.semester ? `${authUser.semester} Semester` : '',
+        year: ''
+    };
 });
 
-// Mock data for current student's enrolled courses
-const enrolledCourses = ref([
-    {
-        semester: 5,
-        title: 'Semester 5 - Current',
-        courses: [
-            {
-                id: 1,
-                code: 'CSE501',
-                name: 'Machine Learning Fundamentals',
-                instructor: 'Dr. Sarah Smith',
-                totalMaterials: 48,
-                completedMaterials: 36,
-                lastAccessed: '2024-01-15T14:30:00',
-                credits: 4
-            },
-            {
-                id: 2,
-                code: 'CSE502',
-                name: 'Database Systems Advanced',
-                instructor: 'Dr. Michael Chen',
-                totalMaterials: 35,
-                completedMaterials: 28,
-                lastAccessed: '2024-01-14T16:20:00',
-                credits: 4
-            },
-            {
-                id: 3,
-                code: 'CSE503',
-                name: 'Computer Networks Security',
-                instructor: 'Dr. Emily Johnson',
-                totalMaterials: 42,
-                completedMaterials: 25,
-                lastAccessed: '2024-01-13T11:45:00',
-                credits: 3
-            },
-            {
-                id: 4,
-                code: 'CSE504',
-                name: 'Software Engineering Project',
-                instructor: 'Prof. Robert Wilson',
-                totalMaterials: 28,
-                completedMaterials: 18,
-                lastAccessed: '2024-01-12T09:30:00',
-                credits: 3
-            }
-        ]
-    },
-    {
-        semester: 4,
-        title: 'Semester 4 - Completed',
-        courses: [
-            {
-                id: 5,
-                code: 'CSE401',
-                name: 'Design & Analysis of Algorithms',
-                instructor: 'Dr. James Brown',
-                totalMaterials: 52,
-                completedMaterials: 52,
-                lastAccessed: '2023-12-15T10:30:00',
-                credits: 4
-            }
-        ]
-    }
-]);
+// Enrolled courses grouped into the semester structure the template expects.
+// The sidebar iterates enrolledCourses[0]?.courses, so all enrolled courses
+// are placed under a single "Current Semester" group.
+const enrolledCourses = computed(() => {
+    const mappedCourses = (props.enrolledCourses || []).map(course => {
+        const courseEntry = (props.courses || []).find(c => c.id === course.id);
+        const courseMaterialList = courseEntry?.materials || [];
+        const completedMaterials = courseMaterialList.filter(m => viewedMaterialIds.value.has(m.id)).length;
 
-// Materials for selected course
-const courseMaterials = ref({
-    1: { // CSE501 - Machine Learning
-        courseInfo: {
-            code: 'CSE501',
-            name: 'Machine Learning Fundamentals',
-            instructor: 'Dr. Sarah Smith',
-            semester: 'Spring 2024',
-            credits: 4,
-            description: 'Comprehensive introduction to machine learning algorithms, statistical learning theory, and practical applications.'
-        },
-        weeks: [
-            {
-                weekNumber: 1,
-                title: 'Introduction to Machine Learning',
-                startDate: '2024-01-08',
-                status: 'completed',
-                materials: [
-                    {
-                        id: 1,
-                        title: 'Course Introduction & Overview',
-                        type: 'lecture',
-                        format: 'video',
-                        duration: '45 min',
-                        size: '120 MB',
-                        uploadDate: '2024-01-08T09:00:00',
-                        downloadCount: 156,
-                        viewed: true,
-                        locked: false,
-                        url: '/materials/cse501/week1/intro.mp4',
-                        description: 'Course introduction, objectives, and ML landscape overview'
-                    },
-                    {
-                        id: 2,
-                        title: 'ML Fundamentals Reading',
-                        type: 'reading',
-                        format: 'pdf',
-                        pages: 25,
-                        size: '2.4 MB',
-                        uploadDate: '2024-01-08T10:00:00',
-                        downloadCount: 134,
-                        viewed: true,
-                        locked: false,
-                        url: '/materials/cse501/week1/fundamentals.pdf',
-                        description: 'Essential concepts and mathematical foundations'
-                    },
-                    {
-                        id: 3,
-                        title: 'Lab 1: Python Environment Setup',
-                        type: 'lab',
-                        format: 'zip',
-                        size: '856 KB',
-                        uploadDate: '2024-01-09T14:00:00',
-                        downloadCount: 128,
-                        viewed: true,
-                        locked: false,
-                        url: '/materials/cse501/week1/lab1.zip',
-                        description: 'Hands-on lab for setting up development environment'
-                    },
-                    {
-                        id: 4,
-                        title: 'Assignment 1: ML Concepts Quiz',
-                        type: 'assignment',
-                        format: 'pdf',
-                        size: '450 KB',
-                        uploadDate: '2024-01-09T16:00:00',
-                        downloadCount: 98,
-                        viewed: true,
-                        locked: false,
-                        dueDate: '2024-01-20T23:59:00',
-                        submitted: true,
-                        grade: 'A-',
-                        url: '/materials/cse501/week1/assignment1.pdf',
-                        description: 'Conceptual questions on ML fundamentals'
-                    }
-                ]
-            },
-            {
-                weekNumber: 2,
-                title: 'Supervised Learning Basics',
-                startDate: '2024-01-15',
-                status: 'completed',
-                materials: [
-                    {
-                        id: 5,
-                        title: 'Linear Regression Deep Dive',
-                        type: 'lecture',
-                        format: 'video',
-                        duration: '50 min',
-                        size: '135 MB',
-                        uploadDate: '2024-01-15T09:00:00',
-                        downloadCount: 98,
-                        viewed: true,
-                        locked: false,
-                        url: '/materials/cse501/week2/linear-regression.mp4',
-                        description: 'Mathematical foundations and implementation of linear regression'
-                    },
-                    {
-                        id: 6,
-                        title: 'Assignment 2: Linear Regression Implementation',
-                        type: 'assignment',
-                        format: 'pdf',
-                        size: '800 KB',
-                        uploadDate: '2024-01-16T10:00:00',
-                        downloadCount: 67,
-                        viewed: true,
-                        locked: false,
-                        dueDate: '2024-01-28T23:59:00',
-                        submitted: true,
-                        grade: 'A',
-                        url: '/materials/cse501/week2/assignment2.pdf',
-                        description: 'Implement linear regression from scratch using NumPy'
-                    }
-                ]
-            },
-            {
-                weekNumber: 3,
-                title: 'Classification Algorithms',
-                startDate: '2024-01-22',
-                status: 'in-progress',
-                materials: [
-                    {
-                        id: 7,
-                        title: 'Logistic Regression & Decision Trees',
-                        type: 'lecture',
-                        format: 'video',
-                        duration: '55 min',
-                        size: '145 MB',
-                        uploadDate: '2024-01-22T09:00:00',
-                        downloadCount: 45,
-                        viewed: true,
-                        locked: false,
-                        url: '/materials/cse501/week3/classification.mp4',
-                        description: 'Binary and multiclass classification techniques'
-                    },
-                    {
-                        id: 8,
-                        title: 'Classification Lab Exercise',
-                        type: 'lab',
-                        format: 'zip',
-                        size: '1.2 MB',
-                        uploadDate: '2024-01-23T14:00:00',
-                        downloadCount: 23,
-                        viewed: false,
-                        locked: false,
-                        url: '/materials/cse501/week3/classification-lab.zip',
-                        description: 'Hands-on practice with scikit-learn classification'
-                    },
-                    {
-                        id: 9,
-                        title: 'Assignment 3: Classification Project',
-                        type: 'assignment',
-                        format: 'pdf',
-                        size: '650 KB',
-                        uploadDate: '2024-01-24T11:00:00',
-                        downloadCount: 18,
-                        viewed: false,
-                        locked: false,
-                        dueDate: '2024-02-05T23:59:00',
-                        submitted: false,
-                        url: '/materials/cse501/week3/assignment3.pdf',
-                        description: 'Build and evaluate classification models on real dataset'
-                    }
-                ]
-            },
-            {
-                weekNumber: 4,
-                title: 'Neural Networks Introduction',
-                startDate: '2024-01-29',
-                status: 'upcoming',
-                materials: [
-                    {
-                        id: 10,
-                        title: 'Neural Network Fundamentals',
-                        type: 'lecture',
-                        format: 'video',
-                        duration: '60 min',
-                        size: '165 MB',
-                        uploadDate: '2024-01-29T09:00:00',
-                        downloadCount: 0,
-                        viewed: false,
-                        locked: true,
-                        url: '/materials/cse501/week4/neural-networks.mp4',
-                        description: 'Introduction to artificial neural networks and backpropagation'
-                    }
-                ]
-            }
-        ]
-    },
-    2: { // CSE502 - Database Systems
-        courseInfo: {
-            code: 'CSE502',
-            name: 'Database Systems Advanced',
-            instructor: 'Dr. Michael Chen',
-            semester: 'Spring 2024',
-            credits: 4,
-            description: 'Advanced database concepts including normalization, query optimization, and distributed systems.'
-        },
-        weeks: [
-            {
-                weekNumber: 1,
-                title: 'Database Design & Normalization',
-                startDate: '2024-01-08',
-                status: 'completed',
-                materials: [
-                    {
-                        id: 11,
-                        title: 'Normalization Theory',
-                        type: 'lecture',
-                        format: 'video',
-                        duration: '50 min',
-                        size: '128 MB',
-                        uploadDate: '2024-01-08T11:00:00',
-                        downloadCount: 89,
-                        viewed: true,
-                        locked: false,
-                        url: '/materials/cse502/week1/normalization.mp4'
-                    }
-                ]
-            }
-        ]
+        return {
+            id: course.id,
+            code: course.code,
+            name: course.name,
+            instructor: course.instructor,
+            totalMaterials: course.totalMaterials || courseMaterialList.length,
+            completedMaterials,
+            lastAccessed: null,
+            credits: course.credits,
+            semester: course.semester,
+            progress: course.progress,
+            grade: course.grade,
+            status: course.status
+        };
+    });
+
+    if (mappedCourses.length === 0) {
+        return [];
     }
+
+    return [
+        {
+            semester: 'current',
+            title: 'Current Semester',
+            courses: mappedCourses
+        }
+    ];
 });
 
-const selectedCourseId = ref(1);
+// Materials keyed by course id, mapped into the {courseInfo, weeks} shape the
+// template iterates. Materials grouped into weeks based on each material's week.
+const courseMaterials = computed(() => {
+    const result = {};
 
-// Material type options
-const materialTypes = ref([
-    { value: 'all', label: 'All Materials', icon: DocumentTextIcon, count: 48 },
-    { value: 'lecture', label: 'Lectures', icon: PresentationChartLineIcon, count: 16 },
-    { value: 'assignment', label: 'Assignments', icon: AcademicCapIcon, count: 8 },
-    { value: 'reading', label: 'Readings', icon: BookOpenIcon, count: 12 },
-    { value: 'lab', label: 'Lab Work', icon: BeakerIcon, count: 12 }
-]);
+    (props.courses || []).forEach(course => {
+        const enrolled = (props.enrolledCourses || []).find(c => c.id === course.id);
+
+        const weeksMap = {};
+        (course.materials || []).forEach(material => {
+            const weekNumber = material.week || 1;
+            if (!weeksMap[weekNumber]) {
+                weeksMap[weekNumber] = {
+                    weekNumber,
+                    title: `Week ${weekNumber}`,
+                    startDate: null,
+                    status: 'completed',
+                    materials: []
+                };
+            }
+            weeksMap[weekNumber].materials.push({
+                id: material.id,
+                title: material.title,
+                description: material.description,
+                type: material.type,
+                format: material.type,
+                size: null,
+                pages: null,
+                duration: null,
+                uploadDate: null,
+                downloadCount: material.downloads,
+                viewed: viewedMaterialIds.value.has(material.id),
+                locked: false,
+                url: material.downloadUrl,
+                downloadUrl: material.downloadUrl,
+                documentId: material.documentId
+            });
+        });
+
+        result[course.id] = {
+            courseInfo: {
+                code: course.code,
+                name: course.name,
+                instructor: enrolled?.instructor || '',
+                semester: enrolled?.semester || '',
+                credits: enrolled?.credits || 0,
+                description: ''
+            },
+            weeks: Object.values(weeksMap).sort((a, b) => a.weekNumber - b.weekNumber)
+        };
+    });
+
+    return result;
+});
+
+const selectedCourseId = ref(null);
+
+// Material type options (counts derived from the selected course's materials)
+const materialTypes = computed(() => {
+    const allMaterials = (currentMaterials.value.weeks || []).flatMap(week => week.materials || []);
+    const countByType = (type) => allMaterials.filter(material => material.type === type).length;
+
+    return [
+        { value: 'all', label: 'All Materials', icon: DocumentTextIcon, count: allMaterials.length },
+        { value: 'lecture', label: 'Lectures', icon: PresentationChartLineIcon, count: countByType('lecture') },
+        { value: 'assignment', label: 'Assignments', icon: AcademicCapIcon, count: countByType('assignment') },
+        { value: 'reading', label: 'Readings', icon: BookOpenIcon, count: countByType('reading') },
+        { value: 'lab', label: 'Lab Work', icon: BeakerIcon, count: countByType('lab') }
+    ];
+});
 
 // Computed properties
 const currentCourse = computed(() => {
@@ -467,32 +295,26 @@ const getDaysUntil = (dateString) => {
     return diffDays;
 };
 
+// Marks a material as viewed (tracked client-side by id)
+const markViewed = (material) => {
+    if (material?.id != null && !viewedMaterialIds.value.has(material.id)) {
+        viewedMaterialIds.value.add(material.id);
+        viewedMaterialIds.value = new Set(viewedMaterialIds.value);
+    }
+};
+
 // Actions
 const downloadMaterial = (material) => {
-    material.downloadCount = (material.downloadCount || 0) + 1;
-
-    if (!material.viewed) {
-        material.viewed = true;
-        if (currentCourse.value) {
-            currentCourse.value.completedMaterials++;
-        }
+    markViewed(material);
+    if (material.downloadUrl) {
+        window.open(material.downloadUrl, '_blank');
     }
-
-    alert(`Downloading: ${material.title}\nSize: ${material.size}`);
 };
 
 const viewMaterial = (material) => {
-    if (!material.viewed) {
-        material.viewed = true;
-        if (currentCourse.value) {
-            currentCourse.value.completedMaterials++;
-        }
-    }
-
-    if (material.format === 'video') {
-        alert(`Opening video player for: ${material.title}\nDuration: ${material.duration}`);
-    } else {
-        alert(`Opening ${material.format.toUpperCase()} viewer for: ${material.title}`);
+    markViewed(material);
+    if (material.downloadUrl) {
+        window.open(material.downloadUrl, '_blank');
     }
 };
 
@@ -502,7 +324,11 @@ const askAIAboutMaterial = (material) => {
 };
 
 const submitAssignment = (material) => {
-    alert(`Opening assignment submission for: ${material.title}`);
+    // Assignment submission flow not yet wired to a backend endpoint.
+    // Opens the material so the student can review it before submitting.
+    if (material?.downloadUrl) {
+        window.open(material.downloadUrl, '_blank');
+    }
 };
 
 const selectCourse = (courseId) => {
@@ -513,11 +339,20 @@ const selectCourse = (courseId) => {
 };
 
 const downloadWeekMaterials = (week) => {
-    alert(`Downloading all materials for Week ${week.weekNumber}: ${week.title}`);
+    (week.materials || []).forEach(material => {
+        if (material.downloadUrl) {
+            window.open(material.downloadUrl, '_blank');
+        }
+        markViewed(material);
+    });
 };
 
 onMounted(() => {
-    // Load initial data or perform setup
+    // Select the first available course on load
+    const firstCourse = enrolledCourses.value[0]?.courses?.[0];
+    if (firstCourse) {
+        selectedCourseId.value = firstCourse.id;
+    }
 });
 </script>
 

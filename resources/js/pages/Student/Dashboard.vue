@@ -1,6 +1,6 @@
 <script setup>
-import { ref, computed } from 'vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { computed } from 'vue';
+import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import StatCard from '@/components/StatCard.vue';
 import LogoutButton from '@/components/LogoutButton.vue';
@@ -27,6 +27,7 @@ const props = defineProps({
     stats: Array,
     recentActivities: Array,
     upcomingDeadlines: Array,
+    courses: Array,
     quickActions: Array
 });
 
@@ -42,79 +43,95 @@ const iconMap = {
     CalendarIcon
 };
 
-
-const recentChats = ref([
-    {
-        id: 1,
-        question: 'Explain the attendance policy for CSE 3rd year',
-        time: '2 hours ago',
-        mode: 'Academic',
-        confidence: 95,
-        saved: true
-    },
-    {
-        id: 2,
-        question: 'What are the exam eligibility criteria?',
-        time: '5 hours ago',
-        mode: 'Policy',
-        confidence: 98,
-        saved: false
-    },
-    {
-        id: 3,
-        question: 'Explain DBMS normalization with examples',
-        time: '1 day ago',
-        mode: 'Exam Prep',
-        confidence: 92,
-        saved: true
-    }
-]);
-
-
-
-// Add this after your existing ref declarations
-const materialsStats = ref({
-    total: 48,
-    viewed: 36,
-    pending: 12,
-    recentlyAdded: 5
+// Map server `student` (snake_case) into the field names the template uses.
+const student = computed(() => {
+    const source = props.student || {};
+    return {
+        ...source,
+        studentId: source.student_id,
+        department: source.department ?? 'Not assigned',
+        year: source.semester ? `Semester ${source.semester}` : '',
+        program: source.department ?? '',
+        avatar: source.avatar
+    };
 });
 
-const recentMaterials = ref([
-    {
-        id: 1,
-        title: 'Neural Networks Lecture',
-        course: 'Machine Learning',
-        week: 'Week 8',
-        type: 'lecture',
-        addedDate: '2024-01-15T10:00:00'
-    },
-    {
-        id: 2,
-        title: 'Database Assignment 3',
-        course: 'Database Systems',
-        week: 'Week 7',
-        type: 'assignment',
-        addedDate: '2024-01-14T15:30:00'
-    },
-    {
-        id: 3,
-        title: 'Network Security Reading',
-        course: 'Computer Networks',
-        week: 'Week 6',
-        type: 'reading',
-        addedDate: '2024-01-13T09:00:00'
-    }
-]);
+// Map server `stats` into the shape the template renders (gradient + icon component).
+const stats = computed(() =>
+    (props.stats || []).map((stat) => ({
+        ...stat,
+        gradient: getStatColor(stat.color),
+        icon: iconMap[stat.icon] || ChartBarIcon
+    }))
+);
+
+// Map server `quickActions` route names into resolved hrefs and icon components.
+const quickActions = computed(() =>
+    (props.quickActions || []).map((action) => ({
+        ...action,
+        route: action.route ? route(action.route) : '#',
+        icon: iconMap[action.icon] || SparklesIcon
+    }))
+);
+
+// Map server `upcomingDeadlines` into the field names the template uses.
+const upcomingDeadlines = computed(() =>
+    (props.upcomingDeadlines || []).map((deadline) => ({
+        ...deadline,
+        daysLeft: deadline.days_left,
+        date: deadline.due_date,
+        urgent: deadline.priority === 'high' || deadline.days_left <= 3
+    }))
+);
+
+// Use server `recentActivities` to power the "Recent Conversations" list.
+const recentChats = computed(() =>
+    (props.recentActivities || []).map((activity) => ({
+        id: activity.id,
+        question: activity.title,
+        time: activity.time,
+        mode: activity.type,
+        confidence: null,
+        saved: false
+    }))
+);
+
+// Derive course-materials summary from enrolled `courses`.
+const materialsStats = computed(() => {
+    const courses = props.courses || [];
+    const total = courses.reduce((sum, course) => sum + (course.totalMaterials || 0), 0);
+    const viewed = courses.reduce(
+        (sum, course) => sum + Math.round(((course.totalMaterials || 0) * (course.progress || 0)) / 100),
+        0
+    );
+    return {
+        total,
+        viewed,
+        pending: total - viewed,
+        recentlyAdded: 0
+    };
+});
+
 const navigateToMaterials = () => {
     router.visit('/student/materials');
 };
-const roadmapPreview = ref({
-    currentTopic: 'Database Management Systems - Normalization',
-    progress: 67,
-    nextTopic: 'Transaction Management',
-    completedTopics: 12,
-    totalTopics: 18
+
+// Derive the learning-path preview from enrolled `courses`.
+const roadmapPreview = computed(() => {
+    const courses = props.courses || [];
+    const activeCourse = courses.find((course) => course.status === 'in-progress') || courses[0] || {};
+    const nextCourse = courses.find((course) => course.status === 'not-started') || {};
+    const completedTopics = courses.filter((course) => course.status === 'completed').length;
+    const overallProgress = courses.length
+        ? Math.round(courses.reduce((sum, course) => sum + (course.progress || 0), 0) / courses.length)
+        : 0;
+    return {
+        currentTopic: activeCourse.name || 'No active course',
+        progress: overallProgress,
+        nextTopic: nextCourse.name || 'To be announced',
+        completedTopics,
+        totalTopics: courses.length
+    };
 });
 
 const getConfidenceColor = (confidence) => {
