@@ -2,14 +2,15 @@
 
 namespace App\Domain\User\Models;
 
+use App\Enums\UserRole;
+use App\Models\Department;
+use App\Models\Role;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Database\Eloquent\Casts\Attribute;
-use App\Enums\UserRole;
-use App\Models\Role;
-use Illuminate\Support\Collection;
 
 class User extends Authenticatable
 {
@@ -25,8 +26,9 @@ class User extends Authenticatable
         'employee_id',
         'bio',
         'avatar',
+        'preferences',
         'is_active',
-        'last_login_at'
+        'last_login_at',
     ];
 
     protected $hidden = [
@@ -40,18 +42,53 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'last_login_at' => 'datetime',
             'is_active' => 'boolean',
+            'preferences' => 'array',
             'password' => 'hashed',
         ];
     }
 
+    public function department(): BelongsTo
+    {
+        return $this->belongsTo(Department::class);
+    }
+
+    public function chatSessions(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(\App\Models\ChatSession::class);
+    }
+
+    public function savedAnswers(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(\App\Models\SavedAnswer::class);
+    }
+
+    public function enrolledCourses(): BelongsToMany
+    {
+        return $this->belongsToMany(\App\Models\Course::class, 'course_user')
+            ->withPivot(['role', 'status', 'grade', 'progress', 'enrolled_at'])
+            ->withTimestamps()
+            ->wherePivot('role', 'student');
+    }
+
+    public function teachingCourses(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(\App\Models\Course::class, 'faculty_id');
+    }
+
+    public function submissions(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(\App\Models\AssignmentSubmission::class);
+    }
 
     public function roles(): BelongsToMany
     {
         return $this->belongsToMany(Role::class, 'role_user')
             ->withPivot(['assigned_at', 'assigned_by', 'expires_at'])
             ->withTimestamps()
-            ->wherePivotNull('expires_at')
-            ->orWherePivot('expires_at', '>', now());
+            ->where(function ($query) {
+                $query->whereNull('role_user.expires_at')
+                    ->orWhere('role_user.expires_at', '>', now());
+            });
     }
 
     public function allRoles(): BelongsToMany
@@ -61,11 +98,11 @@ class User extends Authenticatable
             ->withTimestamps();
     }
 
-
     public function hasRole(string|UserRole|array $roles): bool
     {
         if (is_string($roles) || $roles instanceof UserRole) {
             $roleSlug = $roles instanceof UserRole ? $roles->getSlug() : $roles;
+
             return $this->roles->contains('slug', $roleSlug);
         }
 
@@ -84,7 +121,7 @@ class User extends Authenticatable
     {
         $permissionSlug = $permission instanceof \App\Enums\Permission
             ? $permission->getSlug()
-            : strtoupper($permission);
+            : strtolower($permission);
 
         return $this->roles->flatMap->permissions
             ->contains('slug', $permissionSlug);
@@ -97,16 +134,18 @@ class User extends Authenticatable
                 return true;
             }
         }
+
         return false;
     }
 
     public function hasAllPermissions(array $permissions): bool
     {
         foreach ($permissions as $permission) {
-            if (!$this->hasPermission($permission)) {
+            if (! $this->hasPermission($permission)) {
                 return false;
             }
         }
+
         return true;
     }
 
@@ -118,11 +157,11 @@ class User extends Authenticatable
             $roleModel = Role::where('slug', $role->getSlug())->first();
             $roleId = $roleModel ? $roleModel->id : null;
         } else {
-            $roleModel = Role::where('slug', strtoupper($role))->first();
+            $roleModel = Role::where('slug', strtolower($role))->first();
             $roleId = $roleModel ? $roleModel->id : null;
         }
 
-        if (!$roleId) {
+        if (! $roleId) {
             throw new \InvalidArgumentException("Role not found: {$role}");
         }
 
@@ -131,7 +170,7 @@ class User extends Authenticatable
                 'assigned_at' => now(),
                 'assigned_by' => $assignedBy?->id,
                 'expires_at' => $expiresAt,
-            ]
+            ],
         ]);
     }
 
@@ -143,7 +182,7 @@ class User extends Authenticatable
             $roleModel = Role::where('slug', $role->getSlug())->first();
             $roleId = $roleModel ? $roleModel->id : null;
         } else {
-            $roleModel = Role::where('slug', strtoupper($role))->first();
+            $roleModel = Role::where('slug', strtolower($role))->first();
             $roleId = $roleModel ? $roleModel->id : null;
         }
 
@@ -161,16 +200,19 @@ class User extends Authenticatable
                 $roleIds[] = $role->id;
             } elseif ($role instanceof UserRole) {
                 $roleModel = Role::where('slug', $role->getSlug())->first();
-                if ($roleModel) $roleIds[] = $roleModel->id;
+                if ($roleModel) {
+                    $roleIds[] = $roleModel->id;
+                }
             } else {
-                $roleModel = Role::where('slug', strtoupper($role))->first();
-                if ($roleModel) $roleIds[] = $roleModel->id;
+                $roleModel = Role::where('slug', strtolower($role))->first();
+                if ($roleModel) {
+                    $roleIds[] = $roleModel->id;
+                }
             }
         }
 
         $this->roles()->sync($roleIds);
     }
-
 
     public function isStudent(): bool
     {
@@ -187,7 +229,6 @@ class User extends Authenticatable
         return $this->hasRole(UserRole::ADMIN);
     }
 
-
     public function getPrimaryRole(): ?Role
     {
         return $this->roles()
@@ -195,34 +236,33 @@ class User extends Authenticatable
             ->first();
     }
 
-
     public function getPrimaryRoleEnum(): ?UserRole
     {
         $primaryRole = $this->getPrimaryRole();
 
-        if (!$primaryRole) return null;
+        if (! $primaryRole) {
+            return null;
+        }
 
         return match ($primaryRole->slug) {
-            'STUDENT' => UserRole::STUDENT,
-            'FACULTY' => UserRole::FACULTY,
-            'ADMIN' => UserRole::ADMIN,
+            'student' => UserRole::STUDENT,
+            'faculty' => UserRole::FACULTY,
+            'admin' => UserRole::ADMIN,
             default => null
         };
     }
-
 
     public function getDashboardRoute(): string
     {
         $primaryRole = $this->getPrimaryRole();
 
         return match ($primaryRole?->slug) {
-            'ADMIN' => 'admin.dashboard',
-            'FACULTY' => 'faculty.dashboard',
-            'STUDENT' => 'dashboard',
+            'admin' => 'admin.dashboard',
+            'faculty' => 'faculty.dashboard',
+            'student' => 'dashboard',
             default => 'login'
         };
     }
-
 
     protected function displayName(): Attribute
     {
@@ -231,8 +271,8 @@ class User extends Authenticatable
                 $primaryRole = $this->getPrimaryRole();
 
                 return match ($primaryRole?->slug) {
-                    'FACULTY' => "Prof. {$this->name}",
-                    'ADMIN' => "Admin {$this->name}",
+                    'faculty' => "Prof. {$this->name}",
+                    'admin' => "Admin {$this->name}",
                     default => $this->name
                 };
             }
@@ -242,10 +282,9 @@ class User extends Authenticatable
     protected function identifier(): Attribute
     {
         return Attribute::make(
-            get: fn() => $this->student_id ?? $this->employee_id
+            get: fn () => $this->student_id ?? $this->employee_id
         );
     }
-
 
     public function scopeActive($query)
     {
@@ -254,13 +293,12 @@ class User extends Authenticatable
 
     public function scopeWithRole($query, string|UserRole $role)
     {
-        $roleSlug = $role instanceof UserRole ? $role->getSlug() : strtoupper($role);
+        $roleSlug = $role instanceof UserRole ? $role->getSlug() : strtolower($role);
 
         return $query->whereHas('roles', function ($q) use ($roleSlug) {
             $q->where('slug', $roleSlug);
         });
     }
-
 
     public function updateLastLogin(): void
     {
