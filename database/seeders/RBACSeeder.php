@@ -66,6 +66,7 @@ class RBACSeeder extends Seeder
                 [
                     'name' => $permissionEnum->getLabel(),
                     'description' => "Permission to {$permissionEnum->getLabel()}",
+                    'category' => $permissionEnum->getCategory(),
                     'is_active' => true,
                 ]
             );

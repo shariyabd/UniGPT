@@ -14,6 +14,8 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             RBACSeeder::class,
+            AcademicSeeder::class,
+            KnowledgeBaseSeeder::class,
         ]);
     }
 }
