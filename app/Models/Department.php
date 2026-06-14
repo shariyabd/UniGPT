@@ -13,6 +13,4 @@ class Department extends Model
         'description',
         'is_active',
     ];
-
-
 }

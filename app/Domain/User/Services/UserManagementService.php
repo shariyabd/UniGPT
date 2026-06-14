@@ -2,11 +2,11 @@
 
 namespace App\Domain\User\Services;
 
-use App\Domain\User\Models\User;
 use App\Domain\User\Contracts\UserRepositoryInterface;
+use App\Domain\User\Models\User;
 use App\Enums\UserRole;
-use Illuminate\Support\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 
 class UserManagementService
 {
@@ -65,7 +65,7 @@ class UserManagementService
         $this->userRepository->update($user, [
             'is_active' => false,
             'deactivated_at' => now(),
-            'deactivated_by' => $deactivatedBy?->id
+            'deactivated_by' => $deactivatedBy?->id,
         ]);
     }
 

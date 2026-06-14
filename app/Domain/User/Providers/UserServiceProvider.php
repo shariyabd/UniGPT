@@ -2,9 +2,9 @@
 
 namespace App\Domain\User\Providers;
 
-use Illuminate\Support\ServiceProvider;
 use App\Domain\User\Contracts\UserRepositoryInterface;
 use App\Infrastructure\Repositories\EloquentUserRepository;
+use Illuminate\Support\ServiceProvider;
 
 class UserServiceProvider extends ServiceProvider
 {

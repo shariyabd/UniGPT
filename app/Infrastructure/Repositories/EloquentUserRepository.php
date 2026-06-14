@@ -2,11 +2,11 @@
 
 namespace App\Infrastructure\Repositories;
 
-use App\Domain\User\Models\User;
 use App\Domain\User\Contracts\UserRepositoryInterface;
+use App\Domain\User\Models\User;
 use App\Enums\UserRole;
-use Illuminate\Support\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 
 class EloquentUserRepository implements UserRepositoryInterface
 {
@@ -28,6 +28,7 @@ class EloquentUserRepository implements UserRepositoryInterface
     public function update(User $user, array $data): User
     {
         $user->update($data);
+
         return $user->fresh();
     }
 

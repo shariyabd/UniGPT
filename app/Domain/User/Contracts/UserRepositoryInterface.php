@@ -4,8 +4,8 @@ namespace App\Domain\User\Contracts;
 
 use App\Domain\User\Models\User;
 use App\Enums\UserRole;
-use Illuminate\Support\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 
 interface UserRepositoryInterface
 {
