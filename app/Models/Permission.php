@@ -1,4 +1,5 @@
 <?php
+
 // app/Models/Permission.php
 
 namespace App\Models;
@@ -16,7 +17,7 @@ class Permission extends Model
         'slug',
         'description',
         'category',
-        'is_active'
+        'is_active',
     ];
 
     protected function casts(): array
@@ -32,10 +33,9 @@ class Permission extends Model
             ->withTimestamps();
     }
 
-
     public static function findBySlug(string $slug): ?self
     {
-        return self::where('slug', strtoupper($slug))->first();
+        return self::where('slug', strtolower($slug))->first();
     }
 
     public static function findByEnum(\App\Enums\Permission $permission): ?self
@@ -43,18 +43,15 @@ class Permission extends Model
         return self::where('slug', $permission->getSlug())->first();
     }
 
-
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
     }
 
-
     public function scopeByCategory($query, string $category)
     {
         return $query->where('category', $category);
     }
-
 
     public function getEnum(): ?\App\Enums\Permission
     {
@@ -63,9 +60,9 @@ class Permission extends Model
                 return $permissionEnum;
             }
         }
+
         return null;
     }
-
 
     public static function createFromEnum(\App\Enums\Permission $permissionEnum): self
     {

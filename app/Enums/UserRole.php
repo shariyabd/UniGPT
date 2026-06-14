@@ -10,12 +10,13 @@ enum UserRole: string
 
     public function getLabel(): string
     {
-        return match($this) {
+        return match ($this) {
             self::ADMIN => 'Administrator',
             self::FACULTY => 'Faculty',
             self::STUDENT => 'Student',
         };
     }
+
     public function getDescription(): string
     {
         return match ($this) {
@@ -27,7 +28,7 @@ enum UserRole: string
 
     public function getSlug(): string
     {
-        return strtoupper($this->value);
+        return $this->value;
     }
 
     public static function getValues(): array
@@ -37,11 +38,12 @@ enum UserRole: string
 
     public static function getLabels(): array
     {
-        return array_map(fn($role) => $role->getLabel(), self::cases());
+        return array_map(fn ($role) => $role->getLabel(), self::cases());
     }
+
     public function permissions(): array
     {
-        return match($this) {
+        return match ($this) {
             self::ADMIN => [
                 'manage.users',
                 'manage.documents',

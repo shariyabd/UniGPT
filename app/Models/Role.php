@@ -1,12 +1,11 @@
 <?php
 
-
 namespace App\Models;
 
+use App\Enums\UserRole;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use App\Enums\UserRole;
 
 class Role extends Model
 {
@@ -18,7 +17,7 @@ class Role extends Model
         'description',
         'features',
         'is_active',
-        'level'
+        'level',
     ];
 
     protected function casts(): array
@@ -28,7 +27,6 @@ class Role extends Model
             'is_active' => 'boolean',
         ];
     }
-
 
     public function users(): BelongsToMany
     {
@@ -51,11 +49,11 @@ class Role extends Model
             $permissionModel = Permission::where('slug', $permission->getSlug())->first();
             $permissionId = $permissionModel ? $permissionModel->id : null;
         } else {
-            $permissionModel = Permission::where('slug', strtoupper($permission))->first();
+            $permissionModel = Permission::where('slug', strtolower($permission))->first();
             $permissionId = $permissionModel ? $permissionModel->id : null;
         }
 
-        if (!$permissionId) {
+        if (! $permissionId) {
             throw new \InvalidArgumentException("Permission not found: {$permission}");
         }
 
@@ -70,7 +68,7 @@ class Role extends Model
             $permissionModel = Permission::where('slug', $permission->getSlug())->first();
             $permissionId = $permissionModel ? $permissionModel->id : null;
         } else {
-            $permissionModel = Permission::where('slug', strtoupper($permission))->first();
+            $permissionModel = Permission::where('slug', strtolower($permission))->first();
             $permissionId = $permissionModel ? $permissionModel->id : null;
         }
 
@@ -88,10 +86,14 @@ class Role extends Model
                 $permissionIds[] = $permission->id;
             } elseif ($permission instanceof \App\Enums\Permission) {
                 $permissionModel = Permission::where('slug', $permission->getSlug())->first();
-                if ($permissionModel) $permissionIds[] = $permissionModel->id;
+                if ($permissionModel) {
+                    $permissionIds[] = $permissionModel->id;
+                }
             } else {
-                $permissionModel = Permission::where('slug', strtoupper($permission))->first();
-                if ($permissionModel) $permissionIds[] = $permissionModel->id;
+                $permissionModel = Permission::where('slug', strtolower($permission))->first();
+                if ($permissionModel) {
+                    $permissionIds[] = $permissionModel->id;
+                }
             }
         }
 
@@ -102,15 +104,14 @@ class Role extends Model
     {
         $permissionSlug = $permission instanceof \App\Enums\Permission
             ? $permission->getSlug()
-            : strtoupper($permission);
+            : strtolower($permission);
 
         return $this->permissions->contains('slug', $permissionSlug);
     }
 
-
     public static function findBySlug(string $slug): ?self
     {
-        return self::where('slug', strtoupper($slug))->first();
+        return self::where('slug', strtolower($slug))->first();
     }
 
     public static function findByEnum(UserRole $role): ?self
@@ -123,13 +124,12 @@ class Role extends Model
         return $query->where('is_active', true);
     }
 
-
     public function getEnum(): ?UserRole
     {
         return match ($this->slug) {
-            'STUDENT' => UserRole::STUDENT,
-            'FACULTY' => UserRole::FACULTY,
-            'ADMIN' => UserRole::ADMIN,
+            'student' => UserRole::STUDENT,
+            'faculty' => UserRole::FACULTY,
+            'admin' => UserRole::ADMIN,
             default => null
         };
     }

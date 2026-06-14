@@ -11,39 +11,39 @@ enum Permission: string
     case DELETE_DOCUMENT = 'delete_document';
     case APPROVE_DOCUMENT = 'approve_document';
 
-        // User Management
+    // User Management
     case VIEW_USERS = 'view_users';
     case CREATE_USER = 'create_user';
     case UPDATE_USER = 'update_user';
     case DELETE_USER = 'delete_user';
     case MANAGE_USER_ROLES = 'manage_user_roles';
 
-        // Course Management
+    // Course Management
     case VIEW_COURSES = 'view_courses';
     case CREATE_COURSE = 'create_course';
     case UPDATE_COURSE = 'update_course';
     case DELETE_COURSE = 'delete_course';
     case ENROLL_COURSE = 'enroll_course';
 
-        // Assignment Management
+    // Assignment Management
     case VIEW_ASSIGNMENTS = 'view_assignments';
     case CREATE_ASSIGNMENT = 'create_assignment';
     case SUBMIT_ASSIGNMENT = 'submit_assignment';
     case GRADE_ASSIGNMENT = 'grade_assignment';
     case DELETE_ASSIGNMENT = 'delete_assignment';
 
-        // Chat & AI
+    // Chat & AI
     case USE_AI_CHAT = 'use_ai_chat';
     case VIEW_CHAT_HISTORY = 'view_chat_history';
     case DELETE_CHAT = 'delete_chat';
     case CONFIGURE_AI = 'configure_ai';
 
-        // Analytics
+    // Analytics
     case VIEW_OWN_ANALYTICS = 'view_own_analytics';
     case VIEW_DEPARTMENT_ANALYTICS = 'view_department_analytics';
     case VIEW_ALL_ANALYTICS = 'view_all_analytics';
 
-        // System Administration
+    // System Administration
     case MANAGE_SYSTEM = 'manage_system';
     case VIEW_SYSTEM_LOGS = 'view_system_logs';
     case CONFIGURE_SETTINGS = 'configure_settings';
@@ -56,7 +56,7 @@ enum Permission: string
 
     public function getSlug(): string
     {
-        return strtoupper($this->value);
+        return $this->value;
     }
 
     public function getCategory(): string
@@ -92,6 +92,7 @@ enum Permission: string
             $category = $permission->getCategory();
             $grouped[$category][] = $permission;
         }
+
         return $grouped;
     }
 
