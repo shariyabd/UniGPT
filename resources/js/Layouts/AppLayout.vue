@@ -40,6 +40,7 @@ const navByRole = {
     admin: [
         { label: 'Dashboard', route: 'admin.dashboard' },
         { label: 'Users', route: 'admin.users', permission: 'view_users' },
+        { label: 'Departments', route: 'admin.departments', permission: 'manage_departments' },
         { label: 'Roles', route: 'admin.roles', permission: 'manage_permissions' },
         { label: 'Documents', route: 'admin.documents', permission: 'view_documents' },
         { label: 'Approvals', route: 'admin.approvals', permission: 'approve_document' },

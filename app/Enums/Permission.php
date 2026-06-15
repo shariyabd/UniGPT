@@ -17,6 +17,7 @@ enum Permission: string
     case UPDATE_USER = 'update_user';
     case DELETE_USER = 'delete_user';
     case MANAGE_USER_ROLES = 'manage_user_roles';
+    case MANAGE_DEPARTMENTS = 'manage_departments';
 
     // Course Management
     case VIEW_COURSES = 'view_courses';
@@ -76,7 +77,8 @@ enum Permission: string
             self::DELETE_DOCUMENT, self::APPROVE_DOCUMENT => 'Documents',
 
             self::VIEW_USERS, self::CREATE_USER, self::UPDATE_USER,
-            self::DELETE_USER, self::MANAGE_USER_ROLES => 'User Management',
+            self::DELETE_USER, self::MANAGE_USER_ROLES,
+            self::MANAGE_DEPARTMENTS => 'User Management',
 
             self::VIEW_COURSES, self::CREATE_COURSE, self::UPDATE_COURSE,
             self::DELETE_COURSE, self::ENROLL_COURSE, self::MANAGE_MATERIALS => 'Courses',
