@@ -21,3 +21,11 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+.claude
+
+# Claude Code skills are installed locally, not committed
+# (.claude above already covers this; listed explicitly for clarity)
+.claude/skills/
+
+# Local skill-installation guide (not tracked)
+/SKILLS_INSTALL.md
