@@ -24,6 +24,7 @@ use App\Http\Controllers\Student\ChatController;
 use App\Http\Controllers\Student\NoteController;
 use App\Http\Controllers\Student\SavedAnswerController;
 use App\Http\Controllers\Student\StudentDashboardController;
+use App\Http\Controllers\Student\TaskController;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/login');
@@ -80,6 +81,13 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/notes', [NoteController::class, 'store'])->name('notes.store');
         Route::patch('/notes/{note}', [NoteController::class, 'update'])->name('notes.update');
         Route::delete('/notes/{note}', [NoteController::class, 'destroy'])->name('notes.destroy');
+
+        // Personal productivity — Tasks
+        Route::get('/tasks', [TaskController::class, 'index'])->name('tasks');
+        Route::post('/tasks', [TaskController::class, 'store'])->name('tasks.store');
+        Route::patch('/tasks/{task}', [TaskController::class, 'update'])->name('tasks.update');
+        Route::patch('/tasks/{task}/toggle', [TaskController::class, 'toggle'])->name('tasks.toggle');
+        Route::delete('/tasks/{task}', [TaskController::class, 'destroy'])->name('tasks.destroy');
 
         // Self-service account pages (no extra permission beyond the student role)
         Route::get('/profile', [StudentDashboardController::class, 'profile'])->name('profile');

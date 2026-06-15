@@ -25,6 +25,7 @@ const navByRole = {
         { label: 'Materials', route: 'materials', permission: 'view_courses' },
         { label: 'Attendance', route: 'attendance', permission: 'view_attendance' },
         { label: 'Exams', route: 'exams', permission: 'view_exams' },
+        { label: 'Tasks', route: 'tasks' },
         { label: 'Notes', route: 'notes' },
     ],
     faculty: [
