@@ -64,9 +64,9 @@ Legend: ✅ COMPLETE · 🟡 PARTIAL · ⬜ NOT_STARTED · 🚫 BLOCKED
 | User Management | ✅ | `Admin/UserManagementController` |
 | Role & Permission matrix | ✅ | `Admin/RoleController` |
 | Knowledge Base + approval workflow | ✅ | `Admin/DocumentController` |
-| Analytics dashboard | 🟡 | **backend real, `Analytics.vue` hardcoded mock** |
-| AI Configuration | 🟡 | **backend real, `AISettings.vue` hardcoded mock** |
-| System Monitor | 🟡 | mock metrics, no backend |
+| Analytics dashboard | ✅ | `Analytics.vue` now renders real `AnalyticsService` props |
+| AI Configuration | ✅ | `AISettings.vue` wired to `SettingsController` (save + test) |
+| System Monitor | ✅ | `SystemMonitor.vue` renders real `MonitorController` metrics |
 | Activity logs / audit trail | ✅ | `ActivityLog`, `ActivityLogger` |
 | Department mgmt, Transcript, Exam/Timetable admin, Notification mgmt | ⬜ | not started |
 
@@ -81,8 +81,8 @@ Legend: ✅ COMPLETE · 🟡 PARTIAL · ⬜ NOT_STARTED · 🚫 BLOCKED
 
 **P1 — Core functional (execute in order):**
 1. ✅ **Attendance** — DONE. Now unblocks `Progress Tracking → Learning Analytics → Academic Reporting`.
-2. ⬜ Wire mock admin frontends (Analytics, AISettings, System Monitor) to existing backends. ← *next*
-3. ⬜ Faculty Course CRUD + Course Material management.
+2. ✅ **Wire mock admin frontends** — DONE. Analytics, AISettings, System Monitor now render real backend data (covered by AdminRoleTest).
+3. ⬜ Faculty Course CRUD + Course Material management. ← *next*
 
 **P2 — Extended:** Faculty learning analytics · academic reporting · notifications · exam/timetable admin · transcript.
 
@@ -103,4 +103,17 @@ Built to mirror the existing **Grading** vertical slice.
 - [x] Phase 4 — Tests (`tests/Feature/AttendanceTest.php` — 5 passing)
 - [x] Phase 5 — Refactor (eager-loaded summaries, `updateOrCreate` upsert, pint) + verify (`migrate:fresh --seed`, `route:list`, full suite 30 passing, `npm run build`)
 
-**Next up:** backlog item #2 — wire mock admin frontends (Analytics, AISettings, System Monitor) to existing backends.
+**Next up:** backlog item #3 — Faculty Course CRUD (create/edit courses) + Course Material management (faculty upload).
+
+---
+
+## Completed — Wire Mock Admin Frontends (backlog #2)
+
+**Status:** ✅ COMPLETE. Three admin pages were rendering hardcoded mock data on top of
+already-real backend controllers; rewritten to consume real props:
+- `Admin/Analytics.vue` ← `AnalyticsController` (`overview`, `departmentStats`, `topQueries`, `usersByRole`)
+- `Admin/AISettings.vue` ← `SettingsController` (5 editable fields, save via PATCH, live `test` endpoint)
+- `Admin/SystemMonitor.vue` ← `MonitorController` (real CPU load, memory, disk, services)
+
+Fabricated sections with no backend (usage charts, Pinecone/safety/perf tabs, network
+interfaces) were dropped rather than faked. Covered by existing `AdminRoleTest`; 30 tests green.
