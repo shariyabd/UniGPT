@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Student;
 
 use App\Domain\Academic\Services\AttendanceService;
+use App\Domain\Academic\Services\CalendarService;
 use App\Domain\Academic\Services\CourseService;
 use App\Domain\Academic\Services\ExamService;
 use App\Domain\Academic\Services\TranscriptService;
@@ -26,6 +27,7 @@ class StudentDashboardController extends Controller
         private readonly AttendanceService $attendance,
         private readonly TranscriptService $transcript,
         private readonly ExamService $exams,
+        private readonly CalendarService $calendar,
     ) {}
 
     public function index(): Response
@@ -98,6 +100,11 @@ class StudentDashboardController extends Controller
     public function exams(): Response
     {
         return Inertia::render('Student/Exams', $this->exams->forStudent($this->user()));
+    }
+
+    public function calendar(): Response
+    {
+        return Inertia::render('Student/Calendar', $this->calendar->build($this->user()));
     }
 
     public function roadmap(): Response

@@ -75,6 +75,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/attendance', [StudentDashboardController::class, 'attendance'])->middleware('permission:view_attendance')->name('attendance');
         Route::get('/transcript', [StudentDashboardController::class, 'transcript'])->middleware('permission:view_courses')->name('transcript');
         Route::get('/exams', [StudentDashboardController::class, 'exams'])->middleware('permission:view_exams')->name('exams');
+        Route::get('/calendar', [StudentDashboardController::class, 'calendar'])->name('calendar');
 
         // Personal productivity (self-service; scoped to the owner) — Notes
         Route::get('/notes', [NoteController::class, 'index'])->name('notes');
