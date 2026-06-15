@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Student;
 
+use App\Domain\Academic\Services\AttendanceService;
 use App\Domain\Academic\Services\CourseService;
 use App\Domain\Chat\Document\Services\DocumentService;
 use App\Domain\User\Models\User;
@@ -20,6 +21,7 @@ class StudentDashboardController extends Controller
     public function __construct(
         private readonly DocumentService $documents,
         private readonly CourseService $courses,
+        private readonly AttendanceService $attendance,
     ) {}
 
     public function index(): Response
@@ -63,6 +65,24 @@ class StudentDashboardController extends Controller
         return Inertia::render('Student/Materials', [
             'courses' => $this->courses->studentMaterials($user),
             'enrolledCourses' => $this->courses->studentCourses($user),
+        ]);
+    }
+
+    public function attendance(): Response
+    {
+        $user = $this->user();
+        $courses = $this->attendance->studentSummary($user);
+        $totalRecords = (int) $courses->sum('total');
+        $totalAttended = (int) $courses->sum('attended');
+
+        return Inertia::render('Student/Attendance', [
+            'courses' => $courses,
+            'overall' => [
+                'total' => $totalRecords,
+                'attended' => $totalAttended,
+                'absent' => $totalRecords - $totalAttended,
+                'rate' => $totalRecords > 0 ? (int) round($totalAttended / $totalRecords * 100) : null,
+            ],
         ]);
     }
 

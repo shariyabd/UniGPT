@@ -2,15 +2,15 @@
 
 namespace Database\Seeders;
 
-use App\Models\Role;
-use App\Enums\UserRole;
-use App\Models\Permission;
-use Illuminate\Support\Str;
-use Illuminate\Database\Seeder;
 use App\Domain\User\Models\User;
-use Illuminate\Support\Facades\Hash;
 use App\Enums\Permission as PermissionEnum;
+use App\Enums\UserRole;
 use App\Models\Department;
+use App\Models\Permission;
+use App\Models\Role;
+use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 class RBACSeeder extends Seeder
 {
@@ -32,12 +32,12 @@ class RBACSeeder extends Seeder
         $this->command->info('Creating roles...');
 
         foreach (UserRole::cases() as $roleEnum) {
-            $features =[];
-            if($roleEnum == UserRole::ADMIN){
+            $features = [];
+            if ($roleEnum == UserRole::ADMIN) {
                 $features = ['User Management', 'System Analytics', 'AI Configuration', 'Content Moderation'];
-            } elseif($roleEnum == UserRole::FACULTY){
+            } elseif ($roleEnum == UserRole::FACULTY) {
                 $features = ['AI Teaching Assistant', 'Course Management', 'Student Analytics', 'Grading Tools'];
-            } elseif($roleEnum == UserRole::STUDENT){
+            } elseif ($roleEnum == UserRole::STUDENT) {
                 $features = ['AI Study Assistant', 'Course Materials', 'Learning Roadmap', 'Progress Tracking'];
             }
 
@@ -72,7 +72,7 @@ class RBACSeeder extends Seeder
             );
         }
 
-        $this->command->info("   ✓ " . count(PermissionEnum::cases()) . " permissions created");
+        $this->command->info('   ✓ '.count(PermissionEnum::cases()).' permissions created');
     }
 
     private function assignPermissionsToRoles(): void
@@ -94,13 +94,13 @@ class RBACSeeder extends Seeder
             PermissionEnum::VIEW_CHAT_HISTORY,
             PermissionEnum::DELETE_CHAT,
             PermissionEnum::VIEW_OWN_ANALYTICS,
+            PermissionEnum::VIEW_ATTENDANCE,
         ];
 
         foreach ($studentPermissions as $permission) {
             $studentRole->givePermission($permission);
         }
-        $this->command->info("   ✓ Student permissions assigned (" . count($studentPermissions) . ")");
-
+        $this->command->info('   ✓ Student permissions assigned ('.count($studentPermissions).')');
 
         $facultyPermissions = array_merge($studentPermissions, [
             PermissionEnum::UPLOAD_DOCUMENT,
@@ -108,22 +108,23 @@ class RBACSeeder extends Seeder
             PermissionEnum::UPDATE_COURSE,
             PermissionEnum::CREATE_ASSIGNMENT,
             PermissionEnum::GRADE_ASSIGNMENT,
+            PermissionEnum::MARK_ATTENDANCE,
             PermissionEnum::VIEW_DEPARTMENT_ANALYTICS,
         ]);
 
         foreach ($facultyPermissions as $permission) {
             $facultyRole->givePermission($permission);
         }
-        $this->command->info(" Faculty permissions assigned (" . count($facultyPermissions) . ")");
-
+        $this->command->info(' Faculty permissions assigned ('.count($facultyPermissions).')');
 
         foreach (PermissionEnum::cases() as $permission) {
             $adminRole->givePermission($permission);
         }
-        $this->command->info("   ✓ Admin permissions assigned (ALL - " . count(PermissionEnum::cases()) . ")");
+        $this->command->info('   ✓ Admin permissions assigned (ALL - '.count(PermissionEnum::cases()).')');
     }
 
-    private function createDepartments():void{
+    private function createDepartments(): void
+    {
         $this->command->info('Creating departments...');
 
         $departments = [
@@ -140,14 +141,14 @@ class RBACSeeder extends Seeder
         ];
 
         foreach ($departments as $departmentName) {
-             $data = [
-                'slug'=> Str::slug($departmentName),
+            $data = [
+                'slug' => Str::slug($departmentName),
                 'description' => "{$departmentName} Department",
-                'code' =>"CSE". rand(1,10).chr(rand(65,90)).chr(rand(65,90)),
+                'code' => 'CSE'.rand(1, 10).chr(rand(65, 90)).chr(rand(65, 90)),
                 'is_active' => true,
                 'created_at' => now(),
                 'updated_at' => now(),
-        ];
+            ];
 
             \App\Models\Department::firstOrCreate(
                 ['name' => $departmentName],
@@ -157,11 +158,12 @@ class RBACSeeder extends Seeder
             $this->command->info("   ✓ {$departmentName} department created");
         }
     }
+
     private function createDemoUsers(): void
     {
         $this->command->info('Creating demo users...');
 
-        $departmentIds = Department::all()->pluck( 'id')->toArray();
+        $departmentIds = Department::all()->pluck('id')->toArray();
         $demoUsers = [
             [
                 'name' => 'Demo Student',

@@ -72,6 +72,12 @@ const formatDate = (date) => date
                                     </div>
                                 </div>
                                 <Link
+                                    :href="route('faculty.courses.attendance', course.id)"
+                                    class="bg-white/20 backdrop-blur-lg border border-white/20 rounded-xl text-white px-6 py-3 font-medium hover:bg-white/30 transition-all"
+                                >
+                                    Attendance
+                                </Link>
+                                <Link
                                     href="/faculty/courses"
                                     class="bg-white/20 backdrop-blur-lg border border-white/20 rounded-xl text-white px-6 py-3 font-medium hover:bg-white/30 transition-all"
                                 >

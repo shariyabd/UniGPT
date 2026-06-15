@@ -80,6 +80,11 @@ class User extends Authenticatable
         return $this->hasMany(\App\Models\AssignmentSubmission::class);
     }
 
+    public function attendanceRecords(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(\App\Models\AttendanceRecord::class, 'user_id');
+    }
+
     public function roles(): BelongsToMany
     {
         return $this->belongsToMany(Role::class, 'role_user')

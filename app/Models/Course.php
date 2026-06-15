@@ -63,6 +63,11 @@ class Course extends Model
         return $this->hasMany(Assignment::class);
     }
 
+    public function attendanceRecords(): HasMany
+    {
+        return $this->hasMany(AttendanceRecord::class);
+    }
+
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);

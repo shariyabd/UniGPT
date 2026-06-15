@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\Auth\AuthenticationController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Faculty\AIAssistantController as FacultyAIAssistantController;
+use App\Http\Controllers\Faculty\AttendanceController as FacultyAttendanceController;
 use App\Http\Controllers\Faculty\CourseController as FacultyCourseController;
 use App\Http\Controllers\Faculty\FacultyDashboardController;
 use App\Http\Controllers\Faculty\GradingController as FacultyGradingController;
@@ -57,6 +58,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/documents', [StudentDashboardController::class, 'documents'])->middleware('permission:view_documents')->name('documents');
         Route::get('/documents/{document}/download', [StudentDashboardController::class, 'downloadDocument'])->middleware('permission:download_document')->name('documents.download');
         Route::get('/materials', [StudentDashboardController::class, 'materials'])->middleware('permission:view_courses')->name('materials');
+        Route::get('/attendance', [StudentDashboardController::class, 'attendance'])->middleware('permission:view_attendance')->name('attendance');
 
         // Self-service account pages (no extra permission beyond the student role)
         Route::get('/profile', [StudentDashboardController::class, 'profile'])->name('profile');
@@ -77,6 +79,10 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/ai-assistant/chat', [FacultyAIAssistantController::class, 'chat'])->middleware('permission:use_ai_chat')->name('ai-assistant.chat');
         Route::post('/ai-assistant/quiz', [FacultyAIAssistantController::class, 'generateQuiz'])->middleware('permission:use_ai_chat')->name('ai-assistant.quiz');
         Route::post('/ai-assistant/assignment', [FacultyAIAssistantController::class, 'generateAssignment'])->middleware('permission:create_assignment')->name('ai-assistant.assignment');
+
+        // Attendance
+        Route::get('/courses/{course}/attendance', [FacultyAttendanceController::class, 'index'])->middleware('permission:mark_attendance')->name('courses.attendance');
+        Route::post('/courses/{course}/attendance', [FacultyAttendanceController::class, 'store'])->middleware('permission:mark_attendance')->name('courses.attendance.store');
 
         // Grading
         Route::get('/grading', [FacultyGradingController::class, 'index'])->middleware('permission:grade_assignment')->name('grading');

@@ -21,6 +21,7 @@ const navByRole = {
         { label: 'Roadmap', route: 'roadmap', permission: 'view_courses' },
         { label: 'Documents', route: 'documents', permission: 'view_documents' },
         { label: 'Materials', route: 'materials', permission: 'view_courses' },
+        { label: 'Attendance', route: 'attendance', permission: 'view_attendance' },
     ],
     faculty: [
         { label: 'Dashboard', route: 'faculty.dashboard' },

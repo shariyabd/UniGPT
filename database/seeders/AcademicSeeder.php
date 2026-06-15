@@ -66,9 +66,31 @@ class AcademicSeeder extends Seeder
 
             $this->seedMaterials($course, $faculty->id);
             $this->seedAssignments($course, $faculty->id, $student->id);
+
+            if ($i < 3) {
+                $this->seedAttendance($course, $faculty->id, $student->id);
+            }
         }
 
         $this->command->info('   ✓ Academic data seeded ('.count($blueprint).' courses)');
+    }
+
+    private function seedAttendance(Course $course, int $facultyId, int $studentId): void
+    {
+        // Mark the last 10 weekday sessions; mostly present, with a couple of misses.
+        $absentOn = [3, 7]; // indices that are absent/late for a realistic rate
+        for ($i = 0; $i < 10; $i++) {
+            $status = match (true) {
+                $i === $absentOn[0] => 'absent',
+                $i === $absentOn[1] => 'late',
+                default => 'present',
+            };
+
+            $course->attendanceRecords()->firstOrCreate(
+                ['user_id' => $studentId, 'date' => now()->subDays($i * 2)->toDateString()],
+                ['status' => $status, 'marked_by' => $facultyId],
+            );
+        }
     }
 
     private function seedMaterials(Course $course, int $facultyId): void
