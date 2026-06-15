@@ -14,6 +14,9 @@ class CourseMaterial extends Model
     protected $fillable = [
         'course_id',
         'document_id',
+        'file_path',
+        'original_filename',
+        'file_size',
         'title',
         'description',
         'type',
@@ -27,7 +30,16 @@ class CourseMaterial extends Model
     {
         return [
             'is_published' => 'boolean',
+            'file_size' => 'integer',
         ];
+    }
+
+    /**
+     * Whether a downloadable file is attached (uploaded file or linked document).
+     */
+    public function hasFile(): bool
+    {
+        return $this->file_path !== null || $this->document_id !== null;
     }
 
     public function course(): BelongsTo

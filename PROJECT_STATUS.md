@@ -14,7 +14,7 @@ Last updated: 2026-06-16
 | Band | State |
 |---|---|
 | **P0 — Foundation** | ✅ COMPLETE end-to-end (Auth, RBAC, AI Chat, RAG, DB schema) |
-| **P1 — Core functional** | 🟡 IN PROGRESS — #1 Attendance (this cycle) |
+| **P1 — Core functional** | ✅ COMPLETE — Attendance, admin frontends wired, Faculty Course/Material CRUD |
 | **P2 — Extended** | ⬜ Queued |
 | **P3 — Advanced/Future** | ⬜ Out of MVP scope (Option B: must not block delivery) |
 
@@ -53,9 +53,9 @@ Legend: ✅ COMPLETE · 🟡 PARTIAL · ⬜ NOT_STARTED · 🚫 BLOCKED
 | Assignment grading (incl. rubric) | ✅ | `Faculty/GradingController`, `GradingService` |
 | Course detail (roster/materials/assignments) | ✅ | `CourseService::courseDetail` |
 | AI Teaching Assistant (quiz/assignment gen) | 🟡 | `Faculty/AIAssistantController`, partial UI wiring |
-| Course Management (create/edit) | 🟡 | read-only; no write endpoints |
+| Course Management (create/edit/delete) | ✅ | `CourseController` CRUD + `Faculty/CourseForm.vue` |
 | **Attendance management** | ✅ | `Faculty/Attendance.vue`, `Faculty/AttendanceController` |
-| Course Material management (faculty upload) | ⬜ | no faculty route |
+| Course Material management (faculty upload) | ✅ | `CourseMaterialController` + upload/download |
 | Learning analytics, academic reporting, exam mgmt | ⬜ | aggregate stats only |
 
 ### Admin
@@ -82,7 +82,9 @@ Legend: ✅ COMPLETE · 🟡 PARTIAL · ⬜ NOT_STARTED · 🚫 BLOCKED
 **P1 — Core functional (execute in order):**
 1. ✅ **Attendance** — DONE. Now unblocks `Progress Tracking → Learning Analytics → Academic Reporting`.
 2. ✅ **Wire mock admin frontends** — DONE. Analytics, AISettings, System Monitor now render real backend data (covered by AdminRoleTest).
-3. ⬜ Faculty Course CRUD + Course Material management. ← *next*
+3. ✅ **Faculty Course CRUD + Course Material management** — DONE. Create/edit/delete courses + material upload/download.
+
+**P1 is now complete.** Next band is P2.
 
 **P2 — Extended:** Faculty learning analytics · academic reporting · notifications · exam/timetable admin · transcript.
 
@@ -103,7 +105,9 @@ Built to mirror the existing **Grading** vertical slice.
 - [x] Phase 4 — Tests (`tests/Feature/AttendanceTest.php` — 5 passing)
 - [x] Phase 5 — Refactor (eager-loaded summaries, `updateOrCreate` upsert, pint) + verify (`migrate:fresh --seed`, `route:list`, full suite 30 passing, `npm run build`)
 
-**Next up:** backlog item #3 — Faculty Course CRUD (create/edit courses) + Course Material management (faculty upload).
+**Next up:** P1 is complete. Next band is **P2** — recommended first item: Faculty
+learning analytics / academic reporting (builds on the now-complete Attendance +
+grading data), or Notifications.
 
 ---
 
@@ -117,3 +121,19 @@ already-real backend controllers; rewritten to consume real props:
 
 Fabricated sections with no backend (usage charts, Pinecone/safety/perf tabs, network
 interfaces) were dropped rather than faked. Covered by existing `AdminRoleTest`; 30 tests green.
+
+---
+
+## Completed — Faculty Course/Material CRUD (backlog #3)
+
+**Status:** ✅ COMPLETE. Faculty courses were read-only; now full lifecycle:
+- **Course CRUD** — `CourseController` create/store/edit/update/destroy + `Faculty/CourseForm.vue`;
+  `CourseManagementService` writes; `CourseRequest` validation; owner-gated via `CoursePolicy@manage`.
+- **Material management** — `CourseMaterialController` (store/update/destroy/download) with real
+  file upload (new `file_path`/`original_filename`/`file_size` columns on `course_materials`,
+  stored on the local disk — separate from the admin RAG/approval pipeline). Managed inline on
+  `CourseDetail.vue`; students download via `materials.download` (enrollment-checked).
+- New `manage_materials` permission; faculty granted `delete_course` + `manage_materials`.
+
+7 feature tests in `CourseManagementTest` (create, update, cross-owner 403, delete, file upload,
+enrolled-student download, form loads). Full suite **37 passing**, pint + build clean.

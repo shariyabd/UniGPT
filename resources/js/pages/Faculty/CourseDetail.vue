@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import {
     AcademicCapIcon,
@@ -9,6 +9,10 @@ import {
     DocumentTextIcon,
     CalendarIcon,
     ArrowDownTrayIcon,
+    PencilSquareIcon,
+    TrashIcon,
+    PlusIcon,
+    EyeSlashIcon,
 } from '@heroicons/vue/24/outline';
 
 // Real data from the backend (CourseController@show → CourseService::courseDetail).
@@ -17,6 +21,40 @@ const props = defineProps({
 });
 
 const activeTab = ref('overview');
+
+// --- Material management ---
+const showMaterialForm = ref(false);
+const materialForm = useForm({
+    title: '',
+    description: '',
+    type: 'lecture',
+    week: null,
+    is_published: true,
+    file: null,
+});
+
+const submitMaterial = () => {
+    materialForm.post(route('faculty.courses.materials.store', props.course.id), {
+        preserveScroll: true,
+        forceFormData: true,
+        onSuccess: () => {
+            materialForm.reset();
+            showMaterialForm.value = false;
+        },
+    });
+};
+
+const deleteMaterial = (materialId) => {
+    if (!confirm('Delete this material? This cannot be undone.')) return;
+    router.delete(route('faculty.courses.materials.destroy', [props.course.id, materialId]), {
+        preserveScroll: true,
+    });
+};
+
+const deleteCourse = () => {
+    if (!confirm(`Delete ${props.course.code}? This removes the course and its materials.`)) return;
+    router.delete(route('faculty.courses.destroy', props.course.id));
+};
 
 const students = computed(() => props.course.students ?? []);
 const materials = computed(() => props.course.materials ?? []);
@@ -72,14 +110,27 @@ const formatDate = (date) => date
                                     </div>
                                 </div>
                                 <Link
+                                    :href="route('faculty.courses.edit', course.id)"
+                                    class="inline-flex items-center gap-1 bg-white/20 backdrop-blur-lg border border-white/20 rounded-xl text-white px-5 py-3 font-medium hover:bg-white/30 transition-all"
+                                >
+                                    <PencilSquareIcon class="w-4 h-4" /> Edit
+                                </Link>
+                                <button
+                                    type="button"
+                                    @click="deleteCourse"
+                                    class="inline-flex items-center gap-1 bg-red-500/30 backdrop-blur-lg border border-white/20 rounded-xl text-white px-5 py-3 font-medium hover:bg-red-500/50 transition-all"
+                                >
+                                    <TrashIcon class="w-4 h-4" /> Delete
+                                </button>
+                                <Link
                                     :href="route('faculty.courses.attendance', course.id)"
-                                    class="bg-white/20 backdrop-blur-lg border border-white/20 rounded-xl text-white px-6 py-3 font-medium hover:bg-white/30 transition-all"
+                                    class="bg-white/20 backdrop-blur-lg border border-white/20 rounded-xl text-white px-5 py-3 font-medium hover:bg-white/30 transition-all"
                                 >
                                     Attendance
                                 </Link>
                                 <Link
                                     href="/faculty/courses"
-                                    class="bg-white/20 backdrop-blur-lg border border-white/20 rounded-xl text-white px-6 py-3 font-medium hover:bg-white/30 transition-all"
+                                    class="bg-white/20 backdrop-blur-lg border border-white/20 rounded-xl text-white px-5 py-3 font-medium hover:bg-white/30 transition-all"
                                 >
                                     ← Courses
                                 </Link>
@@ -195,8 +246,68 @@ const formatDate = (date) => date
 
                             <!-- Materials -->
                             <div v-else-if="activeTab === 'materials'">
+                                <div class="flex justify-end mb-4">
+                                    <button
+                                        type="button"
+                                        @click="showMaterialForm = !showMaterialForm"
+                                        class="inline-flex items-center gap-1 px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700"
+                                    >
+                                        <PlusIcon class="w-4 h-4" /> Add Material
+                                    </button>
+                                </div>
+
+                                <!-- Add material form -->
+                                <form
+                                    v-if="showMaterialForm"
+                                    @submit.prevent="submitMaterial"
+                                    class="mb-6 p-4 border border-gray-200 dark:border-gray-700 rounded-xl space-y-4"
+                                >
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div class="sm:col-span-2">
+                                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Title</label>
+                                            <input v-model="materialForm.title" type="text"
+                                                class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-900 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                                            <p v-if="materialForm.errors.title" class="text-xs text-red-500 mt-1">{{ materialForm.errors.title }}</p>
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type</label>
+                                            <select v-model="materialForm.type"
+                                                class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-900 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                                <option value="lecture">Lecture</option>
+                                                <option value="slides">Slides</option>
+                                                <option value="reading">Reading</option>
+                                                <option value="assignment">Assignment</option>
+                                                <option value="video">Video</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Week</label>
+                                            <input v-model.number="materialForm.week" type="number" min="1" max="52"
+                                                class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-900 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                                        </div>
+                                        <div class="sm:col-span-2">
+                                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">File (optional)</label>
+                                            <input type="file" @input="materialForm.file = $event.target.files[0]"
+                                                class="w-full text-sm text-gray-600 dark:text-gray-400 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />
+                                            <p v-if="materialForm.errors.file" class="text-xs text-red-500 mt-1">{{ materialForm.errors.file }}</p>
+                                        </div>
+                                    </div>
+                                    <label class="flex items-center gap-2 cursor-pointer">
+                                        <input v-model="materialForm.is_published" type="checkbox" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                                        <span class="text-sm text-gray-700 dark:text-gray-300">Publish (visible to students)</span>
+                                    </label>
+                                    <div class="flex justify-end gap-2">
+                                        <button type="button" @click="showMaterialForm = false"
+                                            class="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm">Cancel</button>
+                                        <button type="submit" :disabled="materialForm.processing"
+                                            class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
+                                            {{ materialForm.processing ? 'Saving…' : 'Save' }}
+                                        </button>
+                                    </div>
+                                </form>
+
                                 <div v-if="materials.length === 0" class="text-center py-12 text-gray-500 dark:text-gray-400">
-                                    No materials uploaded yet.
+                                    No materials yet.
                                 </div>
                                 <div v-else class="space-y-3">
                                     <div
@@ -204,18 +315,40 @@ const formatDate = (date) => date
                                         :key="material.id"
                                         class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl"
                                     >
-                                        <div class="flex items-center gap-3">
-                                            <BookOpenIcon class="w-6 h-6 text-purple-600 dark:text-purple-400" />
-                                            <div>
-                                                <div class="font-medium text-gray-900 dark:text-white">{{ material.title }}</div>
+                                        <div class="flex items-center gap-3 min-w-0">
+                                            <BookOpenIcon class="w-6 h-6 text-purple-600 dark:text-purple-400 flex-shrink-0" />
+                                            <div class="min-w-0">
+                                                <div class="font-medium text-gray-900 dark:text-white truncate">
+                                                    {{ material.title }}
+                                                    <span v-if="!material.isPublished" class="inline-flex items-center gap-1 ml-1 text-xs text-yellow-600 dark:text-yellow-400">
+                                                        <EyeSlashIcon class="w-3 h-3" /> draft
+                                                    </span>
+                                                </div>
                                                 <div class="text-xs text-gray-500 dark:text-gray-400">
                                                     {{ material.type }}<span v-if="material.week"> • Week {{ material.week }}</span>
+                                                    <span v-if="material.fileName"> • {{ material.fileName }}</span>
                                                 </div>
                                             </div>
                                         </div>
-                                        <div class="flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400">
-                                            <ArrowDownTrayIcon class="w-4 h-4" />
-                                            {{ material.downloads ?? 0 }}
+                                        <div class="flex items-center gap-3 flex-shrink-0">
+                                            <span class="flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400">
+                                                <ArrowDownTrayIcon class="w-4 h-4" /> {{ material.downloads ?? 0 }}
+                                            </span>
+                                            <a
+                                                v-if="material.downloadUrl"
+                                                :href="material.downloadUrl"
+                                                class="text-sm text-indigo-600 dark:text-indigo-400 hover:underline"
+                                            >
+                                                Download
+                                            </a>
+                                            <button
+                                                type="button"
+                                                @click="deleteMaterial(material.id)"
+                                                class="text-red-500 hover:text-red-700"
+                                                title="Delete material"
+                                            >
+                                                <TrashIcon class="w-4 h-4" />
+                                            </button>
                                         </div>
                                     </div>
                                 </div>

@@ -136,6 +136,25 @@ class StudentDashboardController extends Controller
         );
     }
 
+    public function downloadMaterial(\App\Models\CourseMaterial $material)
+    {
+        $user = $this->user();
+
+        // Only enrolled students may download a course's materials.
+        abort_unless(
+            $material->file_path !== null
+                && $user->enrolledCourses()->whereKey($material->course_id)->exists(),
+            404,
+        );
+
+        $material->increment('downloads');
+
+        return Storage::disk('local')->download(
+            $material->file_path,
+            $material->original_filename ?? $material->title,
+        );
+    }
+
     private function user(): User
     {
         return request()->user();

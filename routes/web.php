@@ -12,6 +12,7 @@ use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Faculty\AIAssistantController as FacultyAIAssistantController;
 use App\Http\Controllers\Faculty\AttendanceController as FacultyAttendanceController;
 use App\Http\Controllers\Faculty\CourseController as FacultyCourseController;
+use App\Http\Controllers\Faculty\CourseMaterialController as FacultyCourseMaterialController;
 use App\Http\Controllers\Faculty\FacultyDashboardController;
 use App\Http\Controllers\Faculty\GradingController as FacultyGradingController;
 use App\Http\Controllers\LegalController;
@@ -58,6 +59,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/documents', [StudentDashboardController::class, 'documents'])->middleware('permission:view_documents')->name('documents');
         Route::get('/documents/{document}/download', [StudentDashboardController::class, 'downloadDocument'])->middleware('permission:download_document')->name('documents.download');
         Route::get('/materials', [StudentDashboardController::class, 'materials'])->middleware('permission:view_courses')->name('materials');
+        Route::get('/materials/{material}/download', [StudentDashboardController::class, 'downloadMaterial'])->middleware('permission:view_courses')->name('materials.download');
         Route::get('/attendance', [StudentDashboardController::class, 'attendance'])->middleware('permission:view_attendance')->name('attendance');
 
         // Self-service account pages (no extra permission beyond the student role)
@@ -70,9 +72,20 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware('role:faculty')->prefix('faculty')->name('faculty.')->group(function () {
         Route::get('/dashboard', [FacultyDashboardController::class, 'index'])->name('dashboard');
 
-        // Courses
+        // Courses (CRUD) — `create` must precede the `{course}` wildcard
         Route::get('/courses', [FacultyCourseController::class, 'index'])->middleware('permission:view_courses')->name('courses');
+        Route::get('/courses/create', [FacultyCourseController::class, 'create'])->middleware('permission:create_course')->name('courses.create');
+        Route::post('/courses', [FacultyCourseController::class, 'store'])->middleware('permission:create_course')->name('courses.store');
         Route::get('/courses/{course}', [FacultyCourseController::class, 'show'])->middleware('permission:view_courses')->name('courses.show');
+        Route::get('/courses/{course}/edit', [FacultyCourseController::class, 'edit'])->middleware('permission:update_course')->name('courses.edit');
+        Route::patch('/courses/{course}', [FacultyCourseController::class, 'update'])->middleware('permission:update_course')->name('courses.update');
+        Route::delete('/courses/{course}', [FacultyCourseController::class, 'destroy'])->middleware('permission:delete_course')->name('courses.destroy');
+
+        // Course materials (faculty manage + upload)
+        Route::post('/courses/{course}/materials', [FacultyCourseMaterialController::class, 'store'])->middleware('permission:manage_materials')->name('courses.materials.store');
+        Route::patch('/courses/{course}/materials/{material}', [FacultyCourseMaterialController::class, 'update'])->middleware('permission:manage_materials')->name('courses.materials.update');
+        Route::delete('/courses/{course}/materials/{material}', [FacultyCourseMaterialController::class, 'destroy'])->middleware('permission:manage_materials')->name('courses.materials.destroy');
+        Route::get('/courses/{course}/materials/{material}/download', [FacultyCourseMaterialController::class, 'download'])->middleware('permission:view_courses')->name('courses.materials.download');
 
         // AI teaching assistant
         Route::get('/ai-assistant', [FacultyAIAssistantController::class, 'index'])->middleware('permission:use_ai_chat')->name('ai-assistant');

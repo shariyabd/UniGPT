@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import { usePermissions } from '@/composables/usePermissions';
 import {
     AcademicCapIcon,
     BookOpenIcon,
@@ -12,6 +13,8 @@ import {
     ClockIcon,
     ArrowRightIcon,
 } from '@heroicons/vue/24/outline';
+
+const { can } = usePermissions();
 
 // Real data from the backend (FacultyDashboardController@index).
 const props = defineProps({
@@ -119,8 +122,12 @@ const quickActions = [
                         <div class="lg:col-span-2 space-y-6">
                             <div class="flex items-center justify-between">
                                 <h2 class="text-xl font-bold text-gray-900 dark:text-white">Active Courses</h2>
-                                <Link :href="route('faculty.courses')" class="text-sm text-teal-600 dark:text-teal-400 hover:underline">
-                                    View all
+                                <Link
+                                    v-if="can('create_course')"
+                                    :href="route('faculty.courses.create')"
+                                    class="inline-flex items-center gap-1 px-4 py-2 rounded-lg bg-teal-600 text-white text-sm font-medium hover:bg-teal-700"
+                                >
+                                    + New Course
                                 </Link>
                             </div>
 

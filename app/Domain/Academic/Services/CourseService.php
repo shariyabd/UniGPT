@@ -4,6 +4,7 @@ namespace App\Domain\Academic\Services;
 
 use App\Domain\User\Models\User;
 use App\Models\Course;
+use App\Models\CourseMaterial;
 use Illuminate\Support\Collection;
 
 /**
@@ -60,7 +61,7 @@ class CourseService
                     'week' => $m->week,
                     'downloads' => $m->downloads,
                     'documentId' => $m->document_id,
-                    'downloadUrl' => $m->document_id ? route('documents.download', $m->document_id) : null,
+                    'downloadUrl' => $this->studentMaterialDownloadUrl($m),
                 ])->values(),
             ]);
     }
@@ -130,9 +131,16 @@ class CourseService
             'materials' => $course->materials->map(fn ($m) => [
                 'id' => $m->id,
                 'title' => $m->title,
+                'description' => $m->description,
                 'type' => $m->type,
                 'week' => $m->week,
                 'downloads' => $m->downloads,
+                'isPublished' => $m->is_published,
+                'hasFile' => $m->file_path !== null,
+                'fileName' => $m->original_filename,
+                'downloadUrl' => $m->file_path !== null
+                    ? route('faculty.courses.materials.download', [$course->id, $m->id])
+                    : null,
             ])->values(),
             'assignments' => $course->assignments->map(fn ($a) => [
                 'id' => $a->id,
@@ -144,5 +152,43 @@ class CourseService
                 'graded' => $a->submissions->whereNotNull('grade')->count(),
             ])->values(),
         ];
+    }
+
+    /**
+     * Raw course fields for the faculty edit form.
+     *
+     * @return array<string, mixed>
+     */
+    public function editableCourse(Course $course): array
+    {
+        return [
+            'id' => $course->id,
+            'code' => $course->code,
+            'name' => $course->name,
+            'description' => $course->description,
+            'department_id' => $course->department_id,
+            'semester' => $course->semester,
+            'credits' => $course->credits,
+            'max_enrollment' => $course->max_enrollment,
+            'is_active' => $course->is_active,
+            'schedule' => [
+                'lectures' => $course->schedule['lectures'] ?? '',
+                'classroom' => $course->schedule['classroom'] ?? '',
+                'office_hours' => $course->schedule['office_hours'] ?? '',
+            ],
+        ];
+    }
+
+    /**
+     * Download URL for a student: prefer an uploaded material file, fall back
+     * to a linked knowledge-base document.
+     */
+    private function studentMaterialDownloadUrl(CourseMaterial $material): ?string
+    {
+        if ($material->file_path !== null) {
+            return route('materials.download', $material->id);
+        }
+
+        return $material->document_id ? route('documents.download', $material->document_id) : null;
     }
 }

@@ -106,6 +106,8 @@ class RBACSeeder extends Seeder
             PermissionEnum::UPLOAD_DOCUMENT,
             PermissionEnum::CREATE_COURSE,
             PermissionEnum::UPDATE_COURSE,
+            PermissionEnum::DELETE_COURSE,
+            PermissionEnum::MANAGE_MATERIALS,
             PermissionEnum::CREATE_ASSIGNMENT,
             PermissionEnum::GRADE_ASSIGNMENT,
             PermissionEnum::MARK_ATTENDANCE,
