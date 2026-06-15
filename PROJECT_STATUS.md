@@ -15,8 +15,9 @@ Last updated: 2026-06-16
 |---|---|
 | **P0 — Foundation** | ✅ COMPLETE end-to-end (Auth, RBAC, AI Chat, RAG, DB schema) |
 | **P1 — Core functional** | ✅ COMPLETE — Attendance, admin frontends wired, Faculty Course/Material CRUD |
-| **P2 — Extended** | ⬜ Queued |
-| **P3 — Advanced/Future** | ⬜ Out of MVP scope (Option B: must not block delivery) |
+| **P2 — Extended** | ✅ COMPLETE — Notifications, Transcript, Exam/Timetable, Faculty analytics & reporting |
+| **P2.5 — Low-priority** | ✅ COMPLETE — Calendar, Notes, Tasks, Admin Department Management |
+| **P3 — Advanced/Future** | ⬜ NOT_STARTED — deferred to end; out of MVP scope (Option B: must not block delivery) |
 
 Legend: ✅ COMPLETE · 🟡 PARTIAL · ⬜ NOT_STARTED · 🚫 BLOCKED
 (COMPLETE = backend + DB + frontend + working end-to-end user flow.)
@@ -34,7 +35,7 @@ Legend: ✅ COMPLETE · 🟡 PARTIAL · ⬜ NOT_STARTED · 🚫 BLOCKED
 | RAG (chunk→embed→cosine retrieve→cite) | ✅ | `Domain/RAG/*`, MySQL vector store |
 | Multi-LLM provider (OpenAI + mock fallback) | ✅ | `Infrastructure/AI/*`; mock = zero-key default |
 | Saved Answers / Bookmarks | ✅ | `Student/SavedAnswerController` |
-| Streaming responses / Voice / TTS / STT | ⬜ | P3 — chat returns full response; voice is a UI mock |
+| Streaming responses / Voice / TTS / STT / Predictive | ⬜ NOT_STARTED | P3 — chat returns full response; voice is a UI mock |
 
 ### Student
 | Feature | Status | Evidence |
@@ -44,19 +45,25 @@ Legend: ✅ COMPLETE · 🟡 PARTIAL · ⬜ NOT_STARTED · 🚫 BLOCKED
 | Documents library | ✅ | `StudentDashboardController::documents` |
 | Roadmap / Progress tracking | 🟡 | real enrollment data, shallow |
 | **Attendance monitoring** | ✅ | `Student/Attendance.vue`, `AttendanceService::studentSummary` |
-| Transcript, Exam schedule, Calendar/Notes/Tasks | ⬜ | no backing tables |
-| Notifications / Reminders | ⬜ | preference flag only, no delivery |
+| **Transcript (term GPA + CGPA)** | ✅ | `Student/Transcript.vue`, `TranscriptService::build` |
+| **Exam schedule** | ✅ | `Student/Exams.vue`, `ExamService::forStudent` |
+| **Notifications / Reminders** | ✅ | `NotificationService`, navbar bell, `Notifications/Index.vue`, auto-notify on grade/material/exam |
+| **Calendar** | ✅ | `Student/Calendar.vue`, `CalendarService` (merges assignments + exams + tasks) |
+| **Notes** | ✅ | `Student/Notes.vue`, `NoteController` (CRUD, pin, course link) |
+| **Tasks** | ✅ | `Student/Tasks.vue`, `TaskController` (CRUD, priority, due date, toggle) |
 
 ### Faculty
 | Feature | Status | Evidence |
 |---|---|---|
 | Assignment grading (incl. rubric) | ✅ | `Faculty/GradingController`, `GradingService` |
 | Course detail (roster/materials/assignments) | ✅ | `CourseService::courseDetail` |
-| AI Teaching Assistant (quiz/assignment gen) | 🟡 | `Faculty/AIAssistantController`, partial UI wiring |
+| AI Teaching Assistant (quiz/assignment gen) | ✅ | `Faculty/AIAssistantController` + `TeachingAssistantService` (real LLM + synthesis fallback) |
+| **AI feedback generation (grading)** | ✅ | `TeachingAssistantService::generateFeedback`, `GradingController::suggestFeedback`, "Draft with AI" in `Grading.vue` |
 | Course Management (create/edit/delete) | ✅ | `CourseController` CRUD + `Faculty/CourseForm.vue` |
 | **Attendance management** | ✅ | `Faculty/Attendance.vue`, `Faculty/AttendanceController` |
 | Course Material management (faculty upload) | ✅ | `CourseMaterialController` + upload/download |
-| Learning analytics, academic reporting, exam mgmt | ⬜ | aggregate stats only |
+| **Learning analytics & academic reporting** | ✅ | `Faculty/Analytics.vue`, `FacultyAnalyticsService` (grade dist, attendance, at-risk) |
+| **Exam timetable (read view)** | ✅ | `Faculty/Exams.vue`, `ExamService::forFaculty` |
 
 ### Admin
 | Feature | Status | Evidence |
@@ -68,7 +75,10 @@ Legend: ✅ COMPLETE · 🟡 PARTIAL · ⬜ NOT_STARTED · 🚫 BLOCKED
 | AI Configuration | ✅ | `AISettings.vue` wired to `SettingsController` (save + test) |
 | System Monitor | ✅ | `SystemMonitor.vue` renders real `MonitorController` metrics |
 | Activity logs / audit trail | ✅ | `ActivityLog`, `ActivityLogger` |
-| Department mgmt, Transcript, Exam/Timetable admin, Notification mgmt | ⬜ | not started |
+| **Exam/Timetable admin (CRUD)** | ✅ | `Admin/Exams.vue`, `Admin/ExamController`, `ExamService` |
+| **Notification broadcast / announcements** | ✅ | `Admin/Announcements.vue`, `Admin/AnnouncementController` |
+| **Department management** | ✅ | `Admin/Departments.vue`, `Admin/DepartmentController` (CRUD, delete-guard) |
+| Admin transcript editing | ⬜ | not started (grades flow through grading/enrolment; low priority) |
 
 > **Stale doc note:** CLAUDE.md's `auth.user => null` gotcha is already fixed in
 > `HandleInertiaRequests` (shares `$request->user()`).
@@ -84,11 +94,48 @@ Legend: ✅ COMPLETE · 🟡 PARTIAL · ⬜ NOT_STARTED · 🚫 BLOCKED
 2. ✅ **Wire mock admin frontends** — DONE. Analytics, AISettings, System Monitor now render real backend data (covered by AdminRoleTest).
 3. ✅ **Faculty Course CRUD + Course Material management** — DONE. Create/edit/delete courses + material upload/download.
 
-**P1 is now complete.** Next band is P2.
+**P1 is now complete.**
 
-**P2 — Extended:** Faculty learning analytics · academic reporting · notifications · exam/timetable admin · transcript.
+**P2 — Extended (execute in order):**
+1. ✅ **Notifications** — DONE. Per-recipient table + `NotificationService`, navbar bell (shared Inertia prop), index page, admin announcements broadcast; auto-notify on grade / published material / scheduled exam.
+2. ✅ **Transcript** — DONE. `TranscriptService` (term-grouped grades, per-term GPA, weighted CGPA) + printable `Student/Transcript.vue`.
+3. ✅ **Exam / Timetable** — DONE. `exams` table + admin CRUD (`Admin/Exams.vue`), student & faculty read views; scheduling notifies enrolled students.
+4. ✅ **Faculty learning analytics & academic reporting** — DONE. `FacultyAnalyticsService` (grade distribution, attendance rate, submission completion, at-risk flagging) + `Faculty/Analytics.vue`.
 
-**P3 — Advanced/Future:** voice I/O · streaming chat · TTS/STT · predictive analytics · recommendation engine.
+**P2 is now complete.**
+
+**P2.5 — Remaining low-priority features:**
+1. ✅ **Calendar / Notes / Tasks** — DONE. `notes` + `tasks` tables, owner-scoped CRUD controllers,
+   `CalendarService` merging assignment deadlines + exams + tasks into a month/agenda view.
+2. ✅ **Admin Department Management** — DONE. CRUD over `departments` with a delete-guard
+   (blocks removal while users/courses reference it); new `manage_departments` permission.
+
+**All planned product features are now complete except P3.**
+
+**P3 — Advanced/Future (deferred to the very end, out of MVP scope):** voice I/O · streaming
+chat · TTS/STT · predictive analytics · recommendation engine. Per audit Option B — must not
+block delivery. These require external infra (speech APIs, streaming transport, ML models) and
+are the last band to implement.
+
+**Still open (very low priority):** admin transcript editing (grades already flow through the
+grading + enrolment pipeline).
+
+---
+
+## Completed — AI Feedback Generation (closes the last spec gap)
+
+**Status:** ✅ COMPLETE. The product spec's faculty "Feedback generation" was the only item not
+previously implemented (feedback was a manual text field). Now:
+- `TeachingAssistantService::generateFeedback` drafts feedback + strengths + improvements from the
+  submission excerpt, score and rubric criteria (real LLM when keyed, deterministic synthesis fallback).
+- `GradingController::suggestFeedback` (owner-gated via `CoursePolicy@manage`) returns the draft as JSON;
+  route `POST faculty.submissions.feedback`.
+- "Draft with AI" button in `Faculty/Grading.vue` pre-fills the feedback box for the faculty to edit
+  before saving — nothing is persisted automatically.
+
+4 tests in `FeedbackGenerationTest`. Full suite **71 passing (217 assertions)**, pint + build clean.
+
+**Cross-match result:** every feature in the product plan is now COMPLETE except the P3 advanced band.
 
 ---
 
@@ -105,9 +152,9 @@ Built to mirror the existing **Grading** vertical slice.
 - [x] Phase 4 — Tests (`tests/Feature/AttendanceTest.php` — 5 passing)
 - [x] Phase 5 — Refactor (eager-loaded summaries, `updateOrCreate` upsert, pint) + verify (`migrate:fresh --seed`, `route:list`, full suite 30 passing, `npm run build`)
 
-**Next up:** P1 is complete. Next band is **P2** — recommended first item: Faculty
-learning analytics / academic reporting (builds on the now-complete Attendance +
-grading data), or Notifications.
+**Next up:** P1 and P2 are both complete. Remaining work is **P3** (advanced/future,
+out of MVP scope) and a few deferred low-priority items (Calendar/Notes/Tasks, admin
+department management).
 
 ---
 
@@ -137,3 +184,71 @@ interfaces) were dropped rather than faked. Covered by existing `AdminRoleTest`;
 
 7 feature tests in `CourseManagementTest` (create, update, cross-owner 403, delete, file upload,
 enrolled-student download, form loads). Full suite **37 passing**, pint + build clean.
+
+---
+
+## Completed — P2 Extended band (Notifications · Transcript · Exams · Faculty Analytics)
+
+**Status:** ✅ COMPLETE end-to-end. All four P2 features shipped backend + DB + frontend + tests.
+
+### Notifications
+- `notifications` table, `Notification` model (+ `NotificationType` enum), `NotificationService`
+  (`notify`/`notifyMany`/`markRead`/`markAllRead`).
+- Shared via `HandleInertiaRequests` (`notifications.unread` + recent items) → navbar
+  `NotificationBell.vue`; full `Notifications/Index.vue` (mark read / mark all / delete).
+- Admin broadcast: `Admin/AnnouncementController` + `Admin/Announcements.vue`, new
+  `send_notifications` permission.
+- **Auto-notify hooks:** graded submission → student; published material → enrolled roster;
+  scheduled exam → enrolled roster.
+
+### Transcript
+- `TranscriptService` (4.0 scale, per-term GPA, credit-weighted CGPA) over existing
+  `course_user.grade`; printable `Student/Transcript.vue`. No schema change required.
+
+### Exam / Timetable
+- `exams` table, `Exam` model + `ExamType` enum, `ExamService`.
+- Admin CRUD (`Admin/ExamController`, `Admin/Exams.vue`); student (`Student/Exams.vue`) and
+  faculty (`Faculty/Exams.vue`) read views; demo exams seeded in `AcademicSeeder`.
+- New `view_exams` / `manage_exams` permissions.
+
+### Faculty learning analytics & academic reporting
+- `FacultyAnalyticsService` (cross-course overview + per-course grade distribution, attendance
+  rate, submission completion, **at-risk student flagging**) over the now-complete attendance +
+  grading data; `Faculty/AnalyticsController` (course-scoped, owner-gated) + `Faculty/Analytics.vue`.
+
+**Verification:** pint clean · `migrate:fresh --seed` clean · all P2 routes registered ·
+`npm run build` clean · full suite **57 passing (180 assertions)** — 20 new tests across
+`NotificationTest`, `TranscriptTest`, `ExamTest`, `FacultyAnalyticsTest`, zero regressions.
+
+---
+
+## Completed — P2.5 Low-priority band (Calendar · Notes · Tasks · Departments)
+
+**Status:** ✅ COMPLETE end-to-end.
+
+### Calendar / Notes / Tasks (student productivity)
+- `notes` + `tasks` tables (+ `TaskPriority` enum); `Note`/`Task` models with `User` relations.
+- Owner-scoped CRUD: `Student/NoteController`, `Student/TaskController` (+ `toggle`), validated by
+  `NoteRequest`/`TaskRequest`; pages `Student/Notes.vue`, `Student/Tasks.vue`.
+- `CalendarService` merges assignment deadlines + scheduled exams + personal tasks into one
+  date-keyed stream; `Student/Calendar.vue` renders a client-side month grid + agenda.
+
+### Admin Department Management
+- `Department` model enriched (casts + `users()`/`courses()` relations); `Admin/DepartmentController`
+  CRUD (`Admin/Departments.vue`), `DepartmentRequest` (unique name/code), **delete-guard** blocks
+  removal while users or courses reference the department; new `manage_departments` permission.
+
+**Verification:** pint clean (182 files) · `migrate:fresh --seed` clean · all routes registered ·
+`npm run build` clean · full suite **68 passing (208 assertions)** — 11 new tests across
+`ProductivityTest` + `DepartmentManagementTest`, zero regressions.
+
+---
+
+## Remaining — P3 Advanced/Future (deferred to the very end)
+
+Out of MVP scope per audit Option B; scheduled last because each needs external infrastructure:
+- **Streaming chat** — token-by-token SSE/transport (chat currently returns the full response).
+- **Voice I/O + TTS/STT** — browser mic capture + speech APIs (the voice UI is a mock).
+- **Predictive analytics / recommendation engine** — ML models over the now-rich academic data.
+
+These do not block delivery; everything else in the product spec is COMPLETE.
