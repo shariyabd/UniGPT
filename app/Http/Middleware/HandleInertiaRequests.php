@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Domain\Notification\Services\NotificationService;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 use Tighten\Ziggy\Ziggy;
@@ -40,6 +41,7 @@ class HandleInertiaRequests extends Middleware
                 'error' => fn () => $request->session()->get('error'),
                 'success' => fn () => $request->session()->get('success'),
             ],
+            'notifications' => fn () => $this->resolveNotifications($request),
             'ziggy' => fn () => [
                 ...(new Ziggy)->toArray(),
                 'location' => $request->url(),
@@ -52,6 +54,27 @@ class HandleInertiaRequests extends Middleware
      *
      * @return array<string, mixed>|null
      */
+    /**
+     * Shared notification payload (unread badge + recent dropdown) for the navbar bell.
+     *
+     * @return array<string, mixed>
+     */
+    protected function resolveNotifications(Request $request): array
+    {
+        $user = $request->user();
+
+        if (! $user) {
+            return ['unread' => 0, 'items' => []];
+        }
+
+        $service = app(NotificationService::class);
+
+        return [
+            'unread' => $service->unreadCountFor($user),
+            'items' => $service->recentFor($user)->all(),
+        ];
+    }
+
     protected function resolveAuthUser(Request $request): ?array
     {
         $user = $request->user();

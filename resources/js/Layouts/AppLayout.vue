@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import NavLink from '@/components/NavLink.vue';
 import FlashMessages from '@/components/FlashMessages.vue';
+import NotificationBell from '@/components/NotificationBell.vue';
 import { usePermissions } from '@/composables/usePermissions';
 
 const { can, hasRole, primaryRole } = usePermissions();
@@ -36,6 +37,7 @@ const navByRole = {
         { label: 'Documents', route: 'admin.documents', permission: 'view_documents' },
         { label: 'Approvals', route: 'admin.approvals', permission: 'approve_document' },
         { label: 'Analytics', route: 'admin.analytics', permission: 'view_all_analytics' },
+        { label: 'Announcements', route: 'admin.announcements', permission: 'send_notifications' },
         { label: 'Settings', route: 'admin.settings', permission: 'configure_ai' },
         { label: 'Monitor', route: 'admin.monitor', permission: 'manage_system' },
     ],
@@ -87,6 +89,8 @@ if (typeof window !== 'undefined') {
 
                     <!-- User Menu -->
                     <div class="flex items-center space-x-4">
+                        <NotificationBell v-if="$page.props.auth?.user" />
+
                         <div v-if="$page.props.auth?.user" class="relative">
                             <button
                                 @click="showUserMenu = !showUserMenu"

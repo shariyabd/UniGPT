@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\AnalyticsController;
+use App\Http\Controllers\Admin\AnnouncementController;
 use App\Http\Controllers\Admin\DocumentController as AdminDocumentController;
 use App\Http\Controllers\Admin\MonitorController;
 use App\Http\Controllers\Admin\RoleController;
@@ -16,6 +17,7 @@ use App\Http\Controllers\Faculty\CourseMaterialController as FacultyCourseMateri
 use App\Http\Controllers\Faculty\FacultyDashboardController;
 use App\Http\Controllers\Faculty\GradingController as FacultyGradingController;
 use App\Http\Controllers\LegalController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Student\ChatController;
 use App\Http\Controllers\Student\SavedAnswerController;
 use App\Http\Controllers\Student\StudentDashboardController;
@@ -41,6 +43,12 @@ Route::post('/logout', [AuthenticationController::class, 'destroy'])
     ->name('logout');
 
 Route::middleware(['auth'])->group(function () {
+    // In-app notifications — available to every authenticated role.
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
+    Route::post('/notifications/{notification}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
+    Route::delete('/notifications/{notification}', [NotificationController::class, 'destroy'])->name('notifications.destroy');
+
     Route::middleware('role:student')->prefix('')->name('')->group(function () {
         Route::get('/dashboard', [StudentDashboardController::class, 'index'])->name('dashboard');
 
@@ -133,6 +141,10 @@ Route::middleware(['auth'])->group(function () {
         Route::patch('/roles/{role}/permissions', [RoleController::class, 'updatePermissions'])->middleware('permission:manage_permissions')->name('roles.permissions');
 
         Route::get('/monitor', [MonitorController::class, 'index'])->middleware('permission:manage_system')->name('monitor');
+
+        // Announcements / broadcast notifications
+        Route::get('/announcements', [AnnouncementController::class, 'index'])->middleware('permission:send_notifications')->name('announcements');
+        Route::post('/announcements', [AnnouncementController::class, 'store'])->middleware('permission:send_notifications')->name('announcements.store');
 
         // AI settings
         Route::get('/settings', [SettingsController::class, 'index'])->middleware('permission:configure_ai')->name('settings');

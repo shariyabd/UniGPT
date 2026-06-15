@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Faculty;
 
 use App\Domain\Academic\Services\GradingService;
+use App\Domain\Notification\Services\NotificationService;
+use App\Enums\NotificationType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Faculty\GradeSubmissionRequest;
 use App\Models\AssignmentSubmission;
@@ -17,6 +19,7 @@ class GradingController extends Controller
     public function __construct(
         private readonly GradingService $grading,
         private readonly ActivityLogger $activity,
+        private readonly NotificationService $notifications,
     ) {}
 
     public function index(?string $courseId = null): Response
@@ -46,6 +49,18 @@ class GradingController extends Controller
         $this->activity->log('grading.graded', 'Graded a submission', $submission, [
             'grade' => $validated['grade'],
         ], $request->user());
+
+        $assignment = $submission->assignment;
+        if ($student = $submission->student) {
+            $this->notifications->notify(
+                user: $student,
+                type: NotificationType::GRADE,
+                title: 'Assignment graded',
+                message: "Your submission for \"{$assignment->title}\" was graded: {$validated['grade']}/{$assignment->total_points}.",
+                link: route('transcript'),
+                data: ['submission_id' => $submission->id, 'course_id' => $assignment->course_id],
+            );
+        }
 
         return back()->with('success', 'Grade saved.');
     }

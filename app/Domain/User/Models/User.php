@@ -85,6 +85,17 @@ class User extends Authenticatable
         return $this->hasMany(\App\Models\AttendanceRecord::class, 'user_id');
     }
 
+    /**
+     * In-app notifications addressed to this user.
+     *
+     * Overrides the Notifiable trait's morph relation — this app uses a custom
+     * per-recipient notifications table, not Laravel's database channel.
+     */
+    public function notifications(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(\App\Models\Notification::class)->latest();
+    }
+
     public function roles(): BelongsToMany
     {
         return $this->belongsToMany(Role::class, 'role_user')

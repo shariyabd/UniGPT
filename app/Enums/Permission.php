@@ -53,6 +53,7 @@ enum Permission: string
     case VIEW_SYSTEM_LOGS = 'view_system_logs';
     case CONFIGURE_SETTINGS = 'configure_settings';
     case MANAGE_PERMISSIONS = 'manage_permissions';
+    case SEND_NOTIFICATIONS = 'send_notifications';
 
     public function getLabel(): string
     {
@@ -88,7 +89,7 @@ enum Permission: string
             self::VIEW_ALL_ANALYTICS => 'Analytics',
 
             self::MANAGE_SYSTEM, self::VIEW_SYSTEM_LOGS, self::CONFIGURE_SETTINGS,
-            self::MANAGE_PERMISSIONS => 'System',
+            self::MANAGE_PERMISSIONS, self::SEND_NOTIFICATIONS => 'System',
         };
     }
 

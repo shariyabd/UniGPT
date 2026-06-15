@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Faculty;
 
 use App\Domain\Academic\Services\CourseManagementService;
+use App\Domain\Notification\Services\NotificationService;
+use App\Enums\NotificationType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Faculty\StoreMaterialRequest;
 use App\Models\Course;
@@ -18,6 +20,7 @@ class CourseMaterialController extends Controller
     public function __construct(
         private readonly CourseManagementService $management,
         private readonly ActivityLogger $activity,
+        private readonly NotificationService $notifications,
     ) {}
 
     public function store(StoreMaterialRequest $request, Course $course): RedirectResponse
@@ -32,6 +35,18 @@ class CourseMaterialController extends Controller
         );
 
         $this->activity->log('material.created', "Added material to {$course->code}", $material, [], $request->user());
+
+        // Notify enrolled students when a material is published (not for drafts).
+        if ($material->is_published) {
+            $this->notifications->notifyMany(
+                users: $course->students()->get(),
+                type: NotificationType::MATERIAL,
+                title: "New material in {$course->code}",
+                message: "\"{$material->title}\" is now available.",
+                link: route('materials'),
+                data: ['course_id' => $course->id, 'material_id' => $material->id],
+            );
+        }
 
         return back()->with('success', 'Material added.');
     }
