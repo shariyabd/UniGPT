@@ -6,6 +6,7 @@ use App\Domain\User\Models\User;
 use App\Models\Assignment;
 use App\Models\Course;
 use App\Models\CourseMaterial;
+use App\Models\Exam;
 use Illuminate\Database\Seeder;
 
 class AcademicSeeder extends Seeder
@@ -66,6 +67,7 @@ class AcademicSeeder extends Seeder
 
             $this->seedMaterials($course, $faculty->id);
             $this->seedAssignments($course, $faculty->id, $student->id);
+            $this->seedExams($course, $faculty->id);
 
             if ($i < 3) {
                 $this->seedAttendance($course, $faculty->id, $student->id);
@@ -89,6 +91,31 @@ class AcademicSeeder extends Seeder
             $course->attendanceRecords()->firstOrCreate(
                 ['user_id' => $studentId, 'date' => now()->subDays($i * 2)->toDateString()],
                 ['status' => $status, 'marked_by' => $facultyId],
+            );
+        }
+    }
+
+    private function seedExams(Course $course, int $facultyId): void
+    {
+        $exams = [
+            ['title' => 'Quiz 1', 'type' => 'quiz', 'days' => -14, 'time' => '09:00', 'duration' => 30, 'marks' => 20],
+            ['title' => 'Midterm Examination', 'type' => 'midterm', 'days' => 10, 'time' => '10:00', 'duration' => 90, 'marks' => 50],
+            ['title' => 'Final Examination', 'type' => 'final', 'days' => 45, 'time' => '09:00', 'duration' => 180, 'marks' => 100],
+        ];
+
+        foreach ($exams as $i => $data) {
+            Exam::firstOrCreate(
+                ['course_id' => $course->id, 'title' => $data['title']],
+                [
+                    'type' => $data['type'],
+                    'exam_date' => now()->addDays($data['days'])->toDateString(),
+                    'start_time' => $data['time'],
+                    'duration_minutes' => $data['duration'],
+                    'location' => 'Hall '.chr(65 + ($i % 3)),
+                    'total_marks' => $data['marks'],
+                    'instructions' => 'Bring your student ID. No electronic devices permitted.',
+                    'created_by' => $facultyId,
+                ],
             );
         }
     }

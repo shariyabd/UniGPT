@@ -95,6 +95,7 @@ class RBACSeeder extends Seeder
             PermissionEnum::DELETE_CHAT,
             PermissionEnum::VIEW_OWN_ANALYTICS,
             PermissionEnum::VIEW_ATTENDANCE,
+            PermissionEnum::VIEW_EXAMS,
         ];
 
         foreach ($studentPermissions as $permission) {

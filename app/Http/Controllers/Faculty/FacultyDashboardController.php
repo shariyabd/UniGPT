@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Faculty;
 
 use App\Domain\Academic\Services\CourseService;
+use App\Domain\Academic\Services\ExamService;
 use App\Domain\User\Models\User;
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
@@ -13,7 +14,15 @@ use Inertia\Response;
 
 class FacultyDashboardController extends Controller
 {
-    public function __construct(private readonly CourseService $courses) {}
+    public function __construct(
+        private readonly CourseService $courses,
+        private readonly ExamService $exams,
+    ) {}
+
+    public function exams(): Response
+    {
+        return Inertia::render('Faculty/Exams', $this->exams->forFaculty(request()->user()));
+    }
 
     public function index(): Response
     {

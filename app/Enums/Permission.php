@@ -37,6 +37,10 @@ enum Permission: string
     case VIEW_ATTENDANCE = 'view_attendance';
     case MARK_ATTENDANCE = 'mark_attendance';
 
+    // Exams / Timetable
+    case VIEW_EXAMS = 'view_exams';
+    case MANAGE_EXAMS = 'manage_exams';
+
     // Chat & AI
     case USE_AI_CHAT = 'use_ai_chat';
     case VIEW_CHAT_HISTORY = 'view_chat_history';
@@ -81,6 +85,8 @@ enum Permission: string
             self::GRADE_ASSIGNMENT, self::DELETE_ASSIGNMENT => 'Assignments',
 
             self::VIEW_ATTENDANCE, self::MARK_ATTENDANCE => 'Attendance',
+
+            self::VIEW_EXAMS, self::MANAGE_EXAMS => 'Exams',
 
             self::USE_AI_CHAT, self::VIEW_CHAT_HISTORY, self::DELETE_CHAT,
             self::CONFIGURE_AI => 'AI & Chat',

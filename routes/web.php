@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\AnalyticsController;
 use App\Http\Controllers\Admin\AnnouncementController;
 use App\Http\Controllers\Admin\DocumentController as AdminDocumentController;
+use App\Http\Controllers\Admin\ExamController as AdminExamController;
 use App\Http\Controllers\Admin\MonitorController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\SettingsController;
@@ -70,6 +71,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/materials/{material}/download', [StudentDashboardController::class, 'downloadMaterial'])->middleware('permission:view_courses')->name('materials.download');
         Route::get('/attendance', [StudentDashboardController::class, 'attendance'])->middleware('permission:view_attendance')->name('attendance');
         Route::get('/transcript', [StudentDashboardController::class, 'transcript'])->middleware('permission:view_courses')->name('transcript');
+        Route::get('/exams', [StudentDashboardController::class, 'exams'])->middleware('permission:view_exams')->name('exams');
 
         // Self-service account pages (no extra permission beyond the student role)
         Route::get('/profile', [StudentDashboardController::class, 'profile'])->name('profile');
@@ -105,6 +107,9 @@ Route::middleware(['auth'])->group(function () {
         // Attendance
         Route::get('/courses/{course}/attendance', [FacultyAttendanceController::class, 'index'])->middleware('permission:mark_attendance')->name('courses.attendance');
         Route::post('/courses/{course}/attendance', [FacultyAttendanceController::class, 'store'])->middleware('permission:mark_attendance')->name('courses.attendance.store');
+
+        // Exam timetable (read-only view of the faculty's course exams)
+        Route::get('/exams', [FacultyDashboardController::class, 'exams'])->middleware('permission:view_exams')->name('exams');
 
         // Grading
         Route::get('/grading', [FacultyGradingController::class, 'index'])->middleware('permission:grade_assignment')->name('grading');
@@ -146,6 +151,12 @@ Route::middleware(['auth'])->group(function () {
         // Announcements / broadcast notifications
         Route::get('/announcements', [AnnouncementController::class, 'index'])->middleware('permission:send_notifications')->name('announcements');
         Route::post('/announcements', [AnnouncementController::class, 'store'])->middleware('permission:send_notifications')->name('announcements.store');
+
+        // Exam / timetable management
+        Route::get('/exams', [AdminExamController::class, 'index'])->middleware('permission:manage_exams')->name('exams');
+        Route::post('/exams', [AdminExamController::class, 'store'])->middleware('permission:manage_exams')->name('exams.store');
+        Route::patch('/exams/{exam}', [AdminExamController::class, 'update'])->middleware('permission:manage_exams')->name('exams.update');
+        Route::delete('/exams/{exam}', [AdminExamController::class, 'destroy'])->middleware('permission:manage_exams')->name('exams.destroy');
 
         // AI settings
         Route::get('/settings', [SettingsController::class, 'index'])->middleware('permission:configure_ai')->name('settings');

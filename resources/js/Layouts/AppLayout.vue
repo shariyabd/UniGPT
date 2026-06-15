@@ -24,12 +24,14 @@ const navByRole = {
         { label: 'Documents', route: 'documents', permission: 'view_documents' },
         { label: 'Materials', route: 'materials', permission: 'view_courses' },
         { label: 'Attendance', route: 'attendance', permission: 'view_attendance' },
+        { label: 'Exams', route: 'exams', permission: 'view_exams' },
     ],
     faculty: [
         { label: 'Dashboard', route: 'faculty.dashboard' },
         { label: 'Courses', route: 'faculty.courses', permission: 'view_courses' },
         { label: 'AI Assistant', route: 'faculty.ai-assistant', permission: 'use_ai_chat' },
         { label: 'Grading', route: 'faculty.grading', permission: 'grade_assignment' },
+        { label: 'Exams', route: 'faculty.exams', permission: 'view_exams' },
     ],
     admin: [
         { label: 'Dashboard', route: 'admin.dashboard' },
@@ -39,6 +41,7 @@ const navByRole = {
         { label: 'Approvals', route: 'admin.approvals', permission: 'approve_document' },
         { label: 'Analytics', route: 'admin.analytics', permission: 'view_all_analytics' },
         { label: 'Announcements', route: 'admin.announcements', permission: 'send_notifications' },
+        { label: 'Exams', route: 'admin.exams', permission: 'manage_exams' },
         { label: 'Settings', route: 'admin.settings', permission: 'configure_ai' },
         { label: 'Monitor', route: 'admin.monitor', permission: 'manage_system' },
     ],
