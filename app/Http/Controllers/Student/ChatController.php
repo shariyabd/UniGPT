@@ -5,11 +5,12 @@ namespace App\Http\Controllers\Student;
 use App\Domain\Chat\Services\ChatService;
 use App\Enums\ChatMode;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Student\SendMessageRequest;
 use App\Models\ChatMessage;
 use App\Models\ChatSession;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -36,13 +37,9 @@ class ChatController extends Controller
         ]);
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(SendMessageRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'message' => ['required', 'string', 'max:4000'],
-            'session_id' => ['nullable', 'integer'],
-            'mode' => ['nullable', 'string'],
-        ]);
+        $validated = $request->validated();
 
         $session = null;
         if (! empty($validated['session_id'])) {
@@ -62,7 +59,7 @@ class ChatController extends Controller
 
     public function show(ChatSession $session): JsonResponse
     {
-        $this->authorizeSession($session);
+        Gate::authorize('view', $session);
 
         return response()->json([
             'session' => $this->presentSession($session),
@@ -73,15 +70,10 @@ class ChatController extends Controller
 
     public function destroy(ChatSession $session): RedirectResponse
     {
-        $this->authorizeSession($session);
+        Gate::authorize('delete', $session);
         $this->chat->deleteSession($session);
 
         return back()->with('success', 'Conversation deleted.');
-    }
-
-    private function authorizeSession(ChatSession $session): void
-    {
-        abort_unless($session->user_id === request()->user()->id, 403);
     }
 
     /**

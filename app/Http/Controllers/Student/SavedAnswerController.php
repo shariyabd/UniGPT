@@ -3,11 +3,14 @@
 namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Student\StoreSavedAnswerRequest;
+use App\Http\Requests\Student\UpdateSavedAnswerRequest;
 use App\Models\ChatMessage;
 use App\Models\SavedAnswer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -32,13 +35,9 @@ class SavedAnswerController extends Controller
         ]);
     }
 
-    public function store(Request $request): JsonResponse|RedirectResponse
+    public function store(StoreSavedAnswerRequest $request): JsonResponse|RedirectResponse
     {
-        $validated = $request->validate([
-            'chat_message_id' => ['required', 'integer'],
-            'notes' => ['nullable', 'string', 'max:2000'],
-            'folder' => ['nullable', 'string', 'max:100'],
-        ]);
+        $validated = $request->validated();
 
         $message = ChatMessage::with('session')->findOrFail($validated['chat_message_id']);
         abort_unless($message->session->user_id === $request->user()->id, 403);
@@ -71,25 +70,16 @@ class SavedAnswerController extends Controller
         return back()->with('success', 'Answer saved.');
     }
 
-    public function update(Request $request, SavedAnswer $savedAnswer): RedirectResponse
+    public function update(UpdateSavedAnswerRequest $request, SavedAnswer $savedAnswer): RedirectResponse
     {
-        abort_unless($savedAnswer->user_id === $request->user()->id, 403);
-
-        $validated = $request->validate([
-            'title' => ['sometimes', 'string', 'max:255'],
-            'notes' => ['nullable', 'string', 'max:2000'],
-            'folder' => ['sometimes', 'string', 'max:100'],
-            'starred' => ['sometimes', 'boolean'],
-        ]);
-
-        $savedAnswer->update($validated);
+        $savedAnswer->update($request->validated());
 
         return back()->with('success', 'Saved answer updated.');
     }
 
-    public function destroy(Request $request, SavedAnswer $savedAnswer): RedirectResponse
+    public function destroy(SavedAnswer $savedAnswer): RedirectResponse
     {
-        abort_unless($savedAnswer->user_id === $request->user()->id, 403);
+        Gate::authorize('delete', $savedAnswer);
         $savedAnswer->delete();
 
         return back()->with('success', 'Saved answer removed.');

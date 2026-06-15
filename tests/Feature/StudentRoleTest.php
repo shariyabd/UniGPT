@@ -3,7 +3,11 @@
 namespace Tests\Feature;
 
 use App\Domain\User\Models\User;
+use App\Models\ChatSession;
+use App\Models\Department;
+use App\Models\SavedAnswer;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
 class StudentRoleTest extends TestCase
@@ -55,5 +59,45 @@ class StudentRoleTest extends TestCase
         $this->actingAs($this->student())
             ->get('/admin/dashboard')
             ->assertRedirect();
+    }
+
+    public function test_student_cannot_view_another_users_chat_session(): void
+    {
+        $student = $this->student();
+        $other = $this->makeOtherUser('other.chat@university.edu');
+        $session = ChatSession::create(['user_id' => $other->id, 'title' => 'Private']);
+
+        $this->actingAs($student)
+            ->get("/chat/sessions/{$session->id}")
+            ->assertForbidden();
+    }
+
+    public function test_student_cannot_delete_another_users_saved_answer(): void
+    {
+        $student = $this->student();
+        $other = $this->makeOtherUser('other.saved@university.edu');
+        $answer = SavedAnswer::create([
+            'user_id' => $other->id,
+            'title' => 'Theirs',
+            'answer' => 'Private answer content.',
+        ]);
+
+        $this->actingAs($student)
+            ->delete("/saved/{$answer->id}")
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('saved_answers', ['id' => $answer->id]);
+    }
+
+    private function makeOtherUser(string $email): User
+    {
+        return User::create([
+            'name' => 'Other Student',
+            'email' => $email,
+            'password' => Hash::make('password123'),
+            'is_active' => true,
+            'email_verified_at' => now(),
+            'department_id' => Department::query()->value('id'),
+        ]);
     }
 }
