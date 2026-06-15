@@ -1,25 +1,13 @@
 <script setup>
 import { ref, computed } from 'vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import {
     DocumentTextIcon,
-    UserGroupIcon,
-    ClockIcon,
     CheckCircleIcon,
     XCircleIcon,
-    EyeIcon,
     PencilIcon,
-    StarIcon,
-    ChartBarIcon,
-    FunnelIcon,
     MagnifyingGlassIcon,
-    ArrowDownTrayIcon,
-    ChatBubbleLeftEllipsisIcon,
-    ExclamationTriangleIcon,
-    InformationCircleIcon,
-    AdjustmentsHorizontalIcon,
-    BookOpenIcon,
     CalendarIcon
 } from '@heroicons/vue/24/outline';
 
@@ -30,216 +18,38 @@ const showGradingPanel = ref(false);
 const filterStatus = ref('all');
 const sortBy = ref('submitted_date');
 const searchQuery = ref('');
-const bulkSelectedSubmissions = ref(new Set());
 const currentGrade = ref('');
 const currentFeedback = ref('');
 const isGrading = ref(false);
 
-// Mock course data
-const courseData = ref({
-    id: 1,
-    code: 'CSE301',
-    name: 'Machine Learning Fundamentals',
-    semester: 'Spring 2024',
-    instructor: 'Dr. Sarah Smith',
-    students: 85,
-    description: 'Introduction to machine learning concepts, algorithms, and applications'
+// Real data from the backend (GradingController@index → GradingService::overview)
+const props = defineProps({
+    courseData: { type: Object, default: null },
+    courses: { type: Array, default: () => [] },
+    assignments: { type: Array, default: () => [] },
+    submissions: { type: Array, default: () => [] },
+    courseId: { type: Number, default: null },
 });
 
-// Mock assignments data
-const assignments = ref([
-    {
-        id: 1,
-        title: 'Assignment 3: Neural Networks Implementation',
-        type: 'Programming Assignment',
-        dueDate: '2024-01-15T23:59:00',
-        totalPoints: 100,
-        submissions: {
-            total: 85,
-            graded: 62,
-            pending: 23,
-            late: 8,
-            missing: 0
-        },
-        averageGrade: 82.5,
-        status: 'active',
-        rubric: {
-            criteria: [
-                { name: 'Code Quality', points: 25, description: 'Clean, readable, well-commented code' },
-                { name: 'Algorithm Implementation', points: 40, description: 'Correct neural network implementation' },
-                { name: 'Testing & Validation', points: 20, description: 'Proper testing with validation data' },
-                { name: 'Documentation', points: 15, description: 'Clear documentation and report' }
-            ]
-        }
-    },
-    {
-        id: 2,
-        title: 'Midterm Project: Supervised Learning Analysis',
-        type: 'Project',
-        dueDate: '2024-01-20T23:59:00',
-        totalPoints: 150,
-        submissions: {
-            total: 85,
-            graded: 15,
-            pending: 70,
-            late: 3,
-            missing: 0
-        },
-        averageGrade: 0,
-        status: 'pending',
-        rubric: {
-            criteria: [
-                { name: 'Data Analysis', points: 50, description: 'Thorough data exploration and preprocessing' },
-                { name: 'Model Selection', points: 40, description: 'Appropriate algorithm selection and tuning' },
-                { name: 'Evaluation', points: 30, description: 'Comprehensive model evaluation' },
-                { name: 'Presentation', points: 30, description: 'Clear presentation of results' }
-            ]
-        }
-    },
-    {
-        id: 3,
-        title: 'Quiz 2: Decision Trees & Random Forest',
-        type: 'Quiz',
-        dueDate: '2024-01-10T23:59:00',
-        totalPoints: 50,
-        submissions: {
-            total: 85,
-            graded: 85,
-            pending: 0,
-            late: 2,
-            missing: 0
-        },
-        averageGrade: 76.3,
-        status: 'completed',
-        rubric: {
-            criteria: [
-                { name: 'Conceptual Understanding', points: 25, description: 'Understanding of key concepts' },
-                { name: 'Problem Solving', points: 25, description: 'Application to practical problems' }
-            ]
-        }
-    }
-]);
+const courseData = computed(() => props.courseData ?? { code: '—', name: 'No course assigned', students: 0 });
 
-// Mock student submissions
-const submissions = ref([
-    {
-        id: 1,
-        assignmentId: 1,
-        student: {
-            id: 101,
-            name: 'Alice Johnson',
-            email: 'alice.johnson@student.edu',
-            avatar: 'https://ui-avatars.com/api/?name=Alice+Johnson&background=3b82f6&color=fff'
-        },
-        submittedAt: '2024-01-15T20:30:00',
-        status: 'submitted',
-        isLate: false,
-        grade: null,
-        feedback: '',
-        files: [
-            { name: 'neural_network.py', size: '15.2 KB', type: 'python' },
-            { name: 'report.pdf', size: '2.1 MB', type: 'pdf' },
-            { name: 'results.csv', size: '45.3 KB', type: 'csv' }
-        ],
-        attemptCount: 1,
-        plagiarismScore: 5.2, // percentage
-        rubricScores: {}
-    },
-    {
-        id: 2,
-        assignmentId: 1,
-        student: {
-            id: 102,
-            name: 'Bob Smith',
-            email: 'bob.smith@student.edu',
-            avatar: 'https://ui-avatars.com/api/?name=Bob+Smith&background=10b981&color=fff'
-        },
-        submittedAt: '2024-01-15T23:45:00',
-        status: 'graded',
-        isLate: false,
-        grade: 88,
-        feedback: 'Excellent implementation! Clean code and thorough testing. Consider adding more comments for complex algorithms.',
-        files: [
-            { name: 'nn_implementation.py', size: '18.7 KB', type: 'python' },
-            { name: 'analysis_report.pdf', size: '3.2 MB', type: 'pdf' }
-        ],
-        attemptCount: 1,
-        plagiarismScore: 3.1,
-        rubricScores: {
-            'Code Quality': 22,
-            'Algorithm Implementation': 38,
-            'Testing & Validation': 18,
-            'Documentation': 10
-        },
-        gradedAt: '2024-01-16T14:20:00',
-        gradedBy: 'Dr. Sarah Smith'
-    },
-    {
-        id: 3,
-        assignmentId: 1,
-        student: {
-            id: 103,
-            name: 'Carol Davis',
-            email: 'carol.davis@student.edu',
-            avatar: 'https://ui-avatars.com/api/?name=Carol+Davis&background=8b5cf6&color=fff'
-        },
-        submittedAt: '2024-01-16T08:15:00',
-        status: 'submitted',
-        isLate: true,
-        grade: null,
-        feedback: '',
-        files: [
-            { name: 'assignment3.py', size: '12.8 KB', type: 'python' }
-        ],
-        attemptCount: 2,
-        plagiarismScore: 12.7,
-        rubricScores: {}
-    },
-    {
-        id: 4,
-        assignmentId: 1,
-        student: {
-            id: 104,
-            name: 'David Wilson',
-            email: 'david.wilson@student.edu',
-            avatar: 'https://ui-avatars.com/api/?name=David+Wilson&background=f59e0b&color=fff'
-        },
-        submittedAt: '2024-01-15T19:22:00',
-        status: 'graded',
-        isLate: false,
-        grade: 76,
-        feedback: 'Good effort on the implementation. Algorithm is correct but code could be more efficient. Consider optimizing the training loop.',
-        files: [
-            { name: 'neural_net.py', size: '14.5 KB', type: 'python' },
-            { name: 'documentation.md', size: '3.2 KB', type: 'markdown' }
-        ],
-        attemptCount: 1,
-        plagiarismScore: 4.8,
-        rubricScores: {
-            'Code Quality': 18,
-            'Algorithm Implementation': 32,
-            'Testing & Validation': 15,
-            'Documentation': 11
-        },
-        gradedAt: '2024-01-16T16:45:00',
-        gradedBy: 'Dr. Sarah Smith'
-    }
-]);
+// Local working copies seeded from the server props. A successful grade triggers
+// a fresh Inertia visit, so these re-initialise with the updated server data.
+const assignments = ref([...props.assignments]);
+const submissions = ref([...props.submissions]);
 
 // Filter and sort options
 const statusOptions = [
     { value: 'all', label: 'All Submissions' },
     { value: 'submitted', label: 'Pending Grading' },
     { value: 'graded', label: 'Graded' },
-    { value: 'late', label: 'Late Submissions' },
-    { value: 'flagged', label: 'Flagged for Review' }
+    { value: 'late', label: 'Late Submissions' }
 ];
 
 const sortOptions = [
     { value: 'submitted_date', label: 'Submission Date' },
     { value: 'student_name', label: 'Student Name' },
-    { value: 'grade', label: 'Grade' },
-    { value: 'plagiarism', label: 'Plagiarism Score' }
+    { value: 'grade', label: 'Grade' }
 ];
 
 // Computed properties
@@ -262,9 +72,6 @@ const filteredSubmissions = computed(() => {
             case 'late':
                 filtered = filtered.filter(s => s.isLate);
                 break;
-            case 'flagged':
-                filtered = filtered.filter(s => s.plagiarismScore > 10);
-                break;
         }
     }
 
@@ -284,9 +91,6 @@ const filteredSubmissions = computed(() => {
             break;
         case 'grade':
             filtered.sort((a, b) => (b.grade || 0) - (a.grade || 0));
-            break;
-        case 'plagiarism':
-            filtered.sort((a, b) => b.plagiarismScore - a.plagiarismScore);
             break;
         case 'submitted_date':
         default:
@@ -348,21 +152,9 @@ const getGradeColor = (grade) => {
     return 'text-red-600 dark:text-red-400';
 };
 
-const getPlagiarismColor = (score) => {
-    if (score > 15) return 'text-red-600 bg-red-100 dark:bg-red-900/30 dark:text-red-400';
-    if (score > 10) return 'text-orange-600 bg-orange-100 dark:bg-orange-900/30 dark:text-orange-400';
-    return 'text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400';
-};
-
-const getFileIcon = (type) => {
-    // Return appropriate icon based on file type
-    return DocumentTextIcon; // Fallback
-};
-
 // Actions
 const selectAssignment = (assignmentId) => {
     selectedAssignment.value = assignmentId;
-    bulkSelectedSubmissions.value.clear();
 };
 
 const openGradingPanel = (submission) => {
@@ -379,88 +171,22 @@ const closeGradingPanel = () => {
     currentFeedback.value = '';
 };
 
-const submitGrade = async () => {
-    if (!selectedSubmission.value || !currentGrade.value) return;
+const submitGrade = () => {
+    if (!selectedSubmission.value || currentGrade.value === '') return;
 
     isGrading.value = true;
 
-    // Simulate API call
-    setTimeout(() => {
-        // Update the submission
-        const submission = submissions.value.find(s => s.id === selectedSubmission.value.id);
-        if (submission) {
-            submission.grade = parseFloat(currentGrade.value);
-            submission.feedback = currentFeedback.value;
-            submission.status = 'graded';
-            submission.gradedAt = new Date().toISOString();
-            submission.gradedBy = 'Dr. Sarah Smith';
-
-            // Update assignment stats
-            const assignment = currentAssignment.value;
-            if (assignment) {
-                assignment.submissions.graded++;
-                assignment.submissions.pending--;
-
-                // Recalculate average grade
-                const gradedSubmissions = submissions.value.filter(s =>
-                    s.assignmentId === assignment.id && s.status === 'graded'
-                );
-                const totalGrades = gradedSubmissions.reduce((sum, s) => sum + s.grade, 0);
-                assignment.averageGrade = totalGrades / gradedSubmissions.length;
-            }
-        }
-
-        isGrading.value = false;
-        closeGradingPanel();
-    }, 1500);
-};
-
-const toggleBulkSelection = (submissionId) => {
-    if (bulkSelectedSubmissions.value.has(submissionId)) {
-        bulkSelectedSubmissions.value.delete(submissionId);
-    } else {
-        bulkSelectedSubmissions.value.add(submissionId);
-    }
-};
-
-const selectAllSubmissions = () => {
-    if (bulkSelectedSubmissions.value.size === filteredSubmissions.value.length) {
-        bulkSelectedSubmissions.value.clear();
-    } else {
-        bulkSelectedSubmissions.value = new Set(filteredSubmissions.value.map(s => s.id));
-    }
-};
-
-const bulkGrade = (grade) => {
-    if (bulkSelectedSubmissions.value.size === 0) return;
-
-    bulkSelectedSubmissions.value.forEach(submissionId => {
-        const submission = submissions.value.find(s => s.id === submissionId);
-        if (submission && submission.status === 'submitted') {
-            submission.grade = grade;
-            submission.status = 'graded';
-            submission.gradedAt = new Date().toISOString();
-            submission.gradedBy = 'Dr. Sarah Smith';
-        }
+    router.patch(route('faculty.submissions.grade', selectedSubmission.value.id), {
+        grade: parseFloat(currentGrade.value),
+        feedback: currentFeedback.value || null,
+    }, {
+        preserveScroll: true,
+        // A fresh visit re-seeds assignments/submissions from the server.
+        onFinish: () => {
+            isGrading.value = false;
+            closeGradingPanel();
+        },
     });
-
-    // Update assignment stats
-    const assignment = currentAssignment.value;
-    if (assignment) {
-        assignment.submissions.graded += bulkSelectedSubmissions.value.size;
-        assignment.submissions.pending -= bulkSelectedSubmissions.value.size;
-    }
-
-    bulkSelectedSubmissions.value.clear();
-    alert(`Graded ${bulkSelectedSubmissions.value.size} submissions`);
-};
-
-const downloadSubmission = (submission) => {
-    alert(`Downloading submission files for ${submission.student.name}`);
-};
-
-const flagForReview = (submission) => {
-    alert(`Flagged ${submission.student.name}'s submission for review`);
 };
 
 // Initialize with first assignment
@@ -487,7 +213,7 @@ if (assignments.value.length > 0) {
                                     {{ courseData.code }} - {{ courseData.name }}
                                 </p>
                                 <p class="text-white/80">
-                                    {{ courseData.semester }} • {{ courseData.students }} Students
+                                    {{ courseData.students }} Students
                                 </p>
                             </div>
 
@@ -614,31 +340,6 @@ if (assignments.value.length > 0) {
                                     </option>
                                 </select>
                             </div>
-
-                            <!-- Bulk Actions -->
-                            <div v-if="bulkSelectedSubmissions.size > 0" class="flex items-center gap-2">
-                                <span class="text-sm text-gray-600 dark:text-gray-400">
-                                    {{ bulkSelectedSubmissions.size }} selected
-                                </span>
-                                <button
-                                    @click="bulkGrade(100)"
-                                    class="px-3 py-1 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors"
-                                >
-                                    Grade A
-                                </button>
-                                <button
-                                    @click="bulkGrade(85)"
-                                    class="px-3 py-1 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
-                                >
-                                    Grade B
-                                </button>
-                                <button
-                                    @click="bulkGrade(75)"
-                                    class="px-3 py-1 bg-yellow-600 text-white text-sm rounded-lg hover:bg-yellow-700 transition-colors"
-                                >
-                                    Grade C
-                                </button>
-                            </div>
                         </div>
                     </div>
 
@@ -647,12 +348,6 @@ if (assignments.value.length > 0) {
                         <!-- Table Header -->
                         <div class="bg-gray-50 dark:bg-gray-900 px-6 py-3">
                             <div class="flex items-center">
-                                <input
-                                    type="checkbox"
-                                    :checked="bulkSelectedSubmissions.size === filteredSubmissions.length && filteredSubmissions.length > 0"
-                                    @change="selectAllSubmissions"
-                                    class="rounded border-gray-300 text-purple-600 focus:ring-purple-500 mr-4"
-                                />
                                 <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
                                     {{ filteredSubmissions.length }} Submissions
                                 </span>
@@ -667,14 +362,6 @@ if (assignments.value.length > 0) {
                                 class="p-6 hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors"
                             >
                                 <div class="flex items-start gap-4">
-                                    <!-- Checkbox -->
-                                    <input
-                                        type="checkbox"
-                                        :checked="bulkSelectedSubmissions.has(submission.id)"
-                                        @change="toggleBulkSelection(submission.id)"
-                                        class="mt-1 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                                    />
-
                                     <!-- Student Avatar -->
                                     <img
                                         :src="submission.student.avatar"
@@ -705,27 +392,6 @@ if (assignments.value.length > 0) {
                                                     <span :class="`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(submission.status, submission.isLate)}`">
                                                         {{ submission.isLate ? 'Late' : submission.status }}
                                                     </span>
-
-                                                    <span v-if="submission.attemptCount > 1" class="text-xs text-orange-600 dark:text-orange-400">
-                                                        Attempt {{ submission.attemptCount }}
-                                                    </span>
-
-                                                    <!-- Plagiarism Score -->
-                                                    <span :class="`px-2 py-1 text-xs font-medium rounded-full ${getPlagiarismColor(submission.plagiarismScore)}`">
-                                                        {{ submission.plagiarismScore }}% similarity
-                                                    </span>
-                                                </div>
-
-                                                <!-- Files -->
-                                                <div class="mt-3 flex flex-wrap gap-2">
-                                                    <span
-                                                        v-for="file in submission.files"
-                                                        :key="file.name"
-                                                        class="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded-lg"
-                                                    >
-                                                        <component :is="getFileIcon(file.type)" class="w-3 h-3" />
-                                                        {{ file.name }} ({{ file.size }})
-                                                    </span>
                                                 </div>
 
                                                 <!-- Existing Grade & Feedback -->
@@ -741,9 +407,6 @@ if (assignments.value.length > 0) {
                                                     </div>
                                                     <p v-if="submission.feedback" class="text-sm text-gray-700 dark:text-gray-300">
                                                         {{ submission.feedback }}
-                                                    </p>
-                                                    <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                                                        Graded by {{ submission.gradedBy }} on {{ formatDateTime(submission.gradedAt) }}
                                                     </p>
                                                 </div>
                                             </div>
@@ -770,23 +433,6 @@ if (assignments.value.length > 0) {
                                             >
                                                 <PencilIcon class="w-4 h-4" />
                                                 {{ submission.status === 'graded' ? 'Re-grade' : 'Grade' }}
-                                            </button>
-
-                                            <button
-                                                @click="downloadSubmission(submission)"
-                                                class="flex items-center gap-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                                            >
-                                                <ArrowDownTrayIcon class="w-4 h-4" />
-                                                Download
-                                            </button>
-
-                                            <button
-                                                v-if="submission.plagiarismScore > 10"
-                                                @click="flagForReview(submission)"
-                                                class="flex items-center gap-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                                            >
-                                                <ExclamationTriangleIcon class="w-4 h-4" />
-                                                Flag
                                             </button>
                                         </div>
                                     </div>
@@ -868,51 +514,6 @@ if (assignments.value.length > 0) {
                                         </div>
                                     </div>
 
-                                    <!-- Submission Files -->
-                                    <div class="mb-6">
-                                        <h4 class="font-semibold text-gray-900 dark:text-white mb-3">Submitted Files</h4>
-                                        <div class="space-y-2">
-                                            <div
-                                                v-for="file in selectedSubmission?.files"
-                                                :key="file.name"
-                                                class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg"
-                                            >
-                                                <component :is="getFileIcon(file.type)" class="w-5 h-5 text-gray-500" />
-                                                <div class="flex-1">
-                                                    <p class="font-medium text-gray-900 dark:text-white">{{ file.name }}</p>
-                                                    <p class="text-xs text-gray-600 dark:text-gray-400">{{ file.size }}</p>
-                                                </div>
-                                                <button class="p-2 text-blue-600 hover:text-blue-700">
-                                                    <EyeIcon class="w-4 h-4" />
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Plagiarism Check -->
-                                    <div class="mb-6 p-4 border border-gray-200 dark:border-gray-700 rounded-xl">
-                                        <h4 class="font-semibold text-gray-900 dark:text-white mb-2">Plagiarism Check</h4>
-                                        <div class="flex items-center justify-between">
-                                            <span class="text-gray-600 dark:text-gray-400">Similarity Score</span>
-                                            <span :class="`font-bold ${
-                                                selectedSubmission?.plagiarismScore > 15 ? 'text-red-600' :
-                                                selectedSubmission?.plagiarismScore > 10 ? 'text-orange-600' :
-                                                'text-green-600'
-                                            }`">
-                                                {{ selectedSubmission?.plagiarismScore }}%
-                                            </span>
-                                        </div>
-                                        <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mt-2">
-                                            <div
-                                                :class="`h-2 rounded-full ${
-                                                    selectedSubmission?.plagiarismScore > 15 ? 'bg-red-500' :
-                                                    selectedSubmission?.plagiarismScore > 10 ? 'bg-orange-500' :
-                                                    'bg-green-500'
-                                                }`"
-                                                :style="{ width: selectedSubmission?.plagiarismScore + '%' }"
-                                            ></div>
-                                        </div>
-                                    </div>
                                 </div>
 
                                 <!-- Right Column - Grading -->
