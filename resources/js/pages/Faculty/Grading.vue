@@ -1,6 +1,8 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
+import axios from 'axios';
+import { useToast } from 'vue-toastification';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import {
     DocumentTextIcon,
@@ -8,7 +10,8 @@ import {
     XCircleIcon,
     PencilIcon,
     MagnifyingGlassIcon,
-    CalendarIcon
+    CalendarIcon,
+    SparklesIcon
 } from '@heroicons/vue/24/outline';
 
 // Component state
@@ -169,6 +172,34 @@ const closeGradingPanel = () => {
     selectedSubmission.value = null;
     currentGrade.value = '';
     currentFeedback.value = '';
+};
+
+const toast = useToast();
+const isDraftingFeedback = ref(false);
+
+const draftFeedback = async () => {
+    if (!selectedSubmission.value) return;
+
+    isDraftingFeedback.value = true;
+
+    try {
+        const { data } = await axios.post(
+            route('faculty.submissions.feedback', selectedSubmission.value.id)
+        );
+
+        const parts = [data.feedback];
+        if (data.strengths?.length) {
+            parts.push('\nStrengths:\n' + data.strengths.map((s) => `• ${s}`).join('\n'));
+        }
+        if (data.improvements?.length) {
+            parts.push('\nTo improve:\n' + data.improvements.map((s) => `• ${s}`).join('\n'));
+        }
+        currentFeedback.value = parts.filter(Boolean).join('\n');
+    } catch (e) {
+        toast.error('Could not draft feedback. Please try again.');
+    } finally {
+        isDraftingFeedback.value = false;
+    }
 };
 
 const submitGrade = () => {
@@ -598,15 +629,27 @@ if (assignments.value.length > 0) {
 
                                     <!-- Feedback -->
                                     <div class="mb-6">
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                            Feedback & Comments
-                                        </label>
+                                        <div class="flex items-center justify-between mb-2">
+                                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                Feedback & Comments
+                                            </label>
+                                            <button
+                                                type="button"
+                                                @click="draftFeedback"
+                                                :disabled="isDraftingFeedback"
+                                                class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-900/50 disabled:opacity-50"
+                                            >
+                                                <SparklesIcon class="w-4 h-4" />
+                                                {{ isDraftingFeedback ? 'Drafting…' : 'Draft with AI' }}
+                                            </button>
+                                        </div>
                                         <textarea
                                             v-model="currentFeedback"
                                             rows="6"
                                             class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-900 text-gray-900 dark:text-white resize-none"
-                                            placeholder="Provide detailed feedback for the student..."
+                                            placeholder="Provide detailed feedback for the student…"
                                         ></textarea>
+                                        <p class="mt-1 text-xs text-gray-400">AI drafts a starting point from the submission and rubric — review and edit before saving.</p>
                                     </div>
 
                                     <!-- Submit Buttons -->

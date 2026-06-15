@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\Faculty;
 
 use App\Domain\Academic\Services\GradingService;
+use App\Domain\Chat\Services\TeachingAssistantService;
 use App\Domain\Notification\Services\NotificationService;
 use App\Enums\NotificationType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Faculty\GradeSubmissionRequest;
 use App\Models\AssignmentSubmission;
 use App\Services\ActivityLogger;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -20,6 +22,7 @@ class GradingController extends Controller
         private readonly GradingService $grading,
         private readonly ActivityLogger $activity,
         private readonly NotificationService $notifications,
+        private readonly TeachingAssistantService $assistant,
     ) {}
 
     public function index(?string $courseId = null): Response
@@ -63,5 +66,29 @@ class GradingController extends Controller
         }
 
         return back()->with('success', 'Grade saved.');
+    }
+
+    /**
+     * Draft AI feedback for a submission. Returns JSON for the faculty to edit
+     * before saving — it does not persist anything.
+     */
+    public function suggestFeedback(AssignmentSubmission $submission): JsonResponse
+    {
+        Gate::authorize('manage', $submission->assignment->course);
+
+        $assignment = $submission->assignment;
+
+        $draft = $this->assistant->generateFeedback([
+            'assignmentTitle' => $assignment->title,
+            'grade' => $submission->grade !== null ? (float) $submission->grade : null,
+            'totalPoints' => $assignment->total_points,
+            'submissionExcerpt' => (string) $submission->content,
+            'rubricCriteria' => collect($assignment->rubric ?? [])
+                ->pluck('criterion')
+                ->filter()
+                ->all(),
+        ]);
+
+        return response()->json($draft);
     }
 }

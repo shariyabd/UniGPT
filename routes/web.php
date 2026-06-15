@@ -137,6 +137,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/grading', [FacultyGradingController::class, 'index'])->middleware('permission:grade_assignment')->name('grading');
         Route::get('/courses/{course}/grading', [FacultyGradingController::class, 'index'])->middleware('permission:grade_assignment')->name('course.grading');
         Route::post('/submissions/{submission}/grade', [FacultyGradingController::class, 'grade'])->middleware('permission:grade_assignment')->name('submissions.grade');
+        Route::post('/submissions/{submission}/feedback', [FacultyGradingController::class, 'suggestFeedback'])->middleware('permission:grade_assignment')->name('submissions.feedback');
     });
 
     Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function () {

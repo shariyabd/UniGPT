@@ -84,6 +84,92 @@ class TeachingAssistantService
     }
 
     /**
+     * Draft constructive feedback for a graded submission. Faculty edit the
+     * result before saving — this just gives them a starting point.
+     *
+     * @param  array<string, mixed>  $params
+     * @return array<string, mixed>
+     */
+    public function generateFeedback(array $params): array
+    {
+        $assignment = trim((string) ($params['assignmentTitle'] ?? 'the assignment'));
+        $grade = $params['grade'] ?? null;
+        $total = $params['totalPoints'] ?? null;
+        $excerpt = trim((string) ($params['submissionExcerpt'] ?? ''));
+        $criteria = array_filter(array_map('strval', (array) ($params['rubricCriteria'] ?? [])));
+
+        $scoreLine = ($grade !== null && $total)
+            ? "The student scored {$grade} out of {$total}. "
+            : '';
+        $rubricLine = $criteria !== []
+            ? 'Grading criteria: '.implode(', ', $criteria).'. '
+            : '';
+        $excerptLine = $excerpt !== ''
+            ? 'Submission excerpt: "'.mb_substr($excerpt, 0, 600).'". '
+            : '';
+
+        $prompt = "Write constructive, encouraging feedback for a student submission for \"{$assignment}\". "
+            .$scoreLine.$rubricLine.$excerptLine
+            .'Respond ONLY with JSON: {"feedback":"2-4 sentences","strengths":["..."],"improvements":["..."]}';
+
+        $parsed = $this->tryJson($this->provider->chat([
+            ['role' => 'system', 'content' => 'You are an experienced, supportive university instructor giving submission feedback.'],
+            ['role' => 'user', 'content' => $prompt],
+        ])->content);
+
+        $strengths = $parsed['strengths'] ?? $this->fallbackStrengths($grade, $total);
+        $improvements = $parsed['improvements'] ?? $this->fallbackImprovements($grade, $total);
+        $feedback = $parsed['feedback'] ?? $this->fallbackFeedback($assignment, $grade, $total);
+
+        return [
+            'feedback' => trim((string) $feedback),
+            'strengths' => array_values((array) $strengths),
+            'improvements' => array_values((array) $improvements),
+        ];
+    }
+
+    private function ratio(mixed $grade, mixed $total): ?float
+    {
+        return ($grade !== null && $total) ? (float) $grade / (float) $total : null;
+    }
+
+    private function fallbackFeedback(string $assignment, mixed $grade, mixed $total): string
+    {
+        $ratio = $this->ratio($grade, $total);
+
+        return match (true) {
+            $ratio === null => "Thank you for your submission on {$assignment}. You demonstrate a working grasp of the material; review the feedback below to strengthen future work.",
+            $ratio >= 0.85 => "Excellent work on {$assignment}. Your submission shows strong understanding and careful execution. Keep applying this rigour going forward.",
+            $ratio >= 0.6 => "Good effort on {$assignment}. You cover the core ideas well, with room to deepen your analysis and presentation in places.",
+            default => "Thanks for submitting {$assignment}. Several core concepts need more attention — please review the points below and reach out during office hours if helpful.",
+        };
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function fallbackStrengths(mixed $grade, mixed $total): array
+    {
+        $ratio = $this->ratio($grade, $total);
+
+        return $ratio !== null && $ratio >= 0.6
+            ? ['Clear understanding of the main concepts', 'Well-structured submission']
+            : ['Engaged with the assignment and attempted all parts'];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function fallbackImprovements(mixed $grade, mixed $total): array
+    {
+        $ratio = $this->ratio($grade, $total);
+
+        return $ratio !== null && $ratio >= 0.85
+            ? ['Push further with additional edge cases or deeper analysis']
+            : ['Strengthen the depth of analysis', 'Support claims with evidence from course materials'];
+    }
+
+    /**
      * @return array<string, mixed>|null
      */
     private function tryJson(string $content): ?array
