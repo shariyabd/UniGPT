@@ -18,7 +18,6 @@ import {
     ChevronRightIcon,
     ChevronDownIcon,
     ArrowRightIcon,
-    TrophyIcon,
     FireIcon,
     BeakerIcon,
     CodeBracketIcon,
@@ -40,7 +39,6 @@ const props = defineProps({
 const selectedSemester = ref(props.student?.semester ?? 1); // Current semester
 const viewMode = ref('timeline'); // timeline, grid, progress
 const expandedModules = ref(new Set()); // Currently expanded modules
-const showSkillsMap = ref(false);
 const selectedTrack = ref('core');
 
 // Student context — mapped from server `student` + `roadmap` props.
@@ -60,14 +58,6 @@ const studentContext = computed(() => {
     };
 });
 
-// Learning tracks
-const learningTracks = [
-    { id: 'core', label: 'Core Curriculum', icon: '🎓', color: 'blue' },
-    { id: 'ml-ai', label: 'ML & AI Track', icon: '🤖', color: 'purple' },
-    { id: 'web-dev', label: 'Web Development', icon: '🌐', color: 'green' },
-    { id: 'cybersecurity', label: 'Cybersecurity', icon: '🛡️', color: 'red' },
-    { id: 'data-science', label: 'Data Science', icon: '📊', color: 'yellow' }
-];
 
 // Roadmap data — mapped from server `roadmap.semesters`. The template expects
 // each module to expose `difficulty` and a `code`-based title; map those in.
@@ -92,68 +82,7 @@ const roadmapData = computed(() => {
     return { semesters };
 });
 
-// Skills mapping
-const skillsData = ref({
-    categories: [
-        {
-            name: 'Programming Languages',
-            skills: [
-                { name: 'C/C++', level: 85, modules: [1, 8] },
-                { name: 'Java', level: 90, modules: [14] },
-                { name: 'Python', level: 75, modules: [26, 30] },
-                { name: 'JavaScript', level: 80, modules: [23] },
-                { name: 'SQL', level: 85, modules: [15, 27] }
-            ]
-        },
-        {
-            name: 'Technical Skills',
-            skills: [
-                { name: 'Data Structures & Algorithms', level: 88, modules: [10, 20] },
-                { name: 'Database Design', level: 82, modules: [15, 27] },
-                { name: 'Web Development', level: 78, modules: [23] },
-                { name: 'Machine Learning', level: 65, modules: [26] },
-                { name: 'Network Security', level: 60, modules: [29] }
-            ]
-        },
-        {
-            name: 'Soft Skills',
-            skills: [
-                { name: 'Problem Solving', level: 85, modules: [20, 26] },
-                { name: 'Team Collaboration', level: 80, modules: [28] },
-                { name: 'Communication', level: 75, modules: [4, 31] },
-                { name: 'Project Management', level: 70, modules: [28] }
-            ]
-        }
-    ]
-});
 
-// Career pathways
-const careerPathways = ref([
-    {
-        title: 'Machine Learning Engineer',
-        match: 85,
-        requiredModules: [26, 32, 39, 36],
-        skills: ['Python', 'TensorFlow', 'Deep Learning', 'Data Analysis'],
-        averageSalary: '$95,000',
-        demandLevel: 'High'
-    },
-    {
-        title: 'Full Stack Developer',
-        match: 78,
-        requiredModules: [23, 27, 34],
-        skills: ['JavaScript', 'React', 'Node.js', 'Database Design'],
-        averageSalary: '$75,000',
-        demandLevel: 'Very High'
-    },
-    {
-        title: 'Data Scientist',
-        match: 72,
-        requiredModules: [26, 30, 39],
-        skills: ['Python', 'Statistics', 'Machine Learning', 'Data Visualization'],
-        averageSalary: '$85,000',
-        demandLevel: 'High'
-    }
-]);
 
 // Computed properties
 const currentSemesterData = computed(() => {
@@ -403,13 +332,6 @@ const getAIRecommendations = () => {
                                         <SparklesIcon class="w-4 h-4" />
                                         AI Recommendations
                                     </button>
-                                    <button
-                                        @click="showSkillsMap = !showSkillsMap"
-                                        class="w-full flex items-center gap-2 px-4 py-2 bg-yellow-600 text-white rounded-xl hover:bg-yellow-700 transition-colors"
-                                    >
-                                        <TrophyIcon class="w-4 h-4" />
-                                        Skills Map
-                                    </button>
                                 </div>
 
                                 <!-- Upcoming Deadlines -->
@@ -641,88 +563,6 @@ const getAIRecommendations = () => {
                                 </div>
                             </div>
 
-                            <!-- Skills Map Modal -->
-                            <div v-if="showSkillsMap" class="fixed inset-0 z-50 overflow-y-auto">
-                                <div class="flex min-h-full items-center justify-center p-4">
-                                    <div class="fixed inset-0 bg-black/60 backdrop-blur-sm" @click="showSkillsMap = false"></div>
-
-                                    <div class="relative w-full max-w-4xl bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
-                                        <div class="p-6">
-                                            <div class="flex items-center justify-between mb-6">
-                                                <h3 class="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                                                    <TrophyIcon class="w-6 h-6 text-yellow-600" />
-                                                    Skills Development Map
-                                                </h3>
-                                                <button
-                                                    @click="showSkillsMap = false"
-                                                    class="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg"
-                                                >
-                                                    ✕
-                                                </button>
-                                            </div>
-
-                                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                                                <!-- Skills Progress -->
-                                                <div>
-                                                    <h4 class="font-semibold text-gray-900 dark:text-white mb-4">Current Skills Level</h4>
-                                                    <div class="space-y-6">
-                                                        <div v-for="category in skillsData.categories" :key="category.name">
-                                                            <h5 class="font-medium text-gray-700 dark:text-gray-300 mb-3">{{ category.name }}</h5>
-                                                            <div class="space-y-3">
-                                                                <div v-for="skill in category.skills" :key="skill.name" class="space-y-2">
-                                                                    <div class="flex justify-between items-center">
-                                                                        <span class="text-sm font-medium text-gray-900 dark:text-white">{{ skill.name }}</span>
-                                                                        <span class="text-sm text-gray-600 dark:text-gray-400">{{ skill.level }}%</span>
-                                                                    </div>
-                                                                    <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                                                                        <div
-                                                                            class="bg-gradient-to-r from-blue-600 to-purple-600 h-2 rounded-full"
-                                                                            :style="{ width: skill.level + '%' }"
-                                                                        ></div>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                <!-- Career Pathways -->
-                                                <div>
-                                                    <h4 class="font-semibold text-gray-900 dark:text-white mb-4">Recommended Career Paths</h4>
-                                                    <div class="space-y-4">
-                                                        <div
-                                                            v-for="career in careerPathways"
-                                                            :key="career.title"
-                                                            class="p-4 border border-gray-200 dark:border-gray-700 rounded-xl"
-                                                        >
-                                                            <div class="flex items-start justify-between mb-2">
-                                                                <h5 class="font-semibold text-gray-900 dark:text-white">{{ career.title }}</h5>
-                                                                <span class="text-sm font-bold text-green-600 dark:text-green-400">{{ career.match }}% match</span>
-                                                            </div>
-                                                            <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">{{ career.averageSalary }} • {{ career.demandLevel }} demand</p>
-                                                            <div class="flex flex-wrap gap-1 mb-2">
-                                                                <span
-                                                                    v-for="skill in career.skills.slice(0, 3)"
-                                                                    :key="skill"
-                                                                    class="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 text-xs rounded-full"
-                                                                >
-                                                                    {{ skill }}
-                                                                </span>
-                                                            </div>
-                                                            <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                                                                <div
-                                                                    class="bg-green-500 h-2 rounded-full"
-                                                                    :style="{ width: career.match + '%' }"
-                                                                ></div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
                         </div>
                     </div>
                 </div>
