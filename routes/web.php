@@ -69,6 +69,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/materials', [StudentDashboardController::class, 'materials'])->middleware('permission:view_courses')->name('materials');
         Route::get('/materials/{material}/download', [StudentDashboardController::class, 'downloadMaterial'])->middleware('permission:view_courses')->name('materials.download');
         Route::get('/attendance', [StudentDashboardController::class, 'attendance'])->middleware('permission:view_attendance')->name('attendance');
+        Route::get('/transcript', [StudentDashboardController::class, 'transcript'])->middleware('permission:view_courses')->name('transcript');
 
         // Self-service account pages (no extra permission beyond the student role)
         Route::get('/profile', [StudentDashboardController::class, 'profile'])->name('profile');

@@ -20,6 +20,7 @@ const navByRole = {
         { label: 'Chat', route: 'chat', permission: 'use_ai_chat' },
         { label: 'Saved Answers', route: 'saved', permission: 'view_chat_history' },
         { label: 'Roadmap', route: 'roadmap', permission: 'view_courses' },
+        { label: 'Transcript', route: 'transcript', permission: 'view_courses' },
         { label: 'Documents', route: 'documents', permission: 'view_documents' },
         { label: 'Materials', route: 'materials', permission: 'view_courses' },
         { label: 'Attendance', route: 'attendance', permission: 'view_attendance' },

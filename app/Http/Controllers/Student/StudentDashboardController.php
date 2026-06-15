@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Student;
 
 use App\Domain\Academic\Services\AttendanceService;
 use App\Domain\Academic\Services\CourseService;
+use App\Domain\Academic\Services\TranscriptService;
 use App\Domain\Chat\Document\Services\DocumentService;
 use App\Domain\User\Models\User;
 use App\Http\Controllers\Controller;
@@ -22,6 +23,7 @@ class StudentDashboardController extends Controller
         private readonly DocumentService $documents,
         private readonly CourseService $courses,
         private readonly AttendanceService $attendance,
+        private readonly TranscriptService $transcript,
     ) {}
 
     public function index(): Response
@@ -84,6 +86,11 @@ class StudentDashboardController extends Controller
                 'rate' => $totalRecords > 0 ? (int) round($totalAttended / $totalRecords * 100) : null,
             ],
         ]);
+    }
+
+    public function transcript(): Response
+    {
+        return Inertia::render('Student/Transcript', $this->transcript->build($this->user()));
     }
 
     public function roadmap(): Response
