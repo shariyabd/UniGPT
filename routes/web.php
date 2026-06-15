@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\Auth\AuthenticationController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Faculty\AIAssistantController as FacultyAIAssistantController;
+use App\Http\Controllers\Faculty\AnalyticsController as FacultyAnalyticsController;
 use App\Http\Controllers\Faculty\AttendanceController as FacultyAttendanceController;
 use App\Http\Controllers\Faculty\CourseController as FacultyCourseController;
 use App\Http\Controllers\Faculty\CourseMaterialController as FacultyCourseMaterialController;
@@ -110,6 +111,10 @@ Route::middleware(['auth'])->group(function () {
 
         // Exam timetable (read-only view of the faculty's course exams)
         Route::get('/exams', [FacultyDashboardController::class, 'exams'])->middleware('permission:view_exams')->name('exams');
+
+        // Learning analytics & academic reporting
+        Route::get('/analytics', [FacultyAnalyticsController::class, 'index'])->middleware('permission:view_department_analytics')->name('analytics');
+        Route::get('/courses/{course}/analytics', [FacultyAnalyticsController::class, 'index'])->middleware('permission:view_department_analytics')->name('courses.analytics');
 
         // Grading
         Route::get('/grading', [FacultyGradingController::class, 'index'])->middleware('permission:grade_assignment')->name('grading');

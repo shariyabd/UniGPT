@@ -31,6 +31,7 @@ const navByRole = {
         { label: 'Courses', route: 'faculty.courses', permission: 'view_courses' },
         { label: 'AI Assistant', route: 'faculty.ai-assistant', permission: 'use_ai_chat' },
         { label: 'Grading', route: 'faculty.grading', permission: 'grade_assignment' },
+        { label: 'Analytics', route: 'faculty.analytics', permission: 'view_department_analytics' },
         { label: 'Exams', route: 'faculty.exams', permission: 'view_exams' },
     ],
     admin: [
