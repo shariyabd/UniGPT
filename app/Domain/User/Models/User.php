@@ -96,6 +96,11 @@ class User extends Authenticatable
         return $this->hasMany(\App\Models\Notification::class)->latest();
     }
 
+    public function notes(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(\App\Models\Note::class);
+    }
+
     public function roles(): BelongsToMany
     {
         return $this->belongsToMany(Role::class, 'role_user')

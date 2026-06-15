@@ -21,6 +21,7 @@ use App\Http\Controllers\Faculty\GradingController as FacultyGradingController;
 use App\Http\Controllers\LegalController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Student\ChatController;
+use App\Http\Controllers\Student\NoteController;
 use App\Http\Controllers\Student\SavedAnswerController;
 use App\Http\Controllers\Student\StudentDashboardController;
 use Illuminate\Support\Facades\Route;
@@ -73,6 +74,12 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/attendance', [StudentDashboardController::class, 'attendance'])->middleware('permission:view_attendance')->name('attendance');
         Route::get('/transcript', [StudentDashboardController::class, 'transcript'])->middleware('permission:view_courses')->name('transcript');
         Route::get('/exams', [StudentDashboardController::class, 'exams'])->middleware('permission:view_exams')->name('exams');
+
+        // Personal productivity (self-service; scoped to the owner) — Notes
+        Route::get('/notes', [NoteController::class, 'index'])->name('notes');
+        Route::post('/notes', [NoteController::class, 'store'])->name('notes.store');
+        Route::patch('/notes/{note}', [NoteController::class, 'update'])->name('notes.update');
+        Route::delete('/notes/{note}', [NoteController::class, 'destroy'])->name('notes.destroy');
 
         // Self-service account pages (no extra permission beyond the student role)
         Route::get('/profile', [StudentDashboardController::class, 'profile'])->name('profile');
