@@ -7,8 +7,10 @@ use App\Domain\Chat\Services\RagChatService;
 use App\Domain\Chat\Services\TeachingAssistantService;
 use App\Enums\ChatMode;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Faculty\AssistantChatRequest;
+use App\Http\Requests\Faculty\GenerateAssignmentRequest;
+use App\Http\Requests\Faculty\GenerateQuizRequest;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -33,38 +35,20 @@ class AIAssistantController extends Controller
         ]);
     }
 
-    public function chat(Request $request): JsonResponse
+    public function chat(AssistantChatRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'message' => ['required', 'string', 'max:4000'],
-        ]);
-
-        $answer = $this->rag->answer($validated['message'], $request->user(), ChatMode::RESEARCH);
+        $answer = $this->rag->answer($request->validated()['message'], $request->user(), ChatMode::RESEARCH);
 
         return response()->json(['reply' => $answer]);
     }
 
-    public function generateQuiz(Request $request): JsonResponse
+    public function generateQuiz(GenerateQuizRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'topic' => ['required', 'string', 'max:255'],
-            'course' => ['nullable', 'string'],
-            'difficulty' => ['nullable', 'in:easy,medium,hard'],
-            'questionCount' => ['nullable', 'integer', 'min:1', 'max:20'],
-        ]);
-
-        return response()->json(['quiz' => $this->assistant->generateQuiz($validated)]);
+        return response()->json(['quiz' => $this->assistant->generateQuiz($request->validated())]);
     }
 
-    public function generateAssignment(Request $request): JsonResponse
+    public function generateAssignment(GenerateAssignmentRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'title' => ['required', 'string', 'max:255'],
-            'topics' => ['nullable', 'array'],
-            'topics.*' => ['string', 'max:100'],
-            'points' => ['nullable', 'integer', 'min:1', 'max:1000'],
-        ]);
-
-        return response()->json(['assignment' => $this->assistant->generateAssignment($validated)]);
+        return response()->json(['assignment' => $this->assistant->generateAssignment($request->validated())]);
     }
 }
