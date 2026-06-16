@@ -27,8 +27,10 @@ use App\Http\Controllers\Student\SavedAnswerController;
 use App\Http\Controllers\Student\StudentDashboardController;
 use App\Http\Controllers\Student\TaskController;
 use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
 
-Route::redirect('/', '/login');
+// Public marketing landing page.
+Route::get('/', fn () => Inertia::render('Landing'))->name('home');
 
 // Authentication Routes
 Route::middleware('guest')->group(function () {});
