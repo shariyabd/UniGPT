@@ -1,20 +1,20 @@
 <template>
     <div class="chat-box flex flex-col h-full">
         <!-- Messages Area -->
-        <div class="messages-container h-96 overflow-y-auto mb-4 p-4 bg-gray-50 dark:bg-slate-900 rounded-xl">
+        <div class="messages-container h-96 overflow-y-auto mb-4 p-4 bg-bg rounded-card">
             <div v-for="(message, index) in messages" :key="index" class="message mb-4">
-                <div 
+                <div
                     :class="[
                         'flex',
                         message.type === 'user' ? 'justify-end' : 'justify-start'
                     ]"
                 >
-                    <div 
+                    <div
                         :class="[
                             'max-w-[80%] rounded-2xl px-4 py-3',
-                            message.type === 'user' 
-                                ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white' 
-                                : 'bg-white dark:bg-slate-800 text-gray-900 dark:text-white border border-gray-200 dark:border-slate-700'
+                            message.type === 'user'
+                                ? 'bg-primary text-white'
+                                : 'bg-surface text-content border border-line'
                         ]"
                     >
                         <p class="text-sm">{{ message.content }}</p>
@@ -26,11 +26,11 @@
             </div>
 
             <div v-if="isTyping" class="flex justify-start mb-4">
-                <div class="bg-white dark:bg-slate-800 rounded-2xl px-4 py-3 border border-gray-200 dark:border-slate-700">
+                <div class="bg-surface rounded-2xl px-4 py-3 border border-line">
                     <div class="flex space-x-2">
-                        <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                        <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-100"></div>
-                        <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-200"></div>
+                        <div class="w-2 h-2 bg-content-faint rounded-full animate-bounce"></div>
+                        <div class="w-2 h-2 bg-content-faint rounded-full animate-bounce delay-100"></div>
+                        <div class="w-2 h-2 bg-content-faint rounded-full animate-bounce delay-200"></div>
                     </div>
                 </div>
             </div>
@@ -38,17 +38,17 @@
 
         <!-- Input Area -->
         <div class="flex gap-2">
-            <input 
+            <input
                 v-model="currentMessage"
                 @keyup.enter="sendMessage"
-                type="text" 
+                type="text"
                 placeholder="Type your message..."
-                class="flex-1 px-4 py-3 rounded-xl border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                class="ui-input flex-1"
             />
-            <button 
+            <button
                 @click="sendMessage"
                 :disabled="!currentMessage.trim()"
-                class="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:shadow-lg transform hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                class="ui-btn-primary px-6 py-3 disabled:opacity-50 disabled:cursor-not-allowed"
             >
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
@@ -125,9 +125,5 @@ const formatTime = (date) => {
 .messages-container::-webkit-scrollbar-thumb {
     background: #cbd5e1;
     border-radius: 3px;
-}
-
-.dark .messages-container::-webkit-scrollbar-thumb {
-    background: #475569;
 }
 </style>

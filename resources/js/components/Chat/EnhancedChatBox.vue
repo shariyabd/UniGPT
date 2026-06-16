@@ -1,11 +1,11 @@
 <!-- resources/js/components/Chat/EnhancedChatBox.vue -->
 <template>
-  <div class="flex flex-col h-full bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 rounded-2xl shadow-2xl overflow-hidden">
+  <div class="flex flex-col h-full ui-card p-0 overflow-hidden">
     <!-- Chat Header -->
-    <div class="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 px-6 py-4 shadow-lg">
+    <div class="bg-primary px-6 py-4">
       <div class="flex items-center justify-between">
         <div class="flex items-center space-x-4">
-          <div class="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+          <div class="w-12 h-12 bg-white/20 rounded-control flex items-center justify-center">
             <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
             </svg>
@@ -17,15 +17,15 @@
         </div>
 
         <!-- Chat Mode Selector -->
-        <div class="flex items-center space-x-2 bg-white/10 backdrop-blur-md rounded-xl px-4 py-2">
+        <div class="flex items-center space-x-2 bg-white/10 rounded-control px-4 py-2">
           <button
             v-for="mode in chatModes"
             :key="mode.id"
             @click="currentMode = mode.id"
             :class="[
-              'px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200',
+              'px-4 py-2 rounded-control font-medium text-sm transition-all duration-200',
               currentMode === mode.id
-                ? 'bg-white text-indigo-600 shadow-lg'
+                ? 'bg-white text-primary shadow-card'
                 : 'text-white/80 hover:bg-white/20'
             ]"
           >
@@ -36,11 +36,11 @@
     </div>
 
     <!-- Messages Area -->
-    <div ref="messagesContainer" class="flex-1 overflow-y-auto p-6 space-y-4 scrollbar-thin scrollbar-thumb-indigo-400 scrollbar-track-gray-200 dark:scrollbar-track-gray-700">
+    <div ref="messagesContainer" class="flex-1 overflow-y-auto p-6 space-y-4 bg-bg scrollbar-thin">
       <div v-for="message in messages" :key="message.id" class="animate-fade-in">
         <!-- User Message -->
         <div v-if="message.role === 'user'" class="flex justify-end">
-          <div class="max-w-[70%] bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl rounded-tr-none px-6 py-4 shadow-lg">
+          <div class="max-w-[70%] bg-primary text-white rounded-2xl rounded-tr-none px-6 py-4 shadow-card">
             <p class="text-sm">{{ message.content }}</p>
             <span class="text-xs text-white/70 mt-2 block">{{ message.time }}</span>
           </div>
@@ -49,30 +49,30 @@
         <!-- Assistant Message -->
         <div v-else class="flex justify-start">
           <div class="max-w-[75%]">
-            <div class="bg-white dark:bg-gray-800 rounded-2xl rounded-tl-none px-6 py-4 shadow-xl">
-              <p class="text-gray-800 dark:text-gray-200 text-sm leading-relaxed">{{ message.content }}</p>
+            <div class="bg-surface border border-line rounded-2xl rounded-tl-none px-6 py-4 shadow-card">
+              <p class="text-content text-sm leading-relaxed">{{ message.content }}</p>
 
               <!-- Confidence Score -->
               <div class="mt-4 flex items-center justify-between">
                 <div class="flex items-center space-x-2">
                   <div class="flex items-center space-x-1">
-                    <svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                    <svg class="w-4 h-4 text-success-fg" fill="currentColor" viewBox="0 0 20 20">
                       <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                     </svg>
-                    <span class="text-xs font-semibold text-green-600 dark:text-green-400">{{ message.confidence }}% Confident</span>
+                    <span class="text-xs font-semibold text-success-fg">{{ message.confidence }}% Confident</span>
                   </div>
-                  <span class="text-xs text-gray-400">{{ message.time }}</span>
+                  <span class="text-xs text-content-faint">{{ message.time }}</span>
                 </div>
 
                 <!-- Action Buttons -->
                 <div class="flex items-center space-x-2">
-                  <button @click="toggleSave(message.id)" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
-                    <svg :class="['w-5 h-5', message.saved ? 'text-yellow-500 fill-current' : 'text-gray-400']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <button @click="toggleSave(message.id)" class="p-2 hover:bg-neutral-bg rounded-control transition-colors">
+                    <svg :class="['w-5 h-5', message.saved ? 'text-warning-fg fill-current' : 'text-content-faint']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
                     </svg>
                   </button>
-                  <button @click="openCitations(message)" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
-                    <svg class="w-5 h-5 text-gray-400 hover:text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <button @click="openCitations(message)" class="p-2 hover:bg-neutral-bg rounded-control transition-colors">
+                    <svg class="w-5 h-5 text-content-faint hover:text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
                   </button>
@@ -80,13 +80,13 @@
               </div>
 
               <!-- Source Citations Preview -->
-              <div v-if="message.sources" class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-                <p class="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-2">📚 Sources:</p>
+              <div v-if="message.sources" class="mt-3 pt-3 border-t border-line">
+                <p class="text-xs font-semibold text-content-muted mb-2">📚 Sources:</p>
                 <div class="flex flex-wrap gap-2">
                   <span
                     v-for="source in message.sources"
                     :key="source.id"
-                    class="inline-flex items-center px-3 py-1 rounded-full text-xs bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/30 dark:to-purple-900/30 text-indigo-700 dark:text-indigo-300 cursor-pointer hover:shadow-md transition-shadow"
+                    class="inline-flex items-center px-3 py-1 rounded-pill text-xs bg-primary-soft text-primary cursor-pointer hover:shadow-md transition-shadow"
                     @click="openCitations(message)"
                   >
                     <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
@@ -100,13 +100,13 @@
 
             <!-- Follow-up Suggestions -->
             <div v-if="message.suggestions" class="mt-3 space-y-2">
-              <p class="text-xs font-semibold text-gray-600 dark:text-gray-400">💡 Follow-up questions:</p>
+              <p class="text-xs font-semibold text-content-muted">💡 Follow-up questions:</p>
               <div class="flex flex-wrap gap-2">
                 <button
                   v-for="(suggestion, index) in message.suggestions"
                   :key="index"
                   @click="sendMessage(suggestion)"
-                  class="px-4 py-2 bg-white dark:bg-gray-800 border-2 border-indigo-200 dark:border-indigo-800 text-sm text-gray-700 dark:text-gray-300 rounded-xl hover:border-indigo-400 hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200"
+                  class="px-4 py-2 bg-surface border border-line text-sm text-content rounded-control hover:border-primary hover:bg-primary-soft hover:text-primary hover:shadow-card transform hover:-translate-y-0.5 transition-all duration-200"
                 >
                   {{ suggestion }}
                 </button>
@@ -118,27 +118,27 @@
 
       <!-- Typing Indicator -->
       <div v-if="isTyping" class="flex justify-start animate-fade-in">
-        <div class="bg-white dark:bg-gray-800 rounded-2xl rounded-tl-none px-6 py-4 shadow-xl">
+        <div class="bg-surface border border-line rounded-2xl rounded-tl-none px-6 py-4 shadow-card">
           <div class="flex space-x-2">
-            <div class="w-3 h-3 bg-indigo-600 rounded-full animate-bounce" style="animation-delay: 0ms"></div>
-            <div class="w-3 h-3 bg-purple-600 rounded-full animate-bounce" style="animation-delay: 150ms"></div>
-            <div class="w-3 h-3 bg-pink-600 rounded-full animate-bounce" style="animation-delay: 300ms"></div>
+            <div class="w-3 h-3 bg-primary rounded-full animate-bounce" style="animation-delay: 0ms"></div>
+            <div class="w-3 h-3 bg-primary rounded-full animate-bounce" style="animation-delay: 150ms"></div>
+            <div class="w-3 h-3 bg-primary rounded-full animate-bounce" style="animation-delay: 300ms"></div>
           </div>
         </div>
       </div>
     </div>
 
     <!-- Input Area -->
-    <div class="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-6 py-4">
+    <div class="border-t border-line bg-surface px-6 py-4">
       <div class="flex items-end space-x-4">
         <!-- Voice Input Button -->
         <button
           @click="toggleVoiceInput"
           :class="[
-            'p-3 rounded-xl transition-all duration-200',
+            'p-3 rounded-control transition-all duration-200',
             isRecording
-              ? 'bg-red-500 text-white shadow-lg shadow-red-500/50 animate-pulse'
-              : 'bg-gradient-to-r from-indigo-100 to-purple-100 dark:from-indigo-900/30 dark:to-purple-900/30 text-indigo-600 dark:text-indigo-400 hover:shadow-lg'
+              ? 'bg-danger-fg text-white animate-pulse'
+              : 'bg-primary-soft text-primary hover:shadow-card'
           ]"
         >
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -153,13 +153,13 @@
             @keydown.enter.exact.prevent="handleSend"
             rows="1"
             placeholder="Ask anything about your academics..."
-            class="w-full px-4 py-3 pr-12 bg-gray-100 dark:bg-gray-900 border-2 border-transparent focus:border-indigo-500 rounded-xl resize-none focus:outline-none text-gray-800 dark:text-gray-200 placeholder-gray-400 transition-all duration-200"
+            class="ui-input pr-12 resize-none"
             style="max-height: 120px;"
           ></textarea>
 
           <!-- Character Count / Language Selector -->
           <div class="absolute right-3 bottom-3 flex items-center space-x-2">
-            <select v-model="selectedLanguage" class="text-xs bg-transparent border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1 focus:outline-none focus:border-indigo-500">
+            <select v-model="selectedLanguage" class="ui-input w-auto text-xs px-2 py-1">
               <option value="en">🇬🇧 English</option>
               <option value="hi">🇮🇳 हिंदी</option>
               <option value="mixed">🌐 Hinglish</option>
@@ -172,10 +172,10 @@
           @click="handleSend"
           :disabled="!inputMessage.trim()"
           :class="[
-            'p-3 rounded-xl transition-all duration-200 transform hover:scale-105',
+            'p-3 rounded-control transition-all duration-200',
             inputMessage.trim()
-              ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg hover:shadow-xl'
-              : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
+              ? 'ui-btn-primary'
+              : 'bg-neutral-bg text-content-faint cursor-not-allowed'
           ]"
         >
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -186,14 +186,14 @@
 
       <!-- Quick Actions -->
       <div class="mt-3 flex items-center justify-between">
-        <div class="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
+        <div class="flex items-center space-x-2 text-xs text-content-muted">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <span>Press Enter to send, Shift+Enter for new line</span>
         </div>
 
-        <button @click="clearChat" class="text-xs text-red-500 hover:text-red-600 font-medium">
+        <button @click="clearChat" class="text-xs text-danger-fg hover:opacity-80 font-medium">
           Clear Chat
         </button>
       </div>
@@ -373,11 +373,12 @@ onMounted(() => {
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  @apply bg-indigo-400 rounded-full;
+  background: #cbd5e1;
+  border-radius: 9999px;
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-  @apply bg-indigo-500;
+  background: #94a3b8;
 }
 
 textarea {
