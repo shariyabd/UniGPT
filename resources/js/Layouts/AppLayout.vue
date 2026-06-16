@@ -1,171 +1,306 @@
 <script setup>
-import { ref, computed } from 'vue';
-import { Link } from '@inertiajs/vue3';
-import NavLink from '@/components/NavLink.vue';
+import { ref, computed, onMounted } from 'vue';
+import { Link, usePage } from '@inertiajs/vue3';
 import FlashMessages from '@/components/FlashMessages.vue';
 import NotificationBell from '@/components/NotificationBell.vue';
 import { usePermissions } from '@/composables/usePermissions';
+import { useTheme } from '@/composables/useTheme';
+import {
+    Squares2X2Icon,
+    ChatBubbleLeftRightIcon,
+    BookmarkIcon,
+    MapIcon,
+    AcademicCapIcon,
+    DocumentTextIcon,
+    BookOpenIcon,
+    ClipboardDocumentCheckIcon,
+    PencilSquareIcon,
+    CalendarIcon,
+    CheckCircleIcon,
+    PencilIcon,
+    SparklesIcon,
+    ChartBarIcon,
+    UsersIcon,
+    BuildingOffice2Icon,
+    ShieldCheckIcon,
+    CheckBadgeIcon,
+    MegaphoneIcon,
+    Cog6ToothIcon,
+    ServerStackIcon,
+    Bars3Icon,
+    XMarkIcon,
+    ArrowRightOnRectangleIcon,
+    UserCircleIcon,
+    MagnifyingGlassIcon,
+    ChevronDownIcon,
+    ArrowRightIcon,
+    SunIcon,
+    MoonIcon,
+} from '@heroicons/vue/24/outline';
 
 const { can, hasRole, primaryRole } = usePermissions();
+const { isDark, initTheme, toggleTheme } = useTheme();
+const page = usePage();
 
+onMounted(initTheme);
+
+const sidebarOpen = ref(false);
 const showUserMenu = ref(false);
 
-// Per-role navigation. Each item names the route it points at and (optionally)
-// the permission required to use it — mirroring the server-side route matrix so
-// users never see a link the backend would reject. Items without a permission
-// are always shown to that role.
+// Per-role navigation, grouped into labelled sections (Acadify pattern).
+// Routes, icons and permissions are unchanged — only reorganised into groups.
 const navByRole = {
     student: [
-        { label: 'Dashboard', route: 'dashboard' },
-        { label: 'Chat', route: 'chat', permission: 'use_ai_chat' },
-        { label: 'Saved Answers', route: 'saved', permission: 'view_chat_history' },
-        { label: 'Roadmap', route: 'roadmap', permission: 'view_courses' },
-        { label: 'Transcript', route: 'transcript', permission: 'view_courses' },
-        { label: 'Documents', route: 'documents', permission: 'view_documents' },
-        { label: 'Materials', route: 'materials', permission: 'view_courses' },
-        { label: 'Attendance', route: 'attendance', permission: 'view_attendance' },
-        { label: 'Exams', route: 'exams', permission: 'view_exams' },
-        { label: 'Calendar', route: 'calendar' },
-        { label: 'Tasks', route: 'tasks' },
-        { label: 'Notes', route: 'notes' },
+        { section: 'Overview', items: [
+            { label: 'Dashboard', route: 'dashboard', icon: Squares2X2Icon },
+        ] },
+        { section: 'Academic', items: [
+            { label: 'Roadmap', route: 'roadmap', icon: MapIcon, permission: 'view_courses' },
+            { label: 'Transcript', route: 'transcript', icon: AcademicCapIcon, permission: 'view_courses' },
+            { label: 'Materials', route: 'materials', icon: BookOpenIcon, permission: 'view_courses' },
+            { label: 'Attendance', route: 'attendance', icon: ClipboardDocumentCheckIcon, permission: 'view_attendance' },
+            { label: 'Exams', route: 'exams', icon: PencilSquareIcon, permission: 'view_exams' },
+        ] },
+        { section: 'AI Copilot', items: [
+            { label: 'AI Chat', route: 'chat', icon: ChatBubbleLeftRightIcon, permission: 'use_ai_chat' },
+            { label: 'Saved Answers', route: 'saved', icon: BookmarkIcon, permission: 'view_chat_history' },
+        ] },
+        { section: 'Planner', items: [
+            { label: 'Calendar', route: 'calendar', icon: CalendarIcon },
+            { label: 'Tasks', route: 'tasks', icon: CheckCircleIcon },
+            { label: 'Notes', route: 'notes', icon: PencilIcon },
+        ] },
+        { section: 'Documents', items: [
+            { label: 'Documents', route: 'documents', icon: DocumentTextIcon, permission: 'view_documents' },
+        ] },
     ],
     faculty: [
-        { label: 'Dashboard', route: 'faculty.dashboard' },
-        { label: 'Courses', route: 'faculty.courses', permission: 'view_courses' },
-        { label: 'AI Assistant', route: 'faculty.ai-assistant', permission: 'use_ai_chat' },
-        { label: 'Grading', route: 'faculty.grading', permission: 'grade_assignment' },
-        { label: 'Analytics', route: 'faculty.analytics', permission: 'view_department_analytics' },
-        { label: 'Exams', route: 'faculty.exams', permission: 'view_exams' },
+        { section: 'Overview', items: [
+            { label: 'Dashboard', route: 'faculty.dashboard', icon: Squares2X2Icon },
+        ] },
+        { section: 'Teaching', items: [
+            { label: 'Courses', route: 'faculty.courses', icon: BookOpenIcon, permission: 'view_courses' },
+            { label: 'Grading', route: 'faculty.grading', icon: ClipboardDocumentCheckIcon, permission: 'grade_assignment' },
+            { label: 'Exams', route: 'faculty.exams', icon: PencilSquareIcon, permission: 'view_exams' },
+        ] },
+        { section: 'Insights', items: [
+            { label: 'Analytics', route: 'faculty.analytics', icon: ChartBarIcon, permission: 'view_department_analytics' },
+        ] },
+        { section: 'AI Copilot', items: [
+            { label: 'AI Assistant', route: 'faculty.ai-assistant', icon: SparklesIcon, permission: 'use_ai_chat' },
+        ] },
     ],
     admin: [
-        { label: 'Dashboard', route: 'admin.dashboard' },
-        { label: 'Users', route: 'admin.users', permission: 'view_users' },
-        { label: 'Departments', route: 'admin.departments', permission: 'manage_departments' },
-        { label: 'Roles', route: 'admin.roles', permission: 'manage_permissions' },
-        { label: 'Documents', route: 'admin.documents', permission: 'view_documents' },
-        { label: 'Approvals', route: 'admin.approvals', permission: 'approve_document' },
-        { label: 'Analytics', route: 'admin.analytics', permission: 'view_all_analytics' },
-        { label: 'Announcements', route: 'admin.announcements', permission: 'send_notifications' },
-        { label: 'Exams', route: 'admin.exams', permission: 'manage_exams' },
-        { label: 'Settings', route: 'admin.settings', permission: 'configure_ai' },
-        { label: 'Monitor', route: 'admin.monitor', permission: 'manage_system' },
+        { section: 'Overview', items: [
+            { label: 'Dashboard', route: 'admin.dashboard', icon: Squares2X2Icon },
+        ] },
+        { section: 'People', items: [
+            { label: 'Users', route: 'admin.users', icon: UsersIcon, permission: 'view_users' },
+            { label: 'Departments', route: 'admin.departments', icon: BuildingOffice2Icon, permission: 'manage_departments' },
+            { label: 'Roles', route: 'admin.roles', icon: ShieldCheckIcon, permission: 'manage_permissions' },
+        ] },
+        { section: 'Academics', items: [
+            { label: 'Documents', route: 'admin.documents', icon: DocumentTextIcon, permission: 'view_documents' },
+            { label: 'Approvals', route: 'admin.approvals', icon: CheckBadgeIcon, permission: 'approve_document' },
+            { label: 'Exams', route: 'admin.exams', icon: PencilSquareIcon, permission: 'manage_exams' },
+        ] },
+        { section: 'System', items: [
+            { label: 'Analytics', route: 'admin.analytics', icon: ChartBarIcon, permission: 'view_all_analytics' },
+            { label: 'Announcements', route: 'admin.announcements', icon: MegaphoneIcon, permission: 'send_notifications' },
+            { label: 'Settings', route: 'admin.settings', icon: Cog6ToothIcon, permission: 'configure_ai' },
+            { label: 'Monitor', route: 'admin.monitor', icon: ServerStackIcon, permission: 'manage_system' },
+        ] },
     ],
 };
 
-const navItems = computed(() => {
-    const items = navByRole[primaryRole.value] ?? [];
+// Lightweight per-role identity + a contextual sidebar promo CTA.
+const roleMeta = {
+    student: { label: 'Student', promoTitle: 'Ask UniGPT anything', promoCta: 'New Chat', promoRoute: 'chat' },
+    faculty: { label: 'Faculty', promoTitle: 'AI Teaching Assistant', promoCta: 'Open Assistant', promoRoute: 'faculty.ai-assistant' },
+    admin: { label: 'Admin', promoTitle: 'Manage your campus', promoCta: 'Add User', promoRoute: 'admin.users' },
+};
 
-    return items.filter((item) => !item.permission || can(item.permission));
+const meta = computed(() => roleMeta[primaryRole.value] ?? roleMeta.student);
+
+// Filter each group's items by permission, then drop empty groups.
+const navGroups = computed(() => {
+    const groups = navByRole[primaryRole.value] ?? [];
+    return groups
+        .map((group) => ({
+            section: group.section,
+            items: group.items.filter((item) => !item.permission || can(item.permission)),
+        }))
+        .filter((group) => group.items.length > 0);
 });
 
-// Close dropdown when clicking outside
+const user = computed(() => page.props.auth?.user ?? null);
+const userInitial = computed(() => (user.value?.name?.charAt(0) ?? '?').toUpperCase());
+
+const hasRoute = (name) => {
+    try { return !!route().has(name); } catch (e) { return false; }
+};
+const isActive = (name) => {
+    try { return route().current(name); } catch (e) { return false; }
+};
+const promoHref = computed(() => (hasRoute(meta.value.promoRoute) ? route(meta.value.promoRoute) : '#'));
+
+const closeSidebar = () => { sidebarOpen.value = false; };
+
 if (typeof window !== 'undefined') {
     window.addEventListener('click', (e) => {
-        if (!e.target.closest('button')) {
-            showUserMenu.value = false;
-        }
+        if (!e.target.closest('[data-user-menu]')) showUserMenu.value = false;
     });
 }
 </script>
 
 <template>
-    <div class="min-h-screen bg-gray-50 dark:bg-gray-900">
-        <!-- Navigation -->
-        <nav class="bg-white dark:bg-slate-800 shadow-lg">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="flex justify-between items-center h-16">
-                    <!-- Logo -->
-                    <div class="flex items-center">
-                        <Link href="/" class="flex items-center space-x-3">
-                            <div class="w-10 h-10 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center">
-                                <span class="text-xl font-bold text-white">🎓</span>
-                            </div>
-                            <span class="text-xl font-bold text-gray-900 dark:text-white">UniGPT</span>
-                        </Link>
-                    </div>
+    <div class="min-h-dvh bg-bg">
+        <!-- Mobile scrim -->
+        <Transition
+            enter-active-class="transition-opacity duration-200" enter-from-class="opacity-0"
+            leave-active-class="transition-opacity duration-200" leave-to-class="opacity-0"
+        >
+            <div v-if="sidebarOpen" class="fixed inset-0 z-40 bg-content/30 backdrop-blur-sm lg:hidden" @click="closeSidebar"></div>
+        </Transition>
 
-                    <!-- Navigation Links (role + permission aware) -->
-                    <div class="hidden md:flex items-center space-x-6">
-                        <NavLink
-                            v-for="item in navItems"
+        <!-- Sidebar -->
+        <aside
+            class="fixed inset-y-0 left-0 z-50 flex w-[264px] flex-col border-r border-line bg-surface transition-transform duration-300 lg:translate-x-0"
+            :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'"
+        >
+            <!-- Brand -->
+            <div class="flex h-16 flex-shrink-0 items-center justify-between px-5">
+                <Link href="/" class="flex items-center gap-2.5">
+                    <div class="flex h-9 w-9 items-center justify-center rounded-control bg-primary text-white">
+                        <AcademicCapIcon class="h-5 w-5" />
+                    </div>
+                    <span class="text-lg font-bold tracking-tight text-content">UniGPT</span>
+                </Link>
+                <button type="button" class="rounded-control p-1.5 text-content-faint hover:bg-primary-soft lg:hidden" @click="closeSidebar" aria-label="Close menu">
+                    <XMarkIcon class="h-5 w-5" />
+                </button>
+            </div>
+
+            <!-- Nav (grouped) -->
+            <nav class="flex-1 overflow-y-auto px-3 pb-4">
+                <template v-for="group in navGroups" :key="group.section">
+                    <p class="ui-nav-section">{{ group.section }}</p>
+                    <div class="space-y-0.5">
+                        <Link
+                            v-for="item in group.items"
                             :key="item.route"
                             :href="route(item.route)"
-                            :active="route().current(item.route)"
+                            @click="closeSidebar"
+                            class="ui-nav-link"
+                            :class="isActive(item.route) ? 'ui-nav-link-active' : 'ui-nav-link-idle'"
                         >
-                            {{ item.label }}
-                        </NavLink>
+                            <component :is="item.icon" class="h-[18px] w-[18px] flex-shrink-0" />
+                            <span class="truncate">{{ item.label }}</span>
+                        </Link>
                     </div>
+                </template>
 
-                    <!-- User Menu -->
-                    <div class="flex items-center space-x-4">
-                        <NotificationBell v-if="$page.props.auth?.user" />
-
-                        <div v-if="$page.props.auth?.user" class="relative">
-                            <button
-                                @click="showUserMenu = !showUserMenu"
-                                class="flex items-center space-x-2 px-4 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                            >
-                                <div class="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold">
-                                    {{ $page.props.auth.user.name.charAt(0).toUpperCase() }}
-                                </div>
-                                <span class="text-sm font-medium text-gray-700 dark:text-gray-200">
-                                    {{ $page.props.auth.user.name }}
-                                </span>
-                            </button>
-
-                            <!-- Dropdown Menu -->
-                            <div v-show="showUserMenu" class="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 py-1 z-50">
-                                <template v-if="hasRole('student')">
-                                    <Link
-                                        href="/profile"
-                                        class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-slate-100 dark:hover:bg-slate-700"
-                                    >
-                                        Profile
-                                    </Link>
-                                    <Link
-                                        href="/settings"
-                                        class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-slate-100 dark:hover:bg-slate-700"
-                                    >
-                                        Settings
-                                    </Link>
-                                    <Link
-                                        v-if="can('view_chat_history')"
-                                        href="/saved"
-                                        class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-slate-100 dark:hover:bg-slate-700"
-                                    >
-                                        📚 Saved Answers
-                                    </Link>
-                                    <hr class="my-1 border-slate-200 dark:border-slate-700">
-                                </template>
-                                <Link
-                                    :href="route('logout')"
-                                    method="post"
-                                    as="button"
-                                    class="block w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-700"
-                                >
-                                    Logout
-                                </Link>
-                            </div>
-                        </div>
-                        <div v-else>
-                            <Link
-                                :href="route('login')"
-                                class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 hover:text-indigo-600 dark:hover:text-indigo-400"
-                            >
-                                Login
-                            </Link>
-                        </div>
-                    </div>
+                <!-- Contextual promo card -->
+                <div class="mt-6 rounded-card bg-primary-soft p-4">
+                    <span class="ui-icon-tile mb-3 bg-primary text-white">
+                        <SparklesIcon class="h-5 w-5" />
+                    </span>
+                    <p class="text-sm font-semibold text-content">{{ meta.promoTitle }}</p>
+                    <p class="mt-0.5 text-xs text-content-muted">Jump straight to what matters.</p>
+                    <Link :href="promoHref" class="ui-btn-primary mt-3 w-full px-3 py-2 text-xs">
+                        {{ meta.promoCta }}
+                        <ArrowRightIcon class="h-3.5 w-3.5" />
+                    </Link>
                 </div>
+            </nav>
+
+            <!-- Footer links -->
+            <div class="flex-shrink-0 space-y-0.5 border-t border-line px-3 py-4">
+                <Link href="/settings" v-if="hasRole('student')" class="ui-nav-link ui-nav-link-idle">
+                    <Cog6ToothIcon class="h-[18px] w-[18px] flex-shrink-0" />
+                    Settings
+                </Link>
+                <Link
+                    :href="route('logout')" method="post" as="button"
+                    class="ui-nav-link w-full text-content-muted transition-colors hover:bg-danger-bg hover:text-danger-fg"
+                >
+                    <ArrowRightOnRectangleIcon class="h-[18px] w-[18px] flex-shrink-0" />
+                    Sign Out
+                </Link>
             </div>
-        </nav>
+        </aside>
 
-        <!-- Flash Messages -->
-        <FlashMessages />
+        <!-- Main column -->
+        <div class="lg:pl-[264px]">
+            <!-- Topbar -->
+            <header class="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-line bg-bg/80 px-4 backdrop-blur-md sm:px-6 lg:px-8">
+                <button type="button" class="rounded-control border border-line bg-surface p-2 text-content-muted shadow-card lg:hidden" @click.stop="sidebarOpen = true" aria-label="Open menu">
+                    <Bars3Icon class="h-5 w-5" />
+                </button>
 
-        <!-- Page Content -->
-        <main>
-            <slot />
-        </main>
+                <!-- Search -->
+                <div class="relative hidden max-w-md flex-1 sm:block">
+                    <MagnifyingGlassIcon class="pointer-events-none absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-content-faint" />
+                    <input
+                        type="search"
+                        placeholder="Search here..."
+                        aria-label="Search"
+                        class="w-full rounded-pill border border-line bg-surface py-2.5 pl-11 pr-16 text-sm text-content shadow-card placeholder:text-content-faint focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    />
+                    <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded-md bg-neutral-bg px-2 py-1 text-[11px] font-semibold text-content-faint">⌘ F</span>
+                </div>
+
+                <div class="ml-auto flex items-center gap-2 sm:gap-3">
+                    <button
+                        type="button"
+                        @click="toggleTheme"
+                        class="flex h-10 w-10 items-center justify-center rounded-pill border border-line bg-surface text-content-muted shadow-card transition-colors hover:bg-primary-soft hover:text-primary"
+                        :aria-label="isDark ? 'Switch to light mode' : 'Switch to dark mode'"
+                        :title="isDark ? 'Switch to light mode' : 'Switch to dark mode'"
+                    >
+                        <SunIcon v-if="isDark" class="h-5 w-5" />
+                        <MoonIcon v-else class="h-5 w-5" />
+                    </button>
+
+                    <NotificationBell v-if="user" />
+
+                    <div v-if="user" class="relative" data-user-menu>
+                        <button @click.stop="showUserMenu = !showUserMenu" class="flex items-center gap-2.5 rounded-pill border border-line bg-surface py-1.5 pl-1.5 pr-2.5 shadow-card transition-colors hover:bg-primary-soft">
+                            <div class="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-sm font-semibold text-white">{{ userInitial }}</div>
+                            <span class="hidden text-left leading-tight sm:block">
+                                <span class="block text-sm font-semibold text-content">{{ user.name }}</span>
+                                <span class="block text-xs capitalize text-content-faint">{{ user.primary_role || meta.label }}</span>
+                            </span>
+                            <ChevronDownIcon class="hidden h-4 w-4 text-content-faint sm:block" />
+                        </button>
+
+                        <Transition
+                            enter-active-class="transition duration-150 ease-out" enter-from-class="opacity-0 scale-95"
+                            leave-active-class="transition duration-100 ease-in" leave-to-class="opacity-0 scale-95"
+                        >
+                            <div v-show="showUserMenu" class="absolute right-0 mt-2 w-56 origin-top-right overflow-hidden rounded-card border border-line bg-surface py-1.5 shadow-card-hover">
+                                <div class="border-b border-line px-4 py-3">
+                                    <p class="truncate text-sm font-semibold text-content">{{ user.name }}</p>
+                                    <p class="truncate text-xs text-content-faint">{{ user.email }}</p>
+                                </div>
+                                <template v-if="hasRole('student')">
+                                    <Link href="/profile" class="flex items-center gap-2.5 px-4 py-2 text-sm text-content-muted hover:bg-primary-soft hover:text-primary"><UserCircleIcon class="h-4 w-4" /> Profile</Link>
+                                    <Link href="/settings" class="flex items-center gap-2.5 px-4 py-2 text-sm text-content-muted hover:bg-primary-soft hover:text-primary"><Cog6ToothIcon class="h-4 w-4" /> Settings</Link>
+                                    <Link v-if="can('view_chat_history')" href="/saved" class="flex items-center gap-2.5 px-4 py-2 text-sm text-content-muted hover:bg-primary-soft hover:text-primary"><BookmarkIcon class="h-4 w-4" /> Saved Answers</Link>
+                                    <div class="my-1 border-t border-line"></div>
+                                </template>
+                                <Link :href="route('logout')" method="post" as="button" class="flex w-full items-center gap-2.5 px-4 py-2 text-left text-sm text-danger-fg hover:bg-danger-bg"><ArrowRightOnRectangleIcon class="h-4 w-4" /> Sign Out</Link>
+                            </div>
+                        </Transition>
+                    </div>
+                    <Link v-else :href="route('login')" class="ui-btn-primary">Login</Link>
+                </div>
+            </header>
+
+            <FlashMessages />
+            <main class="min-h-[calc(100dvh-64px)] animate-fade-in">
+                <slot />
+            </main>
+        </div>
     </div>
 </template>
