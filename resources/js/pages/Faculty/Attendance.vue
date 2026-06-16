@@ -2,11 +2,18 @@
 import { ref, computed, watch } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import PageHeader from '@/components/ui/PageHeader.vue';
+import Card from '@/components/ui/Card.vue';
+import StatCard from '@/components/ui/StatCard.vue';
+import EmptyState from '@/components/ui/EmptyState.vue';
 import {
     ArrowLeftIcon,
     CheckCircleIcon,
+    XCircleIcon,
     CalendarDaysIcon,
     UserGroupIcon,
+    ClipboardDocumentCheckIcon,
+    ChartBarIcon,
 } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
@@ -60,12 +67,24 @@ const presentCount = computed(
     () => entries.value.filter((e) => e.status !== 'absent').length,
 );
 
+const absentCount = computed(
+    () => entries.value.filter((e) => e.status === 'absent').length,
+);
+
 const statusClasses = (status, active) => {
     const map = {
-        present: active ? 'bg-green-500 text-white' : 'text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20',
-        absent: active ? 'bg-red-500 text-white' : 'text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20',
-        late: active ? 'bg-yellow-500 text-white' : 'text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20',
-        excused: active ? 'bg-blue-500 text-white' : 'text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20',
+        present: active
+            ? 'bg-success-fg text-white border-success-fg shadow-sm'
+            : 'text-success-fg border-line hover:bg-success-bg',
+        absent: active
+            ? 'bg-danger-fg text-white border-danger-fg shadow-sm'
+            : 'text-danger-fg border-line hover:bg-danger-bg',
+        late: active
+            ? 'bg-warning-fg text-white border-warning-fg shadow-sm'
+            : 'text-warning-fg border-line hover:bg-warning-bg',
+        excused: active
+            ? 'bg-primary text-white border-primary shadow-sm'
+            : 'text-primary border-line hover:bg-primary-soft',
     };
     return map[status] ?? '';
 };
@@ -86,108 +105,142 @@ const submit = () => {
 </script>
 
 <template>
-    <Head :title="`Attendance — ${course.code}`" />
+    <div>
+        <Head :title="`Attendance — ${course.code}`" />
 
-    <AppLayout>
-        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <!-- Header -->
-            <div class="mb-6">
-                <Link
-                    :href="route('faculty.courses.show', course.id)"
-                    class="inline-flex items-center text-sm text-gray-500 hover:text-indigo-600 mb-2"
+        <AppLayout>
+            <div class="page-container py-8 space-y-6 sm:space-y-8">
+                <PageHeader
+                    title="Attendance"
+                    :subtitle="`${course.code} — ${course.name}`"
+                    :icon="ClipboardDocumentCheckIcon"
+                    eyebrow="Faculty"
                 >
-                    <ArrowLeftIcon class="w-4 h-4 mr-1" /> Back to course
-                </Link>
-                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
-                    Attendance — {{ course.code }}
-                </h1>
-                <p class="text-gray-600 dark:text-gray-400">{{ course.name }}</p>
-            </div>
+                    <template #actions>
+                        <Link
+                            :href="route('faculty.courses.show', course.id)"
+                            class="ui-btn-secondary"
+                        >
+                            <ArrowLeftIcon class="w-4 h-4 mr-1.5" />
+                            Back to course
+                        </Link>
+                    </template>
+                </PageHeader>
 
-            <!-- Controls -->
-            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 mb-6">
-                <div class="flex flex-wrap items-end gap-4 justify-between">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            <CalendarDaysIcon class="w-4 h-4 inline mr-1" /> Session date
-                        </label>
-                        <input
-                            v-model="selectedDate"
-                            type="date"
-                            class="rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                            @change="reloadForDate"
-                        />
-                    </div>
-                    <div class="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
-                        <span class="inline-flex items-center gap-1">
-                            <UserGroupIcon class="w-5 h-5" /> {{ entries.length }} students
-                        </span>
-                        <span class="inline-flex items-center gap-1 text-green-600">
-                            <CheckCircleIcon class="w-5 h-5" /> {{ presentCount }} present
-                        </span>
-                        <span v-if="summary.rate !== null">Course rate: <strong>{{ summary.rate }}%</strong></span>
-                    </div>
+                <!-- Summary stats -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+                    <StatCard
+                        label="Enrolled students"
+                        :value="entries.length"
+                        :icon="UserGroupIcon"
+                        color="emerald"
+                    />
+                    <StatCard
+                        label="Present today"
+                        :value="presentCount"
+                        :icon="CheckCircleIcon"
+                        color="emerald"
+                    />
+                    <StatCard
+                        label="Absent today"
+                        :value="absentCount"
+                        :icon="XCircleIcon"
+                        color="rose"
+                    />
+                    <StatCard
+                        label="Course rate"
+                        :value="summary.rate !== null ? `${summary.rate}%` : '—'"
+                        :icon="ChartBarIcon"
+                        color="blue"
+                    />
                 </div>
 
-                <div class="mt-4 flex flex-wrap gap-2">
-                    <span class="text-sm text-gray-500 self-center mr-1">Mark all:</span>
-                    <button
-                        v-for="status in statuses"
-                        :key="status"
-                        type="button"
-                        class="px-3 py-1 rounded-lg text-sm font-medium border border-gray-200 dark:border-gray-600 capitalize"
-                        :class="statusClasses(status, false)"
-                        @click="setAll(status)"
-                    >
-                        {{ status }}
-                    </button>
-                </div>
-            </div>
+                <!-- Session controls -->
+                <Card title="Session" :icon="CalendarDaysIcon">
+                    <div class="flex flex-wrap items-end gap-4 justify-between">
+                        <div>
+                            <label for="session-date" class="ui-label">
+                                Session date
+                            </label>
+                            <input
+                                id="session-date"
+                                v-model="selectedDate"
+                                type="date"
+                                class="ui-input max-w-xs"
+                                @change="reloadForDate"
+                            />
+                        </div>
 
-            <!-- Roster -->
-            <div v-if="entries.length" class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden">
-                <div
-                    v-for="student in entries"
-                    :key="student.id"
-                    class="flex items-center justify-between gap-4 px-6 py-4 border-b border-gray-100 dark:border-gray-700 last:border-0"
-                >
-                    <div class="flex items-center gap-3 min-w-0">
-                        <img :src="student.avatar" :alt="student.name" class="w-9 h-9 rounded-full" />
-                        <div class="min-w-0">
-                            <p class="font-medium text-gray-900 dark:text-white truncate">{{ student.name }}</p>
-                            <p class="text-xs text-gray-500">{{ student.studentId }}</p>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="text-sm text-content-muted self-center mr-1">Mark all:</span>
+                            <button
+                                v-for="status in statuses"
+                                :key="status"
+                                type="button"
+                                class="px-3 py-1.5 rounded-control text-sm font-medium border capitalize transition-colors"
+                                :class="statusClasses(status, false)"
+                                @click="setAll(status)"
+                            >
+                                {{ status }}
+                            </button>
                         </div>
                     </div>
-                    <div class="flex gap-1">
-                        <button
-                            v-for="status in statuses"
-                            :key="status"
-                            type="button"
-                            class="px-3 py-1.5 rounded-lg text-sm font-medium capitalize transition-colors"
-                            :class="statusClasses(status, student.status === status)"
-                            @click="setStatus(student.id, status)"
+                </Card>
+
+                <!-- Roster -->
+                <Card v-if="entries.length" padding="p-0" title="Student roster" :icon="UserGroupIcon">
+                    <div class="divide-y divide-line">
+                        <div
+                            v-for="student in entries"
+                            :key="student.id"
+                            class="flex items-center justify-between gap-4 px-4 sm:px-6 py-4 hover:bg-bg transition-colors"
                         >
-                            {{ status }}
+                            <div class="flex items-center gap-3 min-w-0">
+                                <img
+                                    :src="student.avatar"
+                                    :alt="student.name"
+                                    class="w-9 h-9 rounded-full ring-1 ring-line"
+                                />
+                                <div class="min-w-0">
+                                    <p class="font-medium text-content truncate">{{ student.name }}</p>
+                                    <p class="text-xs text-content-muted">{{ student.studentId }}</p>
+                                </div>
+                            </div>
+                            <div class="flex flex-wrap gap-1.5 justify-end">
+                                <button
+                                    v-for="status in statuses"
+                                    :key="status"
+                                    type="button"
+                                    class="px-3 py-1.5 rounded-control text-sm font-medium border capitalize transition-colors"
+                                    :class="statusClasses(status, student.status === status)"
+                                    @click="setStatus(student.id, status)"
+                                >
+                                    {{ status }}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="px-4 sm:px-6 py-4 bg-bg border-t border-line flex justify-end">
+                        <button
+                            type="button"
+                            :disabled="form.processing"
+                            class="ui-btn-primary disabled:opacity-50"
+                            @click="submit"
+                        >
+                            <CheckCircleIcon class="w-5 h-5 mr-1.5" />
+                            {{ form.processing ? 'Saving…' : 'Save attendance' }}
                         </button>
                     </div>
-                </div>
+                </Card>
 
-                <div class="px-6 py-4 bg-gray-50 dark:bg-gray-900/40 flex justify-end">
-                    <button
-                        type="button"
-                        :disabled="form.processing"
-                        class="px-5 py-2 rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-700 disabled:opacity-50"
-                        @click="submit"
-                    >
-                        {{ form.processing ? 'Saving…' : 'Save attendance' }}
-                    </button>
-                </div>
+                <EmptyState
+                    v-else
+                    title="No students enrolled"
+                    description="No students are enrolled in this course."
+                    :icon="UserGroupIcon"
+                />
             </div>
-
-            <div v-else class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-12 text-center">
-                <UserGroupIcon class="w-12 h-12 mx-auto text-gray-300 mb-3" />
-                <p class="text-gray-500 dark:text-gray-400">No students are enrolled in this course.</p>
-            </div>
-        </div>
-    </AppLayout>
+        </AppLayout>
+    </div>
 </template>

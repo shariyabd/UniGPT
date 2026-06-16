@@ -4,6 +4,10 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import axios from 'axios';
 import { useToast } from 'vue-toastification';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import PageHeader from '@/components/ui/PageHeader.vue';
+import Card from '@/components/ui/Card.vue';
+import Badge from '@/components/ui/Badge.vue';
+import EmptyState from '@/components/ui/EmptyState.vue';
 import {
     DocumentTextIcon,
     CheckCircleIcon,
@@ -11,7 +15,9 @@ import {
     PencilIcon,
     MagnifyingGlassIcon,
     CalendarIcon,
-    SparklesIcon
+    SparklesIcon,
+    ClipboardDocumentCheckIcon,
+    ArrowLeftIcon,
 } from '@heroicons/vue/24/outline';
 
 // Component state
@@ -138,21 +144,31 @@ const formatDate = (dateString) => {
 };
 
 const getStatusColor = (status, isLate = false) => {
-    if (isLate) return 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400';
+    if (isLate) return 'bg-warning-bg text-warning-fg';
 
     const colors = {
-        submitted: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-        graded: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-        missing: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+        submitted: 'bg-primary-soft text-primary',
+        graded: 'bg-success-bg text-success-fg',
+        missing: 'bg-danger-bg text-danger-fg'
     };
     return colors[status] || colors.submitted;
 };
 
+const getStatusVariant = (status, isLate = false) => {
+    if (isLate) return 'warning';
+    const variants = {
+        submitted: 'info',
+        graded: 'success',
+        missing: 'danger',
+    };
+    return variants[status] || 'info';
+};
+
 const getGradeColor = (grade) => {
-    if (grade >= 90) return 'text-green-600 dark:text-green-400';
-    if (grade >= 80) return 'text-blue-600 dark:text-blue-400';
-    if (grade >= 70) return 'text-yellow-600 dark:text-yellow-400';
-    return 'text-red-600 dark:text-red-400';
+    if (grade >= 90) return 'text-success-fg';
+    if (grade >= 80) return 'text-primary';
+    if (grade >= 70) return 'text-warning-fg';
+    return 'text-danger-fg';
 };
 
 // Actions
@@ -231,256 +247,226 @@ if (assignments.value.length > 0) {
         <Head title="Grading Interface" />
 
         <AppLayout>
-            <div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-950">
-                <!-- Header -->
-                <div class="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 dark:from-indigo-900 dark:via-purple-900 dark:to-pink-900">
-                    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-                        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-                            <div>
-                                <h1 class="text-4xl font-bold text-white mb-2">
-                                    📝 Grading Interface
-                                </h1>
-                                <p class="text-xl text-white/90 mb-2">
-                                    {{ courseData.code }} - {{ courseData.name }}
-                                </p>
-                                <p class="text-white/80">
-                                    {{ courseData.students }} Students
-                                </p>
+            <div class="page-container py-8 space-y-6 sm:space-y-8">
+                <PageHeader
+                    title="Grading"
+                    :subtitle="`${courseData.code} · ${courseData.name} · ${courseData.students} students`"
+                    :icon="ClipboardDocumentCheckIcon"
+                    eyebrow="Faculty"
+                >
+                    <template #actions>
+                        <div class="flex items-center gap-3">
+                            <div class="hidden sm:flex flex-col items-end rounded-card border border-success-fg/20 bg-success-bg px-4 py-2">
+                                <span class="text-xs font-medium text-success-fg">Grading Progress</span>
+                                <span class="text-xl font-bold text-success-fg">{{ gradingStats.completionRate }}%</span>
+                                <span class="text-[11px] text-success-fg/80">{{ gradingStats.pendingCount }} pending</span>
                             </div>
-
-                            <div class="flex items-center gap-4">
-                                <!-- Grading Progress -->
-                                <div class="bg-white/20 backdrop-blur-lg rounded-xl px-6 py-3 text-white">
-                                    <div class="text-sm font-medium">Grading Progress</div>
-                                    <div class="text-2xl font-bold">{{ gradingStats.completionRate }}%</div>
-                                    <div class="text-xs text-white/80">{{ gradingStats.pendingCount }} pending</div>
-                                </div>
-
-                                <Link
-                                    href="/faculty/dashboard"
-                                    class="bg-white/20 backdrop-blur-lg border border-white/20 rounded-xl text-white px-6 py-3 font-medium hover:bg-white/30 transition-all"
-                                >
-                                    ← Dashboard
-                                </Link>
-                            </div>
+                            <Link href="/faculty/dashboard" class="ui-btn-secondary">
+                                <ArrowLeftIcon class="w-4 h-4" />
+                                Dashboard
+                            </Link>
                         </div>
-                    </div>
-                </div>
+                    </template>
+                </PageHeader>
 
-                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 -mt-6">
-                    <!-- Assignment Selection & Stats -->
-                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 mb-8">
-                        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-                            <!-- Assignment Selector -->
-                            <div class="flex-1">
-                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                    Select Assignment to Grade
-                                </label>
-                                <select
-                                    v-model="selectedAssignment"
-                                    @change="selectAssignment(selectedAssignment)"
-                                    class="w-full max-w-md px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                                >
-                                    <option v-for="assignment in assignments" :key="assignment.id" :value="assignment.id">
-                                        {{ assignment.title }} ({{ assignment.submissions.pending }} pending)
-                                    </option>
-                                </select>
-                            </div>
-
-                            <!-- Assignment Stats -->
-                            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                                <div class="text-center">
-                                    <div class="text-2xl font-bold text-gray-900 dark:text-white">{{ currentAssignment.submissions.total }}</div>
-                                    <div class="text-xs text-gray-600 dark:text-gray-400">Total</div>
-                                </div>
-                                <div class="text-center">
-                                    <div class="text-2xl font-bold text-green-600 dark:text-green-400">{{ currentAssignment.submissions.graded }}</div>
-                                    <div class="text-xs text-gray-600 dark:text-gray-400">Graded</div>
-                                </div>
-                                <div class="text-center">
-                                    <div class="text-2xl font-bold text-orange-600 dark:text-orange-400">{{ currentAssignment.submissions.pending }}</div>
-                                    <div class="text-xs text-gray-600 dark:text-gray-400">Pending</div>
-                                </div>
-                                <div class="text-center">
-                                    <div class="text-2xl font-bold text-red-600 dark:text-red-400">{{ currentAssignment.submissions.late }}</div>
-                                    <div class="text-xs text-gray-600 dark:text-gray-400">Late</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Assignment Details -->
-                        <div class="mt-6 p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl">
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                                <div>
-                                    <span class="font-medium text-gray-700 dark:text-gray-300">Type:</span>
-                                    <span class="ml-2 text-gray-900 dark:text-white">{{ currentAssignment.type }}</span>
-                                </div>
-                                <div>
-                                    <span class="font-medium text-gray-700 dark:text-gray-300">Due Date:</span>
-                                    <span class="ml-2 text-gray-900 dark:text-white">{{ formatDate(currentAssignment.dueDate) }}</span>
-                                </div>
-                                <div>
-                                    <span class="font-medium text-gray-700 dark:text-gray-300">Total Points:</span>
-                                    <span class="ml-2 font-bold text-gray-900 dark:text-white">{{ currentAssignment.totalPoints }}</span>
-                                </div>
-                            </div>
-                            <div v-if="currentAssignment.averageGrade" class="mt-2 text-sm">
-                                <span class="font-medium text-gray-700 dark:text-gray-300">Average Grade:</span>
-                                <span :class="`ml-2 font-bold ${getGradeColor(currentAssignment.averageGrade)}`">
-                                    {{ currentAssignment.averageGrade.toFixed(1) }}%
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Filters and Controls -->
-                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 mb-8">
-                        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                            <!-- Search and Filters -->
-                            <div class="flex flex-col sm:flex-row gap-4 flex-1">
-                                <!-- Search -->
-                                <div class="relative flex-1 max-w-md">
-                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <MagnifyingGlassIcon class="h-5 w-5 text-gray-400" />
-                                    </div>
-                                    <input
-                                        v-model="searchQuery"
-                                        type="text"
-                                        placeholder="Search students..."
-                                        class="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                                    />
-                                </div>
-
-                                <!-- Status Filter -->
-                                <select
-                                    v-model="filterStatus"
-                                    class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                                >
-                                    <option v-for="status in statusOptions" :key="status.value" :value="status.value">
-                                        {{ status.label }}
-                                    </option>
-                                </select>
-
-                                <!-- Sort By -->
-                                <select
-                                    v-model="sortBy"
-                                    class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                                >
-                                    <option v-for="sort in sortOptions" :key="sort.value" :value="sort.value">
-                                        Sort by {{ sort.label }}
-                                    </option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Submissions List -->
-                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden">
-                        <!-- Table Header -->
-                        <div class="bg-gray-50 dark:bg-gray-900 px-6 py-3">
-                            <div class="flex items-center">
-                                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    {{ filteredSubmissions.length }} Submissions
-                                </span>
-                            </div>
-                        </div>
-
-                        <!-- Submissions -->
-                        <div class="divide-y divide-gray-200 dark:divide-gray-700">
-                            <div
-                                v-for="submission in filteredSubmissions"
-                                :key="submission.id"
-                                class="p-6 hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors"
+                <!-- Assignment Selection & Stats -->
+                <Card>
+                    <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
+                        <!-- Assignment Selector -->
+                        <div class="flex-1">
+                            <label class="ui-label">Select Assignment to Grade</label>
+                            <select
+                                v-model="selectedAssignment"
+                                @change="selectAssignment(selectedAssignment)"
+                                class="ui-input max-w-md"
                             >
-                                <div class="flex items-start gap-4">
-                                    <!-- Student Avatar -->
-                                    <img
-                                        :src="submission.student.avatar"
-                                        :alt="submission.student.name"
-                                        class="w-12 h-12 rounded-full flex-shrink-0"
-                                    />
+                                <option v-for="assignment in assignments" :key="assignment.id" :value="assignment.id">
+                                    {{ assignment.title }} ({{ assignment.submissions.pending }} pending)
+                                </option>
+                            </select>
+                        </div>
 
-                                    <!-- Submission Details -->
-                                    <div class="flex-1 min-w-0">
-                                        <div class="flex items-start justify-between gap-4">
-                                            <div class="flex-1">
-                                                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-                                                    {{ submission.student.name }}
-                                                </h3>
-                                                <p class="text-sm text-gray-600 dark:text-gray-400">
-                                                    {{ submission.student.email }}
-                                                </p>
+                        <!-- Assignment Stats -->
+                        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div class="text-center rounded-card bg-bg px-4 py-3">
+                                <div class="text-2xl font-bold text-content">{{ currentAssignment.submissions.total }}</div>
+                                <div class="text-xs text-content-muted">Total</div>
+                            </div>
+                            <div class="text-center rounded-card bg-bg px-4 py-3">
+                                <div class="text-2xl font-bold text-success-fg">{{ currentAssignment.submissions.graded }}</div>
+                                <div class="text-xs text-content-muted">Graded</div>
+                            </div>
+                            <div class="text-center rounded-card bg-bg px-4 py-3">
+                                <div class="text-2xl font-bold text-warning-fg">{{ currentAssignment.submissions.pending }}</div>
+                                <div class="text-xs text-content-muted">Pending</div>
+                            </div>
+                            <div class="text-center rounded-card bg-bg px-4 py-3">
+                                <div class="text-2xl font-bold text-danger-fg">{{ currentAssignment.submissions.late }}</div>
+                                <div class="text-xs text-content-muted">Late</div>
+                            </div>
+                        </div>
+                    </div>
 
-                                                <!-- Submission Info -->
-                                                <div class="flex flex-wrap items-center gap-4 mt-2 text-sm">
-                                                    <div class="flex items-center gap-1">
-                                                        <CalendarIcon class="w-4 h-4 text-gray-500" />
-                                                        <span class="text-gray-600 dark:text-gray-400">
-                                                            {{ formatDateTime(submission.submittedAt) }}
-                                                        </span>
-                                                    </div>
+                    <!-- Assignment Details -->
+                    <div class="mt-6 p-4 bg-bg rounded-card">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                            <div>
+                                <span class="font-medium text-content-muted">Type:</span>
+                                <span class="ml-2 text-content">{{ currentAssignment.type }}</span>
+                            </div>
+                            <div>
+                                <span class="font-medium text-content-muted">Due Date:</span>
+                                <span class="ml-2 text-content">{{ formatDate(currentAssignment.dueDate) }}</span>
+                            </div>
+                            <div>
+                                <span class="font-medium text-content-muted">Total Points:</span>
+                                <span class="ml-2 font-bold text-content">{{ currentAssignment.totalPoints }}</span>
+                            </div>
+                        </div>
+                        <div v-if="currentAssignment.averageGrade" class="mt-2 text-sm">
+                            <span class="font-medium text-content-muted">Average Grade:</span>
+                            <span :class="`ml-2 font-bold ${getGradeColor(currentAssignment.averageGrade)}`">
+                                {{ currentAssignment.averageGrade.toFixed(1) }}%
+                            </span>
+                        </div>
+                    </div>
+                </Card>
 
-                                                    <span :class="`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(submission.status, submission.isLate)}`">
-                                                        {{ submission.isLate ? 'Late' : submission.status }}
+                <!-- Filters and Controls -->
+                <Card>
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <!-- Search -->
+                        <div class="relative flex-1 max-w-md">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <MagnifyingGlassIcon class="h-5 w-5 text-content-faint" />
+                            </div>
+                            <input
+                                v-model="searchQuery"
+                                type="text"
+                                placeholder="Search students..."
+                                class="ui-input pl-10"
+                            />
+                        </div>
+
+                        <!-- Status Filter -->
+                        <select v-model="filterStatus" class="ui-input sm:w-auto">
+                            <option v-for="status in statusOptions" :key="status.value" :value="status.value">
+                                {{ status.label }}
+                            </option>
+                        </select>
+
+                        <!-- Sort By -->
+                        <select v-model="sortBy" class="ui-input sm:w-auto">
+                            <option v-for="sort in sortOptions" :key="sort.value" :value="sort.value">
+                                Sort by {{ sort.label }}
+                            </option>
+                        </select>
+                    </div>
+                </Card>
+
+                <!-- Submissions List -->
+                <Card padding="p-0">
+                    <!-- List Header -->
+                    <div class="px-5 sm:px-6 py-3 border-b border-line">
+                        <span class="text-sm font-medium text-content-muted">
+                            {{ filteredSubmissions.length }} Submissions
+                        </span>
+                    </div>
+
+                    <!-- Submissions -->
+                    <div class="divide-y divide-line">
+                        <div
+                            v-for="submission in filteredSubmissions"
+                            :key="submission.id"
+                            class="p-5 sm:p-6 hover:bg-bg transition-colors"
+                        >
+                            <div class="flex items-start gap-4">
+                                <!-- Student Avatar -->
+                                <img
+                                    :src="submission.student.avatar"
+                                    :alt="submission.student.name"
+                                    class="w-12 h-12 rounded-full flex-shrink-0 ring-2 ring-line"
+                                />
+
+                                <!-- Submission Details -->
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-start justify-between gap-4">
+                                        <div class="flex-1 min-w-0">
+                                            <h3 class="text-lg font-semibold text-content">
+                                                {{ submission.student.name }}
+                                            </h3>
+                                            <p class="text-sm text-content-muted truncate">
+                                                {{ submission.student.email }}
+                                            </p>
+
+                                            <!-- Submission Info -->
+                                            <div class="flex flex-wrap items-center gap-3 mt-2 text-sm">
+                                                <div class="flex items-center gap-1.5">
+                                                    <CalendarIcon class="w-4 h-4 text-content-faint" />
+                                                    <span class="text-content-muted">
+                                                        {{ formatDateTime(submission.submittedAt) }}
                                                     </span>
                                                 </div>
 
-                                                <!-- Existing Grade & Feedback -->
-                                                <div v-if="submission.status === 'graded'" class="mt-4 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                                                    <div class="flex items-center gap-2 mb-2">
-                                                        <CheckCircleIcon class="w-4 h-4 text-green-600" />
-                                                        <span class="text-sm font-medium text-green-800 dark:text-green-400">
-                                                            Graded: {{ submission.grade }}/{{ currentAssignment.totalPoints }}
-                                                        </span>
-                                                        <span :class="`font-bold ${getGradeColor(submission.grade)}`">
-                                                            ({{ ((submission.grade / currentAssignment.totalPoints) * 100).toFixed(1) }}%)
-                                                        </span>
-                                                    </div>
-                                                    <p v-if="submission.feedback" class="text-sm text-gray-700 dark:text-gray-300">
-                                                        {{ submission.feedback }}
-                                                    </p>
-                                                </div>
+                                                <Badge :variant="getStatusVariant(submission.status, submission.isLate)">
+                                                    {{ submission.isLate ? 'Late' : submission.status }}
+                                                </Badge>
                                             </div>
 
-                                            <!-- Grade Display -->
-                                            <div class="text-right">
-                                                <div v-if="submission.grade !== null" :class="`text-3xl font-bold ${getGradeColor(submission.grade)}`">
-                                                    {{ submission.grade }}
+                                            <!-- Existing Grade & Feedback -->
+                                            <div v-if="submission.status === 'graded'" class="mt-4 p-3 bg-success-bg border border-success-fg/20 rounded-card">
+                                                <div class="flex items-center gap-2 mb-2">
+                                                    <CheckCircleIcon class="w-4 h-4 text-success-fg" />
+                                                    <span class="text-sm font-medium text-success-fg">
+                                                        Graded: {{ submission.grade }}/{{ currentAssignment.totalPoints }}
+                                                    </span>
+                                                    <span :class="`font-bold ${getGradeColor(submission.grade)}`">
+                                                        ({{ ((submission.grade / currentAssignment.totalPoints) * 100).toFixed(1) }}%)
+                                                    </span>
                                                 </div>
-                                                <div v-else class="text-3xl font-bold text-gray-400">
-                                                    —
-                                                </div>
-                                                <div class="text-xs text-gray-500 dark:text-gray-400">
-                                                    / {{ currentAssignment.totalPoints }}
-                                                </div>
+                                                <p v-if="submission.feedback" class="text-sm text-content-muted whitespace-pre-line">
+                                                    {{ submission.feedback }}
+                                                </p>
                                             </div>
                                         </div>
 
-                                        <!-- Action Buttons -->
-                                        <div class="flex items-center gap-2 mt-4">
-                                            <button
-                                                @click="openGradingPanel(submission)"
-                                                class="flex items-center gap-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-                                            >
-                                                <PencilIcon class="w-4 h-4" />
-                                                {{ submission.status === 'graded' ? 'Re-grade' : 'Grade' }}
-                                            </button>
+                                        <!-- Grade Display -->
+                                        <div class="text-right flex-shrink-0">
+                                            <div v-if="submission.grade !== null" :class="`text-3xl font-bold ${getGradeColor(submission.grade)}`">
+                                                {{ submission.grade }}
+                                            </div>
+                                            <div v-else class="text-3xl font-bold text-content-faint">
+                                                —
+                                            </div>
+                                            <div class="text-xs text-content-muted">
+                                                / {{ currentAssignment.totalPoints }}
+                                            </div>
                                         </div>
+                                    </div>
+
+                                    <!-- Action Buttons -->
+                                    <div class="flex items-center gap-2 mt-4">
+                                        <button
+                                            @click="openGradingPanel(submission)"
+                                            class="ui-btn-primary"
+                                        >
+                                            <PencilIcon class="w-4 h-4" />
+                                            {{ submission.status === 'graded' ? 'Re-grade' : 'Grade' }}
+                                        </button>
                                     </div>
                                 </div>
                             </div>
                         </div>
-
-                        <!-- Empty State -->
-                        <div v-if="filteredSubmissions.length === 0" class="text-center py-16">
-                            <DocumentTextIcon class="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                            <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">No submissions found</h3>
-                            <p class="text-gray-600 dark:text-gray-400">
-                                Try adjusting your filters or search terms.
-                            </p>
-                        </div>
                     </div>
-                </div>
+
+                    <!-- Empty State -->
+                    <EmptyState
+                        v-if="filteredSubmissions.length === 0"
+                        :icon="DocumentTextIcon"
+                        title="No submissions found"
+                        description="Try adjusting your filters or search terms."
+                    />
+                </Card>
             </div>
 
             <!-- Grading Panel Modal -->
@@ -488,21 +474,22 @@ if (assignments.value.length > 0) {
                 <div class="flex min-h-full items-center justify-center p-4">
                     <div class="fixed inset-0 bg-black/60 backdrop-blur-sm" @click="closeGradingPanel"></div>
 
-                    <div class="relative w-full max-w-4xl bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
+                    <div class="relative w-full max-w-4xl bg-surface rounded-card border border-line shadow-card max-h-[90vh] overflow-y-auto">
                         <div class="p-6">
                             <!-- Modal Header -->
                             <div class="flex items-center justify-between mb-6">
                                 <div>
-                                    <h3 class="text-2xl font-bold text-gray-900 dark:text-white">
+                                    <h3 class="text-2xl font-bold text-content">
                                         Grade Submission
                                     </h3>
-                                    <p class="text-gray-600 dark:text-gray-400">
+                                    <p class="text-content-muted">
                                         {{ selectedSubmission?.student.name }} - {{ currentAssignment.title }}
                                     </p>
                                 </div>
                                 <button
                                     @click="closeGradingPanel"
-                                    class="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                                    aria-label="Close grading panel"
+                                    class="p-2 text-content-faint hover:text-content-muted rounded-control hover:bg-bg transition-colors"
                                 >
                                     <XCircleIcon class="w-6 h-6" />
                                 </button>
@@ -512,18 +499,18 @@ if (assignments.value.length > 0) {
                                 <!-- Left Column - Submission Info -->
                                 <div>
                                     <!-- Student Info -->
-                                    <div class="mb-6 p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl">
+                                    <div class="mb-6 p-4 bg-bg rounded-card">
                                         <div class="flex items-center gap-3 mb-3">
                                             <img
                                                 :src="selectedSubmission?.student.avatar"
                                                 :alt="selectedSubmission?.student.name"
-                                                class="w-12 h-12 rounded-full"
+                                                class="w-12 h-12 rounded-full ring-2 ring-line"
                                             />
                                             <div>
-                                                <h4 class="font-semibold text-gray-900 dark:text-white">
+                                                <h4 class="font-semibold text-content">
                                                     {{ selectedSubmission?.student.name }}
                                                 </h4>
-                                                <p class="text-sm text-gray-600 dark:text-gray-400">
+                                                <p class="text-sm text-content-muted">
                                                     {{ selectedSubmission?.student.email }}
                                                 </p>
                                             </div>
@@ -531,14 +518,14 @@ if (assignments.value.length > 0) {
 
                                         <div class="grid grid-cols-2 gap-4 text-sm">
                                             <div>
-                                                <span class="font-medium text-gray-700 dark:text-gray-300">Submitted:</span>
-                                                <div class="text-gray-900 dark:text-white">
+                                                <span class="font-medium text-content-muted">Submitted:</span>
+                                                <div class="text-content">
                                                     {{ formatDateTime(selectedSubmission?.submittedAt) }}
                                                 </div>
                                             </div>
                                             <div>
-                                                <span class="font-medium text-gray-700 dark:text-gray-300">Status:</span>
-                                                <span :class="`ml-1 px-2 py-1 text-xs rounded-full ${getStatusColor(selectedSubmission?.status, selectedSubmission?.isLate)}`">
+                                                <span class="font-medium text-content-muted">Status:</span>
+                                                <span :class="`ml-1 px-2 py-1 text-xs rounded-pill ${getStatusColor(selectedSubmission?.status, selectedSubmission?.isLate)}`">
                                                     {{ selectedSubmission?.isLate ? 'Late' : selectedSubmission?.status }}
                                                 </span>
                                             </div>
@@ -551,7 +538,7 @@ if (assignments.value.length > 0) {
                                 <div>
                                     <!-- Grade Input -->
                                     <div class="mb-6">
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                        <label class="ui-label">
                                             Grade (out of {{ currentAssignment.totalPoints }})
                                         </label>
                                         <input
@@ -560,41 +547,39 @@ if (assignments.value.length > 0) {
                                             :max="currentAssignment.totalPoints"
                                             min="0"
                                             step="0.5"
-                                            class="w-full px-4 py-3 text-lg border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                                            class="ui-input text-lg"
                                             placeholder="Enter grade..."
                                         />
-                                        <div v-if="currentGrade" class="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                                        <div v-if="currentGrade" class="mt-1 text-sm text-content-muted">
                                             Percentage: {{ ((currentGrade / currentAssignment.totalPoints) * 100).toFixed(1) }}%
                                         </div>
                                     </div>
 
                                     <!-- Quick Grade Buttons -->
                                     <div class="mb-6">
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                            Quick Grades
-                                        </label>
+                                        <label class="ui-label">Quick Grades</label>
                                         <div class="grid grid-cols-4 gap-2">
                                             <button
                                                 @click="currentGrade = currentAssignment.totalPoints"
-                                                class="py-2 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 rounded-lg hover:bg-green-200 dark:hover:bg-green-900/50 text-sm font-medium"
+                                                class="py-2 bg-success-bg text-success-fg rounded-control hover:opacity-80 text-sm font-medium transition-colors"
                                             >
                                                 A (100%)
                                             </button>
                                             <button
                                                 @click="currentGrade = Math.round(currentAssignment.totalPoints * 0.9)"
-                                                class="py-2 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50 text-sm font-medium"
+                                                class="py-2 bg-primary-soft text-primary rounded-control hover:opacity-80 text-sm font-medium transition-colors"
                                             >
                                                 A- (90%)
                                             </button>
                                             <button
                                                 @click="currentGrade = Math.round(currentAssignment.totalPoints * 0.85)"
-                                                class="py-2 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400 rounded-lg hover:bg-yellow-200 dark:hover:bg-yellow-900/50 text-sm font-medium"
+                                                class="py-2 bg-warning-bg text-warning-fg rounded-control hover:opacity-80 text-sm font-medium transition-colors"
                                             >
                                                 B+ (85%)
                                             </button>
                                             <button
                                                 @click="currentGrade = Math.round(currentAssignment.totalPoints * 0.8)"
-                                                class="py-2 bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-400 rounded-lg hover:bg-orange-200 dark:hover:bg-orange-900/50 text-sm font-medium"
+                                                class="py-2 bg-neutral-bg text-neutral-fg rounded-control hover:opacity-80 text-sm font-medium transition-colors"
                                             >
                                                 B (80%)
                                             </button>
@@ -603,24 +588,24 @@ if (assignments.value.length > 0) {
 
                                     <!-- Rubric Grading -->
                                     <div v-if="currentAssignment.rubric" class="mb-6">
-                                        <h4 class="font-semibold text-gray-900 dark:text-white mb-3">Rubric Breakdown</h4>
+                                        <h4 class="font-semibold text-content mb-3">Rubric Breakdown</h4>
                                         <div class="space-y-3">
                                             <div
                                                 v-for="criterion in currentAssignment.rubric.criteria"
                                                 :key="criterion.name"
-                                                class="p-3 border border-gray-200 dark:border-gray-700 rounded-lg"
+                                                class="p-3 border border-line rounded-card"
                                             >
                                                 <div class="flex items-center justify-between mb-2">
-                                                    <span class="font-medium text-gray-900 dark:text-white">{{ criterion.name }}</span>
-                                                    <span class="text-sm text-gray-600 dark:text-gray-400">/ {{ criterion.points }}</span>
+                                                    <span class="font-medium text-content">{{ criterion.name }}</span>
+                                                    <span class="text-sm text-content-muted">/ {{ criterion.points }}</span>
                                                 </div>
-                                                <p class="text-xs text-gray-600 dark:text-gray-400 mb-2">{{ criterion.description }}</p>
+                                                <p class="text-xs text-content-muted mb-2">{{ criterion.description }}</p>
                                                 <input
                                                     type="number"
                                                     :max="criterion.points"
                                                     min="0"
                                                     step="0.5"
-                                                    class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                                                    class="ui-input text-sm"
                                                     :placeholder="`0 - ${criterion.points}`"
                                                 />
                                             </div>
@@ -630,26 +615,26 @@ if (assignments.value.length > 0) {
                                     <!-- Feedback -->
                                     <div class="mb-6">
                                         <div class="flex items-center justify-between mb-2">
-                                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                            <label class="ui-label mb-0">
                                                 Feedback & Comments
                                             </label>
                                             <button
                                                 type="button"
                                                 @click="draftFeedback"
                                                 :disabled="isDraftingFeedback"
-                                                class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-900/50 disabled:opacity-50"
+                                                class="ui-btn-secondary !py-1.5 !px-3 text-xs disabled:opacity-50"
                                             >
-                                                <SparklesIcon class="w-4 h-4" />
+                                                <SparklesIcon class="w-4 h-4 text-primary" />
                                                 {{ isDraftingFeedback ? 'Drafting…' : 'Draft with AI' }}
                                             </button>
                                         </div>
                                         <textarea
                                             v-model="currentFeedback"
                                             rows="6"
-                                            class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-900 text-gray-900 dark:text-white resize-none"
+                                            class="ui-input resize-none"
                                             placeholder="Provide detailed feedback for the student…"
                                         ></textarea>
-                                        <p class="mt-1 text-xs text-gray-400">AI drafts a starting point from the submission and rubric — review and edit before saving.</p>
+                                        <p class="mt-1 text-xs text-content-faint">AI drafts a starting point from the submission and rubric — review and edit before saving.</p>
                                     </div>
 
                                     <!-- Submit Buttons -->
@@ -657,14 +642,14 @@ if (assignments.value.length > 0) {
                                         <button
                                             @click="submitGrade"
                                             :disabled="!currentGrade || isGrading"
-                                            class="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                            class="ui-btn-primary flex-1 justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                             <CheckCircleIcon class="w-5 h-5" />
                                             {{ isGrading ? 'Submitting...' : 'Submit Grade' }}
                                         </button>
                                         <button
                                             @click="closeGradingPanel"
-                                            class="px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                                            class="ui-btn-secondary"
                                         >
                                             Cancel
                                         </button>
@@ -699,9 +684,5 @@ if (assignments.value.length > 0) {
 .overflow-y-auto::-webkit-scrollbar-thumb {
     background: #cbd5e1;
     border-radius: 3px;
-}
-
-.dark .overflow-y-auto::-webkit-scrollbar-thumb {
-    background: #475569;
 }
 </style>

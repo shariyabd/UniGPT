@@ -3,6 +3,9 @@ import { computed } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { usePermissions } from '@/composables/usePermissions';
+import Card from '@/components/ui/Card.vue';
+import StatCard from '@/components/ui/StatCard.vue';
+import EmptyState from '@/components/ui/EmptyState.vue';
 import {
     AcademicCapIcon,
     BookOpenIcon,
@@ -12,6 +15,7 @@ import {
     ChartBarIcon,
     ClockIcon,
     ArrowRightIcon,
+    PlusIcon,
 } from '@heroicons/vue/24/outline';
 
 const { can } = usePermissions();
@@ -32,10 +36,13 @@ const statIconMap = {
     ChartBarIcon,
 };
 
+const statColors = ['success', 'primary', 'primary', 'warning'];
+
 const courseStats = computed(() =>
-    props.courseStats.map((stat) => ({
+    props.courseStats.map((stat, index) => ({
         ...stat,
         icon: statIconMap[stat.icon] ?? ChartBarIcon,
+        color: statColors[index % statColors.length],
     }))
 );
 
@@ -53,23 +60,27 @@ const quickActions = [
         description: 'Generate quizzes and assignments',
         icon: SparklesIcon,
         route: 'faculty.ai-assistant',
-        gradient: 'from-purple-500 to-indigo-600',
     },
     {
         title: 'Grade Submissions',
         description: 'Review and grade student work',
         icon: DocumentTextIcon,
         route: 'faculty.grading',
-        gradient: 'from-orange-500 to-red-600',
     },
     {
         title: 'My Courses',
         description: 'Manage courses and materials',
         icon: BookOpenIcon,
         route: 'faculty.courses',
-        gradient: 'from-green-500 to-emerald-600',
     },
 ];
+
+const facultySubtitle = computed(() => {
+    const parts = [];
+    if (props.faculty.department) parts.push(props.faculty.department);
+    if (props.faculty.employeeId) parts.push(props.faculty.employeeId);
+    return parts.join(' • ');
+});
 </script>
 
 <template>
@@ -77,142 +88,163 @@ const quickActions = [
         <Head title="Faculty Dashboard" />
 
         <AppLayout>
-            <div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-950">
-                <!-- Header -->
-                <div class="bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 dark:from-emerald-900 dark:via-teal-900 dark:to-cyan-900">
-                    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-                        <div class="flex flex-col sm:flex-row sm:items-center gap-6">
-                            <img
-                                :src="faculty.avatar"
-                                :alt="faculty.name"
-                                class="w-20 h-20 rounded-2xl border-4 border-white/30"
-                            />
-                            <div>
-                                <h1 class="text-3xl font-bold text-white">
-                                    {{ greeting }}, {{ faculty.name }}
-                                </h1>
-                                <p class="text-white/80 mt-1">
-                                    <span v-if="faculty.department">{{ faculty.department }}</span>
-                                    <span v-if="faculty.employeeId"> • {{ faculty.employeeId }}</span>
-                                </p>
-                                <p class="text-white/70 text-sm">{{ faculty.email }}</p>
-                            </div>
+            <div class="page-container py-8 space-y-6 sm:space-y-8">
+                <!-- Greeting + page intro -->
+                <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div class="flex items-center gap-4">
+                        <img
+                            v-if="faculty.avatar"
+                            :src="faculty.avatar"
+                            alt="Profile"
+                            class="h-14 w-14 flex-shrink-0 rounded-card object-cover ring-1 ring-line"
+                        />
+                        <span
+                            v-else
+                            class="ui-icon-tile h-14 w-14 rounded-card bg-primary-soft text-primary"
+                        >
+                            <AcademicCapIcon class="h-7 w-7" />
+                        </span>
+                        <div class="min-w-0">
+                            <h1 class="text-2xl font-bold tracking-tight text-content">
+                                {{ greeting }}, {{ faculty.name }}
+                            </h1>
+                            <p class="mt-0.5 text-sm text-content-muted">
+                                {{ facultySubtitle || faculty.email }}
+                            </p>
                         </div>
+                    </div>
+                    <div class="flex flex-wrap gap-3">
+                        <Link
+                            v-if="can('create_course')"
+                            :href="route('faculty.courses.create')"
+                            class="ui-btn-primary"
+                        >
+                            <PlusIcon class="w-4 h-4" />
+                            New Course
+                        </Link>
                     </div>
                 </div>
 
-                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 -mt-6 space-y-8">
-                    <!-- Stats -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                        <div
-                            v-for="stat in courseStats"
-                            :key="stat.label"
-                            class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6"
-                        >
-                            <div :class="`w-12 h-12 rounded-xl bg-gradient-to-br ${stat.gradient} flex items-center justify-center mb-4`">
-                                <component :is="stat.icon" class="w-6 h-6 text-white" />
-                            </div>
-                            <div class="text-3xl font-bold text-gray-900 dark:text-white">{{ stat.value }}</div>
-                            <div class="text-sm text-gray-500 dark:text-gray-400">{{ stat.label }}</div>
-                        </div>
-                    </div>
+                <!-- KPI cards (pastel, filled) -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+                    <StatCard
+                        v-for="(stat, i) in courseStats"
+                        :key="stat.label"
+                        variant="filled"
+                        :label="stat.label"
+                        :value="stat.value"
+                        :icon="stat.icon"
+                        :color="['warning', 'danger', 'primary', 'success'][i % 4]"
+                        :change="stat.change"
+                        :trend="stat.trend"
+                    />
+                </div>
 
-                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                        <!-- Active Courses -->
-                        <div class="lg:col-span-2 space-y-6">
-                            <div class="flex items-center justify-between">
-                                <h2 class="text-xl font-bold text-gray-900 dark:text-white">Active Courses</h2>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Active Courses -->
+                    <div class="lg:col-span-2 space-y-6">
+                        <Card title="Active Courses" :icon="BookOpenIcon">
+                            <template #actions>
                                 <Link
                                     v-if="can('create_course')"
                                     :href="route('faculty.courses.create')"
-                                    class="inline-flex items-center gap-1 px-4 py-2 rounded-lg bg-teal-600 text-white text-sm font-medium hover:bg-teal-700"
+                                    class="ui-btn-secondary"
                                 >
-                                    + New Course
+                                    <PlusIcon class="w-4 h-4" />
+                                    New Course
                                 </Link>
-                            </div>
+                            </template>
 
-                            <div v-if="activeCourses.length === 0" class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 text-center text-gray-500 dark:text-gray-400">
-                                You are not teaching any courses yet.
-                            </div>
+                            <EmptyState
+                                v-if="activeCourses.length === 0"
+                                title="No active courses"
+                                description="You are not teaching any courses yet."
+                                :icon="BookOpenIcon"
+                            />
 
-                            <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
                                 <Link
                                     v-for="course in activeCourses"
                                     :key="course.id"
                                     :href="route('faculty.courses.show', course.id)"
-                                    class="block bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 hover:shadow-xl transition-shadow"
+                                    class="group block rounded-card border border-line bg-surface p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card"
                                 >
                                     <div class="flex items-start justify-between mb-3">
                                         <div>
-                                            <div class="text-sm font-semibold text-teal-600 dark:text-teal-400">{{ course.code }}</div>
-                                            <h3 class="font-bold text-gray-900 dark:text-white">{{ course.name }}</h3>
+                                            <div class="text-sm font-semibold text-content-muted">{{ course.code }}</div>
+                                            <h3 class="font-bold text-content">{{ course.name }}</h3>
                                         </div>
-                                        <AcademicCapIcon class="w-6 h-6 text-gray-300 dark:text-gray-600" />
+                                        <span class="ui-icon-tile bg-primary-soft text-primary">
+                                            <AcademicCapIcon class="w-5 h-5" />
+                                        </span>
                                     </div>
-                                    <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">
+                                    <p class="text-xs text-content-muted mb-4">
                                         {{ course.semester }} • {{ course.credits }} credits
                                     </p>
-                                    <div class="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-300">
+                                    <div class="flex items-center gap-4 text-sm text-content-muted">
                                         <span class="flex items-center gap-1"><UserGroupIcon class="w-4 h-4" /> {{ course.students }}</span>
                                         <span class="flex items-center gap-1"><BookOpenIcon class="w-4 h-4" /> {{ course.materials }}</span>
                                         <span class="flex items-center gap-1"><DocumentTextIcon class="w-4 h-4" /> {{ course.assignments }}</span>
                                     </div>
                                     <div class="mt-4">
-                                        <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mb-1">
+                                        <div class="flex items-center justify-between text-xs text-content-muted mb-1">
                                             <span>Class progress</span>
                                             <span>{{ course.progress }}%</span>
                                         </div>
-                                        <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                                            <div class="bg-teal-500 h-2 rounded-full" :style="{ width: course.progress + '%' }"></div>
+                                        <div class="w-full bg-neutral-bg rounded-full h-2">
+                                            <div class="bg-primary h-2 rounded-full transition-all" :style="{ width: course.progress + '%' }"></div>
                                         </div>
                                     </div>
                                 </Link>
                             </div>
-                        </div>
+                        </Card>
+                    </div>
 
-                        <!-- Sidebar: quick actions + recent activity -->
-                        <div class="space-y-8">
-                            <div>
-                                <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Quick Actions</h2>
-                                <div class="space-y-3">
-                                    <Link
-                                        v-for="action in quickActions"
-                                        :key="action.route"
-                                        :href="route(action.route)"
-                                        class="flex items-center gap-4 bg-white dark:bg-gray-800 rounded-xl shadow p-4 hover:shadow-lg transition-shadow"
-                                    >
-                                        <div :class="`w-10 h-10 rounded-lg bg-gradient-to-br ${action.gradient} flex items-center justify-center`">
-                                            <component :is="action.icon" class="w-5 h-5 text-white" />
-                                        </div>
-                                        <div class="flex-1">
-                                            <div class="font-medium text-gray-900 dark:text-white text-sm">{{ action.title }}</div>
-                                            <div class="text-xs text-gray-500 dark:text-gray-400">{{ action.description }}</div>
-                                        </div>
-                                        <ArrowRightIcon class="w-4 h-4 text-gray-400" />
-                                    </Link>
+                    <!-- Sidebar: quick actions + recent activity -->
+                    <div class="space-y-6">
+                        <Card title="Quick Actions" :icon="SparklesIcon">
+                            <div class="space-y-3">
+                                <Link
+                                    v-for="action in quickActions"
+                                    :key="action.route"
+                                    :href="route(action.route)"
+                                    class="group flex items-center gap-4 rounded-card border border-line bg-surface p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card"
+                                >
+                                    <div class="ui-icon-tile bg-primary-soft text-primary">
+                                        <component :is="action.icon" class="w-5 h-5" />
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <div class="font-semibold text-content text-sm">{{ action.title }}</div>
+                                        <div class="text-xs text-content-muted">{{ action.description }}</div>
+                                    </div>
+                                    <ArrowRightIcon class="w-4 h-4 text-content-faint transition-transform group-hover:translate-x-0.5" />
+                                </Link>
+                            </div>
+                        </Card>
+
+                        <Card title="Recent Activity" :icon="ClockIcon" padding="p-0">
+                            <EmptyState
+                                v-if="recentActivities.length === 0"
+                                title="No recent activity"
+                                description="Activity will appear here as you work."
+                                :icon="ClockIcon"
+                            />
+                            <div v-else class="divide-y divide-line">
+                                <div
+                                    v-for="activity in recentActivities"
+                                    :key="activity.id"
+                                    class="flex items-start gap-3 p-4 rounded-control hover:bg-bg"
+                                >
+                                    <div class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-primary-soft text-primary">
+                                        <ClockIcon class="w-4 h-4" />
+                                    </div>
+                                    <div class="min-w-0">
+                                        <p class="text-sm text-content">{{ activity.description }}</p>
+                                        <p class="text-xs text-content-faint">{{ activity.time }}</p>
+                                    </div>
                                 </div>
                             </div>
-
-                            <div>
-                                <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Recent Activity</h2>
-                                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg divide-y divide-gray-100 dark:divide-gray-700">
-                                    <div v-if="recentActivities.length === 0" class="p-6 text-sm text-gray-500 dark:text-gray-400">
-                                        No recent activity.
-                                    </div>
-                                    <div
-                                        v-for="activity in recentActivities"
-                                        :key="activity.id"
-                                        class="flex items-start gap-3 p-4"
-                                    >
-                                        <ClockIcon class="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" />
-                                        <div>
-                                            <p class="text-sm text-gray-700 dark:text-gray-200">{{ activity.description }}</p>
-                                            <p class="text-xs text-gray-400">{{ activity.time }}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                        </Card>
                     </div>
                 </div>
             </div>

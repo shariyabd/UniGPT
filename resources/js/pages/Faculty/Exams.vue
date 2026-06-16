@@ -2,7 +2,17 @@
 import { computed } from 'vue';
 import { Head } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
-import { CalendarDaysIcon, MapPinIcon, ClockIcon } from '@heroicons/vue/24/outline';
+import PageHeader from '@/components/ui/PageHeader.vue';
+import Card from '@/components/ui/Card.vue';
+import Badge from '@/components/ui/Badge.vue';
+import EmptyState from '@/components/ui/EmptyState.vue';
+import {
+    PencilSquareIcon,
+    CalendarDaysIcon,
+    MapPinIcon,
+    ClockIcon,
+    AcademicCapIcon,
+} from '@heroicons/vue/24/outline';
 
 const props = defineProps({
     upcoming: { type: Array, default: () => [] },
@@ -11,69 +21,108 @@ const props = defineProps({
 
 const all = computed(() => [...props.upcoming, ...props.past]);
 
-const typeBadge = (type) => ({
-    midterm: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
-    final: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
-    quiz: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
-    practical: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
-}[type] ?? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300');
+const typeVariant = (type) => ({
+    midterm: 'warning',
+    final: 'danger',
+    quiz: 'info',
+    practical: 'success',
+}[type] ?? 'slate');
 </script>
 
 <template>
-    <Head title="Course Exams" />
+    <div>
+        <Head title="Course Exams" />
 
-    <AppLayout>
-        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div class="flex items-center gap-3 mb-6">
-                <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
-                    <CalendarDaysIcon class="w-6 h-6 text-white" />
-                </div>
-                <div>
-                    <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Course Exams</h1>
-                    <p class="text-sm text-gray-500 dark:text-gray-400">Scheduled exams across the courses you teach. Scheduling is managed by the administration.</p>
-                </div>
-            </div>
+        <AppLayout>
+            <div class="page-container py-8 space-y-6 sm:space-y-8">
+                <PageHeader
+                    title="Exams"
+                    subtitle="Scheduled exams across the courses you teach. Scheduling is managed by the administration."
+                    :icon="PencilSquareIcon"
+                />
 
-            <div v-if="all.length === 0" class="bg-white dark:bg-gray-800 rounded-2xl shadow p-12 text-center text-gray-500 dark:text-gray-400">
-                No exams scheduled for your courses yet.
-            </div>
+                <EmptyState
+                    v-if="all.length === 0"
+                    title="No exams scheduled"
+                    description="No exams have been scheduled for your courses yet."
+                    :icon="CalendarDaysIcon"
+                />
 
-            <div v-else class="space-y-6">
-                <div v-if="upcoming.length > 0">
-                    <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-3">Upcoming</h2>
-                    <div class="space-y-3">
-                        <div
-                            v-for="exam in upcoming"
-                            :key="exam.id"
-                            class="bg-white dark:bg-gray-800 rounded-2xl shadow p-5"
-                        >
-                            <div class="flex items-center gap-2 mb-1">
-                                <span class="text-xs font-semibold text-emerald-600 dark:text-emerald-400">{{ exam.course.code }}</span>
-                                <span :class="['text-[11px] px-2 py-0.5 rounded-full font-medium', typeBadge(exam.type)]">{{ exam.typeLabel }}</span>
-                            </div>
-                            <h3 class="font-bold text-gray-900 dark:text-white">{{ exam.title }}</h3>
-                            <div class="flex flex-wrap gap-4 mt-2 text-sm text-gray-500 dark:text-gray-400">
-                                <span class="flex items-center gap-1"><CalendarDaysIcon class="w-4 h-4" /> {{ exam.dateLabel }}</span>
-                                <span v-if="exam.startTime" class="flex items-center gap-1"><ClockIcon class="w-4 h-4" /> {{ exam.startTime }}</span>
-                                <span v-if="exam.location" class="flex items-center gap-1"><MapPinIcon class="w-4 h-4" /> {{ exam.location }}</span>
-                            </div>
+                <div v-else class="space-y-6 sm:space-y-8">
+                    <section v-if="upcoming.length > 0" class="space-y-4">
+                        <div class="flex items-center gap-2">
+                            <CalendarDaysIcon class="h-5 w-5 text-success" />
+                            <h2 class="text-lg font-semibold text-content">Upcoming</h2>
                         </div>
-                    </div>
-                </div>
 
-                <div v-if="past.length > 0">
-                    <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-3">Past</h2>
-                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow divide-y divide-gray-100 dark:divide-gray-700 overflow-hidden">
-                        <div v-for="exam in past" :key="exam.id" class="p-4 flex items-center justify-between opacity-75">
-                            <div>
-                                <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ exam.title }}</p>
-                                <p class="text-xs text-gray-400">{{ exam.course.code }} • {{ exam.typeLabel }}</p>
-                            </div>
-                            <span class="text-sm text-gray-400">{{ exam.dateLabel }}</span>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
+                            <Card
+                                v-for="exam in upcoming"
+                                :key="exam.id"
+                                hover
+                            >
+                                <div class="flex items-center gap-2 mb-2">
+                                    <span class="inline-flex items-center gap-1 text-xs font-semibold text-success">
+                                        <AcademicCapIcon class="h-4 w-4" />
+                                        {{ exam.course.code }}
+                                    </span>
+                                    <Badge :variant="typeVariant(exam.type)">{{ exam.typeLabel }}</Badge>
+                                </div>
+
+                                <h3 class="font-semibold text-content">{{ exam.title }}</h3>
+
+                                <div class="flex flex-wrap gap-x-4 gap-y-2 mt-3 text-sm text-content-muted">
+                                    <span class="flex items-center gap-1.5">
+                                        <CalendarDaysIcon class="h-4 w-4" /> {{ exam.dateLabel }}
+                                    </span>
+                                    <span v-if="exam.startTime" class="flex items-center gap-1.5">
+                                        <ClockIcon class="h-4 w-4" /> {{ exam.startTime }}
+                                    </span>
+                                    <span v-if="exam.location" class="flex items-center gap-1.5">
+                                        <MapPinIcon class="h-4 w-4" /> {{ exam.location }}
+                                    </span>
+                                </div>
+                            </Card>
                         </div>
-                    </div>
+                    </section>
+
+                    <section v-if="past.length > 0" class="space-y-4">
+                        <div class="flex items-center gap-2">
+                            <ClockIcon class="h-5 w-5 text-content-faint" />
+                            <h2 class="text-lg font-semibold text-content">Past</h2>
+                        </div>
+
+                        <Card padding="p-0">
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-sm">
+                                    <thead>
+                                        <tr class="border-b border-line">
+                                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-content-faint">Exam</th>
+                                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-content-faint">Course</th>
+                                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-content-faint">Type</th>
+                                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-content-faint">Date</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr
+                                            v-for="exam in past"
+                                            :key="exam.id"
+                                            class="border-b border-line hover:bg-bg transition-colors"
+                                        >
+                                            <td class="px-4 py-3 font-medium text-content">{{ exam.title }}</td>
+                                            <td class="px-4 py-3 text-content-muted">{{ exam.course.code }}</td>
+                                            <td class="px-4 py-3">
+                                                <Badge :variant="typeVariant(exam.type)">{{ exam.typeLabel }}</Badge>
+                                            </td>
+                                            <td class="px-4 py-3 text-content-muted">{{ exam.dateLabel }}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </Card>
+                    </section>
                 </div>
             </div>
-        </div>
-    </AppLayout>
+        </AppLayout>
+    </div>
 </template>
