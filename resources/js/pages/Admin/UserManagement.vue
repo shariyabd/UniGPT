@@ -3,6 +3,10 @@ import { ref, computed } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { usePermissions } from '@/composables/usePermissions';
+import PageHeader from '@/components/ui/PageHeader.vue';
+import Card from '@/components/ui/Card.vue';
+import Badge from '@/components/ui/Badge.vue';
+import EmptyState from '@/components/ui/EmptyState.vue';
 import {
     UsersIcon,
     MagnifyingGlassIcon,
@@ -14,7 +18,7 @@ import {
     AcademicCapIcon,
     CheckCircleIcon,
     XCircleIcon,
-    ClockIcon
+    XMarkIcon
 } from '@heroicons/vue/24/outline';
 
 // Component state
@@ -123,22 +127,22 @@ const getTimeAgo = (dateString) => {
     return `${diffInDays}d ago`;
 };
 
-const getRoleColor = (role) => {
-    const colors = {
-        student: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-        faculty: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-        admin: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+const getRoleVariant = (role) => {
+    const variants = {
+        student: 'info',
+        faculty: 'success',
+        admin: 'violet'
     };
-    return colors[role] || 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400';
+    return variants[role] || 'slate';
 };
 
-const getStatusColor = (status) => {
-    const colors = {
-        active: 'text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400',
-        inactive: 'text-red-600 bg-red-100 dark:bg-red-900/30 dark:text-red-400',
-        pending: 'text-yellow-600 bg-yellow-100 dark:bg-yellow-900/30 dark:text-yellow-400'
+const getStatusVariant = (status) => {
+    const variants = {
+        active: 'success',
+        inactive: 'danger',
+        pending: 'warning'
     };
-    return colors[status] || colors.pending;
+    return variants[status] || 'warning';
 };
 
 const getRoleIcon = (role) => {
@@ -149,6 +153,8 @@ const getRoleIcon = (role) => {
     };
     return icons[role] || UserCircleIcon;
 };
+
+const getInitial = (name) => (name ? name.charAt(0).toUpperCase() : '?');
 
 // Actions
 const toggleUserSelection = (userId) => {
@@ -267,383 +273,341 @@ const bulkUpdateRole = (role) => {
         <Head title="User Management" />
 
         <AppLayout>
-            <div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-950">
-                <!-- Header -->
-                <div class="bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 dark:from-purple-900 dark:via-indigo-900 dark:to-blue-900">
-                    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-                        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-                            <div>
-                                <h1 class="text-4xl font-bold text-white mb-2">
-                                    👥 User Management
-                                </h1>
-                                <p class="text-xl text-white/90">
-                                    Manage users, roles, and permissions
-                                </p>
+            <div class="page-container py-8 space-y-6 sm:space-y-8">
+                <PageHeader
+                    title="User Management"
+                    subtitle="Manage users, roles, and permissions"
+                    :icon="UsersIcon"
+                >
+                    <template #actions>
+                        <Link
+                            v-if="can('manage_permissions')"
+                            :href="route('admin.roles')"
+                            class="ui-btn-secondary"
+                        >
+                            <ShieldCheckIcon class="h-5 w-5" />
+                            Roles &amp; Permissions
+                        </Link>
+                        <button
+                            v-if="can('create_user')"
+                            @click="openUserModal()"
+                            class="ui-btn-primary"
+                        >
+                            <PlusIcon class="h-5 w-5" />
+                            Add User
+                        </button>
+                    </template>
+                </PageHeader>
+
+                <!-- Users Tab Content -->
+                <div v-if="selectedTab === 'users'" class="space-y-6">
+                    <!-- Search and Filters -->
+                    <Card>
+                        <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                            <!-- Search -->
+                            <div class="relative flex-1 lg:max-w-lg">
+                                <MagnifyingGlassIcon class="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-content-faint" />
+                                <input
+                                    v-model="searchQuery"
+                                    type="text"
+                                    placeholder="Search users by name, email, or department..."
+                                    class="ui-input pl-10"
+                                />
                             </div>
 
-                            <div class="flex flex-col sm:flex-row gap-4">
-                                <!-- Quick Stats -->
-                                <div class="flex gap-4">
-                                    <div class="bg-white/20 backdrop-blur-lg rounded-xl px-4 py-3 text-white text-center">
-                                        <div class="text-2xl font-bold">{{ userStats.total }}</div>
-                                        <div class="text-xs text-white/80">Total Users</div>
-                                    </div>
-                                    <div class="bg-white/20 backdrop-blur-lg rounded-xl px-4 py-3 text-white text-center">
-                                        <div class="text-2xl font-bold">{{ userStats.active }}</div>
-                                        <div class="text-xs text-white/80">Active</div>
-                                    </div>
-                                </div>
-
-                                <Link
-                                    href="/admin/dashboard"
-                                    class="bg-white/20 backdrop-blur-lg border border-white/20 rounded-xl text-white px-6 py-3 font-medium hover:bg-white/30 transition-all text-center"
+                            <!-- Filters -->
+                            <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+                                <!-- Role Filter -->
+                                <select
+                                    v-model="selectedRole"
+                                    class="ui-input sm:w-auto"
+                                    aria-label="Filter by role"
                                 >
-                                    ← Dashboard
-                                </Link>
+                                    <option v-for="role in roleOptions" :key="role.value" :value="role.value">
+                                        {{ role.label }}
+                                    </option>
+                                </select>
+
+                                <!-- Status Filter -->
+                                <select
+                                    v-model="selectedStatus"
+                                    class="ui-input sm:w-auto"
+                                    aria-label="Filter by status"
+                                >
+                                    <option v-for="status in statusOptions" :key="status.value" :value="status.value">
+                                        {{ status.label }}
+                                    </option>
+                                </select>
                             </div>
                         </div>
-                    </div>
-                </div>
+                    </Card>
 
-                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 -mt-6">
-                    <!-- Tab Navigation -->
-                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg mb-8 overflow-hidden">
-                        <div class="flex items-center justify-between border-b border-gray-200 dark:border-gray-700">
-                            <div class="px-6 py-4 font-medium text-sm bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border-b-2 border-purple-600">
-                                <UsersIcon class="w-5 h-5 inline mr-2" />
-                                Users ({{ userStats.total }})
-                            </div>
-                            <Link
-                                v-if="can('manage_permissions')"
-                                :href="route('admin.roles')"
-                                class="mr-4 inline-flex items-center px-4 py-2 text-sm font-medium text-purple-700 dark:text-purple-300 hover:text-purple-900 dark:hover:text-purple-200"
+                    <!-- Bulk Actions -->
+                    <div
+                        v-if="selectedUsers.size > 0"
+                        class="flex flex-col gap-3 rounded-card border border-primary bg-primary-soft p-4 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                        <span class="text-sm font-medium text-primary">
+                            {{ selectedUsers.size }} user(s) selected
+                        </span>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <button
+                                @click="bulkUpdateStatus('active')"
+                                class="ui-btn-secondary"
                             >
-                                <ShieldCheckIcon class="w-5 h-5 mr-2" />
-                                Manage Roles &amp; Permissions →
-                            </Link>
+                                <CheckCircleIcon class="h-4 w-4 text-success-fg" />
+                                Activate
+                            </button>
+                            <button
+                                @click="bulkUpdateStatus('inactive')"
+                                class="ui-btn-secondary"
+                            >
+                                <XCircleIcon class="h-4 w-4 text-danger-fg" />
+                                Deactivate
+                            </button>
+                            <select
+                                @change="bulkUpdateRole($event.target.value); $event.target.value = ''"
+                                class="ui-input w-auto py-2 text-sm"
+                                aria-label="Change role for selected users"
+                            >
+                                <option value="">Change Role</option>
+                                <option value="student">Student</option>
+                                <option value="faculty">Faculty</option>
+                                <option value="admin">Admin</option>
+                            </select>
                         </div>
-
-                        <!-- Users Tab Content -->
-                        <div v-if="selectedTab === 'users'" class="p-6">
-                            <!-- Search and Filters -->
-                            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
-                                <!-- Search -->
-                                <div class="relative flex-1 max-w-lg">
-                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <MagnifyingGlassIcon class="h-5 w-5 text-gray-400" />
-                                    </div>
-                                    <input
-                                        v-model="searchQuery"
-                                        type="text"
-                                        placeholder="Search users by name, email, or department..."
-                                        class="block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                                    />
-                                </div>
-
-                                <!-- Filters and Actions -->
-                                <div class="flex items-center gap-4">
-                                    <!-- Role Filter -->
-                                    <select
-                                        v-model="selectedRole"
-                                        class="px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                                    >
-                                        <option v-for="role in roleOptions" :key="role.value" :value="role.value">
-                                            {{ role.label }}
-                                        </option>
-                                    </select>
-
-                                    <!-- Status Filter -->
-                                    <select
-                                        v-model="selectedStatus"
-                                        class="px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                                    >
-                                        <option v-for="status in statusOptions" :key="status.value" :value="status.value">
-                                            {{ status.label }}
-                                        </option>
-                                    </select>
-
-                                    <!-- Add User Button -->
-                                    <button
-                                        v-if="can('create_user')"
-                                        @click="openUserModal()"
-                                        class="inline-flex items-center px-4 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-colors"
-                                    >
-                                        <PlusIcon class="w-5 h-5 mr-2" />
-                                        Add User
-                                    </button>
-                                </div>
-                            </div>
-
-                            <!-- Bulk Actions -->
-                            <div v-if="selectedUsers.size > 0" class="mb-6 p-4 bg-purple-50 dark:bg-purple-900/30 rounded-xl">
-                                <div class="flex items-center justify-between">
-                                    <span class="text-sm font-medium text-purple-700 dark:text-purple-300">
-                                        {{ selectedUsers.size }} user(s) selected
-                                    </span>
-                                    <div class="flex items-center gap-2">
-                                        <button
-                                            @click="bulkUpdateStatus('active')"
-                                            class="px-3 py-1 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors"
-                                        >
-                                            Activate
-                                        </button>
-                                        <button
-                                            @click="bulkUpdateStatus('inactive')"
-                                            class="px-3 py-1 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors"
-                                        >
-                                            Deactivate
-                                        </button>
-                                        <select
-                                            @change="bulkUpdateRole($event.target.value); $event.target.value = ''"
-                                            class="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                                        >
-                                            <option value="">Change Role</option>
-                                            <option value="student">Student</option>
-                                            <option value="faculty">Faculty</option>
-                                            <option value="admin">Admin</option>
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Users Table -->
-                            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
-                                <div class="overflow-x-auto">
-                                    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                                        <thead class="bg-gray-50 dark:bg-gray-900">
-                                            <tr>
-                                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                                    <input
-                                                        type="checkbox"
-                                                        :checked="selectedUsers.size === filteredUsers.length && filteredUsers.length > 0"
-                                                        @change="selectAllUsers"
-                                                        class="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                                                    />
-                                                </th>
-                                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                                    User
-                                                </th>
-                                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                                    Role & Department
-                                                </th>
-                                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                                    Status
-                                                </th>
-                                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                                    Last Login
-                                                </th>
-                                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                                    Actions
-                                                </th>
-                                            </tr>
-                                        </thead>
-                                        <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                                            <tr
-                                                v-for="user in filteredUsers"
-                                                :key="user.id"
-                                                class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-                                            >
-                                                <td class="px-6 py-4 whitespace-nowrap">
-                                                    <input
-                                                        type="checkbox"
-                                                        :checked="selectedUsers.has(user.id)"
-                                                        @change="toggleUserSelection(user.id)"
-                                                        class="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                                                    />
-                                                </td>
-                                                <td class="px-6 py-4 whitespace-nowrap">
-                                                    <div class="flex items-center">
-                                                        <img
-                                                            :src="user.avatar"
-                                                            :alt="user.name"
-                                                            class="w-10 h-10 rounded-full mr-4"
-                                                        />
-                                                        <div>
-                                                            <div class="text-sm font-medium text-gray-900 dark:text-white">
-                                                                {{ user.name }}
-                                                            </div>
-                                                            <div class="text-sm text-gray-500 dark:text-gray-400">
-                                                                {{ user.email }}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td class="px-6 py-4 whitespace-nowrap">
-                                                    <div class="flex items-center gap-2">
-                                                        <span :class="`px-2 py-1 text-xs font-medium rounded-full ${getRoleColor(user.role)}`">
-                                                            <component :is="getRoleIcon(user.role)" class="w-3 h-3 inline mr-1" />
-                                                            {{ user.role }}
-                                                        </span>
-                                                    </div>
-                                                    <div class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                                                        {{ user.department }}
-                                                    </div>
-                                                    <div v-if="user.year" class="text-xs text-gray-400 dark:text-gray-500">
-                                                        {{ user.year }}, {{ user.semester }}
-                                                    </div>
-                                                    <div v-if="user.designation" class="text-xs text-gray-400 dark:text-gray-500">
-                                                        {{ user.designation }}
-                                                    </div>
-                                                </td>
-                                                <td class="px-6 py-4 whitespace-nowrap">
-                                                    <span :class="`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(user.status)}`">
-                                                        <component
-                                                            :is="user.status === 'active' ? CheckCircleIcon : user.status === 'inactive' ? XCircleIcon : ClockIcon"
-                                                            class="w-3 h-3 inline mr-1"
-                                                        />
-                                                        {{ user.status }}
-                                                    </span>
-                                                </td>
-                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                                    {{ getTimeAgo(user.lastLogin) }}
-                                                </td>
-                                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                                    <div class="flex items-center gap-2">
-                                                        <button
-                                                            v-if="can('update_user')"
-                                                            @click="openUserModal(user)"
-                                                            class="text-purple-600 hover:text-purple-900 dark:text-purple-400 dark:hover:text-purple-300"
-                                                        >
-                                                            <PencilIcon class="w-4 h-4" />
-                                                        </button>
-                                                        <button
-                                                            v-if="can('update_user')"
-                                                            @click="deleteUser(user.id)"
-                                                            class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
-                                                        >
-                                                            <TrashIcon class="w-4 h-4" />
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-
-                                <!-- Empty State -->
-                                <div v-if="filteredUsers.length === 0" class="text-center py-12">
-                                    <UsersIcon class="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                                    <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">No users found</h3>
-                                    <p class="text-gray-500 dark:text-gray-400 mb-4">Try adjusting your search or filters.</p>
-                                    <button
-                                        @click="searchQuery = ''; selectedRole = 'all'; selectedStatus = 'all'"
-                                        class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-                                    >
-                                        Clear Filters
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
                     </div>
+
+                    <!-- Users Table -->
+                    <Card padding="p-0">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead>
+                                    <tr class="border-b border-line">
+                                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-content-faint">
+                                            <input
+                                                type="checkbox"
+                                                :checked="selectedUsers.size === filteredUsers.length && filteredUsers.length > 0"
+                                                @change="selectAllUsers"
+                                                class="rounded border-line text-primary focus:ring-primary"
+                                                aria-label="Select all users"
+                                            />
+                                        </th>
+                                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-content-faint">
+                                            User
+                                        </th>
+                                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-content-faint">
+                                            Role &amp; Department
+                                        </th>
+                                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-content-faint">
+                                            Status
+                                        </th>
+                                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-content-faint">
+                                            Last Login
+                                        </th>
+                                        <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-content-faint">
+                                            Actions
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr
+                                        v-for="user in filteredUsers"
+                                        :key="user.id"
+                                        class="border-b border-line transition-colors hover:bg-bg"
+                                    >
+                                        <td class="px-4 py-3 align-middle whitespace-nowrap">
+                                            <input
+                                                type="checkbox"
+                                                :checked="selectedUsers.has(user.id)"
+                                                @change="toggleUserSelection(user.id)"
+                                                class="rounded border-line text-primary focus:ring-primary"
+                                                :aria-label="`Select ${user.name}`"
+                                            />
+                                        </td>
+                                        <td class="px-4 py-3 align-middle whitespace-nowrap">
+                                            <div class="flex items-center gap-3">
+                                                <span
+                                                    class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-primary-soft text-sm font-semibold text-primary"
+                                                >
+                                                    {{ getInitial(user.name) }}
+                                                </span>
+                                                <div class="min-w-0">
+                                                    <div class="font-medium text-content">
+                                                        {{ user.name }}
+                                                    </div>
+                                                    <div class="text-content-muted">
+                                                        {{ user.email }}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="px-4 py-3 align-middle whitespace-nowrap">
+                                            <Badge :variant="getRoleVariant(user.role)">
+                                                <component :is="getRoleIcon(user.role)" class="h-3.5 w-3.5" />
+                                                {{ user.role }}
+                                            </Badge>
+                                            <div class="mt-1 text-content-muted">
+                                                {{ user.department }}
+                                            </div>
+                                            <div v-if="user.year" class="text-xs text-content-faint">
+                                                {{ user.year }}, {{ user.semester }}
+                                            </div>
+                                            <div v-if="user.designation" class="text-xs text-content-faint">
+                                                {{ user.designation }}
+                                            </div>
+                                        </td>
+                                        <td class="px-4 py-3 align-middle whitespace-nowrap">
+                                            <Badge :variant="getStatusVariant(user.status)" dot>
+                                                {{ user.status }}
+                                            </Badge>
+                                        </td>
+                                        <td class="px-4 py-3 align-middle whitespace-nowrap text-content-muted">
+                                            {{ getTimeAgo(user.lastLogin) }}
+                                        </td>
+                                        <td class="px-4 py-3 align-middle whitespace-nowrap text-right">
+                                            <div class="flex items-center justify-end gap-1">
+                                                <button
+                                                    v-if="can('update_user')"
+                                                    @click="openUserModal(user)"
+                                                    class="ui-btn-ghost p-2"
+                                                    aria-label="Edit user"
+                                                >
+                                                    <PencilIcon class="h-4 w-4" />
+                                                </button>
+                                                <button
+                                                    v-if="can('update_user')"
+                                                    @click="deleteUser(user.id)"
+                                                    class="ui-btn-ghost p-2 text-danger-fg hover:text-danger-fg"
+                                                    aria-label="Deactivate user"
+                                                >
+                                                    <TrashIcon class="h-4 w-4" />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Empty State -->
+                        <EmptyState
+                            v-if="filteredUsers.length === 0"
+                            title="No users found"
+                            description="Try adjusting your search or filters."
+                            :icon="UsersIcon"
+                        >
+                            <button
+                                @click="searchQuery = ''; selectedRole = 'all'; selectedStatus = 'all'"
+                                class="ui-btn-secondary"
+                            >
+                                Clear Filters
+                            </button>
+                        </EmptyState>
+                    </Card>
                 </div>
             </div>
 
             <!-- User Modal -->
             <div v-if="showUserModal" class="fixed inset-0 z-50 overflow-y-auto">
                 <div class="flex min-h-full items-center justify-center p-4">
-                    <div class="fixed inset-0 bg-black/60 backdrop-blur-sm" @click="showUserModal = false"></div>
+                    <div class="fixed inset-0 bg-content/60 backdrop-blur-sm" @click="showUserModal = false"></div>
 
-                    <div class="relative w-full max-w-lg bg-white dark:bg-gray-800 rounded-2xl shadow-2xl">
-                        <div class="p-6">
-                            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-6">
+                    <div class="relative w-full max-w-lg ui-card">
+                        <div class="flex items-center justify-between border-b border-line px-6 py-4">
+                            <h3 class="ui-card-title">
                                 {{ editingUser?.id ? 'Edit User' : 'Add New User' }}
                             </h3>
+                            <button
+                                @click="showUserModal = false"
+                                class="ui-btn-ghost p-2"
+                                aria-label="Close"
+                            >
+                                <XMarkIcon class="h-5 w-5" />
+                            </button>
+                        </div>
 
-                            <div class="space-y-4">
+                        <div class="space-y-4 p-6">
+                            <div>
+                                <label class="ui-label">Full Name *</label>
+                                <input
+                                    v-model="editingUser.name"
+                                    type="text"
+                                    class="ui-input"
+                                    placeholder="Enter full name"
+                                />
+                            </div>
+
+                            <div>
+                                <label class="ui-label">Email Address *</label>
+                                <input
+                                    v-model="editingUser.email"
+                                    type="email"
+                                    class="ui-input"
+                                    placeholder="Enter email address"
+                                />
+                            </div>
+
+                            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                        Full Name *
-                                    </label>
-                                    <input
-                                        v-model="editingUser.name"
-                                        type="text"
-                                        class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
-                                        placeholder="Enter full name"
-                                    />
+                                    <label class="ui-label">Role *</label>
+                                    <select
+                                        v-model="editingUser.role"
+                                        class="ui-input"
+                                    >
+                                        <option value="student">Student</option>
+                                        <option value="faculty">Faculty</option>
+                                        <option value="admin">Administrator</option>
+                                    </select>
                                 </div>
 
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                        Email Address *
-                                    </label>
-                                    <input
-                                        v-model="editingUser.email"
-                                        type="email"
-                                        class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
-                                        placeholder="Enter email address"
-                                    />
-                                </div>
-
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                            Role *
-                                        </label>
-                                        <select
-                                            v-model="editingUser.role"
-                                            class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
-                                        >
-                                            <option value="student">Student</option>
-                                            <option value="faculty">Faculty</option>
-                                            <option value="admin">Administrator</option>
-                                        </select>
-                                    </div>
-
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                            Status
-                                        </label>
-                                        <select
-                                            v-model="editingUser.status"
-                                            class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
-                                        >
-                                            <option value="active">Active</option>
-                                            <option value="inactive">Inactive</option>
-                                            <option value="pending">Pending</option>
-                                        </select>
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                        Department
-                                    </label>
-                                    <input
-                                        v-model="editingUser.department"
-                                        type="text"
-                                        class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
-                                        placeholder="Enter department"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                        Phone Number
-                                    </label>
-                                    <input
-                                        v-model="editingUser.phone"
-                                        type="tel"
-                                        class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
-                                        placeholder="Enter phone number"
-                                    />
+                                    <label class="ui-label">Status</label>
+                                    <select
+                                        v-model="editingUser.status"
+                                        class="ui-input"
+                                    >
+                                        <option value="active">Active</option>
+                                        <option value="inactive">Inactive</option>
+                                        <option value="pending">Pending</option>
+                                    </select>
                                 </div>
                             </div>
 
-                            <div class="flex items-center justify-end gap-3 mt-6">
-                                <button
-                                    @click="showUserModal = false"
-                                    class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    @click="saveUser"
-                                    class="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-                                >
-                                    {{ editingUser?.id ? 'Update User' : 'Create User' }}
-                                </button>
+                            <div>
+                                <label class="ui-label">Department</label>
+                                <input
+                                    v-model="editingUser.department"
+                                    type="text"
+                                    class="ui-input"
+                                    placeholder="Enter department"
+                                />
                             </div>
+
+                            <div>
+                                <label class="ui-label">Phone Number</label>
+                                <input
+                                    v-model="editingUser.phone"
+                                    type="tel"
+                                    class="ui-input"
+                                    placeholder="Enter phone number"
+                                />
+                            </div>
+                        </div>
+
+                        <div class="flex items-center justify-end gap-3 border-t border-line px-6 py-4">
+                            <button
+                                @click="showUserModal = false"
+                                class="ui-btn-ghost"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                @click="saveUser"
+                                class="ui-btn-primary"
+                            >
+                                {{ editingUser?.id ? 'Update User' : 'Create User' }}
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -651,12 +615,3 @@ const bulkUpdateRole = (role) => {
         </AppLayout>
     </div>
 </template>
-
-<style scoped>
-.line-clamp-2 {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
-</style>

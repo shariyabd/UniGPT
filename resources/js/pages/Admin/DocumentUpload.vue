@@ -2,7 +2,10 @@
 import { ref, computed } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import PageHeader from '@/components/ui/PageHeader.vue';
+import Card from '@/components/ui/Card.vue';
 import {
+    ArrowUpTrayIcon,
     CloudArrowUpIcon,
     DocumentTextIcon,
     XMarkIcon,
@@ -11,7 +14,9 @@ import {
     FolderOpenIcon,
     TagIcon,
     UserIcon,
-    CalendarIcon
+    CalendarIcon,
+    ChartBarIcon,
+    ArrowRightIcon,
 } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
@@ -174,19 +179,19 @@ const removeTag = (tagToRemove) => {
 
 const getPriorityColor = (priority) => {
     const colors = {
-        low: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-        normal: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-        high: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
-        urgent: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+        low: 'bg-primary-soft text-primary',
+        normal: 'bg-success-bg text-success-fg',
+        high: 'bg-warning-bg text-warning-fg',
+        urgent: 'bg-danger-bg text-danger-fg'
     };
     return colors[priority] || colors.normal;
 };
 
 const getStatusColor = (status) => {
     const colors = {
-        approved: 'text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400',
-        pending: 'text-yellow-600 bg-yellow-100 dark:bg-yellow-900/30 dark:text-yellow-400',
-        rejected: 'text-red-600 bg-red-100 dark:bg-red-900/30 dark:text-red-400'
+        approved: 'text-success-fg bg-success-bg',
+        pending: 'text-warning-fg bg-warning-bg',
+        rejected: 'text-danger-fg bg-danger-bg'
     };
     return colors[status] || colors.pending;
 };
@@ -197,353 +202,311 @@ const getStatusColor = (status) => {
         <Head title="Document Upload" />
 
         <AppLayout>
-            <div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-950">
-                <!-- Header -->
-                <div class="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 dark:from-blue-900 dark:via-indigo-900 dark:to-purple-900">
-                    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <h1 class="text-4xl font-bold text-white mb-2">
-                                    📤 Document Upload
-                                </h1>
-                                <p class="text-xl text-white/90">
-                                    Upload course materials, policies, and academic documents
-                                </p>
-                            </div>
-                            <Link
-                                href="/admin/dashboard"
-                                class="bg-white/20 backdrop-blur-lg text-white px-6 py-3 rounded-xl font-medium hover:bg-white/30 transition-all"
+            <div class="page-container py-8 space-y-6 sm:space-y-8">
+                <PageHeader
+                    title="Upload Document"
+                    subtitle="Upload course materials, policies, and academic documents"
+                    :icon="ArrowUpTrayIcon"
+                >
+                    <template #actions>
+                        <Link href="/admin/dashboard" class="ui-btn-secondary">
+                            Back to Dashboard
+                        </Link>
+                    </template>
+                </PageHeader>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Upload Section -->
+                    <div class="lg:col-span-2 space-y-6">
+                        <!-- Drag & Drop Area -->
+                        <Card title="Upload Files" :icon="CloudArrowUpIcon">
+                            <div
+                                @drop.prevent="handleDrop"
+                                @dragover.prevent="dragActive = true"
+                                @dragenter.prevent="dragActive = true"
+                                @dragleave.prevent="dragActive = false"
+                                :class="`relative border-2 border-dashed rounded-card p-10 sm:p-12 text-center transition-all duration-200 ${
+                                    dragActive
+                                        ? 'border-primary bg-primary-soft'
+                                        : 'border-line hover:border-primary hover:bg-bg'
+                                }`"
                             >
-                                ← Back to Dashboard
-                            </Link>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 -mt-6">
-                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                        <!-- Upload Section -->
-                        <div class="lg:col-span-2 space-y-8">
-                            <!-- Drag & Drop Area -->
-                            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8">
-                                <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
-                                    <CloudArrowUpIcon class="w-7 h-7 text-blue-600" />
-                                    Upload Files
-                                </h2>
-
-                                <div
-                                    @drop.prevent="handleDrop"
-                                    @dragover.prevent="dragActive = true"
-                                    @dragenter.prevent="dragActive = true"
-                                    @dragleave.prevent="dragActive = false"
-                                    :class="`relative border-2 border-dashed rounded-2xl p-12 text-center transition-all duration-200 ${
-                                        dragActive
-                                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 scale-105'
-                                            : 'border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500'
-                                    }`"
-                                >
-                                    <div class="space-y-4">
-                                        <div class="mx-auto w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center">
-                                            <CloudArrowUpIcon class="w-8 h-8 text-white" />
-                                        </div>
-                                        <div>
-                                            <p class="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                                                Drop files here or click to browse
-                                            </p>
-                                            <p class="text-gray-600 dark:text-gray-400 text-sm">
-                                                Support PDF, DOC, DOCX, TXT, PPT, PPTX up to 50MB
-                                            </p>
-                                        </div>
-                                        <input
-                                            type="file"
-                                            multiple
-                                            accept=".pdf,.doc,.docx,.txt,.ppt,.pptx"
-                                            @change="handleFileSelect"
-                                            class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                        />
-                                        <button class="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-medium hover:shadow-lg transform hover:-translate-y-0.5 transition-all">
-                                            Choose Files
-                                        </button>
+                                <div class="space-y-4">
+                                    <div class="mx-auto w-16 h-16 bg-primary-soft rounded-card flex items-center justify-center">
+                                        <CloudArrowUpIcon class="w-8 h-8 text-primary" />
                                     </div>
-                                </div>
-                            </div>
-
-                            <!-- File List -->
-                            <div v-if="uploadedFiles.length > 0" class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
-                                <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">
-                                    Selected Files ({{ uploadedFiles.length }})
-                                </h3>
-
-                                <div class="space-y-3">
-                                    <div
-                                        v-for="file in uploadedFiles"
-                                        :key="file.id"
-                                        class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl"
-                                    >
-                                        <div class="flex items-center space-x-4 flex-1">
-                                            <div class="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
-                                                <DocumentTextIcon class="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                                            </div>
-                                            <div class="flex-1 min-w-0">
-                                                <p class="font-medium text-gray-900 dark:text-white truncate">{{ file.name }}</p>
-                                                <div class="flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400">
-                                                    <span>{{ file.size }}</span>
-                                                    <span>{{ file.type }}</span>
-                                                    <span :class="`font-medium ${
-                                                        file.status === 'ready' ? 'text-gray-600' :
-                                                        file.status === 'uploading' ? 'text-blue-600' :
-                                                        file.status === 'completed' ? 'text-green-600' :
-                                                        'text-red-600'
-                                                    }`">
-                                                        {{ file.status === 'ready' ? 'Ready' :
-                                                           file.status === 'uploading' ? `Uploading ${file.progress}%` :
-                                                           file.status === 'completed' ? 'Completed' : 'Error' }}
-                                                    </span>
-                                                </div>
-                                                <div v-if="file.status === 'uploading'" class="mt-2 w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                                                    <div
-                                                        class="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                                                        :style="{ width: file.progress + '%' }"
-                                                    ></div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <button
-                                            @click="removeFile(file.id)"
-                                            v-if="file.status !== 'uploading'"
-                                            class="ml-4 p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-                                        >
-                                            <XMarkIcon class="w-5 h-5" />
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Upload Form -->
-                            <div v-if="uploadedFiles.length > 0" class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
-                                <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-6">Document Information</h3>
-
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <!-- Department -->
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                            Department *
-                                        </label>
-                                        <select
-                                            v-model="uploadForm.department_id"
-                                            class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
-                                        >
-                                            <option value="">Select Department</option>
-                                            <option v-for="dept in departments" :key="dept.id" :value="dept.id">{{ dept.name }}</option>
-                                        </select>
-                                    </div>
-
-                                    <!-- Category -->
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                            Category *
-                                        </label>
-                                        <select
-                                            v-model="uploadForm.category"
-                                            class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
-                                        >
-                                            <option value="">Select Category</option>
-                                            <option v-for="cat in categories" :key="cat" :value="cat">{{ cat }}</option>
-                                        </select>
-                                    </div>
-
-                                    <!-- Priority -->
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                            Priority
-                                        </label>
-                                        <select
-                                            v-model="uploadForm.priority"
-                                            class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
-                                        >
-                                            <option v-for="priority in priorities" :key="priority.value" :value="priority.value">
-                                                {{ priority.label }}
-                                            </option>
-                                        </select>
-                                    </div>
-
-                                    <!-- Visibility -->
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                            Visibility
-                                        </label>
-                                        <select
-                                            v-model="uploadForm.visibility"
-                                            class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
-                                        >
-                                            <option value="public">Public (All Users)</option>
-                                            <option value="students">Students</option>
-                                            <option value="faculty">Faculty</option>
-                                            <option value="admins">Admin Only</option>
-                                        </select>
-                                    </div>
-                                </div>
-
-                                <!-- Description -->
-                                <div class="mt-6">
-                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                        Description
-                                    </label>
-                                    <textarea
-                                        v-model="uploadForm.description"
-                                        rows="3"
-                                        placeholder="Provide a brief description of the document(s)..."
-                                        class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-900 text-gray-900 dark:text-white resize-none"
-                                    ></textarea>
-                                </div>
-
-                                <!-- Tags -->
-                                <div class="mt-6">
-                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                        Tags
-                                    </label>
-                                    <div class="flex flex-wrap gap-2 mb-3">
-                                        <span
-                                            v-for="tag in uploadForm.tags"
-                                            :key="tag"
-                                            class="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400"
-                                        >
-                                            {{ tag }}
-                                            <button @click="removeTag(tag)" class="ml-2 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200">
-                                                <XMarkIcon class="w-4 h-4" />
-                                            </button>
-                                        </span>
+                                        <p class="text-lg font-semibold text-content mb-1">
+                                            Drop files here or click to browse
+                                        </p>
+                                        <p class="text-content-muted text-sm">
+                                            Support PDF, DOC, DOCX, TXT, PPT, PPTX up to 50MB
+                                        </p>
                                     </div>
                                     <input
-                                        type="text"
-                                        placeholder="Add tags (press Enter)"
-                                        @keydown.enter.prevent="(e) => { addTag(e.target.value); e.target.value = ''; }"
-                                        class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                                        type="file"
+                                        multiple
+                                        accept=".pdf,.doc,.docx,.txt,.ppt,.pptx"
+                                        @change="handleFileSelect"
+                                        class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                        aria-label="Choose files to upload"
                                     />
-                                </div>
-
-                                <!-- Upload Button -->
-                                <div class="mt-8 flex items-center justify-between">
-                                    <div class="text-sm text-gray-600 dark:text-gray-400">
-                                        * Required fields
-                                    </div>
-                                    <button
-                                        @click="startUpload"
-                                        :disabled="isUploading || uploadedFiles.length === 0"
-                                        :class="`px-8 py-4 rounded-xl font-bold text-white transform transition-all duration-200 ${
-                                            isUploading || uploadedFiles.length === 0
-                                                ? 'bg-gray-400 cursor-not-allowed'
-                                                : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:shadow-lg hover:-translate-y-0.5'
-                                        }`"
-                                    >
-                                        {{ isUploading ? 'Uploading...' : `Upload ${uploadedFiles.length} File${uploadedFiles.length !== 1 ? 's' : ''}` }}
+                                    <button type="button" class="ui-btn-primary">
+                                        Choose Files
                                     </button>
                                 </div>
                             </div>
-                        </div>
+                        </Card>
 
-                        <!-- Sidebar -->
-                        <div class="space-y-8">
-                            <!-- Upload Guidelines -->
-                            <div class="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl shadow-lg p-6 text-white">
-                                <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
-                                    <CheckCircleIcon class="w-5 h-5" />
-                                    Upload Guidelines
-                                </h3>
-                                <ul class="space-y-2 text-sm text-white/90">
-                                    <li class="flex items-start gap-2">
-                                        <span class="w-1.5 h-1.5 bg-white rounded-full flex-shrink-0 mt-2"></span>
-                                        Maximum file size: 50MB
-                                    </li>
-                                    <li class="flex items-start gap-2">
-                                        <span class="w-1.5 h-1.5 bg-white rounded-full flex-shrink-0 mt-2"></span>
-                                        Supported formats: PDF, DOC, DOCX, TXT, PPT, PPTX
-                                    </li>
-                                    <li class="flex items-start gap-2">
-                                        <span class="w-1.5 h-1.5 bg-white rounded-full flex-shrink-0 mt-2"></span>
-                                        All documents require approval
-                                    </li>
-                                    <li class="flex items-start gap-2">
-                                        <span class="w-1.5 h-1.5 bg-white rounded-full flex-shrink-0 mt-2"></span>
-                                        Use descriptive filenames
-                                    </li>
-                                </ul>
-                            </div>
-
-                            <!-- Recent Uploads -->
-                            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
-                                <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                                    <FolderOpenIcon class="w-5 h-5 text-gray-600" />
-                                    Recent Uploads
-                                </h3>
-
-                                <div class="space-y-3">
-                                    <div
-                                        v-for="upload in recentUploads.slice(0, 5)"
-                                        :key="upload.id"
-                                        class="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg"
-                                    >
-                                        <div class="flex items-start justify-between gap-2">
-                                            <div class="flex-1 min-w-0">
-                                                <p class="text-sm font-medium text-gray-900 dark:text-white truncate">
-                                                    {{ upload.name }}
-                                                </p>
-                                                <div class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                                    <span>{{ upload.size }}</span>
-                                                    <span>•</span>
-                                                    <span>{{ upload.uploadedAt }}</span>
-                                                </div>
+                        <!-- File List -->
+                        <Card v-if="uploadedFiles.length > 0" :title="`Selected Files (${uploadedFiles.length})`" :icon="DocumentTextIcon">
+                            <div class="space-y-3">
+                                <div
+                                    v-for="file in uploadedFiles"
+                                    :key="file.id"
+                                    class="flex items-center justify-between p-4 bg-bg rounded-card border border-line"
+                                >
+                                    <div class="flex items-center space-x-4 flex-1 min-w-0">
+                                        <div class="w-10 h-10 bg-primary-soft rounded-control flex items-center justify-center flex-shrink-0">
+                                            <DocumentTextIcon class="w-5 h-5 text-primary" />
+                                        </div>
+                                        <div class="flex-1 min-w-0">
+                                            <p class="font-medium text-content truncate">{{ file.name }}</p>
+                                            <div class="flex items-center flex-wrap gap-x-4 gap-y-1 text-sm text-content-muted">
+                                                <span>{{ file.size }}</span>
+                                                <span>{{ file.type }}</span>
+                                                <span :class="`font-medium ${
+                                                    file.status === 'ready' ? 'text-content-muted' :
+                                                    file.status === 'uploading' ? 'text-primary' :
+                                                    file.status === 'completed' ? 'text-success-fg' :
+                                                    'text-danger-fg'
+                                                }`">
+                                                    {{ file.status === 'ready' ? 'Ready' :
+                                                       file.status === 'uploading' ? `Uploading ${file.progress}%` :
+                                                       file.status === 'completed' ? 'Completed' : 'Error' }}
+                                                </span>
                                             </div>
-                                            <span :class="`text-xs px-2 py-1 rounded-full font-medium ${getStatusColor(upload.status)}`">
-                                                {{ upload.status }}
-                                            </span>
+                                            <div v-if="file.status === 'uploading'" class="mt-2 w-full bg-bg rounded-pill h-2 overflow-hidden">
+                                                <div
+                                                    class="bg-primary h-2 rounded-pill transition-all duration-300"
+                                                    :style="{ width: file.progress + '%' }"
+                                                ></div>
+                                            </div>
                                         </div>
                                     </div>
+                                    <button
+                                        @click="removeFile(file.id)"
+                                        v-if="file.status !== 'uploading'"
+                                        class="ml-4 p-2 text-content-faint hover:text-danger-fg transition-colors"
+                                        aria-label="Remove file"
+                                    >
+                                        <XMarkIcon class="w-5 h-5" />
+                                    </button>
+                                </div>
+                            </div>
+                        </Card>
+
+                        <!-- Upload Form -->
+                        <Card v-if="uploadedFiles.length > 0" title="Document Information" :icon="TagIcon">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <!-- Department -->
+                                <div>
+                                    <label class="ui-label">Department *</label>
+                                    <select
+                                        v-model="uploadForm.department_id"
+                                        class="ui-input"
+                                    >
+                                        <option value="">Select Department</option>
+                                        <option v-for="dept in departments" :key="dept.id" :value="dept.id">{{ dept.name }}</option>
+                                    </select>
                                 </div>
 
-                                <Link
-                                    href="/admin/documents"
-                                    class="block mt-4 text-center text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 font-medium"
+                                <!-- Category -->
+                                <div>
+                                    <label class="ui-label">Category *</label>
+                                    <select
+                                        v-model="uploadForm.category"
+                                        class="ui-input"
+                                    >
+                                        <option value="">Select Category</option>
+                                        <option v-for="cat in categories" :key="cat" :value="cat">{{ cat }}</option>
+                                    </select>
+                                </div>
+
+                                <!-- Priority -->
+                                <div>
+                                    <label class="ui-label">Priority</label>
+                                    <select
+                                        v-model="uploadForm.priority"
+                                        class="ui-input"
+                                    >
+                                        <option v-for="priority in priorities" :key="priority.value" :value="priority.value">
+                                            {{ priority.label }}
+                                        </option>
+                                    </select>
+                                </div>
+
+                                <!-- Visibility -->
+                                <div>
+                                    <label class="ui-label">Visibility</label>
+                                    <select
+                                        v-model="uploadForm.visibility"
+                                        class="ui-input"
+                                    >
+                                        <option value="public">Public (All Users)</option>
+                                        <option value="students">Students</option>
+                                        <option value="faculty">Faculty</option>
+                                        <option value="admins">Admin Only</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Description -->
+                            <div class="mt-6">
+                                <label class="ui-label">Description</label>
+                                <textarea
+                                    v-model="uploadForm.description"
+                                    rows="3"
+                                    placeholder="Provide a brief description of the document(s)..."
+                                    class="ui-input resize-none"
+                                ></textarea>
+                            </div>
+
+                            <!-- Tags -->
+                            <div class="mt-6">
+                                <label class="ui-label">Tags</label>
+                                <div v-if="uploadForm.tags.length" class="flex flex-wrap gap-2 mb-3">
+                                    <span
+                                        v-for="tag in uploadForm.tags"
+                                        :key="tag"
+                                        class="inline-flex items-center px-3 py-1 rounded-pill text-sm bg-primary-soft text-primary"
+                                    >
+                                        {{ tag }}
+                                        <button @click="removeTag(tag)" class="ml-2 text-primary hover:text-primary-hover" aria-label="Remove tag">
+                                            <XMarkIcon class="w-4 h-4" />
+                                        </button>
+                                    </span>
+                                </div>
+                                <input
+                                    type="text"
+                                    placeholder="Add tags (press Enter)"
+                                    @keydown.enter.prevent="(e) => { addTag(e.target.value); e.target.value = ''; }"
+                                    class="ui-input"
+                                />
+                            </div>
+
+                            <!-- Upload Button -->
+                            <div class="mt-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                                <div class="text-sm text-content-muted">
+                                    * Required fields
+                                </div>
+                                <button
+                                    @click="startUpload"
+                                    :disabled="isUploading || uploadedFiles.length === 0"
+                                    class="ui-btn-primary disabled:opacity-60 disabled:cursor-not-allowed"
                                 >
-                                    View All Documents →
-                                </Link>
+                                    {{ isUploading ? 'Uploading...' : `Upload ${uploadedFiles.length} File${uploadedFiles.length !== 1 ? 's' : ''}` }}
+                                </button>
                             </div>
+                        </Card>
+                    </div>
 
-                            <!-- Quick Stats -->
-                            <div class="bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl shadow-lg p-6 text-white">
-                                <h3 class="text-lg font-bold mb-4">Upload Statistics</h3>
-                                <div class="space-y-4">
-                                    <div class="flex justify-between">
-                                        <span class="text-white/80">Today</span>
-                                        <span class="font-bold">12 files</span>
-                                    </div>
-                                    <div class="flex justify-between">
-                                        <span class="text-white/80">This Week</span>
-                                        <span class="font-bold">89 files</span>
-                                    </div>
-                                    <div class="flex justify-between">
-                                        <span class="text-white/80">Pending Review</span>
-                                        <span class="font-bold">23 files</span>
-                                    </div>
-                                    <div class="flex justify-between">
-                                        <span class="text-white/80">Storage Used</span>
-                                        <span class="font-bold">2.4 GB</span>
+                    <!-- Sidebar -->
+                    <div class="space-y-6">
+                        <!-- Upload Guidelines -->
+                        <Card>
+                            <h3 class="text-base font-semibold text-content mb-4 flex items-center gap-2">
+                                <CheckCircleIcon class="w-5 h-5 text-primary" />
+                                Upload Guidelines
+                            </h3>
+                            <ul class="space-y-3 text-sm text-content-muted">
+                                <li class="flex items-start gap-2">
+                                    <CheckCircleIcon class="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                                    Maximum file size: 50MB
+                                </li>
+                                <li class="flex items-start gap-2">
+                                    <CheckCircleIcon class="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                                    Supported formats: PDF, DOC, DOCX, TXT, PPT, PPTX
+                                </li>
+                                <li class="flex items-start gap-2">
+                                    <CheckCircleIcon class="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                                    All documents require approval
+                                </li>
+                                <li class="flex items-start gap-2">
+                                    <CheckCircleIcon class="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                                    Use descriptive filenames
+                                </li>
+                            </ul>
+                        </Card>
+
+                        <!-- Recent Uploads -->
+                        <Card>
+                            <h3 class="text-base font-semibold text-content mb-4 flex items-center gap-2">
+                                <FolderOpenIcon class="w-5 h-5 text-primary" />
+                                Recent Uploads
+                            </h3>
+
+                            <div class="space-y-3">
+                                <div
+                                    v-for="upload in recentUploads.slice(0, 5)"
+                                    :key="upload.id"
+                                    class="p-3 bg-bg rounded-control border border-line"
+                                >
+                                    <div class="flex items-start justify-between gap-2">
+                                        <div class="flex-1 min-w-0">
+                                            <p class="text-sm font-medium text-content truncate">
+                                                {{ upload.name }}
+                                            </p>
+                                            <div class="flex items-center gap-2 text-xs text-content-muted mt-1">
+                                                <span>{{ upload.size }}</span>
+                                                <span>•</span>
+                                                <span>{{ upload.uploadedAt }}</span>
+                                            </div>
+                                        </div>
+                                        <span :class="`text-xs px-2 py-1 rounded-pill font-medium ${getStatusColor(upload.status)}`">
+                                            {{ upload.status }}
+                                        </span>
                                     </div>
                                 </div>
                             </div>
-                        </div>
+
+                            <Link
+                                href="/admin/documents"
+                                class="mt-4 inline-flex items-center gap-1 text-sm text-primary hover:text-primary-hover font-medium"
+                            >
+                                View All Documents
+                                <ArrowRightIcon class="w-4 h-4" />
+                            </Link>
+                        </Card>
+
+                        <!-- Quick Stats -->
+                        <Card>
+                            <h3 class="text-base font-semibold text-content mb-4 flex items-center gap-2">
+                                <ChartBarIcon class="w-5 h-5 text-primary" />
+                                Upload Statistics
+                            </h3>
+                            <div class="space-y-3 text-sm">
+                                <div class="flex justify-between">
+                                    <span class="text-content-muted">Today</span>
+                                    <span class="font-semibold text-content">12 files</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-content-muted">This Week</span>
+                                    <span class="font-semibold text-content">89 files</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-content-muted">Pending Review</span>
+                                    <span class="font-semibold text-content">23 files</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-content-muted">Storage Used</span>
+                                    <span class="font-semibold text-content">2.4 GB</span>
+                                </div>
+                            </div>
+                        </Card>
                     </div>
                 </div>
             </div>
         </AppLayout>
     </div>
 </template>
-
-<style scoped>
-.line-clamp-1 {
-    display: -webkit-box;
-    -webkit-line-clamp: 1;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
-</style>

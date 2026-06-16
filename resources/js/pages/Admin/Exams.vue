@@ -2,7 +2,19 @@
 import { ref, computed } from 'vue';
 import { Head, useForm, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
-import { CalendarDaysIcon, PencilSquareIcon, TrashIcon, PlusIcon } from '@heroicons/vue/24/outline';
+import PageHeader from '@/components/ui/PageHeader.vue';
+import Card from '@/components/ui/Card.vue';
+import Badge from '@/components/ui/Badge.vue';
+import EmptyState from '@/components/ui/EmptyState.vue';
+import {
+    PencilSquareIcon,
+    TrashIcon,
+    PlusIcon,
+    CalendarDaysIcon,
+    ClockIcon,
+    MapPinIcon,
+    AcademicCapIcon,
+} from '@heroicons/vue/24/outline';
 
 const props = defineProps({
     exams: { type: Array, default: () => [] },
@@ -68,128 +80,180 @@ const remove = (exam) => {
 </script>
 
 <template>
-    <Head title="Exam Management" />
+    <div>
+        <Head title="Exam Management" />
 
-    <AppLayout>
-        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div class="flex items-center gap-3 mb-6">
-                <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-rose-500 to-pink-600 flex items-center justify-center">
-                    <CalendarDaysIcon class="w-6 h-6 text-white" />
-                </div>
-                <div>
-                    <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Exam Management</h1>
-                    <p class="text-sm text-gray-500 dark:text-gray-400">Schedule exams; enrolled students are notified automatically.</p>
-                </div>
-            </div>
+        <AppLayout>
+            <div class="page-container py-8 space-y-6 sm:space-y-8">
+                <PageHeader
+                    title="Exam Management"
+                    subtitle="Schedule exams across courses; enrolled students are notified automatically."
+                    :icon="PencilSquareIcon"
+                >
+                    <template #actions>
+                        <button
+                            v-if="isEditing"
+                            type="button"
+                            @click="startCreate"
+                            class="ui-btn-secondary"
+                        >
+                            <PlusIcon class="w-4 h-4" />
+                            New exam
+                        </button>
+                    </template>
+                </PageHeader>
 
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <!-- Form -->
-                <form @submit.prevent="submit" class="lg:col-span-1 bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 space-y-4 h-fit">
-                    <div class="flex items-center justify-between">
-                        <h2 class="font-bold text-gray-900 dark:text-white">{{ isEditing ? 'Edit exam' : 'Schedule exam' }}</h2>
-                        <button v-if="isEditing" type="button" @click="startCreate" class="text-xs text-gray-400 hover:text-indigo-600">+ New</button>
-                    </div>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Form -->
+                    <Card
+                        class="lg:col-span-1 h-fit"
+                        :title="isEditing ? 'Edit exam' : 'Schedule exam'"
+                        :icon="PencilSquareIcon"
+                    >
+                        <template #actions>
+                            <button
+                                v-if="isEditing"
+                                type="button"
+                                @click="startCreate"
+                                class="ui-btn-ghost text-xs"
+                            >
+                                <PlusIcon class="w-3.5 h-3.5" />
+                                New
+                            </button>
+                        </template>
 
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Course</label>
-                        <select v-model="form.course_id" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-900 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            <option value="" disabled>— Select —</option>
-                            <option v-for="course in courses" :key="course.id" :value="course.id">{{ course.code }} — {{ course.name }}</option>
-                        </select>
-                        <p v-if="form.errors.course_id" class="text-xs text-red-500 mt-1">{{ form.errors.course_id }}</p>
-                    </div>
+                        <form @submit.prevent="submit" class="space-y-4">
+                            <div>
+                                <label class="ui-label">Course</label>
+                                <select v-model="form.course_id" class="ui-input">
+                                    <option value="" disabled>— Select —</option>
+                                    <option v-for="course in courses" :key="course.id" :value="course.id">{{ course.code }} — {{ course.name }}</option>
+                                </select>
+                                <p v-if="form.errors.course_id" class="text-xs text-danger-fg mt-1">{{ form.errors.course_id }}</p>
+                            </div>
 
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Title</label>
-                        <input v-model="form.title" type="text" placeholder="Midterm Examination"
-                            class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-900 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
-                        <p v-if="form.errors.title" class="text-xs text-red-500 mt-1">{{ form.errors.title }}</p>
-                    </div>
+                            <div>
+                                <label class="ui-label">Title</label>
+                                <input v-model="form.title" type="text" placeholder="Midterm Examination" class="ui-input" />
+                                <p v-if="form.errors.title" class="text-xs text-danger-fg mt-1">{{ form.errors.title }}</p>
+                            </div>
 
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type</label>
-                            <select v-model="form.type" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-900 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                <option v-for="t in types" :key="t.value" :value="t.value">{{ t.label }}</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date</label>
-                            <input v-model="form.exam_date" type="date"
-                                class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-900 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
-                            <p v-if="form.errors.exam_date" class="text-xs text-red-500 mt-1">{{ form.errors.exam_date }}</p>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Start time</label>
-                            <input v-model="form.start_time" type="time"
-                                class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-900 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
-                            <p v-if="form.errors.start_time" class="text-xs text-red-500 mt-1">{{ form.errors.start_time }}</p>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Duration (min)</label>
-                            <input v-model="form.duration_minutes" type="number" min="1" max="600"
-                                class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-900 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location</label>
-                            <input v-model="form.location" type="text" placeholder="Hall A"
-                                class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-900 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Total marks</label>
-                            <input v-model="form.total_marks" type="number" min="1" max="1000"
-                                class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-900 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Instructions</label>
-                        <textarea v-model="form.instructions" rows="2"
-                            class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-900 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 resize-none"></textarea>
-                    </div>
-
-                    <button type="submit" :disabled="form.processing"
-                        class="w-full inline-flex items-center justify-center gap-2 px-5 py-2 rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-700 disabled:opacity-50">
-                        <PlusIcon v-if="!isEditing" class="w-4 h-4" />
-                        {{ form.processing ? 'Saving…' : (isEditing ? 'Save changes' : 'Schedule exam') }}
-                    </button>
-                </form>
-
-                <!-- List -->
-                <div class="lg:col-span-2">
-                    <div v-if="exams.length === 0" class="bg-white dark:bg-gray-800 rounded-2xl shadow p-12 text-center text-gray-500 dark:text-gray-400">
-                        No exams scheduled yet.
-                    </div>
-                    <div v-else class="bg-white dark:bg-gray-800 rounded-2xl shadow divide-y divide-gray-100 dark:divide-gray-700 overflow-hidden">
-                        <div v-for="exam in exams" :key="exam.id" class="p-4 flex items-start justify-between gap-4">
-                            <div class="min-w-0">
-                                <div class="flex items-center gap-2">
-                                    <span class="text-xs font-semibold text-indigo-600 dark:text-indigo-400">{{ exam.course.code }}</span>
-                                    <span class="text-[11px] px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 font-medium">{{ exam.typeLabel }}</span>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="ui-label">Type</label>
+                                    <select v-model="form.type" class="ui-input">
+                                        <option v-for="t in types" :key="t.value" :value="t.value">{{ t.label }}</option>
+                                    </select>
                                 </div>
-                                <p class="font-semibold text-gray-900 dark:text-white">{{ exam.title }}</p>
-                                <p class="text-xs text-gray-500 dark:text-gray-400">
-                                    {{ exam.dateLabel }}<span v-if="exam.startTime"> · {{ exam.startTime.slice(0, 5) }}</span><span v-if="exam.location"> · {{ exam.location }}</span>
-                                </p>
+                                <div>
+                                    <label class="ui-label">Date</label>
+                                    <input v-model="form.exam_date" type="date" class="ui-input" />
+                                    <p v-if="form.errors.exam_date" class="text-xs text-danger-fg mt-1">{{ form.errors.exam_date }}</p>
+                                </div>
                             </div>
-                            <div class="flex items-center gap-1 flex-shrink-0">
-                                <button type="button" @click="startEdit(exam)" class="p-2 rounded-lg text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30">
-                                    <PencilSquareIcon class="w-4 h-4" />
-                                </button>
-                                <button type="button" @click="remove(exam)" class="p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30">
-                                    <TrashIcon class="w-4 h-4" />
-                                </button>
+
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="ui-label">Start time</label>
+                                    <input v-model="form.start_time" type="time" class="ui-input" />
+                                    <p v-if="form.errors.start_time" class="text-xs text-danger-fg mt-1">{{ form.errors.start_time }}</p>
+                                </div>
+                                <div>
+                                    <label class="ui-label">Duration (min)</label>
+                                    <input v-model="form.duration_minutes" type="number" min="1" max="600" class="ui-input" />
+                                </div>
                             </div>
-                        </div>
+
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="ui-label">Location</label>
+                                    <input v-model="form.location" type="text" placeholder="Hall A" class="ui-input" />
+                                </div>
+                                <div>
+                                    <label class="ui-label">Total marks</label>
+                                    <input v-model="form.total_marks" type="number" min="1" max="1000" class="ui-input" />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="ui-label">Instructions</label>
+                                <textarea v-model="form.instructions" rows="2" class="ui-input resize-none"></textarea>
+                            </div>
+
+                            <button type="submit" :disabled="form.processing" class="ui-btn-primary w-full">
+                                <PlusIcon v-if="!isEditing" class="w-4 h-4" />
+                                {{ form.processing ? 'Saving…' : (isEditing ? 'Save changes' : 'Schedule exam') }}
+                            </button>
+                        </form>
+                    </Card>
+
+                    <!-- List -->
+                    <div class="lg:col-span-2">
+                        <Card v-if="exams.length === 0" padding="p-0">
+                            <EmptyState
+                                title="No exams scheduled yet"
+                                description="Use the form to schedule your first exam. Enrolled students will be notified automatically."
+                                :icon="CalendarDaysIcon"
+                            />
+                        </Card>
+
+                        <Card v-else padding="p-0">
+                            <ul class="divide-y divide-line">
+                                <li
+                                    v-for="exam in exams"
+                                    :key="exam.id"
+                                    class="p-4 sm:p-5 flex items-start justify-between gap-4 hover:bg-bg transition-colors"
+                                >
+                                    <div class="flex items-start gap-3 min-w-0">
+                                        <div class="hidden sm:flex w-10 h-10 rounded-control bg-primary-soft items-center justify-center flex-shrink-0">
+                                            <AcademicCapIcon class="w-5 h-5 text-primary" />
+                                        </div>
+                                        <div class="min-w-0">
+                                            <div class="flex items-center flex-wrap gap-2">
+                                                <span class="text-xs font-semibold text-primary">{{ exam.course.code }}</span>
+                                                <Badge variant="violet">{{ exam.typeLabel }}</Badge>
+                                            </div>
+                                            <p class="font-semibold text-content mt-0.5 truncate">{{ exam.title }}</p>
+                                            <div class="flex items-center flex-wrap gap-x-3 gap-y-1 mt-1 text-xs text-content-muted">
+                                                <span class="inline-flex items-center gap-1">
+                                                    <CalendarDaysIcon class="w-3.5 h-3.5" />
+                                                    {{ exam.dateLabel }}
+                                                </span>
+                                                <span v-if="exam.startTime" class="inline-flex items-center gap-1">
+                                                    <ClockIcon class="w-3.5 h-3.5" />
+                                                    {{ exam.startTime.slice(0, 5) }}
+                                                </span>
+                                                <span v-if="exam.location" class="inline-flex items-center gap-1">
+                                                    <MapPinIcon class="w-3.5 h-3.5" />
+                                                    {{ exam.location }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center gap-1 flex-shrink-0">
+                                        <button
+                                            type="button"
+                                            @click="startEdit(exam)"
+                                            aria-label="Edit exam"
+                                            class="p-2 rounded-control text-content-faint hover:text-primary hover:bg-primary-soft transition-colors"
+                                        >
+                                            <PencilSquareIcon class="w-4 h-4" />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            @click="remove(exam)"
+                                            aria-label="Delete exam"
+                                            class="p-2 rounded-control text-content-faint hover:text-danger-fg hover:bg-danger-bg transition-colors"
+                                        >
+                                            <TrashIcon class="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                </li>
+                            </ul>
+                        </Card>
                     </div>
                 </div>
             </div>
-        </div>
-    </AppLayout>
+        </AppLayout>
+    </div>
 </template>

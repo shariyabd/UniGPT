@@ -1,7 +1,17 @@
 <script setup>
 import { Head, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
-import { MegaphoneIcon, PaperAirplaneIcon } from '@heroicons/vue/24/outline';
+import PageHeader from '@/components/ui/PageHeader.vue';
+import Card from '@/components/ui/Card.vue';
+import Badge from '@/components/ui/Badge.vue';
+import EmptyState from '@/components/ui/EmptyState.vue';
+import {
+    MegaphoneIcon,
+    PaperAirplaneIcon,
+    UsersIcon,
+    ClockIcon,
+    InboxStackIcon,
+} from '@heroicons/vue/24/outline';
 
 const props = defineProps({
     audiences: { type: Array, default: () => [] },
@@ -23,68 +33,106 @@ const submit = () => {
 </script>
 
 <template>
-    <Head title="Announcements" />
+    <div>
+        <Head title="Announcements" />
 
-    <AppLayout>
-        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div class="flex items-center gap-3 mb-6">
-                <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center">
-                    <MegaphoneIcon class="w-6 h-6 text-white" />
-                </div>
-                <div>
-                    <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Announcements</h1>
-                    <p class="text-sm text-gray-500 dark:text-gray-400">Broadcast a notification to a group of users.</p>
-                </div>
-            </div>
+        <AppLayout>
+            <div class="page-container py-8 space-y-6 sm:space-y-8">
+                <PageHeader
+                    title="Announcements"
+                    subtitle="Broadcast a notification to a group of users."
+                    eyebrow="Admin"
+                    :icon="MegaphoneIcon"
+                />
 
-            <form @submit.prevent="submit" class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 space-y-5">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Audience</label>
-                    <select v-model="form.audience"
-                        class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-900 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                        <option v-for="a in audiences" :key="a.value" :value="a.value">{{ a.label }}</option>
-                    </select>
-                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                    <!-- Compose -->
+                    <div class="lg:col-span-3">
+                        <Card title="Compose announcement" subtitle="Send a new notification" :icon="PaperAirplaneIcon">
+                            <form @submit.prevent="submit" class="space-y-5">
+                                <div>
+                                    <label class="ui-label" for="announcement-audience">Audience</label>
+                                    <select
+                                        id="announcement-audience"
+                                        v-model="form.audience"
+                                        class="ui-input"
+                                    >
+                                        <option v-for="a in audiences" :key="a.value" :value="a.value">{{ a.label }}</option>
+                                    </select>
+                                </div>
 
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Title</label>
-                    <input v-model="form.title" type="text" maxlength="150" placeholder="Midterm schedule released"
-                        class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-900 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
-                    <p v-if="form.errors.title" class="text-xs text-red-500 mt-1">{{ form.errors.title }}</p>
-                </div>
+                                <div>
+                                    <label class="ui-label" for="announcement-title">Title</label>
+                                    <input
+                                        id="announcement-title"
+                                        v-model="form.title"
+                                        type="text"
+                                        maxlength="150"
+                                        placeholder="Midterm schedule released"
+                                        class="ui-input"
+                                    />
+                                    <p v-if="form.errors.title" class="text-xs text-danger-fg mt-1">{{ form.errors.title }}</p>
+                                </div>
 
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Message</label>
-                    <textarea v-model="form.message" rows="4" maxlength="2000" placeholder="Write your announcement…"
-                        class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-900 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 resize-none"></textarea>
-                    <p v-if="form.errors.message" class="text-xs text-red-500 mt-1">{{ form.errors.message }}</p>
-                </div>
+                                <div>
+                                    <label class="ui-label" for="announcement-message">Message</label>
+                                    <textarea
+                                        id="announcement-message"
+                                        v-model="form.message"
+                                        rows="4"
+                                        maxlength="2000"
+                                        placeholder="Write your announcement…"
+                                        class="ui-input resize-none"
+                                    ></textarea>
+                                    <p v-if="form.errors.message" class="text-xs text-danger-fg mt-1">{{ form.errors.message }}</p>
+                                </div>
 
-                <div class="flex justify-end">
-                    <button type="submit" :disabled="form.processing"
-                        class="inline-flex items-center gap-2 px-5 py-2 rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-700 disabled:opacity-50">
-                        <PaperAirplaneIcon class="w-4 h-4" />
-                        {{ form.processing ? 'Sending…' : 'Send announcement' }}
-                    </button>
-                </div>
-            </form>
+                                <div class="flex justify-end">
+                                    <button type="submit" :disabled="form.processing" class="ui-btn-primary">
+                                        <PaperAirplaneIcon class="w-4 h-4" />
+                                        {{ form.processing ? 'Sending…' : 'Send announcement' }}
+                                    </button>
+                                </div>
+                            </form>
+                        </Card>
+                    </div>
 
-            <div class="mt-8">
-                <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-3">Recent announcements</h2>
-                <div v-if="recent.length === 0" class="text-sm text-gray-500 dark:text-gray-400">
-                    No announcements sent yet.
-                </div>
-                <div v-else class="bg-white dark:bg-gray-800 rounded-2xl shadow divide-y divide-gray-100 dark:divide-gray-700 overflow-hidden">
-                    <div v-for="(item, i) in recent" :key="i" class="p-4">
-                        <div class="flex items-center justify-between">
-                            <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ item.title }}</p>
-                            <span class="text-xs text-gray-400">{{ item.time }}</span>
+                    <!-- Recent -->
+                    <div class="lg:col-span-2 space-y-4">
+                        <h2 class="ui-card-title flex items-center gap-2 px-1">
+                            <ClockIcon class="w-5 h-5 text-primary" />
+                            Recent announcements
+                        </h2>
+
+                        <EmptyState
+                            v-if="recent.length === 0"
+                            title="No announcements yet"
+                            description="Sent announcements will appear here."
+                            :icon="InboxStackIcon"
+                        />
+
+                        <div v-else class="space-y-3">
+                            <Card v-for="(item, i) in recent" :key="i" hover padding="p-4">
+                                <div class="flex items-start justify-between gap-3">
+                                    <p class="text-sm font-semibold text-content">{{ item.title }}</p>
+                                    <span class="shrink-0 inline-flex items-center gap-1 text-xs text-content-muted">
+                                        <ClockIcon class="w-3.5 h-3.5" />
+                                        {{ item.time }}
+                                    </span>
+                                </div>
+                                <p class="text-sm text-content-muted mt-1">{{ item.message }}</p>
+                                <div class="mt-3 flex flex-wrap items-center gap-2">
+                                    <Badge v-if="item.audience" variant="violet" dot>{{ item.audience }}</Badge>
+                                    <Badge variant="slate">
+                                        <UsersIcon class="w-3.5 h-3.5" />
+                                        {{ item.recipients }} recipient(s)
+                                    </Badge>
+                                </div>
+                            </Card>
                         </div>
-                        <p class="text-sm text-gray-600 dark:text-gray-300 mt-0.5">{{ item.message }}</p>
-                        <p class="text-xs text-gray-400 mt-1">{{ item.recipients }} recipient(s)</p>
                     </div>
                 </div>
             </div>
-        </div>
-    </AppLayout>
+        </AppLayout>
+    </div>
 </template>

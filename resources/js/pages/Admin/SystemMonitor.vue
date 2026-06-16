@@ -2,14 +2,25 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import PageHeader from '@/components/ui/PageHeader.vue';
+import Card from '@/components/ui/Card.vue';
+import StatCard from '@/components/ui/StatCard.vue';
+import Badge from '@/components/ui/Badge.vue';
 import {
     CpuChipIcon,
     CircleStackIcon,
     ServerIcon,
+    ServerStackIcon,
     BoltIcon,
     CheckCircleIcon,
     XCircleIcon,
     ArrowPathIcon,
+    ArrowLeftIcon,
+    CommandLineIcon,
+    CloudIcon,
+    SparklesIcon,
+    QueueListIcon,
+    CircleStackIcon as DbIcon,
 } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
@@ -36,12 +47,25 @@ const cpuLoadPercent = computed(() => {
 });
 
 const barColor = (pct) => {
-    if (pct >= 85) return 'bg-red-500';
-    if (pct >= 65) return 'bg-yellow-500';
-    return 'bg-green-500';
+    if (pct >= 85) return 'bg-danger-fg';
+    if (pct >= 65) return 'bg-warning-fg';
+    return 'bg-success-fg';
 };
 
 const serviceUp = (value) => value === 'operational';
+
+// Overall health derived from key signals.
+const dbHealthy = computed(() => serviceUp(props.metrics.services.database));
+const healthState = computed(() => {
+    if (!dbHealthy.value) return 'down';
+    if (cpuLoadPercent.value >= 85 || props.metrics.storage.usedPercent >= 85) return 'warning';
+    return 'healthy';
+});
+const healthMeta = computed(() => ({
+    healthy: { color: 'emerald', label: 'Healthy', variant: 'success' },
+    warning: { color: 'amber', label: 'Degraded', variant: 'warning' },
+    down: { color: 'rose', label: 'Down', variant: 'danger' },
+})[healthState.value]);
 
 const refresh = () => {
     isRefreshing.value = true;
@@ -70,136 +94,177 @@ onUnmounted(() => { if (timer) clearInterval(timer); });
         <Head title="System Monitor" />
 
         <AppLayout>
-            <div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-950">
-                <!-- Header -->
-                <div class="bg-gradient-to-r from-slate-700 via-gray-800 to-slate-900">
-                    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-                        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+            <div class="page-container py-8 space-y-6 sm:space-y-8">
+                <PageHeader
+                    title="System Monitor"
+                    subtitle="Live server and service health"
+                    :icon="ServerStackIcon"
+                >
+                    <template #actions>
+                        <button
+                            type="button"
+                            @click="toggleAuto"
+                            class="ui-btn-secondary"
+                            :class="autoRefresh ? 'ring-2 ring-primary/20' : ''"
+                            :aria-pressed="autoRefresh"
+                        >
+                            <BoltIcon class="h-4 w-4" :class="autoRefresh ? 'text-primary' : ''" />
+                            Auto-refresh: {{ autoRefresh ? 'On' : 'Off' }}
+                        </button>
+                        <button
+                            type="button"
+                            @click="refresh"
+                            class="ui-btn-primary"
+                        >
+                            <ArrowPathIcon class="h-4 w-4" :class="isRefreshing ? 'animate-spin' : ''" />
+                            Refresh
+                        </button>
+                        <Link href="/admin/dashboard" class="ui-btn-ghost">
+                            <ArrowLeftIcon class="h-4 w-4" />
+                            Dashboard
+                        </Link>
+                    </template>
+                </PageHeader>
+
+                <!-- Status overview -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+                    <StatCard
+                        label="System Health"
+                        :value="healthMeta.label"
+                        :icon="ServerStackIcon"
+                        :color="healthMeta.color"
+                        :hint="dbHealthy ? 'Database operational' : 'Database unreachable'"
+                    />
+                    <StatCard
+                        label="CPU Load"
+                        :value="`${cpuLoadPercent}%`"
+                        :icon="CpuChipIcon"
+                        :color="cpuLoadPercent >= 85 ? 'rose' : cpuLoadPercent >= 65 ? 'amber' : 'violet'"
+                        :hint="`${metrics.cpu.cores} cores`"
+                    />
+                    <StatCard
+                        label="Storage Used"
+                        :value="`${metrics.storage.usedPercent}%`"
+                        :icon="CircleStackIcon"
+                        :color="metrics.storage.usedPercent >= 85 ? 'rose' : metrics.storage.usedPercent >= 65 ? 'amber' : 'violet'"
+                        :hint="`${metrics.storage.free} free of ${metrics.storage.total}`"
+                    />
+                    <StatCard
+                        label="Uptime"
+                        :value="`${metrics.app.uptimePercent}%`"
+                        :icon="BoltIcon"
+                        color="violet"
+                        :hint="`PHP memory: ${metrics.memory.usage} MB`"
+                    />
+                </div>
+
+                <!-- Resource usage -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+                    <!-- CPU -->
+                    <Card title="CPU Load" :icon="CpuChipIcon">
+                        <div class="text-stat text-content mb-2">{{ cpuLoadPercent }}%</div>
+                        <div class="w-full bg-neutral-bg rounded-full h-2 mb-4 overflow-hidden">
+                            <div
+                                class="h-2 rounded-full transition-all duration-300"
+                                :class="barColor(cpuLoadPercent)"
+                                :style="{ width: cpuLoadPercent + '%' }"
+                            ></div>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2 text-center text-sm">
                             <div>
-                                <h1 class="text-4xl font-bold text-white mb-2">🖥️ System Monitor</h1>
-                                <p class="text-xl text-white/90">Live server and service health</p>
+                                <div class="text-content-muted">1m</div>
+                                <div class="font-semibold text-content">{{ metrics.cpu.load1 }}</div>
                             </div>
-                            <div class="flex gap-2">
-                                <button
-                                    @click="toggleAuto"
-                                    :class="`px-4 py-2 backdrop-blur-lg border border-white/20 rounded-xl text-white transition-all ${autoRefresh ? 'bg-green-500/40' : 'bg-white/20 hover:bg-white/30'}`"
-                                >
-                                    Auto-refresh: {{ autoRefresh ? 'On' : 'Off' }}
-                                </button>
-                                <button
-                                    @click="refresh"
-                                    class="px-4 py-2 bg-white/20 backdrop-blur-lg border border-white/20 rounded-xl text-white hover:bg-white/30 transition-all flex items-center gap-2"
-                                >
-                                    <ArrowPathIcon :class="`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`" />
-                                    Refresh
-                                </button>
-                                <Link
-                                    href="/admin/dashboard"
-                                    class="px-4 py-2 bg-white/20 backdrop-blur-lg border border-white/20 rounded-xl text-white hover:bg-white/30 transition-all"
-                                >
-                                    ← Dashboard
-                                </Link>
+                            <div>
+                                <div class="text-content-muted">5m</div>
+                                <div class="font-semibold text-content">{{ metrics.cpu.load5 }}</div>
+                            </div>
+                            <div>
+                                <div class="text-content-muted">15m</div>
+                                <div class="font-semibold text-content">{{ metrics.cpu.load15 }}</div>
                             </div>
                         </div>
-                    </div>
+                        <p class="text-xs text-content-muted mt-3">{{ metrics.cpu.cores }} cores</p>
+                    </Card>
+
+                    <!-- Memory -->
+                    <Card title="Memory (PHP)" :icon="BoltIcon">
+                        <div class="text-stat text-content mb-2">{{ metrics.memory.usage }} MB</div>
+                        <p class="text-sm text-content-muted">Peak this request: {{ metrics.memory.peak }} MB</p>
+                    </Card>
+
+                    <!-- Storage -->
+                    <Card title="Storage" :icon="CircleStackIcon">
+                        <div class="text-stat text-content mb-2">{{ metrics.storage.usedPercent }}%</div>
+                        <div class="w-full bg-neutral-bg rounded-full h-2 mb-4 overflow-hidden">
+                            <div
+                                class="h-2 rounded-full transition-all duration-300"
+                                :class="barColor(metrics.storage.usedPercent)"
+                                :style="{ width: metrics.storage.usedPercent + '%' }"
+                            ></div>
+                        </div>
+                        <p class="text-sm text-content-muted">{{ metrics.storage.free }} free of {{ metrics.storage.total }}</p>
+                    </Card>
                 </div>
 
-                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 -mt-6 space-y-8">
-                    <!-- Resource gauges -->
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <!-- CPU -->
-                        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
-                            <div class="flex items-center gap-2 mb-4">
-                                <CpuChipIcon class="w-6 h-6 text-blue-600" />
-                                <h2 class="font-bold text-gray-900 dark:text-white">CPU Load</h2>
-                            </div>
-                            <div class="text-3xl font-bold text-gray-900 dark:text-white mb-1">{{ cpuLoadPercent }}%</div>
-                            <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-4">
-                                <div :class="`h-2 rounded-full transition-all ${barColor(cpuLoadPercent)}`" :style="{ width: cpuLoadPercent + '%' }"></div>
-                            </div>
-                            <div class="grid grid-cols-3 gap-2 text-center text-sm">
-                                <div><div class="text-gray-500">1m</div><div class="font-semibold text-gray-900 dark:text-white">{{ metrics.cpu.load1 }}</div></div>
-                                <div><div class="text-gray-500">5m</div><div class="font-semibold text-gray-900 dark:text-white">{{ metrics.cpu.load5 }}</div></div>
-                                <div><div class="text-gray-500">15m</div><div class="font-semibold text-gray-900 dark:text-white">{{ metrics.cpu.load15 }}</div></div>
-                            </div>
-                            <p class="text-xs text-gray-500 mt-3">{{ metrics.cpu.cores }} cores</p>
+                <!-- Services -->
+                <Card title="Services" :icon="ServerIcon">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div class="flex items-center justify-between p-4 rounded-card bg-bg border border-line">
+                            <span class="flex items-center gap-2 font-medium text-content">
+                                <DbIcon class="h-4 w-4 text-primary" />
+                                Database
+                            </span>
+                            <Badge :variant="serviceUp(metrics.services.database) ? 'success' : 'danger'" dot>
+                                <component :is="serviceUp(metrics.services.database) ? CheckCircleIcon : XCircleIcon" class="h-3.5 w-3.5" />
+                                {{ metrics.services.database }}
+                            </Badge>
                         </div>
-
-                        <!-- Memory -->
-                        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
-                            <div class="flex items-center gap-2 mb-4">
-                                <BoltIcon class="w-6 h-6 text-purple-600" />
-                                <h2 class="font-bold text-gray-900 dark:text-white">Memory (PHP)</h2>
-                            </div>
-                            <div class="text-3xl font-bold text-gray-900 dark:text-white mb-1">{{ metrics.memory.usage }} MB</div>
-                            <p class="text-sm text-gray-500">Peak this request: {{ metrics.memory.peak }} MB</p>
+                        <div class="flex items-center justify-between p-4 rounded-card bg-bg border border-line">
+                            <span class="flex items-center gap-2 font-medium text-content">
+                                <QueueListIcon class="h-4 w-4 text-primary" />
+                                Queue
+                            </span>
+                            <Badge variant="slate" dot>{{ metrics.services.queue }}</Badge>
                         </div>
-
-                        <!-- Storage -->
-                        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
-                            <div class="flex items-center gap-2 mb-4">
-                                <CircleStackIcon class="w-6 h-6 text-orange-600" />
-                                <h2 class="font-bold text-gray-900 dark:text-white">Storage</h2>
-                            </div>
-                            <div class="text-3xl font-bold text-gray-900 dark:text-white mb-1">{{ metrics.storage.usedPercent }}%</div>
-                            <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-4">
-                                <div :class="`h-2 rounded-full transition-all ${barColor(metrics.storage.usedPercent)}`" :style="{ width: metrics.storage.usedPercent + '%' }"></div>
-                            </div>
-                            <p class="text-sm text-gray-500">{{ metrics.storage.free }} free of {{ metrics.storage.total }}</p>
+                        <div class="flex items-center justify-between p-4 rounded-card bg-bg border border-line">
+                            <span class="flex items-center gap-2 font-medium text-content">
+                                <CloudIcon class="h-4 w-4 text-primary" />
+                                Cache
+                            </span>
+                            <Badge variant="slate" dot>{{ metrics.services.cache }}</Badge>
+                        </div>
+                        <div class="flex items-center justify-between p-4 rounded-card bg-bg border border-line">
+                            <span class="flex items-center gap-2 font-medium text-content">
+                                <SparklesIcon class="h-4 w-4 text-primary" />
+                                AI Provider
+                            </span>
+                            <Badge variant="violet" dot><span class="capitalize">{{ metrics.services.aiProvider }}</span></Badge>
                         </div>
                     </div>
+                </Card>
 
-                    <!-- Services -->
-                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
-                        <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
-                            <ServerIcon class="w-6 h-6 text-indigo-600" /> Services
-                        </h2>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                            <div class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl">
-                                <span class="font-medium text-gray-900 dark:text-white">Database</span>
-                                <span :class="`inline-flex items-center gap-1 text-sm font-medium ${serviceUp(metrics.services.database) ? 'text-green-600' : 'text-red-600'}`">
-                                    <component :is="serviceUp(metrics.services.database) ? CheckCircleIcon : XCircleIcon" class="w-4 h-4" />
-                                    {{ metrics.services.database }}
-                                </span>
-                            </div>
-                            <div class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl">
-                                <span class="font-medium text-gray-900 dark:text-white">Queue</span>
-                                <span class="text-sm text-gray-600 dark:text-gray-400">{{ metrics.services.queue }}</span>
-                            </div>
-                            <div class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl">
-                                <span class="font-medium text-gray-900 dark:text-white">Cache</span>
-                                <span class="text-sm text-gray-600 dark:text-gray-400">{{ metrics.services.cache }}</span>
-                            </div>
-                            <div class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl">
-                                <span class="font-medium text-gray-900 dark:text-white">AI Provider</span>
-                                <span class="text-sm text-gray-600 dark:text-gray-400 capitalize">{{ metrics.services.aiProvider }}</span>
-                            </div>
+                <!-- App info -->
+                <Card title="Environment" :icon="CommandLineIcon">
+                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                        <div class="p-4 rounded-card bg-bg border border-line">
+                            <div class="text-content-muted">PHP</div>
+                            <div class="font-semibold text-content">{{ metrics.app.php }}</div>
+                        </div>
+                        <div class="p-4 rounded-card bg-bg border border-line">
+                            <div class="text-content-muted">Laravel</div>
+                            <div class="font-semibold text-content">{{ metrics.app.laravel }}</div>
+                        </div>
+                        <div class="p-4 rounded-card bg-bg border border-line">
+                            <div class="text-content-muted">Environment</div>
+                            <div class="font-semibold capitalize text-content">{{ metrics.app.environment }}</div>
+                        </div>
+                        <div class="p-4 rounded-card bg-bg border border-line">
+                            <div class="text-content-muted">Uptime</div>
+                            <div class="font-semibold text-content">{{ metrics.app.uptimePercent }}%</div>
                         </div>
                     </div>
-
-                    <!-- App info -->
-                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
-                        <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-6">Environment</h2>
-                        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
-                            <div class="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl">
-                                <div class="text-gray-500">PHP</div>
-                                <div class="font-semibold text-gray-900 dark:text-white">{{ metrics.app.php }}</div>
-                            </div>
-                            <div class="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl">
-                                <div class="text-gray-500">Laravel</div>
-                                <div class="font-semibold text-gray-900 dark:text-white">{{ metrics.app.laravel }}</div>
-                            </div>
-                            <div class="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl">
-                                <div class="text-gray-500">Environment</div>
-                                <div class="font-semibold text-gray-900 dark:text-white capitalize">{{ metrics.app.environment }}</div>
-                            </div>
-                            <div class="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl">
-                                <div class="text-gray-500">Uptime</div>
-                                <div class="font-semibold text-gray-900 dark:text-white">{{ metrics.app.uptimePercent }}%</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                </Card>
             </div>
         </AppLayout>
     </div>
