@@ -2,12 +2,15 @@
 import { computed } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
-import StatCard from '@/components/StatCard.vue';
-import LogoutButton from '@/components/LogoutButton.vue';
+import Card from '@/components/ui/Card.vue';
+import StatCard from '@/components/ui/StatCard.vue';
+import Badge from '@/components/ui/Badge.vue';
 import {
     AcademicCapIcon,
     BookmarkIcon,
+    BookOpenIcon,
     ChatBubbleLeftRightIcon,
+    ClipboardDocumentCheckIcon,
     ClockIcon,
     CalendarIcon,
     ChartBarIcon,
@@ -16,8 +19,8 @@ import {
     DocumentTextIcon,
     ArrowRightIcon,
     FireIcon,
-    UserIcon,
-    Cog6ToothIcon
+    FlagIcon,
+    LightBulbIcon
 } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
@@ -56,11 +59,13 @@ const student = computed(() => {
     };
 });
 
-// Map server `stats` into the shape the template renders (gradient + icon component).
+// Semantic StatCard tones, cycled across the KPI row.
+const statTones = ['primary', 'success', 'warning', 'danger'];
+
+// Map server `stats` into the shape the template renders.
 const stats = computed(() =>
     (props.stats || []).map((stat) => ({
         ...stat,
-        gradient: getStatColor(stat.color),
         icon: iconMap[stat.icon] || ChartBarIcon
     }))
 );
@@ -134,421 +139,287 @@ const roadmapPreview = computed(() => {
     };
 });
 
+// Confidence chip tone (semantic).
 const getConfidenceColor = (confidence) => {
-    if (confidence >= 90) return 'text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400';
-    if (confidence >= 75) return 'text-blue-600 bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400';
-    return 'text-yellow-600 bg-yellow-100 dark:bg-yellow-900/30 dark:text-yellow-400';
+    if (confidence >= 90) return 'bg-success-bg text-success-fg';
+    if (confidence >= 75) return 'bg-primary-soft text-primary';
+    return 'bg-warning-bg text-warning-fg';
 };
 
+// Deadline card accent: urgent → danger, soon → warning, otherwise success.
 const getDeadlineColor = (daysLeft) => {
-    if (daysLeft <= 3) return 'border-red-500 bg-red-50 dark:bg-red-900/20';
-    if (daysLeft <= 7) return 'border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20';
-    return 'border-green-500 bg-green-50 dark:bg-green-900/20';
-};
-
-const navigateToRoute = (routeName) => {
-    router.visit(route(routeName));
-};
-
-const getPriorityColor = (priority) => {
-    const colors = {
-        high: 'border-red-500 bg-red-50 dark:bg-red-900/20',
-        medium: 'border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20',
-        low: 'border-green-500 bg-green-50 dark:bg-green-900/20'
-    };
-    return colors[priority] || colors.low;
-};
-
-const getStatColor = (color) => {
-    const colors = {
-        green: 'from-green-500 to-emerald-600',
-        blue: 'from-blue-500 to-cyan-600',
-        purple: 'from-purple-500 to-indigo-600',
-        orange: 'from-orange-500 to-red-600'
-    };
-    return colors[color] || colors.blue;
+    if (daysLeft <= 3) return 'border-danger-fg bg-danger-bg';
+    if (daysLeft <= 7) return 'border-warning-fg bg-warning-bg';
+    return 'border-success-fg bg-success-bg';
 };
 </script>
 
 <template>
     <div>
-    <Head title="Student Dashboard" />
-    <AppLayout>
-        <div class="min-h-screen bg-gradient-to-br from-gray-50 via-white to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-950">
-            <!-- Hero Section with Profile -->
-            <div class="relative overflow-hidden bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 dark:from-indigo-900 dark:via-purple-900 dark:to-pink-900">
-                <div class="absolute inset-0 bg-black/10"></div>
-                <div class="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
-
-                <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-                    <div class="flex flex-col md:flex-row items-center justify-between gap-6">
-                        <!-- Profile Info -->
-                        <div class="flex items-center gap-6">
-                            <div class="relative">
-                                <img
-                                    :src="student.avatar"
-                                    alt="Profile"
-                                    class="w-24 h-24 rounded-2xl shadow-2xl ring-4 ring-white/50 dark:ring-white/20"
-                                />
-                                <div class="absolute -bottom-2 -right-2 w-8 h-8 bg-green-500 rounded-full ring-4 ring-white dark:ring-gray-800 flex items-center justify-center">
-                                    <SparklesIcon class="w-5 h-5 text-white" />
-                                </div>
-                            </div>
-
-                            <div class="text-white">
-                                <h1 class="text-3xl md:text-4xl font-bold mb-2">
-                                    Welcome back, {{ student.name }}! 👋
-                                </h1>
-                                <p class="text-white/90 text-lg">
-                                    {{ student.studentId }} • {{ student.department }}
-                                </p>
-                                <p class="text-white/80 text-sm mt-1">
-                                    {{ student.year }} • {{ student.semester }} • {{ student.program }}
-                                </p>
-                            </div>
+        <Head title="Student Dashboard" />
+        <AppLayout>
+            <div class="page-container py-8 space-y-6 sm:space-y-8">
+                <!-- Greeting + page intro -->
+                <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div class="flex items-center gap-4">
+                        <img
+                            v-if="student.avatar"
+                            :src="student.avatar"
+                            alt="Profile"
+                            class="h-14 w-14 flex-shrink-0 rounded-card object-cover ring-1 ring-line"
+                        />
+                        <div class="min-w-0">
+                            <h1 class="text-2xl font-bold tracking-tight text-content">
+                                Welcome back, {{ student.name }}
+                            </h1>
+                            <p class="mt-0.5 text-sm text-content-muted">
+                                {{ student.studentId }} · {{ student.department }} · {{ student.year }}
+                            </p>
                         </div>
-  <!-- Action Buttons -->
-                <div class="flex items-center gap-3 lg:flex-shrink-0">
-                    <!-- Profile Button -->
-                    <Link
-                        :href="route('profile')"
-                        class="flex items-center gap-2 px-4 py-2.5 bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 border border-white/20 hover:border-white/40 rounded-xl transition-all duration-200 hover:scale-105"
-                    >
-                        <UserIcon class="w-4 h-4" />
-                        <span class="text-sm font-medium">Profile</span>
-                    </Link>
-
-                    <!-- Settings Button -->
-                    <Link
-                        :href="route('settings')"
-                        class="flex items-center gap-2 px-4 py-2.5 bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 border border-white/20 hover:border-white/40 rounded-xl transition-all duration-200 hover:scale-105"
-                    >
-                        <Cog6ToothIcon class="w-4 h-4" />
-                        <span class="text-sm font-medium">Settings</span>
-                    </Link>
-
-                    <!-- Logout Button with Custom Styling -->
-                    <LogoutButton class="flex items-center gap-2 px-4 py-2.5 bg-red-500/20 backdrop-blur-sm text-white hover:bg-red-500/30 border border-red-400/30 hover:border-red-400/50 rounded-xl transition-all duration-200 hover:scale-105" />
-                </div>
-                        <!-- Quick Stats Badge -->
-                        <div class="flex flex-wrap gap-3">
-                            <div class="bg-white/20 backdrop-blur-lg rounded-xl px-4 py-3 text-white">
-                                <div class="text-2xl font-bold">87%</div>
-                                <div class="text-xs text-white/80">Attendance</div>
-                            </div>
-                            <div class="bg-white/20 backdrop-blur-lg rounded-xl px-4 py-3 text-white">
-                                <div class="text-2xl font-bold">7</div>
-                                <div class="text-xs text-white/80">Day Streak</div>
-                            </div>
+                    </div>
+                    <div class="flex flex-wrap gap-3">
+                        <div class="flex items-center gap-2.5 rounded-card border border-line bg-surface px-4 py-2.5 shadow-card">
+                            <span class="ui-icon-tile h-9 w-9 bg-success-bg text-success-fg">
+                                <ClipboardDocumentCheckIcon class="h-5 w-5" />
+                            </span>
+                            <div class="leading-tight"><div class="text-lg font-bold text-content">87%</div><div class="text-[11px] font-medium text-content-muted">Attendance</div></div>
+                        </div>
+                        <div class="flex items-center gap-2.5 rounded-card border border-line bg-surface px-4 py-2.5 shadow-card">
+                            <span class="ui-icon-tile h-9 w-9 bg-warning-bg text-warning-fg">
+                                <FireIcon class="h-5 w-5" />
+                            </span>
+                            <div class="leading-tight"><div class="text-lg font-bold text-content">7</div><div class="text-[11px] font-medium text-content-muted">Day Streak</div></div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Wave decoration -->
-                <div class="absolute bottom-0 left-0 right-0">
-                    <svg viewBox="0 0 1440 120" class="w-full h-12 fill-gray-50 dark:fill-gray-900">
-                        <path d="M0,64L48,69.3C96,75,192,85,288,80C384,75,480,53,576,48C672,43,768,53,864,58.7C960,64,1056,64,1152,58.7C1248,53,1344,43,1392,37.3L1440,32L1440,120L1392,120C1344,120,1248,120,1152,120C1056,120,960,120,864,120C768,120,672,120,576,120C480,120,384,120,288,120C192,120,96,120,48,120L0,120Z"></path>
-                    </svg>
-                </div>
-            </div>
-
-            <!-- Main Content -->
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 -mt-6">
-                <!-- Stats Grid -->
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                    <div
-                        v-for="stat in stats"
+                <!-- KPI cards -->
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-4">
+                    <StatCard
+                        v-for="(stat, i) in stats"
                         :key="stat.label"
-                        class="group relative bg-white dark:bg-gray-800 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden transform hover:-translate-y-2"
-                    >
-                        <!-- Gradient Background -->
-                        <div :class="`absolute inset-0 bg-gradient-to-br ${stat.gradient} opacity-5 group-hover:opacity-10 transition-opacity`"></div>
-
-                        <div class="relative p-6">
-                            <div class="flex items-start justify-between mb-4">
-                                <div :class="`p-3 rounded-xl bg-gradient-to-br ${stat.gradient} shadow-lg`">
-                                    <component :is="stat.icon" class="w-6 h-6 text-white" />
-                                </div>
-                                <span :class="`text-xs font-semibold px-2 py-1 rounded-full ${stat.trend === 'up' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700'}`">
-                                    {{ stat.change }}
-                                </span>
-                            </div>
-
-                            <div class="text-3xl font-bold text-gray-900 dark:text-white mb-1">
-                                {{ stat.value }}
-                            </div>
-                            <div class="text-sm text-gray-600 dark:text-gray-400">
-                                {{ stat.label }}
-                            </div>
-                        </div>
-                    </div>
+                        :label="stat.label"
+                        :value="stat.value"
+                        :icon="stat.icon"
+                        :color="statTones[i % statTones.length]"
+                        :change="stat.change"
+                        :trend="stat.trend"
+                    />
                 </div>
 
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <!-- Left Column - 2/3 width -->
-                    <div class="lg:col-span-2 space-y-8">
+                <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                    <!-- Left Column -->
+                    <div class="space-y-6 lg:col-span-2">
                         <!-- Quick Actions -->
-                        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
-                            <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
-                                <SparklesIcon class="w-6 h-6 text-indigo-600" />
-                                Quick Actions
-                            </h2>
-
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <Card title="Quick Actions" :icon="SparklesIcon">
+                            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                 <Link
                                     v-for="action in quickActions"
                                     :key="action.label"
                                     :href="action.route"
-                                    class="group relative bg-gradient-to-br p-[2px] rounded-xl overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
-                                    :class="action.gradient"
+                                    class="group flex flex-col rounded-card border border-line bg-bg p-5 transition-shadow duration-200 hover:bg-surface hover:shadow-card-hover"
                                 >
-                                    <div class="bg-white dark:bg-gray-800 rounded-[10px] p-6 h-full">
-                                        <component :is="action.icon" :class="`w-8 h-8 mb-3 bg-gradient-to-br ${action.gradient} bg-clip-text text-transparent`" />
-                                        <h3 class="font-semibold text-gray-900 dark:text-white mb-1">
-                                            {{ action.label }}
-                                        </h3>
-                                        <p class="text-sm text-gray-600 dark:text-gray-400">
-                                            {{ action.description }}
-                                        </p>
+                                    <div class="ui-icon-tile mb-3 h-11 w-11 bg-primary-soft text-primary">
+                                        <component :is="action.icon" class="h-6 w-6" />
                                     </div>
+                                    <h3 class="font-semibold text-content">
+                                        {{ action.label }}
+                                    </h3>
+                                    <p class="mt-1 text-sm text-content-muted">
+                                        {{ action.description }}
+                                    </p>
                                 </Link>
                             </div>
-                        </div>
+                        </Card>
 
                         <!-- Recent Chats -->
-                        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
-                            <div class="flex items-center justify-between mb-6">
-                                <h2 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                                    <ChatBubbleLeftRightIcon class="w-6 h-6 text-purple-600" />
-                                    Recent Conversations
-                                </h2>
-                                <Link href="/chat/history" class="text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 font-medium">
-                                    View All →
+                        <Card title="Recent Conversations" :icon="ChatBubbleLeftRightIcon">
+                            <template #actions>
+                                <Link href="/chat/history" class="ui-btn-ghost text-sm">
+                                    View All
+                                    <ArrowRightIcon class="h-4 w-4" />
                                 </Link>
-                            </div>
+                            </template>
 
-                            <div class="space-y-4">
+                            <div class="space-y-3">
                                 <div
                                     v-for="chat in recentChats"
                                     :key="chat.id"
-                                    class="group p-4 rounded-xl border-2 border-gray-100 dark:border-gray-700 hover:border-indigo-300 dark:hover:border-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-all duration-300 cursor-pointer"
+                                    class="group cursor-pointer rounded-card border border-line bg-bg p-4 transition-shadow duration-200 hover:bg-surface hover:shadow-card-hover"
                                 >
                                     <div class="flex items-start justify-between gap-4">
-                                        <div class="flex-1 min-w-0">
-                                            <div class="flex items-center gap-2 mb-2">
-                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400">
-                                                    {{ chat.mode }}
-                                                </span>
-                                                <span :class="`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getConfidenceColor(chat.confidence)}`">
+                                        <div class="min-w-0 flex-1">
+                                            <div class="mb-2 flex flex-wrap items-center gap-2">
+                                                <Badge variant="primary">{{ chat.mode }}</Badge>
+                                                <span v-if="chat.confidence != null" class="ui-badge" :class="getConfidenceColor(chat.confidence)">
                                                     {{ chat.confidence }}% Confidence
                                                 </span>
-                                                <span v-if="chat.saved" class="text-yellow-500">
-                                                    <BookmarkIcon class="w-4 h-4 fill-current" />
+                                                <span v-if="chat.saved" class="text-warning-fg">
+                                                    <BookmarkIcon class="h-4 w-4 fill-current" />
                                                 </span>
                                             </div>
-                                            <p class="text-gray-900 dark:text-white font-medium mb-1 line-clamp-2">
+                                            <p class="mb-1 line-clamp-2 font-medium text-content">
                                                 {{ chat.question }}
                                             </p>
-                                            <p class="text-sm text-gray-500 dark:text-gray-400">
+                                            <p class="text-sm text-content-muted">
                                                 {{ chat.time }}
                                             </p>
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                        </Card>
 
                         <!-- Academic Roadmap Preview -->
-                        <div class="bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl shadow-lg p-6 text-white">
-                            <div class="flex items-center justify-between mb-6">
-                                <h2 class="text-xl font-bold flex items-center gap-2">
-                                    <ChartBarIcon class="w-6 h-6" />
+                        <Card>
+                            <div class="mb-5 flex items-center justify-between gap-3">
+                                <h2 class="flex items-center gap-2 text-lg font-bold text-content">
+                                    <ChartBarIcon class="h-5 w-5 text-primary" />
                                     Your Learning Path
                                 </h2>
-                                <Link href="/roadmap" class="text-sm text-white/90 hover:text-white font-medium bg-white/20 px-4 py-2 rounded-lg hover:bg-white/30 transition-all">
-                                    View Full Roadmap →
+                                <Link href="/roadmap" class="ui-pill">
+                                    Roadmap
+                                    <ArrowRightIcon class="h-3.5 w-3.5" />
                                 </Link>
                             </div>
 
-                            <div class="bg-white/10 backdrop-blur-sm rounded-xl p-4 mb-4">
-                                <div class="flex items-center justify-between mb-2">
-                                    <span class="text-sm font-medium">Current Progress</span>
-                                    <span class="text-2xl font-bold">{{ roadmapPreview.progress }}%</span>
+                            <div class="mb-4 rounded-card border border-line bg-bg p-4">
+                                <div class="mb-2 flex items-center justify-between">
+                                    <span class="text-sm font-medium text-content-muted">Current Progress</span>
+                                    <span class="text-2xl font-bold text-content">{{ roadmapPreview.progress }}%</span>
                                 </div>
-                                <div class="w-full bg-white/20 rounded-full h-3 mb-2">
+                                <div class="mb-2 h-2.5 w-full rounded-full bg-neutral-bg">
                                     <div
-                                        class="bg-white rounded-full h-3 transition-all duration-500 shadow-lg"
+                                        class="h-2.5 rounded-full bg-primary transition-all duration-500"
                                         :style="{ width: roadmapPreview.progress + '%' }"
                                     ></div>
                                 </div>
-                                <p class="text-sm text-white/80">
-                                   g {{ roadmapPreview.completedTopics }} of {{ roadmapPreview.totalTopics }} topics completed
+                                <p class="text-sm text-content-muted">
+                                    {{ roadmapPreview.completedTopics }} of {{ roadmapPreview.totalTopics }} topics completed
                                 </p>
                             </div>
 
                             <div class="space-y-3">
-                                <div class="flex items-center gap-3 bg-white/10 backdrop-blur-sm rounded-lg p-3">
-                                    <div class="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center">
-                                        <span class="text-lg">📚</span>
+                                <div class="flex items-center gap-3 rounded-card border border-line bg-bg p-3">
+                                    <div class="ui-icon-tile flex-shrink-0 bg-primary-soft text-primary">
+                                        <BookOpenIcon class="h-5 w-5" />
                                     </div>
-                                    <div>
-                                        <p class="text-xs text-white/70">Currently Learning</p>
-                                        <p class="font-semibold">{{ roadmapPreview.currentTopic }}</p>
+                                    <div class="min-w-0">
+                                        <p class="text-xs text-content-faint">Currently Learning</p>
+                                        <p class="truncate font-semibold text-content">{{ roadmapPreview.currentTopic }}</p>
                                     </div>
                                 </div>
 
-                                <div class="flex items-center gap-3 bg-white/10 backdrop-blur-sm rounded-lg p-3">
-                                    <div class="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center">
-                                        <span class="text-lg">🎯</span>
+                                <div class="flex items-center gap-3 rounded-card border border-line bg-bg p-3">
+                                    <div class="ui-icon-tile flex-shrink-0 bg-primary-soft text-primary">
+                                        <FlagIcon class="h-5 w-5" />
                                     </div>
-                                    <div>
-                                        <p class="text-xs text-white/70">Up Next</p>
-                                        <p class="font-semibold">{{ roadmapPreview.nextTopic }}</p>
+                                    <div class="min-w-0">
+                                        <p class="text-xs text-content-faint">Up Next</p>
+                                        <p class="truncate font-semibold text-content">{{ roadmapPreview.nextTopic }}</p>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                        <!-- Add this card to your existing dashboard grid (around line 580-600) -->
-<!-- Course Materials Card -->
-                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 cursor-pointer group"
-                    @click="navigateToMaterials">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-xl group-hover:scale-110 transition-transform">
-                        <DocumentTextIcon class="w-8 h-8 text-purple-600 dark:text-purple-400" />
+                        </Card>
+
+                        <!-- Course Materials Card -->
+                        <Card hover>
+                            <div class="group cursor-pointer" @click="navigateToMaterials">
+                                <div class="mb-4 flex items-center justify-between">
+                                    <div class="ui-icon-tile h-11 w-11 bg-primary-soft text-primary transition-transform group-hover:scale-110">
+                                        <DocumentTextIcon class="h-6 w-6" />
+                                    </div>
+                                    <ArrowRightIcon class="h-5 w-5 text-content-faint transition-colors group-hover:text-primary" />
+                                </div>
+                                <h3 class="mb-2 text-lg font-bold text-content">Course Materials</h3>
+                                <p class="mb-3 text-sm text-content-muted">
+                                    Access lecture notes, assignments, and course resources
+                                </p>
+                                <div class="flex items-center gap-4 text-sm text-content-muted">
+                                    <span class="flex items-center gap-1.5">
+                                        <BookOpenIcon class="h-4 w-4" />
+                                        {{ materialsStats.total }} materials
+                                    </span>
+                                    <span class="flex items-center gap-1.5">
+                                        <DocumentTextIcon class="h-4 w-4" />
+                                        {{ materialsStats.viewed }} viewed
+                                    </span>
+                                </div>
+                                <div v-if="materialsStats.pending > 0" class="mt-3">
+                                    <Badge variant="warning" :dot="true">
+                                        {{ materialsStats.pending }} pending
+                                    </Badge>
+                                </div>
+                            </div>
+                        </Card>
                     </div>
-                    <ArrowRightIcon class="w-5 h-5 text-gray-400 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors" />
-                </div>
-                <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2">Course Materials</h3>
-                <p class="text-gray-600 dark:text-gray-400 text-sm mb-3">
-                    Access lecture notes, assignments, and course resources
-                </p>
-                <div class="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
-                    <span>📚 {{ materialsStats.total }} materials</span>
-                    <span>✅ {{ materialsStats.viewed }} viewed</span>
-                </div>
-                <div v-if="materialsStats.pending > 0" class="mt-2">
-                    <span class="inline-flex items-center gap-1 px-2 py-1 bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400 rounded-full text-xs font-medium">
-                        ⏰ {{ materialsStats.pending }} pending
-                    </span>
-                </div>
-                </div>
-                                </div>
 
-                    <!-- Right Column - 1/3 width -->
-                    <div class="space-y-8">
+                    <!-- Right Column -->
+                    <div class="space-y-6">
                         <!-- Upcoming Deadlines -->
-                        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
-                            <div class="flex items-center justify-between mb-6">
-                                <h2 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                                    <BellIcon class="w-6 h-6 text-red-600" />
-                                    Deadlines
-                                </h2>
-                                <Link href="/deadlines" class="text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 font-medium">
+                        <Card title="Deadlines" :icon="BellIcon">
+                            <template #actions>
+                                <Link href="/deadlines" class="ui-btn-ghost text-sm">
                                     View All
+                                    <ArrowRightIcon class="h-4 w-4" />
                                 </Link>
-                            </div>
+                            </template>
 
                             <div class="space-y-4">
                                 <div
                                     v-for="deadline in upcomingDeadlines"
                                     :key="deadline.id"
-                                    :class="`p-4 rounded-xl border-l-4 ${getDeadlineColor(deadline.daysLeft)} transition-all duration-300 hover:shadow-md`"
+                                    :class="`rounded-control border-l-4 p-4 transition-shadow duration-200 hover:shadow-card ${getDeadlineColor(deadline.daysLeft)}`"
                                 >
-                                    <div class="flex items-start justify-between gap-2 mb-2">
-                                        <h3 class="font-semibold text-gray-900 dark:text-white text-sm">
+                                    <div class="mb-2 flex items-start justify-between gap-2">
+                                        <h3 class="text-sm font-semibold text-content">
                                             {{ deadline.title }}
                                         </h3>
-                                        <span
-                                            v-if="deadline.urgent"
-                                            class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 animate-pulse"
-                                        >
-                                            URGENT
-                                        </span>
+                                        <Badge v-if="deadline.urgent" variant="danger">URGENT</Badge>
                                     </div>
-                                    <div class="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
-                                        <CalendarIcon class="w-4 h-4" />
+                                    <div class="flex items-center gap-2 text-xs text-content-muted">
+                                        <CalendarIcon class="h-4 w-4" />
                                         <span>{{ deadline.date }}</span>
                                     </div>
                                     <div class="mt-2 flex items-center gap-2">
-                                        <ClockIcon class="w-4 h-4 text-gray-500" />
-                                        <span class="text-sm font-bold" :class="deadline.daysLeft <= 3 ? 'text-red-600 dark:text-red-400' : 'text-gray-700 dark:text-gray-300'">
+                                        <ClockIcon class="h-4 w-4 text-content-faint" />
+                                        <span class="text-sm font-bold" :class="deadline.daysLeft <= 3 ? 'text-danger-fg' : 'text-content'">
                                             {{ deadline.daysLeft }} days left
                                         </span>
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                        </Card>
 
-                        <!-- Study Tips Card -->
-                        <div class="bg-gradient-to-br from-amber-400 via-orange-500 to-red-500 rounded-2xl shadow-lg p-6 text-white">
-                            <div class="flex items-center gap-2 mb-4">
-                                <div class="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                                    <span class="text-2xl">💡</span>
-                                </div>
-                                <h3 class="font-bold text-lg">Daily Tip</h3>
+                        <!-- Daily Tip Card -->
+                        <Card>
+                            <div class="mb-4 flex items-center gap-3">
+                                <span class="ui-icon-tile bg-warning-bg text-warning-fg">
+                                    <LightBulbIcon class="h-5 w-5" />
+                                </span>
+                                <h3 class="text-lg font-bold text-content">Daily Tip</h3>
                             </div>
-                            <p class="text-white/90 text-sm leading-relaxed">
+                            <p class="text-sm leading-relaxed text-content-muted">
                                 Break your study sessions into 25-minute focused intervals with 5-minute breaks. This technique improves concentration and retention!
                             </p>
-                            <button class="mt-4 w-full bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-lg py-2 text-sm font-medium transition-all">
+                            <button class="ui-btn-secondary mt-4 w-full">
                                 Get More Tips
                             </button>
-                        </div>
+                        </Card>
 
-                        <!-- Motivational Quote
-                        -->
-                        <div class="bg-gradient-to-br from-purple-600 to-pink-600 rounded-2xl shadow-lg p-6 text-white">
-                            <div class="text-4xl mb-3">✨</div>
-                            <p class="text-lg font-semibold mb-2 italic">
+                        <!-- Motivational Quote -->
+                        <Card>
+                            <SparklesIcon class="mb-3 h-8 w-8 text-primary" />
+                            <p class="mb-2 text-lg font-semibold italic text-content">
                                 "Education is the most powerful weapon which you can use to change the world."
                             </p>
-                            <p class="text-sm text-white/80">
+                            <p class="text-sm text-content-muted">
                                 — Nelson Mandela
                             </p>
-                        </div>
-
+                        </Card>
                     </div>
                 </div>
             </div>
-        </div>
-    </AppLayout>
+        </AppLayout>
     </div>
 </template>
-
-<style scoped>
-/* Custom animations */
-@keyframes float {
-    0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-10px); }
-}
-
-.group:hover .animate-float {
-    animation: float 3s ease-in-out infinite;
-}
-
-/* Smooth gradient animation */
-@keyframes gradient {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-}
-
-.animate-gradient {
-    background-size: 200% 200%;
-    animation: gradient 15s ease infinite;
-}
-/* Custom logout button styling */
-.logout-wrapper :deep(.flex) {
-    @apply !bg-red-500/20 !border-red-400/30 !text-white;
-}
-
-.logout-wrapper :deep(.flex:hover) {
-    @apply !bg-red-500/30 !border-red-400/50 !text-white;
-}
-
-/* Backdrop blur effects */
-.bg-white\/20 {
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-}
-</style>

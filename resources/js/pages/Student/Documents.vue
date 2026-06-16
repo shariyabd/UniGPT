@@ -2,6 +2,10 @@
 import { ref, computed, onMounted } from 'vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import PageHeader from '@/components/ui/PageHeader.vue';
+import Card from '@/components/ui/Card.vue';
+import Badge from '@/components/ui/Badge.vue';
+import EmptyState from '@/components/ui/EmptyState.vue';
 import {
     DocumentTextIcon,
     MagnifyingGlassIcon,
@@ -9,18 +13,18 @@ import {
     EyeIcon,
     ArrowDownTrayIcon,
     BookmarkIcon,
-    CalendarIcon,
-    TagIcon,
-    AcademicCapIcon,
     FolderIcon,
-    StarIcon,
-    ClockIcon,
-    UserIcon,
-    ChevronDownIcon,
     Squares2X2Icon,
     ListBulletIcon,
-    ShareIcon,
-    ChatBubbleLeftRightIcon
+    ChatBubbleLeftRightIcon,
+    DocumentIcon,
+    PresentationChartBarIcon,
+    BookOpenIcon,
+    ClipboardDocumentListIcon,
+    CalendarIcon,
+    PencilSquareIcon,
+    BeakerIcon,
+    XMarkIcon
 } from '@heroicons/vue/24/outline';
 
 // Server props
@@ -73,13 +77,13 @@ const sortOptions = ref([
 
 // Category icon/color palette cycled for derived categories
 const categoryPalette = [
-    { icon: '📖', color: 'green' },
-    { icon: '📋', color: 'purple' },
-    { icon: '📄', color: 'red' },
-    { icon: '📅', color: 'yellow' },
-    { icon: '📝', color: 'indigo' },
-    { icon: '📚', color: 'cyan' },
-    { icon: '🔬', color: 'pink' }
+    { icon: BookOpenIcon, color: 'green' },
+    { icon: ClipboardDocumentListIcon, color: 'purple' },
+    { icon: DocumentIcon, color: 'red' },
+    { icon: CalendarIcon, color: 'yellow' },
+    { icon: PencilSquareIcon, color: 'indigo' },
+    { icon: DocumentTextIcon, color: 'cyan' },
+    { icon: BeakerIcon, color: 'pink' }
 ];
 
 // Document categories derived from server props (with "all" option preserved)
@@ -96,7 +100,7 @@ const categories = computed(() => {
     });
 
     return [
-        { id: 'all', name: 'All Documents', count: documents.value.length, icon: '📁', color: 'blue' },
+        { id: 'all', name: 'All Documents', count: documents.value.length, icon: FolderIcon, color: 'blue' },
         ...serverCategories
     ];
 });
@@ -198,9 +202,12 @@ const formatDate = (dateString) => {
     });
 };
 
-const getCategoryColor = (categoryId) => {
-    const category = categories.value.find(c => c.id === categoryId);
-    return category?.color || 'gray';
+// Resolve a file-type icon component from the document type
+const fileTypeIcon = (type) => {
+    const normalized = String(type || '').toUpperCase();
+    if (normalized === 'PPT' || normalized === 'PPTX') return PresentationChartBarIcon;
+    if (normalized === 'PDF' || normalized === 'DOC' || normalized === 'DOCX') return DocumentTextIcon;
+    return DocumentIcon;
 };
 
 // Actions
@@ -237,352 +244,327 @@ const askAIAboutDocument = (document) => {
         <Head title="University Documents" />
 
         <AppLayout>
-            <div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-950">
-                <!-- Header -->
-                <div class="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 dark:from-blue-900 dark:via-indigo-900 dark:to-purple-900">
-                    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-                        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-                            <div>
-                                <h1 class="text-4xl font-bold text-white mb-2 flex items-center gap-3">
-                                    <DocumentTextIcon class="w-10 h-10" />
-                                    University Documents
-                                </h1>
-                                <p class="text-xl text-white/90 mb-2">
-                                    Access official documents, handbooks, and academic resources
-                                </p>
-                                <p class="text-white/80">
-                                    {{ filteredDocuments.length }} documents available • {{ studentContext.department }}
-                                </p>
-                            </div>
+            <div class="page-container py-8 space-y-6 sm:space-y-8">
+                <PageHeader
+                    title="Documents"
+                    :subtitle="`${filteredDocuments.length} documents available${studentContext.department ? ' • ' + studentContext.department : ''}`"
+                    :icon="DocumentTextIcon"
+                    eyebrow="Library"
+                >
+                    <template #actions>
+                        <!-- View Mode Toggle -->
+                        <div class="flex bg-neutral-bg rounded-control p-1">
+                            <button
+                                @click="viewMode = 'grid'"
+                                :class="`p-2 rounded-control transition-colors ${viewMode === 'grid' ? 'bg-surface shadow-card text-primary' : 'text-content-muted'}`"
+                                aria-label="Grid view"
+                            >
+                                <Squares2X2Icon class="w-5 h-5" />
+                            </button>
+                            <button
+                                @click="viewMode = 'list'"
+                                :class="`p-2 rounded-control transition-colors ${viewMode === 'list' ? 'bg-surface shadow-card text-primary' : 'text-content-muted'}`"
+                                aria-label="List view"
+                            >
+                                <ListBulletIcon class="w-5 h-5" />
+                            </button>
+                        </div>
+                        <Link href="/dashboard" class="ui-btn-secondary">
+                            Dashboard
+                        </Link>
+                    </template>
+                </PageHeader>
 
-                            <div class="flex items-center gap-4">
-                                <!-- Quick Stats -->
-                                <div class="bg-white/20 backdrop-blur-lg rounded-xl px-4 py-3 text-white text-center">
-                                    <div class="text-2xl font-bold">{{ filteredDocuments.length }}</div>
-                                    <div class="text-xs text-white/80">Available</div>
-                                </div>
-
-                                <Link
-                                    href="/dashboard"
-                                    class="bg-white/20 backdrop-blur-lg border border-white/20 rounded-xl text-white px-6 py-3 font-medium hover:bg-white/30 transition-all"
+                <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                    <!-- Left Sidebar - Categories -->
+                    <div class="lg:col-span-1">
+                        <Card title="Categories" :icon="FolderIcon" class="lg:sticky lg:top-8">
+                            <div class="space-y-2">
+                                <button
+                                    v-for="category in categories"
+                                    :key="category.id"
+                                    @click="selectedCategory = category.id"
+                                    :class="`w-full text-left p-3 rounded-control border transition-colors ${
+                                        selectedCategory === category.id
+                                            ? 'bg-primary-soft text-primary border-primary'
+                                            : 'hover:bg-primary-soft hover:text-primary border-transparent text-content-muted'
+                                    }`"
                                 >
-                                    ← Dashboard
-                                </Link>
+                                    <div class="flex items-center gap-3">
+                                        <component :is="category.icon" v-if="category.icon" class="h-5 w-5 flex-shrink-0" />
+                                        <FolderIcon v-else class="h-5 w-5 flex-shrink-0" />
+                                        <div class="flex-1 min-w-0">
+                                            <div class="font-medium text-sm truncate">{{ category.name }}</div>
+                                            <div class="text-xs text-content-faint">{{ category.count }} files</div>
+                                        </div>
+                                    </div>
+                                </button>
                             </div>
-                        </div>
+
+                            <!-- Department Filter -->
+                            <div class="mt-6 pt-6 border-t border-line">
+                                <label class="ui-label">Department</label>
+                                <select
+                                    v-model="selectedDepartment"
+                                    class="ui-input mt-1"
+                                >
+                                    <option value="all">All Departments</option>
+                                    <option value="Computer Science Engineering">Computer Science</option>
+                                    <option value="Electrical Engineering">Electrical Engineering</option>
+                                    <option value="Mechanical Engineering">Mechanical Engineering</option>
+                                </select>
+                            </div>
+                        </Card>
                     </div>
-                </div>
 
-                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 -mt-6">
-                    <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
-                        <!-- Left Sidebar - Categories -->
-                        <div class="lg:col-span-1">
-                            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 sticky top-8">
-                                <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                                    <FolderIcon class="w-5 h-5 text-blue-600" />
-                                    Categories
-                                </h3>
-
-                                <div class="space-y-2">
-                                    <button
-                                        v-for="category in categories"
-                                        :key="category.id"
-                                        @click="selectedCategory = category.id"
-                                        :class="`w-full text-left p-3 rounded-xl transition-all ${
-                                            selectedCategory === category.id
-                                                ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-2 border-blue-300 dark:border-blue-600'
-                                                : 'hover:bg-gray-100 dark:hover:bg-gray-700 border-2 border-transparent'
-                                        }`"
-                                    >
-                                        <div class="flex items-center gap-3">
-                                            <span class="text-lg">{{ category.icon }}</span>
-                                            <div class="flex-1 min-w-0">
-                                                <div class="font-medium text-sm">{{ category.name }}</div>
-                                                <div class="text-xs text-gray-500 dark:text-gray-400">{{ category.count }} files</div>
-                                            </div>
-                                        </div>
-                                    </button>
+                    <!-- Main Content Area -->
+                    <div class="lg:col-span-3 space-y-6">
+                        <!-- Search & Controls -->
+                        <Card>
+                            <div class="flex flex-col lg:flex-row lg:items-center gap-4">
+                                <!-- Search -->
+                                <div class="flex-1 relative">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <MagnifyingGlassIcon class="h-5 w-5 text-content-faint" />
+                                    </div>
+                                    <input
+                                        v-model="searchQuery"
+                                        type="text"
+                                        placeholder="Search documents, handbooks, policies..."
+                                        class="ui-input pl-10"
+                                    />
                                 </div>
 
-                                <!-- Department Filter -->
-                                <div class="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-                                    <h4 class="font-semibold text-gray-900 dark:text-white mb-3 text-sm">Department</h4>
-                                    <select
-                                        v-model="selectedDepartment"
-                                        class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    >
-                                        <option value="all">All Departments</option>
-                                        <option value="Computer Science Engineering">Computer Science</option>
-                                        <option value="Electrical Engineering">Electrical Engineering</option>
-                                        <option value="Mechanical Engineering">Mechanical Engineering</option>
-                                    </select>
+                                <!-- Filters Toggle -->
+                                <button
+                                    @click="showFilters = !showFilters"
+                                    :class="`flex items-center gap-2 px-4 py-2 rounded-control border transition-colors ${showFilters ? 'bg-primary-soft text-primary border-primary' : 'bg-surface text-content-muted border-line hover:bg-primary-soft hover:text-primary'}`"
+                                >
+                                    <FunnelIcon class="w-5 h-5" />
+                                    Filters
+                                </button>
+                            </div>
+
+                            <!-- Expanded Filters -->
+                            <div v-if="showFilters" class="mt-4 pt-4 border-t border-line">
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <!-- File Type Filter -->
+                                    <div>
+                                        <label class="ui-label">File Type</label>
+                                        <select
+                                            v-model="selectedType"
+                                            class="ui-input mt-1"
+                                        >
+                                            <option value="all">All Types</option>
+                                            <option value="PDF">PDF</option>
+                                            <option value="DOC">Word Document</option>
+                                            <option value="PPT">Presentation</option>
+                                        </select>
+                                    </div>
+
+                                    <!-- Sort By -->
+                                    <div>
+                                        <label class="ui-label">Sort By</label>
+                                        <select
+                                            v-model="sortBy"
+                                            class="ui-input mt-1"
+                                        >
+                                            <option v-for="option in sortOptions" :key="option.value" :value="option.value">
+                                                {{ option.label }}
+                                            </option>
+                                        </select>
+                                    </div>
+
+                                    <!-- Clear Filters -->
+                                    <div class="flex items-end">
+                                        <button
+                                            @click="selectedCategory = 'all'; selectedDepartment = 'all'; selectedType = 'all'; searchQuery = ''"
+                                            class="ui-btn-secondary w-full justify-center"
+                                        >
+                                            <XMarkIcon class="w-4 h-4" />
+                                            Clear Filters
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
+                        </Card>
 
-                        <!-- Main Content Area -->
-                        <div class="lg:col-span-3">
-                            <!-- Search & Controls -->
-                            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 mb-8">
-                                <div class="flex flex-col lg:flex-row lg:items-center gap-4">
-                                    <!-- Search -->
-                                    <div class="flex-1 relative">
-                                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                            <MagnifyingGlassIcon class="h-5 w-5 text-gray-400" />
+                        <!-- Documents Grid/List -->
+                        <div v-if="filteredDocuments.length > 0" :class="`${viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 sm:gap-6' : 'space-y-4'}`">
+                            <div
+                                v-for="document in filteredDocuments"
+                                :key="document.id"
+                                :class="`ui-card overflow-hidden transition-all duration-200 hover:shadow-lg ${viewMode === 'grid' ? 'hover:-translate-y-0.5 flex flex-col' : 'flex items-center gap-5 p-5'}`"
+                            >
+                                <!-- Grid View -->
+                                <div v-if="viewMode === 'grid'" class="p-5 flex flex-col flex-1">
+                                    <!-- Document Header -->
+                                    <div class="flex items-start justify-between mb-4">
+                                        <div class="ui-icon-tile h-14 w-14 bg-primary-soft text-primary flex-shrink-0">
+                                            <component :is="fileTypeIcon(document.type)" class="w-7 h-7" />
                                         </div>
-                                        <input
-                                            v-model="searchQuery"
-                                            type="text"
-                                            placeholder="Search documents, handbooks, policies..."
-                                            class="block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                        />
-                                    </div>
-
-                                    <!-- View Mode Toggle -->
-                                    <div class="flex bg-gray-100 dark:bg-gray-700 rounded-xl p-1">
-                                        <button
-                                            @click="viewMode = 'grid'"
-                                            :class="`p-2 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-white dark:bg-gray-600 shadow-sm' : ''}`"
-                                        >
-                                            <Squares2X2Icon class="w-5 h-5 text-gray-600 dark:text-gray-400" />
-                                        </button>
-                                        <button
-                                            @click="viewMode = 'list'"
-                                            :class="`p-2 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-white dark:bg-gray-600 shadow-sm' : ''}`"
-                                        >
-                                            <ListBulletIcon class="w-5 h-5 text-gray-600 dark:text-gray-400" />
-                                        </button>
-                                    </div>
-
-                                    <!-- Filters Toggle -->
-                                    <button
-                                        @click="showFilters = !showFilters"
-                                        :class="`flex items-center gap-2 px-4 py-2 rounded-xl transition-colors ${showFilters ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'}`"
-                                    >
-                                        <FunnelIcon class="w-5 h-5" />
-                                        Filters
-                                    </button>
-                                </div>
-
-                                <!-- Expanded Filters -->
-                                <div v-if="showFilters" class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                        <!-- File Type Filter -->
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">File Type</label>
-                                            <select
-                                                v-model="selectedType"
-                                                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                            >
-                                                <option value="all">All Types</option>
-                                                <option value="PDF">PDF</option>
-                                                <option value="DOC">Word Document</option>
-                                                <option value="PPT">Presentation</option>
-                                            </select>
-                                        </div>
-
-                                        <!-- Sort By -->
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Sort By</label>
-                                            <select
-                                                v-model="sortBy"
-                                                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                            >
-                                                <option v-for="option in sortOptions" :key="option.value" :value="option.value">
-                                                    {{ option.label }}
-                                                </option>
-                                            </select>
-                                        </div>
-
-                                        <!-- Clear Filters -->
-                                        <div class="flex items-end">
+                                        <div class="flex items-center gap-2">
+                                            <Badge variant="brand">{{ document.type }}</Badge>
                                             <button
-                                                @click="selectedCategory = 'all'; selectedDepartment = 'all'; selectedType = 'all'; searchQuery = ''"
-                                                class="w-full px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm"
+                                                @click="toggleBookmark(document.id)"
+                                                :class="`p-2 rounded-control transition-colors ${
+                                                    document.isBookmarked
+                                                        ? 'text-warning-fg bg-warning-bg'
+                                                        : 'text-content-faint hover:text-warning-fg hover:bg-warning-bg'
+                                                }`"
+                                                :aria-label="document.isBookmarked ? 'Remove bookmark' : 'Add bookmark'"
                                             >
-                                                Clear Filters
+                                                <BookmarkIcon class="w-5 h-5" :class="{ 'fill-current': document.isBookmarked }" />
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Document Info -->
+                                    <div class="space-y-3 flex flex-col flex-1">
+                                        <h3 class="font-semibold text-content text-lg line-clamp-2">
+                                            {{ document.title }}
+                                        </h3>
+
+                                        <p class="text-sm text-content-muted line-clamp-2">
+                                            {{ document.description }}
+                                        </p>
+
+                                        <!-- Metadata -->
+                                        <div class="flex items-center justify-between text-xs text-content-faint">
+                                            <span>{{ document.fileSize }} • {{ document.pages }} pages</span>
+                                            <span>{{ document.downloads }} downloads</span>
+                                        </div>
+
+                                        <div class="text-xs text-content-faint">
+                                            Updated {{ formatDate(document.lastUpdated) }}
+                                        </div>
+
+                                        <!-- Tags -->
+                                        <div class="flex flex-wrap gap-1.5">
+                                            <Badge
+                                                v-for="tag in document.tags.slice(0, 3)"
+                                                :key="tag"
+                                                variant="slate"
+                                            >
+                                                #{{ tag }}
+                                            </Badge>
+                                        </div>
+
+                                        <!-- Actions -->
+                                        <div class="flex items-center gap-2 pt-3 mt-auto border-t border-line">
+                                            <button
+                                                @click="previewDocument(document)"
+                                                class="flex-1 ui-btn-secondary justify-center text-sm"
+                                            >
+                                                <EyeIcon class="w-4 h-4" />
+                                                Preview
+                                            </button>
+                                            <button
+                                                @click="downloadDocument(document)"
+                                                class="flex-1 ui-btn-primary justify-center text-sm"
+                                            >
+                                                <ArrowDownTrayIcon class="w-4 h-4" />
+                                                Download
+                                            </button>
+                                            <button
+                                                @click="askAIAboutDocument(document)"
+                                                class="p-2 rounded-control border border-line text-primary hover:bg-primary-soft transition-colors"
+                                                aria-label="Ask AI about this document"
+                                            >
+                                                <ChatBubbleLeftRightIcon class="w-4 h-4" />
                                             </button>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
 
-                            <!-- Documents Grid/List -->
-                            <div v-if="filteredDocuments.length > 0" :class="`${viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' : 'space-y-4'}`">
-                                <div
-                                    v-for="document in filteredDocuments"
-                                    :key="document.id"
-                                    :class="`bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-xl transition-all duration-300 ${viewMode === 'grid' ? 'transform hover:-translate-y-1' : 'flex items-center gap-6 p-6'}`"
-                                >
-                                    <!-- Grid View -->
-                                    <div v-if="viewMode === 'grid'" class="p-6">
-                                        <!-- Document Thumbnail -->
-                                        <div class="relative mb-4">
-                                            <img
-                                                :src="document.thumbnail"
-                                                :alt="document.title"
-                                                class="w-full h-48 object-cover rounded-xl bg-gray-100 dark:bg-gray-700"
-                                            />
-                                            <div class="absolute top-2 right-2 flex gap-2">
+                                <!-- List View -->
+                                <div v-else class="flex items-center gap-5 w-full">
+                                    <!-- Document Icon -->
+                                    <div class="ui-icon-tile w-14 h-16 bg-primary-soft text-primary flex-shrink-0">
+                                        <component :is="fileTypeIcon(document.type)" class="w-7 h-7" />
+                                    </div>
+
+                                    <!-- Document Details -->
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-start justify-between">
+                                            <div class="flex-1 min-w-0 mr-4">
+                                                <div class="flex items-center gap-2 mb-1">
+                                                    <h3 class="font-semibold text-content text-lg truncate">
+                                                        {{ document.title }}
+                                                    </h3>
+                                                    <Badge variant="brand">{{ document.type }}</Badge>
+                                                </div>
+                                                <p class="text-sm text-content-muted mb-2 line-clamp-1">
+                                                    {{ document.description }}
+                                                </p>
+                                                <div class="flex items-center gap-4 text-xs text-content-faint">
+                                                    <span>{{ document.fileSize }}</span>
+                                                    <span>{{ document.downloads }} downloads</span>
+                                                    <span>Updated {{ formatDate(document.lastUpdated) }}</span>
+                                                </div>
+                                            </div>
+
+                                            <div class="flex items-center gap-1 flex-shrink-0">
                                                 <button
                                                     @click="toggleBookmark(document.id)"
-                                                    :class="`p-2 rounded-lg backdrop-blur-sm transition-colors ${
+                                                    :class="`p-2 rounded-control transition-colors ${
                                                         document.isBookmarked
-                                                            ? 'bg-yellow-500 text-white'
-                                                            : 'bg-white/80 text-gray-700 hover:bg-yellow-100'
+                                                            ? 'text-warning-fg bg-warning-bg'
+                                                            : 'text-content-faint hover:text-warning-fg hover:bg-warning-bg'
                                                     }`"
+                                                    :aria-label="document.isBookmarked ? 'Remove bookmark' : 'Add bookmark'"
                                                 >
                                                     <BookmarkIcon class="w-4 h-4" :class="{ 'fill-current': document.isBookmarked }" />
                                                 </button>
-                                            </div>
-                                            <div class="absolute bottom-2 left-2">
-                                                <span class="px-2 py-1 bg-blue-600 text-white text-xs rounded-lg font-medium">
-                                                    {{ document.type }}
-                                                </span>
-                                            </div>
-                                        </div>
-
-                                        <!-- Document Info -->
-                                        <div class="space-y-3">
-                                            <h3 class="font-bold text-gray-900 dark:text-white text-lg line-clamp-2">
-                                                {{ document.title }}
-                                            </h3>
-
-                                            <p class="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
-                                                {{ document.description }}
-                                            </p>
-
-                                            <!-- Metadata -->
-                                            <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                                                <span>{{ document.fileSize }} • {{ document.pages }} pages</span>
-                                                <span>{{ document.downloads }} downloads</span>
-                                            </div>
-
-                                            <div class="text-xs text-gray-500 dark:text-gray-400">
-                                                Updated {{ formatDate(document.lastUpdated) }}
-                                            </div>
-
-                                            <!-- Tags -->
-                                            <div class="flex flex-wrap gap-1">
-                                                <span
-                                                    v-for="tag in document.tags.slice(0, 3)"
-                                                    :key="tag"
-                                                    class="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded-full"
-                                                >
-                                                    #{{ tag }}
-                                                </span>
-                                            </div>
-
-                                            <!-- Actions -->
-                                            <div class="flex items-center gap-2 pt-3 border-t border-gray-100 dark:border-gray-700">
                                                 <button
                                                     @click="previewDocument(document)"
-                                                    class="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                                                    class="p-2 text-content-muted hover:text-primary hover:bg-primary-soft rounded-control transition-colors"
+                                                    aria-label="Preview document"
                                                 >
                                                     <EyeIcon class="w-4 h-4" />
-                                                    Preview
                                                 </button>
                                                 <button
                                                     @click="downloadDocument(document)"
-                                                    class="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
+                                                    class="p-2 text-content-muted hover:text-success-fg hover:bg-success-bg rounded-control transition-colors"
+                                                    aria-label="Download document"
                                                 >
                                                     <ArrowDownTrayIcon class="w-4 h-4" />
-                                                    Download
                                                 </button>
                                                 <button
                                                     @click="askAIAboutDocument(document)"
-                                                    class="p-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-                                                    title="Ask AI"
+                                                    class="p-2 text-content-muted hover:text-primary hover:bg-primary-soft rounded-control transition-colors"
+                                                    aria-label="Ask AI about this document"
                                                 >
                                                     <ChatBubbleLeftRightIcon class="w-4 h-4" />
                                                 </button>
                                             </div>
                                         </div>
                                     </div>
-
-                                    <!-- List View -->
-                                    <div v-else class="flex items-center gap-6 w-full">
-                                        <!-- Document Icon/Thumbnail -->
-                                        <div class="w-16 h-20 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
-                                            <DocumentTextIcon class="w-8 h-8 text-blue-600 dark:text-blue-400" />
-                                        </div>
-
-                                        <!-- Document Details -->
-                                        <div class="flex-1 min-w-0">
-                                            <div class="flex items-start justify-between">
-                                                <div class="flex-1 min-w-0 mr-4">
-                                                    <h3 class="font-semibold text-gray-900 dark:text-white text-lg mb-1">
-                                                        {{ document.title }}
-                                                    </h3>
-                                                    <p class="text-sm text-gray-600 dark:text-gray-400 mb-2 line-clamp-1">
-                                                        {{ document.description }}
-                                                    </p>
-                                                    <div class="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
-                                                        <span>{{ document.type }} • {{ document.fileSize }}</span>
-                                                        <span>{{ document.downloads }} downloads</span>
-                                                        <span>Updated {{ formatDate(document.lastUpdated) }}</span>
-                                                    </div>
-                                                </div>
-
-                                                <div class="flex items-center gap-2 flex-shrink-0">
-                                                    <button
-                                                        @click="toggleBookmark(document.id)"
-                                                        :class="`p-2 rounded-lg transition-colors ${
-                                                            document.isBookmarked
-                                                                ? 'text-yellow-600 bg-yellow-100 dark:bg-yellow-900/30 dark:text-yellow-400'
-                                                                : 'text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20'
-                                                        }`"
-                                                    >
-                                                        <BookmarkIcon class="w-4 h-4" :class="{ 'fill-current': document.isBookmarked }" />
-                                                    </button>
-                                                    <button
-                                                        @click="previewDocument(document)"
-                                                        class="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-                                                    >
-                                                        <EyeIcon class="w-4 h-4" />
-                                                    </button>
-                                                    <button
-                                                        @click="downloadDocument(document)"
-                                                        class="p-2 text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
-                                                    >
-                                                        <ArrowDownTrayIcon class="w-4 h-4" />
-                                                    </button>
-                                                    <button
-                                                        @click="askAIAboutDocument(document)"
-                                                        class="p-2 text-purple-600 hover:text-purple-700 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors"
-                                                    >
-                                                        <ChatBubbleLeftRightIcon class="w-4 h-4" />
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
                                 </div>
-                            </div>
-
-                            <!-- Empty State -->
-                            <div v-else class="text-center py-16">
-                                <div class="w-24 h-24 bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
-                                    <DocumentTextIcon class="w-12 h-12 text-blue-600 dark:text-blue-400" />
-                                </div>
-                                <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">No documents found</h3>
-                                <p class="text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto">
-                                    Try adjusting your search terms or filters to find the documents you're looking for.
-                                </p>
-                                <button
-                                    @click="selectedCategory = 'all'; selectedDepartment = 'all'; selectedType = 'all'; searchQuery = ''"
-                                    class="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
-                                >
-                                    Clear All Filters
-                                </button>
                             </div>
                         </div>
+
+                        <!-- Empty State -->
+                        <EmptyState
+                            v-else
+                            title="No documents found"
+                            description="Try adjusting your search terms or filters to find the documents you're looking for."
+                            :icon="DocumentTextIcon"
+                        >
+                            <button
+                                @click="selectedCategory = 'all'; selectedDepartment = 'all'; selectedType = 'all'; searchQuery = ''"
+                                class="ui-btn-primary"
+                            >
+                                Clear All Filters
+                            </button>
+                        </EmptyState>
                     </div>
                 </div>
             </div>
         </AppLayout>
     </div>
 </template>
+
 <style scoped>
 /* Line clamp utilities */
 .line-clamp-1 {
@@ -597,33 +579,5 @@ const askAIAboutDocument = (document) => {
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
-}
-
-/* Smooth transitions */
-.transition-all {
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Hover effects */
-.hover\:-translate-y-1:hover {
-    transform: translateY(-0.25rem);
-}
-
-/* Custom scrollbar */
-.overflow-y-auto::-webkit-scrollbar {
-    width: 6px;
-}
-
-.overflow-y-auto::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.overflow-y-auto::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 3px;
-}
-
-.dark .overflow-y-auto::-webkit-scrollbar-thumb {
-    background: #475569;
 }
 </style>

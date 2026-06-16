@@ -3,6 +3,8 @@ import { ref, computed, nextTick, onMounted, watch } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import axios from 'axios';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import PageHeader from '@/components/ui/PageHeader.vue';
+import EmptyState from '@/components/ui/EmptyState.vue';
 import {
     ChatBubbleLeftRightIcon,
     MagnifyingGlassIcon,
@@ -28,7 +30,17 @@ import {
     Bars3Icon,
     XMarkIcon,
     SparklesIcon,
-    ClipboardDocumentCheckIcon
+    ClipboardDocumentCheckIcon,
+    PlusIcon,
+    BookOpenIcon,
+    ClipboardDocumentListIcon,
+    PencilSquareIcon,
+    DocumentIcon,
+    CalendarDaysIcon,
+    ChatBubbleBottomCenterTextIcon,
+    LightBulbIcon,
+    FlagIcon,
+    InboxIcon
 } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
@@ -62,9 +74,9 @@ const studentContext = ref({
 
 // UI chat modes mapped to backend ChatMode enum values.
 const chatModes = [
-    { id: 'simple', label: 'Simple', icon: '💬', description: 'Quick, concise answers', backend: 'general' },
-    { id: 'detailed', label: 'Detailed', icon: '📚', description: 'In-depth explanations with examples', backend: 'academic' },
-    { id: 'exam', label: 'Exam Mode', icon: '🎯', description: 'Exam-focused with key points', backend: 'exam_prep' }
+    { id: 'simple', label: 'Simple', icon: ChatBubbleBottomCenterTextIcon, description: 'Quick, concise answers', backend: 'general' },
+    { id: 'detailed', label: 'Detailed', icon: BookOpenIcon, description: 'In-depth explanations with examples', backend: 'academic' },
+    { id: 'exam', label: 'Exam Mode', icon: FlagIcon, description: 'Exam-focused with key points', backend: 'exam_prep' }
 ];
 
 const backendMode = computed(() =>
@@ -171,29 +183,29 @@ const formatRelativeTime = (timestamp) => {
 };
 
 const getConfidenceColor = (confidence) => {
-    if (confidence >= 90) return 'text-green-700 bg-green-50 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800';
-    if (confidence >= 75) return 'text-blue-700 bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800';
-    if (confidence >= 60) return 'text-yellow-700 bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800';
-    return 'text-red-700 bg-red-50 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800';
+    if (confidence >= 90) return 'text-success-fg bg-success-bg border-line';
+    if (confidence >= 75) return 'text-primary bg-primary-soft border-line';
+    if (confidence >= 60) return 'text-warning-fg bg-warning-bg border-line';
+    return 'text-danger-fg bg-danger-bg border-line';
 };
 
 const getSourceTypeIcon = (type) => {
     const icons = {
-        handbook: '📖',
-        syllabus: '📋',
-        guidelines: '📝',
-        policy: '📄',
-        schedule: '📅'
+        handbook: BookOpenIcon,
+        syllabus: ClipboardDocumentListIcon,
+        guidelines: PencilSquareIcon,
+        policy: DocumentIcon,
+        schedule: CalendarDaysIcon
     };
-    return icons[type] || '📄';
+    return icons[type] || DocumentIcon;
 };
 
 // Enhanced markdown-like parsing
 const parseMessageContent = (content) => {
     return content
-        .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-gray-900 dark:text-white">$1</strong>')
+        .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-content">$1</strong>')
         .replace(/\*(.*?)\*/g, '<em class="italic">$1</em>')
-        .replace(/•\s/g, '<span class="text-blue-600 dark:text-blue-400 font-bold">•</span> ')
+        .replace(/•\s/g, '<span class="text-content font-bold">•</span> ')
         .replace(/\n/g, '<br>');
 };
 
@@ -372,74 +384,143 @@ watch(() => messages.value.length, () => {
 
 <template>
     <div>
-        <Head title="Academic Chat Assistant" />
+        <Head title="AI Chat" />
 
         <AppLayout>
-            <div class="h-[calc(100vh-4rem)] bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-950 flex">
+            <div class="page-container py-6 space-y-6">
+                <PageHeader
+                    title="AI Chat"
+                    subtitle="Your AI academic assistant, grounded in your courses and university documents."
+                    :icon="ChatBubbleLeftRightIcon"
+                >
+                    <template #actions>
+                        <button
+                            @click="newChat"
+                            class="ui-btn-primary"
+                        >
+                            <PlusIcon class="w-4 h-4" />
+                            <span class="hidden sm:inline">New Chat</span>
+                        </button>
+                        <button
+                            @click="exportChat"
+                            class="ui-btn-secondary"
+                            title="Export Chat"
+                            aria-label="Export chat"
+                        >
+                            <ShareIcon class="w-4 h-4" />
+                            <span class="hidden sm:inline">Export</span>
+                        </button>
+                        <button
+                            @click="showSourcePanel = !showSourcePanel"
+                            :class="[
+                                'ui-btn-ghost',
+                                showSourcePanel ? 'text-primary' : ''
+                            ]"
+                            title="Toggle Sources Panel"
+                            aria-label="Toggle sources panel"
+                        >
+                            <DocumentTextIcon class="w-4 h-4" />
+                            <span class="hidden sm:inline">Sources</span>
+                        </button>
+                    </template>
+                </PageHeader>
 
-                <!-- Left Sidebar - Chat History -->
-                <div v-if="showSidebar" class="w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col shadow-xl">
-                    <!-- Sidebar Header -->
-                    <div class="p-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20">
-                        <div class="flex items-center justify-between mb-4">
-                            <h2 class="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                                <ChatBubbleLeftRightIcon class="w-5 h-5 text-blue-600" />
-                                Chat History
-                            </h2>
-                            <button
-                                @click="newChat"
-                                class="px-3 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm rounded-lg hover:shadow-lg transition-all duration-200 font-medium"
-                            >
-                                <span class="hidden sm:inline">+ New Chat</span>
-                                <span class="sm:hidden">+</span>
-                            </button>
-                        </div>
+                <!-- Chat workspace -->
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 h-[calc(100vh-13rem)] min-h-[32rem]">
 
-                        <!-- Search -->
-                        <div class="relative">
-                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <MagnifyingGlassIcon class="h-4 w-4 text-gray-400" />
+                    <!-- Left Sidebar - Chat History -->
+                    <div
+                        v-if="showSidebar"
+                        class="hidden lg:flex lg:col-span-3 flex-col ui-card p-0 overflow-hidden"
+                    >
+                        <!-- Sidebar Header -->
+                        <div class="p-4 border-b border-line">
+                            <div class="flex items-center justify-between mb-3">
+                                <h2 class="text-sm font-semibold text-content flex items-center gap-2">
+                                    <ChatBubbleLeftRightIcon class="w-4 h-4 text-content-muted" />
+                                    History
+                                </h2>
+                                <button
+                                    @click="newChat"
+                                    class="ui-btn-ghost h-8 px-2"
+                                    aria-label="New chat"
+                                >
+                                    <PlusIcon class="w-4 h-4" />
+                                    <span class="hidden xl:inline">New</span>
+                                </button>
                             </div>
-                            <input
-                                v-model="searchQuery"
-                                type="text"
-                                placeholder="Search conversations..."
-                                class="block w-full pl-10 pr-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
-                            />
-                        </div>
-                    </div>
 
-                    <!-- Chat List -->
-                    <div class="flex-1 overflow-y-auto">
-                        <div class="p-3 space-y-2">
+                            <!-- Search -->
+                            <div class="relative">
+                                <MagnifyingGlassIcon class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-content-faint" />
+                                <input
+                                    v-model="searchQuery"
+                                    type="text"
+                                    placeholder="Search conversations..."
+                                    class="ui-input pl-9"
+                                    aria-label="Search conversations"
+                                />
+                            </div>
+                        </div>
+
+                        <!-- Chat List -->
+                        <div class="flex-1 overflow-y-auto p-3 space-y-2">
                             <div
                                 v-for="chat in filteredChatHistory"
                                 :key="chat.id"
                                 @click="selectChatHistory(chat.id)"
-                                :class="`p-4 rounded-xl cursor-pointer transition-all duration-200 ${
+                                :class="[
+                                    'p-3 rounded-control cursor-pointer transition-all duration-200',
                                     selectedChatHistory === chat.id
-                                        ? 'bg-gradient-to-r from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 border-2 border-blue-300 dark:border-blue-700 shadow-md'
-                                        : 'hover:bg-gray-100 dark:hover:bg-gray-700 border-2 border-transparent hover:border-gray-200 dark:hover:border-gray-600'
-                                }`"
+                                        ? 'bg-primary text-white'
+                                        : 'hover:bg-primary-soft'
+                                ]"
                             >
-                                <div class="flex items-start justify-between mb-2">
-                                    <h3 class="text-sm font-semibold text-gray-900 dark:text-white line-clamp-1">
+                                <div class="flex items-start justify-between mb-1.5">
+                                    <h3
+                                        :class="[
+                                            'text-sm font-semibold line-clamp-1',
+                                            selectedChatHistory === chat.id ? 'text-white' : 'text-content'
+                                        ]"
+                                    >
                                         {{ chat.title }}
                                     </h3>
-                                    <span class="text-xs text-gray-500 dark:text-gray-400 ml-2">
+                                    <span
+                                        :class="[
+                                            'text-xs ml-2 flex-shrink-0',
+                                            selectedChatHistory === chat.id ? 'text-white/70' : 'text-content-faint'
+                                        ]"
+                                    >
                                         {{ formatRelativeTime(chat.timestamp) }}
                                     </span>
                                 </div>
 
-                                <p class="text-xs text-gray-600 dark:text-gray-400 line-clamp-2 mb-3">
+                                <p
+                                    :class="[
+                                        'text-xs line-clamp-2 mb-2',
+                                        selectedChatHistory === chat.id ? 'text-white/80' : 'text-content-muted'
+                                    ]"
+                                >
                                     {{ chat.lastMessage }}
                                 </p>
 
                                 <div class="flex items-center justify-between">
-                                    <span class="text-xs text-blue-600 dark:text-blue-400 font-medium bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded-lg">
+                                    <span
+                                        :class="[
+                                            'ui-badge capitalize',
+                                            selectedChatHistory === chat.id
+                                                ? 'bg-white/15 text-white'
+                                                : 'bg-neutral-bg text-neutral-fg'
+                                        ]"
+                                    >
                                         {{ chat.category }}
                                     </span>
-                                    <span class="text-xs text-gray-500 dark:text-gray-400">
+                                    <span
+                                        :class="[
+                                            'text-xs',
+                                            selectedChatHistory === chat.id ? 'text-white/70' : 'text-content-faint'
+                                        ]"
+                                    >
                                         {{ chat.messageCount }} msgs
                                     </span>
                                 </div>
@@ -449,40 +530,57 @@ watch(() => messages.value.length, () => {
                                     <span
                                         v-for="tag in chat.tags.slice(0, 3)"
                                         :key="tag"
-                                        class="px-2 py-0.5 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 text-xs rounded-full"
+                                        :class="[
+                                            'px-2 py-0.5 text-xs rounded-pill',
+                                            selectedChatHistory === chat.id
+                                                ? 'bg-white/15 text-white'
+                                                : 'bg-neutral-bg text-neutral-fg'
+                                        ]"
                                     >
                                         #{{ tag }}
                                     </span>
                                 </div>
                             </div>
+
+                            <div v-if="filteredChatHistory.length === 0" class="pt-6">
+                                <EmptyState
+                                    title="No conversations"
+                                    description="Start a new chat to see it here."
+                                    :icon="InboxIcon"
+                                />
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- Main Chat Area -->
-                <div class="flex-1 flex flex-col min-w-0">
-                    <!-- Chat Header -->
-                    <div class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4 shadow-sm">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center gap-4">
-                                <!-- Toggle Sidebar -->
-                                <button
-                                    @click="showSidebar = !showSidebar"
-                                    class="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors lg:hidden"
-                                >
-                                    <Bars3Icon v-if="!showSidebar" class="w-5 h-5" />
-                                    <XMarkIcon v-else class="w-5 h-5" />
-                                </button>
+                    <!-- Main Chat Area -->
+                    <div
+                        :class="[
+                            'flex flex-col min-w-0 ui-card p-0 overflow-hidden',
+                            showSidebar && showSourcePanel ? 'lg:col-span-6' : showSidebar || showSourcePanel ? 'lg:col-span-9' : 'lg:col-span-12'
+                        ]"
+                    >
+                        <!-- Chat Header -->
+                        <div class="border-b border-line p-3 sm:p-4">
+                            <div class="flex items-center justify-between gap-3">
+                                <div class="flex items-center gap-3 min-w-0">
+                                    <!-- Toggle Sidebar -->
+                                    <button
+                                        @click="showSidebar = !showSidebar"
+                                        class="ui-btn-ghost h-9 w-9 p-0 lg:hidden"
+                                        aria-label="Toggle history"
+                                    >
+                                        <Bars3Icon v-if="!showSidebar" class="w-5 h-5" />
+                                        <XMarkIcon v-else class="w-5 h-5" />
+                                    </button>
 
-                                <!-- Student Context Badge -->
-                                <div class="bg-gradient-to-r from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 px-4 py-2.5 rounded-xl border border-blue-200 dark:border-blue-800">
-                                    <div class="flex items-center gap-3">
-                                        <AcademicCapIcon class="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                                        <div>
-                                            <p class="text-sm font-semibold text-blue-900 dark:text-blue-200">
+                                    <!-- Student Context Badge -->
+                                    <div class="flex items-center gap-2.5 px-3 py-1.5 rounded-control bg-primary-soft text-primary min-w-0">
+                                        <AcademicCapIcon class="w-5 h-5 flex-shrink-0" />
+                                        <div class="min-w-0">
+                                            <p class="text-sm font-semibold text-content truncate">
                                                 {{ studentContext.name }}
                                             </p>
-                                            <p class="text-xs text-blue-700 dark:text-blue-300">
+                                            <p class="text-xs text-content-muted truncate">
                                                 {{ studentContext.department }} • {{ studentContext.semester }}
                                             </p>
                                         </div>
@@ -490,388 +588,369 @@ watch(() => messages.value.length, () => {
                                 </div>
 
                                 <!-- Chat Mode Selector -->
-                                <div class="hidden md:flex bg-gray-100 dark:bg-gray-700 rounded-xl p-1 border border-gray-200 dark:border-gray-600">
+                                <div class="hidden md:flex items-center bg-neutral-bg rounded-control p-1">
                                     <button
                                         v-for="mode in chatModes"
                                         :key="mode.id"
                                         @click="currentChatMode = mode.id"
-                                        :class="`px-3 py-2 text-sm rounded-lg transition-all duration-200 ${
+                                        :class="[
+                                            'flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-control transition-all duration-200',
                                             currentChatMode === mode.id
-                                                ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-md font-medium'
-                                                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-600'
-                                        }`"
+                                                ? 'bg-primary text-white font-medium'
+                                                : 'text-content-muted hover:text-content'
+                                        ]"
                                         :title="mode.description"
                                     >
-                                        {{ mode.icon }} {{ mode.label }}
+                                        <component :is="mode.icon" class="w-4 h-4" />
+                                        <span class="hidden lg:inline">{{ mode.label }}</span>
                                     </button>
                                 </div>
                             </div>
-
-                            <!-- Chat Actions -->
-                            <div class="flex items-center gap-2">
-                                <button
-                                    @click="exportChat"
-                                    class="p-2.5 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                                    title="Export Chat"
-                                >
-                                    <ShareIcon class="w-5 h-5" />
-                                </button>
-
-                                <button
-                                    @click="showSourcePanel = !showSourcePanel"
-                                    :class="`p-2.5 rounded-xl transition-colors ${
-                                        showSourcePanel
-                                            ? 'text-blue-600 bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400'
-                                            : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                                    }`"
-                                    title="Toggle Sources Panel"
-                                >
-                                    <DocumentTextIcon class="w-5 h-5" />
-                                </button>
-                            </div>
                         </div>
-                    </div>
 
-                    <!-- Messages Area -->
-                    <div
-                        ref="messagesContainer"
-                        class="flex-1 overflow-y-auto p-4 space-y-6"
-                        style="scroll-behavior: smooth;"
-                    >
-                        <div v-for="message in messages" :key="message.id" class="space-y-4">
-                            <!-- User Message -->
-                            <div v-if="message.role === 'user'" class="flex justify-end">
-                                <div class="max-w-[75%] bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 text-white rounded-2xl rounded-br-md px-6 py-4 shadow-xl">
-                                    <p class="text-sm leading-relaxed">{{ message.content }}</p>
-                                    <div class="flex items-center justify-between mt-3 pt-2 border-t border-white/20">
-                                        <span class="text-xs text-white/80">
-                                            {{ formatTime(message.timestamp) }}
-                                        </span>
-                                        <UserIcon class="w-4 h-4 text-white/80" />
+                        <!-- Messages Area -->
+                        <div
+                            ref="messagesContainer"
+                            class="flex-1 overflow-y-auto p-4 sm:p-5 space-y-6 bg-bg"
+                            style="scroll-behavior: smooth;"
+                        >
+                            <div v-for="message in messages" :key="message.id" class="space-y-4">
+                                <!-- User Message -->
+                                <div v-if="message.role === 'user'" class="flex justify-end">
+                                    <div class="max-w-[80%] bg-primary text-white rounded-2xl rounded-br-md px-5 py-3.5 shadow-card">
+                                        <p class="text-sm leading-relaxed whitespace-pre-wrap">{{ message.content }}</p>
+                                        <div class="flex items-center justify-end gap-2 mt-2 text-white/70">
+                                            <span class="text-xs">{{ formatTime(message.timestamp) }}</span>
+                                            <UserIcon class="w-3.5 h-3.5" />
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
 
-                            <!-- AI Assistant Message -->
-                            <div v-else class="flex justify-start">
-                                <div class="max-w-[90%] bg-white dark:bg-gray-800 rounded-2xl rounded-bl-md shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-                                    <!-- Message Header -->
-                                    <div class="p-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-b border-gray-100 dark:border-gray-700">
-                                        <div class="flex items-center justify-between">
-                                            <div class="flex items-center gap-3">
-                                                <div class="w-10 h-10 bg-gradient-to-br from-green-500 via-emerald-600 to-teal-600 rounded-full flex items-center justify-center shadow-lg">
-                                                    <SparklesIcon class="w-5 h-5 text-white" />
+                                <!-- AI Assistant Message -->
+                                <div v-else class="flex justify-start">
+                                    <div class="max-w-[92%] w-full sm:w-auto ui-card p-0 overflow-hidden">
+                                        <!-- Message Header -->
+                                        <div class="flex items-center justify-between gap-3 p-4 border-b border-line">
+                                            <div class="flex items-center gap-3 min-w-0">
+                                                <div class="ui-icon-tile bg-primary-soft text-primary flex-shrink-0">
+                                                    <SparklesIcon class="w-5 h-5" />
                                                 </div>
-                                                <div>
-                                                    <p class="font-semibold text-gray-900 dark:text-white text-sm flex items-center gap-2">
+                                                <div class="min-w-0">
+                                                    <p class="font-semibold text-content text-sm flex items-center gap-2">
                                                         UniGPT Assistant
-                                                        <span class="text-xs text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-full">
-                                                            AI
-                                                        </span>
+                                                        <span class="ui-badge bg-neutral-bg text-neutral-fg">AI</span>
                                                     </p>
-                                                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                                                    <p class="text-xs text-content-faint">
                                                         {{ formatTime(message.timestamp) }}
                                                     </p>
                                                 </div>
                                             </div>
 
                                             <!-- Confidence Score & Actions -->
-                                            <div class="flex items-center gap-2">
-                                                <span :class="`px-3 py-1.5 text-xs font-semibold rounded-full border ${getConfidenceColor(message.confidence)}`">
-                                                    <CheckCircleIcon class="w-3 h-3 inline mr-1" />
-                                                    {{ message.confidence }}% Confident
+                                            <div class="flex items-center gap-2 flex-shrink-0">
+                                                <span :class="`hidden sm:inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-full border ${getConfidenceColor(message.confidence)}`">
+                                                    <CheckCircleIcon class="w-3.5 h-3.5 mr-1" />
+                                                    {{ message.confidence }}%
                                                 </span>
 
-                                                <div class="flex items-center gap-1">
-                                                    <button
-                                                        @click="copyMessage(message.content)"
-                                                        class="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                                                        title="Copy Message"
-                                                    >
-                                                        <ClipboardDocumentCheckIcon class="w-4 h-4" />
-                                                    </button>
+                                                <button
+                                                    @click="copyMessage(message.content)"
+                                                    class="p-1.5 rounded-control text-content-faint hover:text-content hover:bg-neutral-bg transition-colors"
+                                                    title="Copy Message"
+                                                    aria-label="Copy message"
+                                                >
+                                                    <ClipboardDocumentCheckIcon class="w-4 h-4" />
+                                                </button>
 
-                                                    <button
-                                                        @click="toggleSaved(message.id)"
-                                                        :class="`p-1.5 rounded-lg transition-colors ${
-                                                            message.saved
-                                                                ? 'text-yellow-600 bg-yellow-100 dark:bg-yellow-900/30 dark:text-yellow-400'
-                                                                : 'text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20'
-                                                        }`"
-                                                        title="Bookmark Message"
-                                                    >
-                                                        <BookmarkIcon class="w-4 h-4" :class="{ 'fill-current': message.saved }" />
-                                                    </button>
-                                                </div>
+                                                <button
+                                                    @click="toggleSaved(message.id)"
+                                                    :class="[
+                                                        'p-1.5 rounded-control transition-colors',
+                                                        message.saved
+                                                            ? 'text-warning-fg bg-warning-bg'
+                                                            : 'text-content-faint hover:text-warning-fg hover:bg-warning-bg'
+                                                    ]"
+                                                    title="Bookmark Message"
+                                                    aria-label="Bookmark message"
+                                                >
+                                                    <BookmarkIcon class="w-4 h-4" :class="{ 'fill-current': message.saved }" />
+                                                </button>
                                             </div>
                                         </div>
 
-                                        <!-- Context Relevance Badge -->
-                                        <div v-if="message.contextRelevance" class="mt-3">
-                                            <div class="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg text-xs font-medium">
-                                                <InformationCircleIcon class="w-4 h-4" />
-                                                {{ message.contextRelevance === 'profile' ? '🎓 Personalized for your profile' : '📚 Based on your current courses' }}
+                                        <!-- Message Content -->
+                                        <div class="p-5">
+                                            <!-- Context Relevance Badge -->
+                                            <div v-if="message.contextRelevance" class="mb-4">
+                                                <div class="inline-flex items-center gap-2 px-3 py-1.5 bg-success-bg text-success-fg rounded-control text-xs font-medium">
+                                                    <component :is="message.contextRelevance === 'profile' ? AcademicCapIcon : BookOpenIcon" class="w-4 h-4" />
+                                                    {{ message.contextRelevance === 'profile' ? 'Personalized for your profile' : 'Based on your current courses' }}
+                                                </div>
+                                            </div>
+
+                                            <!-- Enhanced Message Text -->
+                                            <div class="prose prose-sm max-w-none">
+                                                <div
+                                                    v-html="parseMessageContent(message.content)"
+                                                    class="text-content-muted leading-relaxed"
+                                                ></div>
+                                            </div>
+
+                                            <!-- Sources Preview -->
+                                            <div v-if="message.sources && message.sources.length > 0" class="mt-5 p-4 bg-neutral-bg rounded-control">
+                                                <div class="flex items-center justify-between mb-3">
+                                                    <p class="text-sm font-semibold text-content flex items-center gap-2">
+                                                        <DocumentTextIcon class="w-4 h-4 text-content-muted" />
+                                                        Academic Sources
+                                                    </p>
+                                                    <button
+                                                        @click="showSourceDetails(message.id)"
+                                                        class="text-xs text-primary hover:text-primary-hover font-semibold inline-flex items-center gap-1"
+                                                    >
+                                                        View All
+                                                        <ArrowTopRightOnSquareIcon class="w-3.5 h-3.5" />
+                                                    </button>
+                                                </div>
+                                                <div class="space-y-2">
+                                                    <div
+                                                        v-for="source in message.sources.slice(0, 2)"
+                                                        :key="source.id"
+                                                        class="flex items-center gap-3 p-2 bg-surface rounded-control border border-line"
+                                                    >
+                                                        <div class="ui-icon-tile h-8 w-8 bg-primary-soft text-primary flex-shrink-0">
+                                                            <component :is="getSourceTypeIcon(source.type)" class="w-4 h-4" />
+                                                        </div>
+                                                        <div class="flex-1 min-w-0">
+                                                            <p class="text-xs font-medium text-content truncate">
+                                                                {{ source.title }}
+                                                            </p>
+                                                            <p class="text-xs text-content-faint">
+                                                                Page {{ source.page }} • {{ source.section }}
+                                                            </p>
+                                                        </div>
+                                                        <span :class="`px-2 py-1 text-xs font-medium rounded-pill border ${getConfidenceColor(source.confidence * 100)}`">
+                                                            {{ Math.round(source.confidence * 100) }}%
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Follow-up Suggestions -->
+                                            <div v-if="message.followUpSuggestions && message.followUpSuggestions.length > 0" class="mt-5">
+                                                <p class="text-sm font-semibold text-content mb-3 flex items-center gap-2">
+                                                    <LightBulbIcon class="w-4 h-4 text-primary" />
+                                                    Continue Learning
+                                                </p>
+                                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                    <button
+                                                        v-for="suggestion in message.followUpSuggestions"
+                                                        :key="suggestion"
+                                                        @click="askFollowUp(suggestion)"
+                                                        class="text-left px-4 py-2.5 bg-neutral-bg text-content text-sm rounded-control hover:bg-primary-soft hover:text-primary hover:shadow-card hover:-translate-y-0.5 transition-all duration-200 font-medium"
+                                                    >
+                                                        {{ suggestion }}
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
+                                </div>
+                            </div>
 
-                                    <!-- Message Content -->
-                                    <div class="p-6">
-                                        <!-- Enhanced Message Text -->
-                                        <div class="prose prose-sm dark:prose-invert max-w-none">
-                                            <div
-                                                v-html="parseMessageContent(message.content)"
-                                                class="text-gray-800 dark:text-gray-200 leading-relaxed"
-                                            ></div>
+                            <!-- Enhanced Typing Indicator -->
+                            <div v-if="isTyping" class="flex justify-start">
+                                <div class="ui-card px-5 py-3.5">
+                                    <div class="flex items-center gap-3">
+                                        <div class="ui-icon-tile h-8 w-8 bg-primary-soft text-primary flex-shrink-0">
+                                            <SparklesIcon class="w-4 h-4" />
                                         </div>
-
-                                        <!-- Sources Preview -->
-                                        <div v-if="message.sources && message.sources.length > 0" class="mt-6 p-4 bg-gradient-to-r from-gray-50 to-blue-50 dark:from-gray-900/50 dark:to-blue-900/20 rounded-xl border border-gray-200 dark:border-gray-700">
-                                            <div class="flex items-center justify-between mb-3">
-                                                <p class="text-sm font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
-                                                    <DocumentTextIcon class="w-4 h-4 text-blue-600" />
-                                                    Academic Sources
-                                                </p>
-                                                <button
-                                                    @click="showSourceDetails(message.id)"
-                                                    class="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium"
-                                                >
-                                                    View All Sources →
-                                                </button>
+                                        <div class="flex items-center gap-2">
+                                            <div class="flex space-x-1">
+                                                <div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 0ms"></div>
+                                                <div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 150ms"></div>
+                                                <div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 300ms"></div>
                                             </div>
-                                            <div class="space-y-2">
-                                                <div
-                                                    v-for="source in message.sources.slice(0, 2)"
-                                                    :key="source.id"
-                                                    class="flex items-center gap-3 p-2 bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-600"
-                                                >
-                                                    <span class="text-lg">{{ getSourceTypeIcon(source.type) }}</span>
-                                                    <div class="flex-1 min-w-0">
-                                                        <p class="text-xs font-medium text-gray-700 dark:text-gray-300 truncate">
-                                                            {{ source.title }}
-                                                        </p>
-                                                        <p class="text-xs text-gray-500 dark:text-gray-400">
-                                                            Page {{ source.page }} • {{ source.section }}
-                                                        </p>
-                                                    </div>
-                                                    <span :class="`px-2 py-1 text-xs font-medium rounded-full ${getConfidenceColor(source.confidence * 100)}`">
-                                                        {{ Math.round(source.confidence * 100) }}%
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <!-- Follow-up Suggestions -->
-                                        <div v-if="message.followUpSuggestions && message.followUpSuggestions.length > 0" class="mt-6">
-                                            <p class="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-3 flex items-center gap-2">
-                                                <ChatBubbleLeftRightIcon class="w-4 h-4 text-indigo-600" />
-                                                Continue Learning
-                                            </p>
-                                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                                <button
-                                                    v-for="suggestion in message.followUpSuggestions"
-                                                    :key="suggestion"
-                                                    @click="askFollowUp(suggestion)"
-                                                    class="text-left px-4 py-3 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 text-indigo-700 dark:text-indigo-300 text-sm rounded-xl hover:from-indigo-100 hover:to-purple-100 dark:hover:from-indigo-900/40 dark:hover:to-purple-900/40 transition-all duration-200 border border-indigo-200 dark:border-indigo-800 font-medium"
-                                                >
-                                                    {{ suggestion }}
-                                                </button>
-                                            </div>
+                                            <span class="text-sm text-content-muted font-medium">
+                                                UniGPT is thinking...
+                                            </span>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Enhanced Typing Indicator -->
-                        <div v-if="isTyping" class="flex justify-start">
-                            <div class="bg-white dark:bg-gray-800 rounded-2xl rounded-bl-md px-6 py-4 shadow-xl border border-gray-200 dark:border-gray-700">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center">
-                                        <SparklesIcon class="w-4 h-4 text-white" />
-                                    </div>
-                                    <div class="flex items-center gap-2">
-                                        <div class="flex space-x-1">
-                                            <div class="w-2 h-2 bg-green-500 rounded-full animate-bounce" style="animation-delay: 0ms"></div>
-                                            <div class="w-2 h-2 bg-green-500 rounded-full animate-bounce" style="animation-delay: 150ms"></div>
-                                            <div class="w-2 h-2 bg-green-500 rounded-full animate-bounce" style="animation-delay: 300ms"></div>
+                        <!-- Sticky Message Input -->
+                        <div class="sticky bottom-0 border-t border-line bg-surface p-3 sm:p-4">
+                            <form @submit.prevent="sendMessage" class="space-y-2.5">
+                                <!-- Input Area -->
+                                <div class="flex items-end gap-2.5">
+                                    <div class="flex-1 relative">
+                                        <textarea
+                                            id="message-input"
+                                            v-model="messageInput"
+                                            :disabled="isTyping"
+                                            placeholder="Ask anything about your courses, assignments, syllabus, or policies..."
+                                            rows="1"
+                                            class="ui-input pr-12 resize-none"
+                                            @keydown.enter.exact.prevent="sendMessage"
+                                            @keydown.enter.shift.exact="() => {}"
+                                            @input="autoResize"
+                                        ></textarea>
+
+                                        <!-- Voice Input Button -->
+                                        <div class="absolute right-2 top-1/2 -translate-y-1/2">
+                                            <button
+                                                type="button"
+                                                @click="startVoiceInput"
+                                                :disabled="isTyping || isRecording"
+                                                :class="[
+                                                    'p-2 rounded-control transition-all duration-200',
+                                                    isRecording
+                                                        ? 'bg-danger-bg text-danger-fg animate-pulse'
+                                                        : 'text-content-faint hover:text-content hover:bg-neutral-bg'
+                                                ]"
+                                                title="Voice Input"
+                                                aria-label="Voice input"
+                                            >
+                                                <MicrophoneIcon class="w-5 h-5" />
+                                            </button>
                                         </div>
-                                        <span class="text-sm text-gray-600 dark:text-gray-400 font-medium">
-                                            UniGPT is analyzing and crafting your response...
+                                    </div>
+
+                                    <!-- Send Button -->
+                                    <button
+                                        type="submit"
+                                        :disabled="!messageInput.trim() || isTyping"
+                                        class="ui-btn-primary h-11 w-11 p-0 flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        aria-label="Send message"
+                                    >
+                                        <PaperAirplaneIcon class="w-5 h-5" />
+                                    </button>
+                                </div>
+
+                                <!-- Input Controls -->
+                                <div class="flex items-center justify-between gap-3 text-xs text-content-muted">
+                                    <div class="flex items-center gap-3 min-w-0">
+                                        <span class="hidden sm:flex items-center gap-1">
+                                            <InformationCircleIcon class="w-3.5 h-3.5" />
+                                            <span><kbd class="px-1 py-0.5 bg-neutral-bg rounded">Enter</kbd> to send, <kbd class="px-1 py-0.5 bg-neutral-bg rounded">Shift+Enter</kbd> new line</span>
                                         </span>
+                                        <div v-if="isRecording" class="flex items-center gap-1.5 text-danger-fg font-medium">
+                                            <span class="w-2 h-2 bg-danger-fg rounded-full animate-pulse"></span>
+                                            <span>Recording...</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="flex items-center gap-2.5 flex-shrink-0">
+                                        <select
+                                            v-model="selectedLanguage"
+                                            class="ui-input w-auto text-xs px-2 py-1"
+                                            aria-label="Response language"
+                                        >
+                                            <option value="en">🇺🇸 English</option>
+                                            <option value="hi">🇮🇳 हिंदी</option>
+                                            <option value="te">🇮🇳 తెలుగు</option>
+                                        </select>
+                                        <span class="text-content font-semibold uppercase">{{ currentChatMode }}</span>
                                     </div>
                                 </div>
-                            </div>
+                            </form>
                         </div>
                     </div>
 
-                    <!-- Enhanced Message Input -->
-                    <div class="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4 shadow-lg">
-                        <form @submit.prevent="sendMessage" class="space-y-3">
-                            <!-- Input Area -->
-                            <div class="flex items-end gap-3">
-                                <div class="flex-1 relative">
-                                    <textarea
-                                        id="message-input"
-                                        v-model="messageInput"
-                                        :disabled="isTyping"
-                                        placeholder="Ask anything about your courses, assignments, syllabus, or university policies..."
-                                        rows="1"
-                                        class="w-full px-4 py-3 pr-24 border-2 border-gray-300 dark:border-gray-600 rounded-2xl bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none transition-all shadow-sm"
-                                        @keydown.enter.exact.prevent="sendMessage"
-                                        @keydown.enter.shift.exact="() => {}"
-                                        @input="autoResize"
-                                    ></textarea>
+                    <!-- Right Panel - Sources & Context -->
+                    <div
+                        v-if="showSourcePanel"
+                        class="hidden lg:flex lg:col-span-3 flex-col ui-card p-0 overflow-hidden"
+                    >
+                        <!-- Panel Header -->
+                        <div class="p-4 border-b border-line">
+                            <h3 class="text-sm font-semibold text-content flex items-center gap-2">
+                                <DocumentTextIcon class="w-4 h-4 text-content-muted" />
+                                Academic Sources
+                            </h3>
+                            <p class="text-xs text-content-muted mt-1">
+                                Verified university documents and references
+                            </p>
+                        </div>
 
-                                    <!-- Voice Input Button -->
-                                    <div class="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-2">
-                                        <button
-                                            type="button"
-                                            @click="startVoiceInput"
-                                            :disabled="isTyping || isRecording"
-                                            :class="`p-2 rounded-xl transition-all duration-200 ${
-                                                isRecording
-                                                    ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 animate-pulse scale-110'
-                                                    : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:scale-105'
-                                            }`"
-                                            title="Voice Input"
-                                        >
-                                            <MicrophoneIcon class="w-5 h-5" />
+                        <!-- Sources List -->
+                        <div class="flex-1 overflow-y-auto p-4">
+                            <div v-if="currentSources.length > 0" class="space-y-3">
+                                <div
+                                    v-for="source in currentSources"
+                                    :key="source.id"
+                                    class="bg-neutral-bg rounded-control p-4 hover:bg-surface hover:shadow-card hover:-translate-y-0.5 transition-all duration-200"
+                                >
+                                    <!-- Source Header -->
+                                    <div class="flex items-start justify-between gap-2 mb-3">
+                                        <div class="flex items-center gap-3 min-w-0">
+                                            <div class="ui-icon-tile bg-primary-soft text-primary flex-shrink-0">
+                                                <component :is="getSourceTypeIcon(source.type)" class="w-5 h-5" />
+                                            </div>
+                                            <div class="flex-1 min-w-0">
+                                                <h4 class="font-semibold text-content text-sm line-clamp-2">
+                                                    {{ source.title }}
+                                                </h4>
+                                                <p class="text-xs text-content-faint mt-0.5">
+                                                    {{ source.section }} • Page {{ source.page }}
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <span :class="`px-2 py-1 text-xs font-semibold rounded-pill border flex-shrink-0 ${getConfidenceColor(source.confidence * 100)}`">
+                                            {{ Math.round(source.confidence * 100) }}%
+                                        </span>
+                                    </div>
+
+                                    <!-- Relevant Text Quote -->
+                                    <div class="bg-surface p-3 rounded-control mb-3 border-l-4 border-primary">
+                                        <p class="text-sm text-content-muted italic leading-relaxed">
+                                            "{{ source.relevantText }}"
+                                        </p>
+                                    </div>
+
+                                    <!-- Source Meta & Actions -->
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-xs text-content-faint">
+                                            Updated {{ new Date(source.lastUpdated).toLocaleDateString() }}
+                                        </span>
+                                        <button class="flex items-center gap-1 text-xs text-primary hover:text-primary-hover font-semibold">
+                                            <EyeIcon class="w-3.5 h-3.5" />
+                                            View
                                         </button>
                                     </div>
                                 </div>
-
-                                <!-- Send Button -->
-                                <button
-                                    type="submit"
-                                    :disabled="!messageInput.trim() || isTyping"
-                                    class="p-3 bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 text-white rounded-2xl hover:shadow-lg hover:shadow-blue-500/25 transform hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none"
-                                >
-                                    <PaperAirplaneIcon class="w-6 h-6" />
-                                </button>
                             </div>
 
-                            <!-- Enhanced Input Controls -->
-                            <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                                <div class="flex items-center gap-4">
-                                    <div class="flex items-center gap-1">
-                                        <InformationCircleIcon class="w-3 h-3" />
-                                        <span>Press <kbd class="px-1 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-xs">Enter</kbd> to send, <kbd class="px-1 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-xs">Shift + Enter</kbd> for new line</span>
-                                    </div>
-                                    <div v-if="isRecording" class="flex items-center gap-2 text-red-600 dark:text-red-400 font-medium">
-                                        <div class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-                                        <span>Recording audio...</span>
-                                    </div>
-                                </div>
+                            <!-- Empty State -->
+                            <EmptyState
+                                v-else
+                                title="No sources selected"
+                                description="Ask a question to see the academic sources and references UniGPT uses for accurate answers."
+                                :icon="DocumentTextIcon"
+                            />
 
-                                <div class="flex items-center gap-3">
-                                    <select
-                                        v-model="selectedLanguage"
-                                        class="text-xs border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            <!-- Student Course Context -->
+                            <div class="mt-5 p-4 bg-primary-soft rounded-control">
+                                <h4 class="font-semibold text-primary text-sm mb-3 flex items-center gap-2">
+                                    <AcademicCapIcon class="w-4 h-4" />
+                                    Your Active Courses
+                                </h4>
+                                <div class="space-y-2">
+                                    <div
+                                        v-for="course in studentContext.currentCourses"
+                                        :key="course"
+                                        class="flex items-center gap-2 text-sm text-content bg-surface px-3 py-2 rounded-control"
                                     >
-                                        <option value="en">🇺🇸 English</option>
-                                        <option value="hi">🇮🇳 हिंदी</option>
-                                        <option value="te">🇮🇳 తెలుగు</option>
-                                    </select>
-                                    <span class="text-blue-600 dark:text-blue-400 font-medium">{{ currentChatMode.toUpperCase() }} Mode</span>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-
-                <!-- Enhanced Right Panel - Sources & Context -->
-                <div v-if="showSourcePanel" class="w-96 bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 flex flex-col shadow-xl">
-                    <!-- Panel Header -->
-                    <div class="p-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20">
-                        <h3 class="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                            <DocumentTextIcon class="w-5 h-5 text-green-600" />
-                            Academic Sources
-                        </h3>
-                        <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                            Verified university documents and references
-                        </p>
-                    </div>
-
-                    <!-- Sources List -->
-                    <div class="flex-1 overflow-y-auto p-4">
-                        <div v-if="currentSources.length > 0" class="space-y-4">
-                            <div
-                                v-for="source in currentSources"
-                                :key="source.id"
-                                class="border-2 border-gray-200 dark:border-gray-700 rounded-xl p-4 hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-all duration-200 hover:border-blue-300 dark:hover:border-blue-600"
-                            >
-                                <!-- Source Header -->
-                                <div class="flex items-start justify-between mb-3">
-                                    <div class="flex items-center gap-3">
-                                        <div class="w-10 h-10 bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 rounded-xl flex items-center justify-center">
-                                            <span class="text-xl">{{ getSourceTypeIcon(source.type) }}</span>
-                                        </div>
-                                        <div class="flex-1 min-w-0">
-                                            <h4 class="font-semibold text-gray-900 dark:text-white text-sm line-clamp-2">
-                                                {{ source.title }}
-                                            </h4>
-                                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                                {{ source.section }} • Page {{ source.page }}
-                                            </p>
-                                        </div>
+                                        <span class="w-2 h-2 bg-primary rounded-full flex-shrink-0"></span>
+                                        <span class="truncate">{{ course }}</span>
                                     </div>
-
-                                    <span :class="`px-2 py-1 text-xs font-semibold rounded-full border ${getConfidenceColor(source.confidence * 100)}`">
-                                        {{ Math.round(source.confidence * 100) }}%
-                                    </span>
                                 </div>
-
-                                <!-- Relevant Text Quote -->
-                                <div class="bg-gradient-to-r from-gray-50 to-blue-50 dark:from-gray-900/50 dark:to-blue-900/20 p-4 rounded-xl mb-3 border-l-4 border-blue-500">
-                                    <p class="text-sm text-gray-700 dark:text-gray-300 italic leading-relaxed">
-                                        "{{ source.relevantText }}"
-                                    </p>
-                                </div>
-
-                                <!-- Source Meta & Actions -->
-                                <div class="flex items-center justify-between">
-                                    <span class="text-xs text-gray-500 dark:text-gray-400">
-                                        Updated {{ new Date(source.lastUpdated).toLocaleDateString() }}
-                                    </span>
-                                    <button class="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium">
-                                        <EyeIcon class="w-3 h-3" />
-                                        View Document
-                                    </button>
-                                </div>
+                                <p class="text-xs text-primary/80 mt-3 italic">
+                                    AI responses are tailored to your enrolled courses
+                                </p>
                             </div>
-                        </div>
-
-                        <!-- Enhanced Default State -->
-                        <div v-else class="text-center py-16">
-                            <div class="w-20 h-20 bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <DocumentTextIcon class="w-10 h-10 text-blue-600 dark:text-blue-400" />
-                            </div>
-                            <h4 class="font-semibold text-gray-900 dark:text-white mb-2">No Sources Selected</h4>
-                            <p class="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
-                                Ask a question to see the academic sources and references that UniGPT uses to provide accurate answers.
-                            </p>
-                        </div>
-
-                        <!-- Enhanced Student Course Context -->
-                        <div class="mt-6 p-4 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
-                            <h4 class="font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-                                <AcademicCapIcon class="w-5 h-5 text-blue-600" />
-                                Your Active Courses
-                            </h4>
-                            <div class="space-y-2">
-                                <div
-                                    v-for="course in studentContext.currentCourses"
-                                    :key="course"
-                                    class="flex items-center gap-2 text-sm text-blue-700 dark:text-blue-300 bg-white/60 dark:bg-gray-800/60 px-3 py-2 rounded-lg border border-blue-200 dark:border-blue-700"
-                                >
-                                    <span class="w-2 h-2 bg-blue-500 rounded-full"></span>
-                                    {{ course }}
-                                </div>
-                            </div>
-                            <p class="text-xs text-gray-600 dark:text-gray-400 mt-3 italic">
-                                AI responses are tailored to your enrolled courses
-                            </p>
                         </div>
                     </div>
                 </div>
@@ -891,23 +970,15 @@ watch(() => messages.value.length, () => {
 }
 
 .overflow-y-auto::-webkit-scrollbar-thumb {
-    background: linear-gradient(to bottom, #cbd5e1, #94a3b8);
+    background: #cbd5e1;
     border-radius: 4px;
 }
 
 .overflow-y-auto::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(to bottom, #94a3b8, #64748b);
+    background: #94a3b8;
 }
 
-.dark .overflow-y-auto::-webkit-scrollbar-thumb {
-    background: linear-gradient(to bottom, #475569, #334155);
-}
-
-.dark .overflow-y-auto::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(to bottom, #64748b, #475569);
-}
-
-/* Enhanced line clamp utilities */
+/* Line clamp utilities */
 .line-clamp-1 {
     display: -webkit-box;
     -webkit-line-clamp: 1;
@@ -922,7 +993,7 @@ watch(() => messages.value.length, () => {
     overflow: hidden;
 }
 
-/* Enhanced prose styling for AI responses */
+/* Prose styling for AI responses */
 .prose strong {
     font-weight: 600;
     color: inherit;
@@ -933,7 +1004,7 @@ watch(() => messages.value.length, () => {
     color: inherit;
 }
 
-/* Enhanced animations */
+/* Typing dot animation */
 @keyframes bounce {
     0%, 80%, 100% {
         transform: scale(0);
@@ -949,26 +1020,10 @@ watch(() => messages.value.length, () => {
     animation: bounce 1.4s ease-in-out infinite both;
 }
 
-/* Smooth transitions */
-.transition-all {
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Enhanced hover effects */
-.hover\:scale-105:hover {
-    transform: scale(1.05);
-}
-
-/* Keyboard shortcuts styling */
-kbd {
-    font-family: inherit;
-    font-size: inherit;
-}
-
 /* Auto-resize textarea */
 textarea {
     resize: none;
-    min-height: 48px;
+    min-height: 44px;
     max-height: 120px;
 }
 </style>

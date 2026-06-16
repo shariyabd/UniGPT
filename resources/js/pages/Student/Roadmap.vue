@@ -2,13 +2,19 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import PageHeader from '@/components/ui/PageHeader.vue';
+import Card from '@/components/ui/Card.vue';
+import StatCard from '@/components/ui/StatCard.vue';
+import Badge from '@/components/ui/Badge.vue';
+import EmptyState from '@/components/ui/EmptyState.vue';
 import {
+    MapIcon,
     AcademicCapIcon,
     ChartBarIcon,
     BookOpenIcon,
     CheckCircleIcon,
     ClockIcon,
-    PlayIcon,
+    PlayCircleIcon,
     LockClosedIcon,
     StarIcon,
     CalendarIcon,
@@ -123,28 +129,60 @@ const upcomingDeadlines = computed(() => {
 // Utility functions
 const getStatusColor = (status) => {
     const colors = {
-        completed: 'text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400',
-        'in-progress': 'text-blue-600 bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400',
-        locked: 'text-gray-500 bg-gray-100 dark:bg-gray-900/30 dark:text-gray-400',
-        upcoming: 'text-yellow-600 bg-yellow-100 dark:bg-yellow-900/30 dark:text-yellow-400'
+        completed: 'text-success-fg bg-success-bg',
+        'in-progress': 'text-primary bg-primary-soft',
+        locked: 'text-neutral-fg bg-neutral-bg',
+        upcoming: 'text-warning-fg bg-warning-bg'
     };
     return colors[status] || colors.upcoming;
 };
 
+// Maps a status string to a Badge variant.
+const getStatusVariant = (status) => {
+    const variants = {
+        completed: 'success',
+        'in-progress': 'brand',
+        locked: 'slate',
+        upcoming: 'info'
+    };
+    return variants[status] || 'info';
+};
+
+// Maps a status string to a status icon.
+const getStatusIcon = (status) => {
+    const icons = {
+        completed: CheckCircleIcon,
+        'in-progress': PlayCircleIcon,
+        locked: LockClosedIcon,
+        upcoming: ClockIcon
+    };
+    return icons[status] || ClockIcon;
+};
+
 const getDifficultyColor = (difficulty) => {
     const colors = {
-        easy: 'text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400',
-        medium: 'text-yellow-600 bg-yellow-100 dark:bg-yellow-900/30 dark:text-yellow-400',
-        hard: 'text-red-600 bg-red-100 dark:bg-red-900/30 dark:text-red-400'
+        easy: 'text-success-fg bg-success-bg',
+        medium: 'text-warning-fg bg-warning-bg',
+        hard: 'text-danger-fg bg-danger-bg'
     };
     return colors[difficulty] || colors.medium;
 };
 
+// Maps a difficulty string to a Badge variant.
+const getDifficultyVariant = (difficulty) => {
+    const variants = {
+        easy: 'success',
+        medium: 'warning',
+        hard: 'danger'
+    };
+    return variants[difficulty] || 'warning';
+};
+
 const getGradeColor = (grade) => {
-    if (!grade) return 'text-gray-500';
-    if (grade.includes('A')) return 'text-green-600 dark:text-green-400';
-    if (grade.includes('B')) return 'text-blue-600 dark:text-blue-400';
-    return 'text-yellow-600 dark:text-yellow-400';
+    if (!grade) return 'text-content-muted';
+    if (grade.includes('A')) return 'text-success-fg';
+    if (grade.includes('B')) return 'text-primary';
+    return 'text-warning-fg';
 };
 
 const getModuleIcon = (moduleTitle) => {
@@ -204,399 +242,409 @@ const getAIRecommendations = () => {
         <Head title="Academic Roadmap" />
 
         <AppLayout>
-            <div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-950">
-                <!-- Header -->
-                <div class="bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 dark:from-cyan-800 dark:via-blue-800 dark:to-indigo-800">
-                    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-                        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-                            <div>
-                                <h1 class="text-4xl font-bold text-white mb-2 flex items-center gap-3">
-                                    <ChartBarIcon class="w-10 h-10" />
-                                    Academic Roadmap
-                                </h1>
-                                <p class="text-xl text-white/90 mb-2">
-                                    Your personalized journey to academic excellence
-                                </p>
-                                <p class="text-white/80">
-                                    {{ studentContext.department }} • {{ studentContext.currentYear }} • Semester {{ studentContext.currentSemester }}
-                                </p>
-                            </div>
+            <div class="page-container py-8 space-y-6 sm:space-y-8">
+                <PageHeader
+                    title="Learning Roadmap"
+                    subtitle="Your personalized journey to academic excellence"
+                    :icon="MapIcon"
+                    :eyebrow="`${studentContext.department} • ${studentContext.currentYear}`"
+                >
+                    <template #actions>
+                        <Link
+                            href="/dashboard"
+                            class="ui-btn-secondary"
+                        >
+                            <ChevronRightIcon class="w-4 h-4 rotate-180" />
+                            Dashboard
+                        </Link>
+                        <button
+                            type="button"
+                            @click="getAIRecommendations"
+                            class="ui-btn-primary"
+                        >
+                            <SparklesIcon class="w-4 h-4" />
+                            AI Recommendations
+                        </button>
+                    </template>
+                </PageHeader>
 
-                            <div class="flex items-center gap-4">
-                                <!-- Progress Badge -->
-                                <div class="bg-white/20 backdrop-blur-lg rounded-xl px-6 py-4 text-white text-center">
-                                    <div class="text-3xl font-bold">{{ overallProgress }}%</div>
-                                    <div class="text-sm text-white/80">Overall Progress</div>
-                                </div>
-
-                                <Link
-                                    href="/dashboard"
-                                    class="bg-white/20 backdrop-blur-lg border border-white/20 rounded-xl text-white px-6 py-3 font-medium hover:bg-white/30 transition-all"
-                                >
-                                    ← Dashboard
-                                </Link>
-                            </div>
-                        </div>
-
-                        <!-- Progress Overview -->
-                        <div class="mt-8 grid grid-cols-1 md:grid-cols-4 gap-4">
-                            <div class="bg-white/20 backdrop-blur-lg rounded-xl px-4 py-3 text-white">
-                                <div class="text-2xl font-bold">{{ studentContext.cgpa }}</div>
-                                <div class="text-xs text-white/80">Current CGPA</div>
-                            </div>
-                            <div class="bg-white/20 backdrop-blur-lg rounded-xl px-4 py-3 text-white">
-                                <div class="text-2xl font-bold">{{ studentContext.completedCredits }}</div>
-                                <div class="text-xs text-white/80">Credits Earned</div>
-                            </div>
-                            <div class="bg-white/20 backdrop-blur-lg rounded-xl px-4 py-3 text-white">
-                                <div class="text-2xl font-bold">{{ currentSemesterProgress }}%</div>
-                                <div class="text-xs text-white/80">Current Semester</div>
-                            </div>
-                            <div class="bg-white/20 backdrop-blur-lg rounded-xl px-4 py-3 text-white">
-                                <div class="text-2xl font-bold">{{ upcomingDeadlines.length }}</div>
-                                <div class="text-xs text-white/80">Pending Tasks</div>
-                            </div>
-                        </div>
-                    </div>
+                <!-- KPI Overview -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+                    <StatCard
+                        label="Overall Progress"
+                        :value="`${overallProgress}%`"
+                        :icon="ChartBarIcon"
+                        variant="filled"
+                        color="lilac"
+                    />
+                    <StatCard
+                        label="Current CGPA"
+                        :value="studentContext.cgpa || '-'"
+                        :icon="StarIcon"
+                        variant="filled"
+                        color="yellow"
+                    />
+                    <StatCard
+                        label="Credits Earned"
+                        :value="studentContext.completedCredits"
+                        :icon="AcademicCapIcon"
+                        variant="filled"
+                        color="mint"
+                    />
+                    <StatCard
+                        label="Pending Tasks"
+                        :value="upcomingDeadlines.length"
+                        :icon="ClockIcon"
+                        variant="filled"
+                        color="rose"
+                    />
                 </div>
 
-                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 -mt-6">
-                    <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
-                        <!-- Left Sidebar - Quick Navigation -->
-                        <div class="lg:col-span-1">
-                            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 sticky top-8">
-                                <!-- Semester Navigation -->
-                                <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                                    <CalendarIcon class="w-5 h-5 text-blue-600" />
-                                    Semesters
-                                </h3>
-
-                                <div class="space-y-2 mb-6">
-                                    <button
-                                        v-for="semester in roadmapData.semesters"
-                                        :key="semester.semester"
-                                        @click="selectedSemester = semester.semester"
-                                        :class="`w-full text-left p-3 rounded-xl transition-all ${
-                                            selectedSemester === semester.semester
-                                                ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-2 border-blue-300 dark:border-blue-600'
-                                                : 'hover:bg-gray-100 dark:hover:bg-gray-700 border-2 border-transparent'
-                                        }`"
-                                    >
-                                        <div class="flex items-center justify-between">
-                                            <span class="font-medium">Sem {{ semester.semester }}</span>
-                                            <span :class="`px-2 py-1 text-xs rounded-full ${getStatusColor(semester.status)}`">
-                                                {{ semester.status === 'in-progress' ? 'Current' : semester.status }}
-                                            </span>
-                                        </div>
-                                        <div class="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                                            {{ semester.modules.length }} modules • {{ semester.credits }} credits
-                                        </div>
-                                        <div v-if="semester.gpa" class="text-xs font-medium text-green-600 dark:text-green-400 mt-1">
-                                            GPA: {{ semester.gpa }}
-                                        </div>
-                                    </button>
-                                </div>
-
-                                <!-- View Mode Toggle -->
-                                <div class="mb-6">
-                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">View Mode</label>
-                                    <div class="flex bg-gray-100 dark:bg-gray-700 rounded-xl p-1">
-                                        <button
-                                            @click="viewMode = 'timeline'"
-                                            :class="`flex-1 py-2 px-3 text-sm rounded-lg transition-colors ${viewMode === 'timeline' ? 'bg-white dark:bg-gray-600 shadow-sm' : ''}`"
-                                        >
-                                            Timeline
-                                        </button>
-                                        <button
-                                            @click="viewMode = 'grid'"
-                                            :class="`flex-1 py-2 px-3 text-sm rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-white dark:bg-gray-600 shadow-sm' : ''}`"
-                                        >
-                                            Grid
-                                        </button>
+                <!-- Main split -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Sidebar -->
+                    <div class="lg:col-span-1 space-y-6">
+                        <!-- Semester Navigation -->
+                        <Card title="Semesters" :icon="CalendarIcon">
+                            <div class="space-y-2">
+                                <button
+                                    v-for="semester in roadmapData.semesters"
+                                    :key="semester.semester"
+                                    @click="selectedSemester = semester.semester"
+                                    :class="[
+                                        'w-full text-left p-3 rounded-control transition-all duration-200',
+                                        selectedSemester === semester.semester
+                                            ? 'bg-primary text-white'
+                                            : 'bg-neutral-bg hover:bg-surface hover:shadow-card hover:-translate-y-0.5'
+                                    ]"
+                                >
+                                    <div class="flex items-center justify-between gap-2">
+                                        <span
+                                            :class="[
+                                                'font-semibold',
+                                                selectedSemester === semester.semester ? 'text-white' : 'text-content'
+                                            ]"
+                                        >Sem {{ semester.semester }}</span>
+                                        <Badge :variant="getStatusVariant(semester.status)" dot>
+                                            {{ semester.status === 'in-progress' ? 'Current' : semester.status }}
+                                        </Badge>
                                     </div>
-                                </div>
-
-                                <!-- Quick Actions -->
-                                <div class="space-y-2">
-                                    <button
-                                        @click="downloadRoadmap"
-                                        class="w-full flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors"
+                                    <div
+                                        :class="[
+                                            'text-xs mt-1',
+                                            selectedSemester === semester.semester ? 'text-white/70' : 'text-content-muted'
+                                        ]"
                                     >
-                                        <DocumentTextIcon class="w-4 h-4" />
-                                        Download PDF
+                                        {{ semester.modules.length }} modules • {{ semester.credits }} credits
+                                    </div>
+                                    <div
+                                        v-if="semester.gpa"
+                                        :class="[
+                                            'text-xs font-medium mt-1',
+                                            selectedSemester === semester.semester ? 'text-white/80' : 'text-success-fg'
+                                        ]"
+                                    >
+                                        GPA: {{ semester.gpa }}
+                                    </div>
+                                </button>
+                            </div>
+
+                            <!-- View Mode Toggle -->
+                            <div class="mt-6">
+                                <label class="ui-label">View Mode</label>
+                                <div class="flex bg-neutral-bg rounded-control p-1 mt-1">
+                                    <button
+                                        @click="viewMode = 'timeline'"
+                                        :class="[
+                                            'flex-1 py-2 px-3 text-sm font-medium rounded-control transition-colors',
+                                            viewMode === 'timeline'
+                                                ? 'bg-primary text-white shadow-sm'
+                                                : 'text-content-muted'
+                                        ]"
+                                    >
+                                        Timeline
                                     </button>
                                     <button
-                                        @click="getAIRecommendations"
-                                        class="w-full flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-colors"
+                                        @click="viewMode = 'grid'"
+                                        :class="[
+                                            'flex-1 py-2 px-3 text-sm font-medium rounded-control transition-colors',
+                                            viewMode === 'grid'
+                                                ? 'bg-primary text-white shadow-sm'
+                                                : 'text-content-muted'
+                                        ]"
                                     >
-                                        <SparklesIcon class="w-4 h-4" />
-                                        AI Recommendations
+                                        Grid
                                     </button>
                                 </div>
+                            </div>
 
-                                <!-- Upcoming Deadlines -->
-                                <div class="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-                                    <h4 class="font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-                                        <ClockIcon class="w-4 h-4 text-red-600" />
-                                        Upcoming Deadlines
-                                    </h4>
-                                    <div class="space-y-2">
-                                        <div
-                                            v-for="deadline in upcomingDeadlines.slice(0, 3)"
-                                            :key="deadline.title"
-                                            :class="`p-2 rounded-lg border-l-4 ${getDaysUntil(deadline.due) <= 3 ? 'border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20'}`"
-                                        >
-                                            <p class="text-xs font-medium text-gray-900 dark:text-white">{{ deadline.title }}</p>
-                                            <p class="text-xs text-gray-600 dark:text-gray-400">{{ deadline.moduleName }}</p>
-                                            <p class="text-xs font-medium">
-                                                <span :class="getDaysUntil(deadline.due) <= 3 ? 'text-red-600 dark:text-red-400' : 'text-yellow-600 dark:text-yellow-400'">
-                                                    {{ getDaysUntil(deadline.due) }} days left
-                                                </span>
-                                            </p>
-                                        </div>
+                            <!-- Quick Actions -->
+                            <div class="mt-6 space-y-2">
+                                <button
+                                    @click="downloadRoadmap"
+                                    class="ui-btn-secondary w-full justify-center"
+                                >
+                                    <DocumentTextIcon class="w-4 h-4" />
+                                    Download PDF
+                                </button>
+                            </div>
+                        </Card>
+
+                        <!-- Upcoming Deadlines -->
+                        <Card title="Upcoming Deadlines" :icon="ClockIcon">
+                            <div v-if="upcomingDeadlines.length" class="space-y-2">
+                                <div
+                                    v-for="deadline in upcomingDeadlines.slice(0, 3)"
+                                    :key="deadline.title"
+                                    :class="[
+                                        'p-3 rounded-control',
+                                        getDaysUntil(deadline.due) <= 3
+                                            ? 'bg-danger-bg'
+                                            : 'bg-warning-bg'
+                                    ]"
+                                >
+                                    <p class="text-xs font-semibold text-content">{{ deadline.title }}</p>
+                                    <p class="text-xs text-content-muted">{{ deadline.moduleName }}</p>
+                                    <p class="text-xs font-medium mt-1">
+                                        <span :class="getDaysUntil(deadline.due) <= 3 ? 'text-danger-fg' : 'text-warning-fg'">
+                                            {{ getDaysUntil(deadline.due) }} days left
+                                        </span>
+                                    </p>
+                                </div>
+                            </div>
+                            <EmptyState
+                                v-else
+                                title="No deadlines"
+                                description="You're all caught up for now."
+                                :icon="CheckCircleIcon"
+                            />
+                        </Card>
+                    </div>
+
+                    <!-- Main Content -->
+                    <div class="lg:col-span-2 space-y-6">
+                        <!-- Semester Header -->
+                        <Card v-if="currentSemesterData">
+                            <div class="flex items-start justify-between gap-4 flex-wrap">
+                                <div>
+                                    <h2 class="text-xl sm:text-2xl font-bold text-content">
+                                        {{ currentSemesterData.title }}
+                                    </h2>
+                                    <p class="text-content-muted mt-1 text-sm">
+                                        {{ currentSemesterData.modules.length }} modules • {{ currentSemesterData.credits }} credits
+                                    </p>
+                                </div>
+                                <div class="text-right">
+                                    <Badge :variant="getStatusVariant(currentSemesterData.status)">
+                                        <component :is="getStatusIcon(currentSemesterData.status)" class="w-3.5 h-3.5" />
+                                        {{ currentSemesterData.status }}
+                                    </Badge>
+                                    <div v-if="currentSemesterData.gpa" class="text-sm font-semibold text-success-fg mt-1">
+                                        GPA: {{ currentSemesterData.gpa }}
                                     </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <!-- Main Content Area -->
-                        <div class="lg:col-span-3">
-                            <!-- Semester Header -->
-                            <div v-if="currentSemesterData" class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 mb-8">
-                                <div class="flex items-center justify-between mb-4">
-                                    <div>
-                                        <h2 class="text-2xl font-bold text-gray-900 dark:text-white">
-                                            {{ currentSemesterData.title }}
-                                        </h2>
-                                        <p class="text-gray-600 dark:text-gray-400 mt-1">
-                                            {{ currentSemesterData.modules.length }} modules • {{ currentSemesterData.credits }} credits
-                                        </p>
-                                    </div>
-                                    <div class="text-right">
-                                        <span :class="`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(currentSemesterData.status)}`">
-                                            {{ currentSemesterData.status }}
-                                        </span>
-                                        <div v-if="currentSemesterData.gpa" class="text-sm font-semibold text-green-600 dark:text-green-400 mt-1">
-                                            GPA: {{ currentSemesterData.gpa }}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Semester Progress Bar -->
-                                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 mb-2">
+                            <!-- Semester Progress Bar -->
+                            <div class="mt-5">
+                                <div class="w-full bg-neutral-bg rounded-full h-2.5">
                                     <div
-                                        class="bg-gradient-to-r from-blue-600 to-indigo-600 h-3 rounded-full transition-all duration-500"
+                                        class="bg-primary h-2.5 rounded-full transition-all duration-500"
                                         :style="{ width: currentSemesterProgress + '%' }"
                                     ></div>
                                 </div>
-                                <div class="flex justify-between text-sm text-gray-600 dark:text-gray-400">
+                                <div class="flex justify-between text-xs text-content-muted mt-2">
                                     <span>Progress: {{ currentSemesterProgress }}%</span>
                                     <span>{{ currentSemesterData.modules.filter(m => m.status === 'completed').length }}/{{ currentSemesterData.modules.length }} modules completed</span>
                                 </div>
                             </div>
+                        </Card>
 
-                            <!-- Modules Display -->
-                            <div v-if="currentSemesterData" :class="viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 gap-6' : 'space-y-6'">
-                                <div
-                                    v-for="module in currentSemesterData.modules"
-                                    :key="module.id"
-                                    class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-xl transition-all duration-300"
-                                >
-                                    <!-- Module Header -->
-                                    <div class="p-6 border-b border-gray-100 dark:border-gray-700">
-                                        <div class="flex items-start justify-between">
-                                            <div class="flex items-start gap-4">
-                                                <div class="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
-                                                    <component :is="getModuleIcon(module.title)" class="w-6 h-6 text-blue-600 dark:text-blue-400" />
-                                                </div>
-                                                <div class="flex-1">
-                                                    <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2">
-                                                        {{ module.title }}
-                                                    </h3>
-                                                    <div class="flex flex-wrap items-center gap-3">
-                                                        <span :class="`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(module.status)}`">
-                                                            {{ module.status }}
-                                                        </span>
-                                                        <span :class="`px-2 py-1 text-xs font-medium rounded-full ${getDifficultyColor(module.difficulty)}`">
-                                                            {{ module.difficulty }}
-                                                        </span>
-                                                        <span class="text-sm text-gray-600 dark:text-gray-400">
-                                                            {{ module.credits }} credits
-                                                        </span>
-                                                        <span v-if="module.grade" :class="`text-sm font-bold ${getGradeColor(module.grade)}`">
-                                                            Grade: {{ module.grade }}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <!-- Expand/Collapse Button -->
-                                            <button
-                                                @click="toggleModuleExpansion(module.id)"
-                                                class="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                        <!-- Modules Display -->
+                        <div
+                            v-if="currentSemesterData"
+                            :class="viewMode === 'grid' ? 'grid grid-cols-1 xl:grid-cols-2 gap-5' : 'space-y-5'"
+                        >
+                            <Card
+                                v-for="module in currentSemesterData.modules"
+                                :key="module.id"
+                                padding="p-0"
+                                hover
+                                class="overflow-hidden"
+                            >
+                                <!-- Module Header -->
+                                <div class="p-5 sm:p-6 border-b border-line">
+                                    <div class="flex items-start justify-between gap-3">
+                                        <div class="flex items-start gap-4 min-w-0">
+                                            <div
+                                                :class="[
+                                                    'p-3 rounded-control shrink-0',
+                                                    module.status === 'completed'
+                                                        ? 'bg-success-bg text-success-fg'
+                                                        : module.status === 'in-progress'
+                                                            ? 'bg-primary-soft text-primary'
+                                                            : 'bg-neutral-bg text-neutral-fg'
+                                                ]"
                                             >
-                                                <ChevronDownIcon
-                                                    :class="`w-5 h-5 transition-transform ${expandedModules.has(module.id) ? 'rotate-180' : ''}`"
-                                                />
-                                            </button>
+                                                <component :is="getModuleIcon(module.title)" class="w-6 h-6" />
+                                            </div>
+                                            <div class="flex-1 min-w-0">
+                                                <h3 class="text-base sm:text-lg font-bold text-content mb-2">
+                                                    {{ module.title }}
+                                                </h3>
+                                                <div class="flex flex-wrap items-center gap-2">
+                                                    <Badge :variant="getStatusVariant(module.status)">
+                                                        <component :is="getStatusIcon(module.status)" class="w-3.5 h-3.5" />
+                                                        {{ module.status }}
+                                                    </Badge>
+                                                    <Badge :variant="getDifficultyVariant(module.difficulty)">
+                                                        {{ module.difficulty }}
+                                                    </Badge>
+                                                    <span class="text-sm text-content-muted">
+                                                        {{ module.credits }} credits
+                                                    </span>
+                                                    <span v-if="module.grade" :class="`text-sm font-bold ${getGradeColor(module.grade)}`">
+                                                        Grade: {{ module.grade }}
+                                                    </span>
+                                                </div>
+                                            </div>
                                         </div>
 
-                                        <!-- Progress Bar -->
-                                        <div class="mt-4">
-                                            <div class="flex items-center justify-between mb-2">
-                                                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Progress</span>
-                                                <span class="text-sm font-bold text-gray-900 dark:text-white">{{ module.progress }}%</span>
-                                            </div>
-                                            <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                                                <div
-                                                    :class="`h-2 rounded-full transition-all duration-500 ${
-                                                        module.status === 'completed' ? 'bg-green-500' :
-                                                        module.status === 'in-progress' ? 'bg-blue-500' :
-                                                        'bg-gray-400'
-                                                    }`"
-                                                    :style="{ width: module.progress + '%' }"
-                                                ></div>
-                                            </div>
-                                        </div>
+                                        <!-- Expand/Collapse Button -->
+                                        <button
+                                            @click="toggleModuleExpansion(module.id)"
+                                            class="p-2 text-content-faint hover:text-primary rounded-control hover:bg-primary-soft transition-colors shrink-0"
+                                            :aria-label="expandedModules.has(module.id) ? 'Collapse module' : 'Expand module'"
+                                        >
+                                            <ChevronDownIcon
+                                                :class="`w-5 h-5 transition-transform ${expandedModules.has(module.id) ? 'rotate-180' : ''}`"
+                                            />
+                                        </button>
                                     </div>
 
-                                    <!-- Expanded Content -->
-                                    <div v-if="expandedModules.has(module.id)" class="p-6 bg-gray-50 dark:bg-gray-900/50">
-                                        <!-- Current Topic (for in-progress modules) -->
-                                        <div v-if="module.currentTopic" class="mb-4">
-                                            <h4 class="font-semibold text-gray-900 dark:text-white mb-2">Currently Learning</h4>
-                                            <div class="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                                                <p class="text-sm text-blue-800 dark:text-blue-200">{{ module.currentTopic }}</p>
-                                            </div>
+                                    <!-- Progress Bar -->
+                                    <div class="mt-4">
+                                        <div class="flex items-center justify-between mb-2">
+                                            <span class="text-sm font-medium text-content-muted">Progress</span>
+                                            <span class="text-sm font-bold text-content">{{ module.progress }}%</span>
                                         </div>
-
-                                        <!-- Upcoming Topics -->
-                                        <div v-if="module.upcomingTopics && module.upcomingTopics.length" class="mb-4">
-                                            <h4 class="font-semibold text-gray-900 dark:text-white mb-2">Upcoming Topics</h4>
-                                            <div class="space-y-1">
-                                                <div
-                                                    v-for="topic in module.upcomingTopics"
-                                                    :key="topic"
-                                                    class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400"
-                                                >
-                                                    <ArrowRightIcon class="w-4 h-4" />
-                                                    {{ topic }}
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <!-- Assignments -->
-                                        <div v-if="module.assignments && module.assignments.length" class="mb-4">
-                                            <h4 class="font-semibold text-gray-900 dark:text-white mb-2">Assignments</h4>
-                                            <div class="space-y-2">
-                                                <div
-                                                    v-for="assignment in module.assignments"
-                                                    :key="assignment.title"
-                                                    class="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
-                                                >
-                                                    <div>
-                                                        <p class="font-medium text-gray-900 dark:text-white">{{ assignment.title }}</p>
-                                                        <p class="text-sm text-gray-600 dark:text-gray-400">Due: {{ formatDate(assignment.due) }}</p>
-                                                    </div>
-                                                    <div class="flex items-center gap-2">
-                                                        <span :class="`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(assignment.status)}`">
-                                                            {{ assignment.status }}
-                                                        </span>
-                                                        <button
-                                                            @click="viewAssignment(module.id, assignment.title)"
-                                                            class="p-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-                                                        >
-                                                            <EyeIcon class="w-4 h-4" />
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <!-- Prerequisites -->
-                                        <div v-if="module.prerequisites && module.prerequisites.length" class="mb-4">
-                                            <h4 class="font-semibold text-gray-900 dark:text-white mb-2">Prerequisites</h4>
-                                            <div class="flex flex-wrap gap-2">
-                                                <span
-                                                    v-for="prereq in module.prerequisites"
-                                                    :key="prereq"
-                                                    class="px-2 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 text-xs rounded-full"
-                                                >
-                                                    Module {{ prereq }}
-                                                </span>
-                                            </div>
-                                        </div>
-
-                                        <!-- Action Buttons -->
-                                        <div class="flex items-center gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-                                            <button
-                                                v-if="module.status === 'in-progress'"
-                                                @click="startModule(module.id)"
-                                                class="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                                            >
-                                                <PlayIcon class="w-4 h-4" />
-                                                Continue Learning
-                                            </button>
-                                            <button
-                                                v-else-if="module.status === 'locked'"
-                                                disabled
-                                                class="flex items-center gap-2 px-4 py-2 bg-gray-300 text-gray-600 rounded-lg cursor-not-allowed"
-                                            >
-                                                <LockClosedIcon class="w-4 h-4" />
-                                                Prerequisites Required
-                                            </button>
-                                            <button
-                                                class="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                                            >
-                                                <BookOpenIcon class="w-4 h-4" />
-                                                View Materials
-                                            </button>
-                                            <Link
-                                                href="/chat"
-                                                class="flex items-center gap-2 px-4 py-2 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-lg hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors"
-                                            >
-                                                <ChatBubbleLeftRightIcon class="w-4 h-4" />
-                                                Ask AI
-                                            </Link>
+                                        <div class="w-full bg-neutral-bg rounded-full h-2">
+                                            <div
+                                                class="h-2 rounded-full bg-primary transition-all duration-500"
+                                                :style="{ width: module.progress + '%' }"
+                                            ></div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
 
+                                <!-- Expanded Content -->
+                                <div v-if="expandedModules.has(module.id)" class="p-5 sm:p-6 bg-neutral-bg">
+                                    <!-- Current Topic (for in-progress modules) -->
+                                    <div v-if="module.currentTopic" class="mb-4">
+                                        <h4 class="font-semibold text-content mb-2">Currently Learning</h4>
+                                        <div class="p-3 bg-primary-soft rounded-control">
+                                            <p class="text-sm text-primary">{{ module.currentTopic }}</p>
+                                        </div>
+                                    </div>
+
+                                    <!-- Upcoming Topics -->
+                                    <div v-if="module.upcomingTopics && module.upcomingTopics.length" class="mb-4">
+                                        <h4 class="font-semibold text-content mb-2">Upcoming Topics</h4>
+                                        <div class="space-y-1">
+                                            <div
+                                                v-for="topic in module.upcomingTopics"
+                                                :key="topic"
+                                                class="flex items-center gap-2 text-sm text-content-muted"
+                                            >
+                                                <ArrowRightIcon class="w-4 h-4 text-content-faint shrink-0" />
+                                                {{ topic }}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Assignments -->
+                                    <div v-if="module.assignments && module.assignments.length" class="mb-4">
+                                        <h4 class="font-semibold text-content mb-2">Assignments</h4>
+                                        <div class="space-y-2">
+                                            <div
+                                                v-for="assignment in module.assignments"
+                                                :key="assignment.title"
+                                                class="flex items-center justify-between gap-3 p-3 bg-surface rounded-control border border-line"
+                                            >
+                                                <div class="min-w-0">
+                                                    <p class="font-medium text-content truncate">{{ assignment.title }}</p>
+                                                    <p class="text-sm text-content-muted">Due: {{ formatDate(assignment.due) }}</p>
+                                                </div>
+                                                <div class="flex items-center gap-2 shrink-0">
+                                                    <Badge :variant="getStatusVariant(assignment.status)">
+                                                        {{ assignment.status }}
+                                                    </Badge>
+                                                    <button
+                                                        @click="viewAssignment(module.id, assignment.title)"
+                                                        class="p-1.5 text-content-muted hover:text-primary hover:bg-primary-soft rounded-control transition-colors"
+                                                        aria-label="View assignment"
+                                                    >
+                                                        <EyeIcon class="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Prerequisites -->
+                                    <div v-if="module.prerequisites && module.prerequisites.length" class="mb-4">
+                                        <h4 class="font-semibold text-content mb-2">Prerequisites</h4>
+                                        <div class="flex flex-wrap gap-2">
+                                            <Badge
+                                                v-for="prereq in module.prerequisites"
+                                                :key="prereq"
+                                                variant="warning"
+                                            >
+                                                Module {{ prereq }}
+                                            </Badge>
+                                        </div>
+                                    </div>
+
+                                    <!-- Action Buttons -->
+                                    <div class="flex flex-wrap items-center gap-3 pt-4 border-t border-line">
+                                        <button
+                                            v-if="module.status === 'in-progress'"
+                                            @click="startModule(module.id)"
+                                            class="ui-btn-primary"
+                                        >
+                                            <PlayCircleIcon class="w-4 h-4" />
+                                            Continue Learning
+                                        </button>
+                                        <button
+                                            v-else-if="module.status === 'locked'"
+                                            disabled
+                                            class="ui-btn-secondary opacity-60 cursor-not-allowed"
+                                        >
+                                            <LockClosedIcon class="w-4 h-4" />
+                                            Prerequisites Required
+                                        </button>
+                                        <button class="ui-btn-secondary">
+                                            <BookOpenIcon class="w-4 h-4" />
+                                            View Materials
+                                        </button>
+                                        <Link href="/chat" class="ui-btn-ghost">
+                                            <ChatBubbleLeftRightIcon class="w-4 h-4" />
+                                            Ask AI
+                                        </Link>
+                                    </div>
+                                </div>
+                            </Card>
                         </div>
+
+                        <EmptyState
+                            v-else
+                            title="No roadmap data"
+                            description="Select a semester to view your learning path."
+                            :icon="MapIcon"
+                        />
                     </div>
                 </div>
             </div>
         </AppLayout>
     </div>
 </template>
-
-<style scoped>
-/* Custom scrollbar */
-.overflow-y-auto::-webkit-scrollbar {
-    width: 6px;
-}
-
-.overflow-y-auto::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.overflow-y-auto::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 3px;
-}
-
-.dark .overflow-y-auto::-webkit-scrollbar-thumb {
-    background: #475569;
-}
-
-/* Smooth transitions */
-.transition-all {
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Hover effects */
-.hover\:-translate-y-1:hover {
-    transform: translateY(-0.25rem);
-}
-</style>

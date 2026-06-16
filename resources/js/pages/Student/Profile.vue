@@ -1,6 +1,9 @@
 <script setup>
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import PageHeader from '@/components/ui/PageHeader.vue';
+import Card from '@/components/ui/Card.vue';
+import Badge from '@/components/ui/Badge.vue';
 import {
     UserCircleIcon,
     EnvelopeIcon,
@@ -32,84 +35,89 @@ const avatarUrl = () =>
         <Head title="Profile" />
 
         <AppLayout>
-            <div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-950">
-                <div class="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 dark:from-indigo-900 dark:via-purple-900 dark:to-pink-900">
-                    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12 flex items-center justify-between">
-                        <div>
-                            <h1 class="text-4xl font-bold text-white mb-2">My Profile</h1>
-                            <p class="text-xl text-white/90">Manage your personal information</p>
-                        </div>
-                        <Link href="/dashboard" class="bg-white/20 backdrop-blur-lg text-white px-6 py-3 rounded-xl font-medium hover:bg-white/30 transition-all">
-                            ← Dashboard
-                        </Link>
-                    </div>
-                </div>
+            <div class="page-container py-8 space-y-6 sm:space-y-8">
+                <PageHeader
+                    title="Profile"
+                    subtitle="Manage your personal information"
+                    :icon="UserCircleIcon"
+                />
 
-                <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 -mt-6 grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <!-- Identity card -->
-                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 text-center">
-                        <img :src="avatarUrl()" :alt="user.name" class="w-28 h-28 rounded-full mx-auto mb-4 ring-4 ring-indigo-100 dark:ring-indigo-900" />
-                        <h2 class="text-xl font-bold text-gray-900 dark:text-white">{{ user.name }}</h2>
-                        <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">{{ user.email }}</p>
-                        <div class="space-y-3 text-left mt-6">
-                            <div class="flex items-center gap-3 text-sm">
-                                <IdentificationIcon class="w-5 h-5 text-indigo-500" />
-                                <span class="text-gray-600 dark:text-gray-400">{{ user.student_id || user.employee_id || '—' }}</span>
-                            </div>
-                            <div class="flex items-center gap-3 text-sm">
-                                <BuildingLibraryIcon class="w-5 h-5 text-indigo-500" />
-                                <span class="text-gray-600 dark:text-gray-400">{{ user.department?.name || 'No department' }}</span>
-                            </div>
-                            <div class="flex items-center gap-3 text-sm">
-                                <AcademicCapIcon class="w-5 h-5 text-indigo-500" />
-                                <span class="text-gray-600 dark:text-gray-400">{{ user.semester || 'N/A' }}</span>
-                            </div>
-                            <div class="flex flex-wrap gap-2 pt-2">
-                                <span v-for="role in user.roles" :key="role.id" class="px-2 py-1 text-xs rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Identity / header card -->
+                    <Card class="lg:col-span-1">
+                        <div class="flex flex-col items-center text-center">
+                            <img
+                                :src="avatarUrl()"
+                                :alt="user.name"
+                                class="w-28 h-28 rounded-full mb-4 ring-4 ring-primary/20 object-cover"
+                            />
+                            <h2 class="text-xl font-bold text-content">{{ user.name }}</h2>
+                            <p class="text-sm text-content-muted">{{ user.email }}</p>
+
+                            <div class="flex flex-wrap justify-center gap-2 pt-4">
+                                <Badge v-for="role in user.roles" :key="role.id" variant="brand">
                                     {{ role.name }}
-                                </span>
+                                </Badge>
                             </div>
                         </div>
-                    </div>
+
+                        <div class="mt-6 space-y-3 border-t border-line pt-6">
+                            <div class="flex items-center gap-3 text-sm">
+                                <IdentificationIcon class="w-5 h-5 text-primary flex-shrink-0" />
+                                <span class="text-content-muted">{{ user.student_id || user.employee_id || '—' }}</span>
+                            </div>
+                            <div class="flex items-center gap-3 text-sm">
+                                <BuildingLibraryIcon class="w-5 h-5 text-primary flex-shrink-0" />
+                                <span class="text-content-muted">{{ user.department?.name || 'No department' }}</span>
+                            </div>
+                            <div class="flex items-center gap-3 text-sm">
+                                <AcademicCapIcon class="w-5 h-5 text-primary flex-shrink-0" />
+                                <span class="text-content-muted">{{ user.semester || 'N/A' }}</span>
+                            </div>
+                        </div>
+                    </Card>
 
                     <!-- Edit form -->
-                    <div class="lg:col-span-2 bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8">
-                        <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
-                            <UserCircleIcon class="w-6 h-6 text-indigo-600" /> Edit Profile
-                        </h3>
+                    <Card
+                        class="lg:col-span-2"
+                        title="Edit Profile"
+                        subtitle="Update your name, avatar and bio"
+                        :icon="UserCircleIcon"
+                    >
                         <form @submit.prevent="submit" class="space-y-6">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Full Name</label>
-                                <input v-model="form.name" type="text" class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
-                                <p v-if="form.errors.name" class="text-sm text-red-500 mt-1">{{ form.errors.name }}</p>
+                                <label class="ui-label" for="profile-name">Full Name</label>
+                                <input id="profile-name" v-model="form.name" type="text" class="ui-input" />
+                                <p v-if="form.errors.name" class="text-sm text-danger-fg mt-1">{{ form.errors.name }}</p>
                             </div>
 
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Email</label>
-                                <div class="flex items-center gap-2 px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-900/50 text-gray-500 dark:text-gray-400">
-                                    <EnvelopeIcon class="w-5 h-5" /> {{ user.email }}
+                                <label class="ui-label">Email</label>
+                                <div class="flex items-center gap-2 rounded-control border border-line bg-bg px-4 py-3 text-content-muted">
+                                    <EnvelopeIcon class="w-5 h-5 flex-shrink-0" />
+                                    <span>{{ user.email }}</span>
                                 </div>
                             </div>
 
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Avatar URL</label>
-                                <input v-model="form.avatar" type="url" placeholder="https://…" class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
-                                <p v-if="form.errors.avatar" class="text-sm text-red-500 mt-1">{{ form.errors.avatar }}</p>
+                                <label class="ui-label" for="profile-avatar">Avatar URL</label>
+                                <input id="profile-avatar" v-model="form.avatar" type="url" placeholder="https://…" class="ui-input" />
+                                <p v-if="form.errors.avatar" class="text-sm text-danger-fg mt-1">{{ form.errors.avatar }}</p>
                             </div>
 
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Bio</label>
-                                <textarea v-model="form.bio" rows="4" class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"></textarea>
-                                <p v-if="form.errors.bio" class="text-sm text-red-500 mt-1">{{ form.errors.bio }}</p>
+                                <label class="ui-label" for="profile-bio">Bio</label>
+                                <textarea id="profile-bio" v-model="form.bio" rows="4" class="ui-input resize-none"></textarea>
+                                <p v-if="form.errors.bio" class="text-sm text-danger-fg mt-1">{{ form.errors.bio }}</p>
                             </div>
 
                             <div class="flex justify-end">
-                                <button type="submit" :disabled="form.processing" class="px-8 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-bold hover:shadow-lg transform hover:-translate-y-0.5 transition-all disabled:opacity-50">
+                                <button type="submit" :disabled="form.processing" class="ui-btn-primary disabled:opacity-50">
                                     {{ form.processing ? 'Saving…' : 'Save Changes' }}
                                 </button>
                             </div>
                         </form>
-                    </div>
+                    </Card>
                 </div>
             </div>
         </AppLayout>
