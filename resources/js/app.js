@@ -7,6 +7,7 @@ import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { ZiggyVue } from '../../vendor/tightenco/ziggy';
 import Toast, { POSITION } from "vue-toastification";
 import "vue-toastification/dist/index.css";
+import { reveal } from '@/composables/useReveal';
 
 const appName = import.meta.env.VITE_APP_NAME || 'UniGPT';
 const toastOptions = {
@@ -42,6 +43,7 @@ createInertiaApp({
             .use(plugin)
             .use(ZiggyVue)
             .use(Toast, toastOptions)
+            .directive('reveal', reveal)
             .mount(el);
     },
     progress: {
