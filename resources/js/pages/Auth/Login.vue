@@ -13,7 +13,11 @@ import {
     ShieldCheckIcon,
     ArrowRightIcon,
     CheckCircleIcon,
-    ExclamationTriangleIcon
+    ExclamationTriangleIcon,
+    SparklesIcon,
+    ChatBubbleLeftRightIcon,
+    ChartBarIcon,
+    BoltIcon
 } from '@heroicons/vue/24/outline';
 
 const toast = useToast();
@@ -51,18 +55,12 @@ const props = defineProps({
 const roleUIMap = {
     student: {
         icon: AcademicCapIcon,
-        gradient: 'from-blue-500 to-cyan-600',
-        bgGradient: 'from-blue-50 to-cyan-50 dark:from-blue-950/30 dark:to-cyan-950/30',
     },
     faculty: {
         icon: UserGroupIcon,
-        gradient: 'from-green-500 to-emerald-600',
-        bgGradient: 'from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30',
     },
     admin: {
         icon: ShieldCheckIcon,
-        gradient: 'from-purple-500 to-pink-600',
-        bgGradient: 'from-purple-50 to-pink-50 dark:from-purple-950/30 dark:to-pink-950/30',
     }
 };
 
@@ -128,13 +126,13 @@ const passwordStrength = computed(() => {
 
     if (strength <= 40) {
         message = feedback.length ? `Missing: ${feedback.join(', ')}` : 'Weak password';
-        color = 'text-red-600 bg-red-100 dark:bg-red-900/30 dark:text-red-400';
+        color = 'text-danger-fg bg-danger-bg';
     } else if (strength <= 70) {
         message = 'Good password strength';
-        color = 'text-yellow-600 bg-yellow-100 dark:bg-yellow-900/30 dark:text-yellow-400';
+        color = 'text-warning-fg bg-warning-bg';
     } else {
         message = 'Strong password';
-        color = 'text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400';
+        color = 'text-success-fg bg-success-bg';
     }
 
     return { strength, message, color };
@@ -214,29 +212,28 @@ const handleSubmit = () => {
 
 
 const handleDemoLogin = (role) => {
+    if (isLoading.value) return;
+
+    // Keep the form UI in sync for visual feedback.
+    selectedRole.value = role;
+    loginForm.role = role;
     loginForm.email = role === 'admin' ? 'admin@university.edu' :
                      role === 'faculty' ? 'prof.smith@university.edu' :
                      'student@university.edu';
     loginForm.password = 'demo123';
-    loginForm.role = role;
-    selectedRole.value = role;
 
+    // Authenticate via the dedicated demo-login endpoint, which logs the demo
+    // user in server-side and redirects to the role's dashboard. (Previously
+    // this only client-side navigated to the dashboard without authenticating,
+    // so the guest was bounced straight back to the login page.)
     isLoading.value = true;
-    setTimeout(() => {
-        switch (role) {
-            case 'admin':
-                router.visit('/admin/dashboard');
-                break;
-            case 'faculty':
-                console.log('Navigating to faculty dashboard');
-                router.visit('/faculty/dashboard');
-                break;
-            case 'student':
-            default:
-                router.visit('/dashboard');
-        }
-        isLoading.value = false;
-    }, 1000);
+    router.post(route('demo.login'), { role }, {
+        onSuccess: () => {
+            toast.success('Signed in to the demo account. Redirecting…', { timeout: 3000 });
+        },
+        onError: (errors) => handleFormErrors(errors),
+        onFinish: () => { isLoading.value = false; },
+    });
 };
 
 const handleFormErrors = (errors) => {
@@ -291,802 +288,396 @@ watch(() => page.props.flash, (flash) => {
         });
     }
 }, { deep: true, immediate: true });
+
+// Static feature bullets for the branded panel (display-only)
+const brandFeatures = [
+    { icon: ChatBubbleLeftRightIcon, text: 'Instant answers from an AI copilot trained on your courses' },
+    { icon: SparklesIcon, text: 'Personalized learning paths tailored to every role' },
+    { icon: ChartBarIcon, text: 'Track progress, grades and deadlines in one place' },
+    { icon: BoltIcon, text: '24/7 study support that never sleeps' },
+];
 </script>
-
-
 
 
 <template>
     <div>
         <Head :title="isLogin ? 'Login' : 'Sign Up'" />
 
-        <!-- Animated Background -->
-        <div class="animated-particles">
-            <div class="particle particle-1"></div>
-            <div class="particle particle-2"></div>
-            <div class="particle particle-3"></div>
-            <div class="particle particle-4"></div>
-            <div class="particle particle-5"></div>
-            <div class="particle particle-6"></div>
-            <div class="particle particle-7"></div>
-            <div class="particle particle-8"></div>
-        </div>
+        <div class="min-h-screen flex bg-bg">
+            <!-- Left Panel - Solid primary brand -->
+            <div class="relative hidden lg:flex lg:w-1/2 xl:w-[55%] overflow-hidden bg-primary">
+                <!-- Soft accent shapes -->
+                <div class="pointer-events-none absolute -top-24 -left-24 h-80 w-80 rounded-full bg-white/10 blur-3xl"></div>
+                <div class="pointer-events-none absolute bottom-0 right-0 h-96 w-96 rounded-full bg-white/10 blur-3xl"></div>
 
-        <div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-gray-900 dark:via-blue-950 dark:to-indigo-950 flex animated-bg">
-            <!-- Left Panel - Branding & Features -->
-            <div class="hidden lg:flex lg:flex-1 lg:flex-col lg:justify-center lg:px-12 xl:px-16 fade-in-left">
-                <div class="mx-auto max-w-lg">
-                    <!-- Logo & Title -->
-                    <div class="mb-12">
-                        <div class="flex items-center gap-4 mb-6">
-                            <div class="w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl flex items-center justify-center shadow-2xl floating-icon">
-                                <span class="text-2xl font-bold text-white">🎓</span>
-                            </div>
-                            <div>
-                                <h1 class="text-3xl font-bold text-gray-900 dark:text-white gradient-text">UniGPT</h1>
-                                <p class="text-gray-600 dark:text-gray-400 glow-text">AI Academic Assistant</p>
-                            </div>
+                <div class="relative z-10 flex flex-col justify-between p-12 xl:p-16 text-white">
+                    <!-- Logo & name -->
+                    <div class="flex items-center gap-3">
+                        <div class="flex h-12 w-12 items-center justify-center rounded-control bg-white text-primary">
+                            <AcademicCapIcon class="h-7 w-7" />
                         </div>
-                        <p class="text-lg text-gray-700 dark:text-gray-300 leading-relaxed fade-in-up">
-                            Your intelligent companion for academic excellence. Get instant answers,
-                            personalized learning paths, and 24/7 study support.
+                        <div>
+                            <h1 class="text-xl font-bold tracking-tight">UniGPT</h1>
+                            <p class="text-sm text-white/60">AI Academic Assistant</p>
+                        </div>
+                    </div>
+
+                    <!-- Headline + features -->
+                    <div class="max-w-md">
+                        <h2 class="text-4xl font-bold leading-tight tracking-tight xl:text-[2.75rem]">
+                            Your intelligent companion for academic excellence.
+                        </h2>
+                        <p class="mt-4 text-lg leading-relaxed text-white/70">
+                            Get instant answers, personalized learning paths, and around-the-clock study support.
                         </p>
-                    </div>
 
-                    <!-- Current Role Features -->
-                    <div :class="`rounded-2xl p-6 ${currentRole.bgGradient} border border-white/20 shadow-lg backdrop-blur-sm floating-card`">
-                        <div class="flex items-center gap-3 mb-4">
-                            <div :class="`w-12 h-12 rounded-xl bg-gradient-to-br ${currentRole.gradient} flex items-center justify-center shadow-lg pulse-icon`">
-                                <component :is="currentRole.icon" class="w-6 h-6 text-white" />
-                            </div>
-                            <div>
-                                <h3 class="text-xl font-bold text-gray-900 dark:text-white">{{ currentRole.label }}</h3>
-                                <p class="text-sm text-gray-600 dark:text-gray-400">{{ currentRole.description }}</p>
-                            </div>
-                        </div>
-
-                        <div class="space-y-2">
-                            <div
-                                v-for="(feature, index) in currentRole.features"
-                                :key="feature"
-                                class="flex items-center gap-2 feature-slide"
-                                :style="{ animationDelay: `${index * 0.1}s` }"
+                        <ul class="mt-10 space-y-4">
+                            <li
+                                v-for="feature in brandFeatures"
+                                :key="feature.text"
+                                class="flex items-start gap-3"
                             >
-                                <CheckCircleIcon class="w-4 h-4 text-green-600 dark:text-green-400 bounce-icon" />
-                                <span class="text-sm text-gray-700 dark:text-gray-300">{{ feature }}</span>
-                            </div>
-                        </div>
+                                <span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-control bg-white/10 ring-1 ring-white/10">
+                                    <component :is="feature.icon" class="h-5 w-5 text-white" />
+                                </span>
+                                <span class="text-sm leading-relaxed text-white/80">{{ feature.text }}</span>
+                            </li>
+                        </ul>
                     </div>
 
-                    <!-- Demo Login Buttons -->
-                    <div class="mt-8">
-                        <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">Try demo accounts:</p>
-                        <div class="flex gap-2">
+                    <!-- Demo accounts -->
+                    <div>
+                        <p class="mb-3 text-sm text-white/60">Try a demo account</p>
+                        <div class="flex flex-wrap gap-2">
                             <button
+                                type="button"
                                 @click="handleDemoLogin('student')"
-                                class="px-3 py-1.5 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-800 dark:text-blue-400 text-xs rounded-lg transition-all hover-lift demo-btn"
+                                class="inline-flex items-center gap-1.5 rounded-control bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-white hover:text-primary"
                             >
-                                Student Demo
+                                <AcademicCapIcon class="h-4 w-4" /> Student
                             </button>
                             <button
+                                type="button"
                                 @click="handleDemoLogin('faculty')"
-                                class="px-3 py-1.5 bg-green-100 hover:bg-green-200 dark:bg-green-900/30 dark:hover:bg-green-900/50 text-green-800 dark:text-green-400 text-xs rounded-lg transition-all hover-lift demo-btn"
+                                class="inline-flex items-center gap-1.5 rounded-control bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-white hover:text-primary"
                             >
-                                Faculty Demo
+                                <UserGroupIcon class="h-4 w-4" /> Faculty
                             </button>
                             <button
+                                type="button"
                                 @click="handleDemoLogin('admin')"
-                                class="px-3 py-1.5 bg-purple-100 hover:bg-purple-200 dark:bg-purple-900/30 dark:hover:bg-purple-900/50 text-purple-800 dark:text-purple-400 text-xs rounded-lg transition-all hover-lift demo-btn"
+                                class="inline-flex items-center gap-1.5 rounded-control bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-white hover:text-primary"
                             >
-                                Admin Demo
+                                <ShieldCheckIcon class="h-4 w-4" /> Admin
                             </button>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Right Panel - Login/Signup Form -->
-            <div class="flex flex-1 flex-col justify-center px-6 py-12 lg:px-8 fade-in-right">
-                <div class="mx-auto w-full max-w-md form-container">
+            <!-- Right Panel - Auth form -->
+            <div class="flex flex-1 flex-col justify-center px-6 py-12 sm:px-10 lg:w-1/2 xl:w-[45%]">
+                <div class="mx-auto w-full max-w-md">
                     <!-- Mobile Logo -->
-                    <div class="lg:hidden text-center mb-8">
-                        <div class="w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl flex items-center justify-center shadow-2xl mx-auto mb-4 floating-icon">
-                            <span class="text-2xl font-bold text-white">🎓</span>
+                    <div class="mb-8 flex flex-col items-center text-center lg:hidden">
+                        <div class="mb-3 flex h-14 w-14 items-center justify-center rounded-card bg-primary shadow-card">
+                            <AcademicCapIcon class="h-8 w-8 text-white" />
                         </div>
-                        <h1 class="text-2xl font-bold text-gray-900 dark:text-white gradient-text">UniGPT</h1>
-                        <p class="text-gray-600 dark:text-gray-400">AI Academic Assistant</p>
+                        <h1 class="text-2xl font-bold text-content">UniGPT</h1>
+                        <p class="text-sm text-content-muted">AI Academic Assistant</p>
                     </div>
 
-                    <!-- Form Header -->
-                    <div class="text-center mb-8 header-fade">
-                        <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-2 title-bounce">
-                            {{ isLogin ? 'Welcome Back' : 'Create Account' }}
-                        </h2>
-                        <p class="text-gray-600 dark:text-gray-400">
-                            {{ isLogin ? 'Sign in to your account' : 'Join the academic community' }}
-                        </p>
-                    </div>
-
-                    <!-- Role Selection -->
-                    <div class="mb-8">
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                            Select Your Role
-                        </label>
-                        <div class="grid grid-cols-3 gap-3">
-                            <button
-                                v-for="role in roles"
-                                :key="role.value"
-                                @click="selectRole(role.value)"
-                                :class="`relative p-3 rounded-xl border-2 transition-all role-card hover-scale ${
-                                    selectedRole === role.value
-                                        ? `border-transparent bg-gradient-to-br ${role.gradient} text-white shadow-lg selected-glow`
-                                        : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600'
-                                }`"
-                            >
-                                <component
-                                    :is="role.icon"
-                                    class="w-6 h-6 mx-auto mb-2 icon-bounce"
-                                    :class="selectedRole === role.value ? 'text-white' : 'text-gray-600 dark:text-gray-400'"
-                                />
-                                <span :class="`text-xs font-medium ${
-                                    selectedRole === role.value ? 'text-white' : 'text-gray-900 dark:text-white'
-                                }`">
-                                    {{ role.label }}
-                                </span>
-                            </button>
+                    <div class="ui-card p-6 sm:p-8">
+                        <!-- Form Header -->
+                        <div class="mb-6 text-center">
+                            <h2 class="text-2xl font-bold text-content">
+                                {{ isLogin ? 'Welcome back' : 'Create your account' }}
+                            </h2>
+                            <p class="mt-1 text-sm text-content-muted">
+                                {{ isLogin ? 'Sign in to continue to your dashboard' : 'Join the academic community' }}
+                            </p>
                         </div>
-                    </div>
 
-                    <!-- Login/Signup Form -->
-                    <form @submit.prevent="handleSubmit" class="space-y-6 form-animation">
+                        <!-- Role Selection -->
+                        <div class="mb-6">
+                            <label class="ui-label">Select your role</label>
+                            <div class="grid grid-cols-3 gap-2">
+                                <button
+                                    v-for="role in roles"
+                                    :key="role.value"
+                                    type="button"
+                                    @click="selectRole(role.value)"
+                                    :class="[
+                                        'flex flex-col items-center gap-1.5 rounded-control px-2 py-3 text-center transition-all duration-200',
+                                        selectedRole === role.value
+                                            ? 'bg-primary text-white'
+                                            : 'border border-line text-content-muted hover:bg-neutral-bg'
+                                    ]"
+                                    :aria-pressed="selectedRole === role.value"
+                                >
+                                    <component :is="role.icon" class="h-5 w-5" />
+                                    <span class="text-xs font-semibold">{{ role.label }}</span>
+                                </button>
+                            </div>
+                        </div>
 
-                        <!-- Name (Signup only) -->
-                        <div v-if="!isLogin" class="input-group">
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                Full Name *
-                            </label>
-                            <div class="relative">
-                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <UserIcon class="h-5 w-5 text-gray-400" />
+                        <!-- Login/Signup Form -->
+                        <form @submit.prevent="handleSubmit" class="space-y-5">
+
+                            <!-- Name (Signup only) -->
+                            <div v-if="!isLogin">
+                                <label class="ui-label">Full name</label>
+                                <div class="relative">
+                                    <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                                        <UserIcon class="h-5 w-5 text-content-faint" />
+                                    </span>
+                                    <input
+                                        v-model="signupForm.name"
+                                        type="text"
+                                        required
+                                        class="ui-input pl-10"
+                                        placeholder="Enter your full name"
+                                    />
                                 </div>
+                                <p v-if="signupForm.errors.name" class="mt-1.5 flex items-center gap-1 text-sm text-danger-fg">
+                                    <ExclamationTriangleIcon class="h-4 w-4" />
+                                    {{ signupForm.errors.name }}
+                                </p>
+                            </div>
+
+                            <!-- Email -->
+                            <div>
+                                <label class="ui-label">Email address</label>
+                                <div class="relative">
+                                    <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                                        <EnvelopeIcon class="h-5 w-5 text-content-faint" />
+                                    </span>
+                                    <input
+                                        v-if="isLogin"
+                                        v-model="loginForm.email"
+                                        type="email"
+                                        required
+                                        :class="[
+                                            'ui-input pl-10 pr-10',
+                                            emailValidation.valid === false ? 'border-danger-fg focus:border-danger-fg focus:ring-danger-fg/30' :
+                                            emailValidation.valid === true ? 'border-success-fg focus:border-success-fg focus:ring-success-fg/30' : ''
+                                        ]"
+                                        placeholder="your.email@university.edu"
+                                    />
+                                    <input
+                                        v-else
+                                        v-model="signupForm.email"
+                                        type="email"
+                                        required
+                                        :class="[
+                                            'ui-input pl-10 pr-10',
+                                            emailValidation.valid === false ? 'border-danger-fg focus:border-danger-fg focus:ring-danger-fg/30' :
+                                            emailValidation.valid === true ? 'border-success-fg focus:border-success-fg focus:ring-success-fg/30' : ''
+                                        ]"
+                                        placeholder="your.email@university.edu"
+                                    />
+                                    <span v-if="emailValidation.valid !== null" class="absolute inset-y-0 right-0 flex items-center pr-3">
+                                        <CheckCircleIcon v-if="emailValidation.valid" class="h-5 w-5 text-success-fg" />
+                                        <ExclamationTriangleIcon v-else class="h-5 w-5 text-danger-fg" />
+                                    </span>
+                                </div>
+                                <p v-if="emailValidation.message" :class="['mt-1.5 text-sm', emailValidation.valid ? 'text-success-fg' : 'text-danger-fg']">
+                                    {{ emailValidation.message }}
+                                </p>
+                                <p v-if="signupForm.errors.name" class="mt-1.5 flex items-center gap-1 text-sm text-danger-fg">
+                                    <ExclamationTriangleIcon class="h-4 w-4" />
+                                    {{ signupForm.errors.name }}
+                                </p>
+                            </div>
+
+                            <!-- Department (Signup only) -->
+                            <div v-if="!isLogin">
+                                <label class="ui-label">Department</label>
+                                <select
+                                    v-model="signupForm.department_id"
+                                    required
+                                    class="ui-input"
+                                >
+                                    <option value="">Select your department</option>
+                                    <option v-for="dept in departments" :key="dept.id" :value="dept.id">
+                                        {{ dept.name }}
+                                    </option>
+                                </select>
+                            </div>
+
+                            <!-- Student/Employee ID (Signup only) -->
+                            <div v-if="!isLogin">
+                                <label class="ui-label">
+                                    {{ selectedRole === 'student' ? 'Student ID' : 'Employee ID' }}
+                                </label>
                                 <input
-                                    v-model="signupForm.name"
+                                    v-if="selectedRole === 'student'"
+                                    v-model="signupForm.student_id"
                                     type="text"
                                     required
-                                    class="block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white input-glow"
-                                    placeholder="Enter your full name"
-                                />
-                            </div>
-                              <p v-if="signupForm.errors.name" class="mt-1 text-sm text-red-600 dark:text-red-400 flex items-center gap-1">
-                                <ExclamationTriangleIcon class="h-4 w-4" />
-                                {{ signupForm.errors.name }}
-                            </p>
-                        </div>
-
-                        <!-- Email -->
-                        <div class="input-group">
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                Email Address *
-                            </label>
-                            <div class="relative">
-                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <EnvelopeIcon class="h-5 w-5 text-gray-400" />
-                                </div>
-                                <input
-                                    v-if="isLogin"
-                                    v-model="loginForm.email"
-                                    type="email"
-                                    required
-                                    :class="`block w-full pl-10 pr-3 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white input-glow ${
-                                        emailValidation.valid === false ? 'border-red-300 focus:ring-red-500' :
-                                        emailValidation.valid === true ? 'border-green-300 focus:ring-green-500' :
-                                        'border-gray-300 dark:border-gray-600 focus:ring-blue-500'
-                                    }`"
-                                    placeholder="your.email@university.edu"
+                                    class="ui-input"
+                                    placeholder="Enter your student ID"
                                 />
                                 <input
                                     v-else
-                                    v-model="signupForm.email"
-                                    type="email"
+                                    v-model="signupForm.employee_id"
+                                    type="text"
                                     required
-                                    :class="`block w-full pl-10 pr-3 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white input-glow ${
-                                        emailValidation.valid === false ? 'border-red-300 focus:ring-red-500' :
-                                        emailValidation.valid === true ? 'border-green-300 focus:ring-green-500' :
-                                        'border-gray-300 dark:border-gray-600 focus:ring-blue-500'
-                                    }`"
-                                    placeholder="your.email@university.edu"
+                                    class="ui-input"
+                                    placeholder="Enter your employee ID"
                                 />
-                                <div v-if="emailValidation.valid !== null" class="absolute inset-y-0 right-0 pr-3 flex items-center">
-                                    <CheckCircleIcon v-if="emailValidation.valid" class="h-5 w-5 text-green-500 success-pulse" />
-                                    <ExclamationTriangleIcon v-else class="h-5 w-5 text-red-500 error-shake" />
-                                </div>
                             </div>
-                            <p v-if="emailValidation.message" :class="`mt-1 text-sm ${emailValidation.valid ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'} message-fade`">
-                                {{ emailValidation.message }}
-                            </p>
-                              <p v-if="signupForm.errors.name" class="mt-1 text-sm text-red-600 dark:text-red-400 flex items-center gap-1">
-                                <ExclamationTriangleIcon class="h-4 w-4" />
-                                {{ signupForm.errors.name }}
-                            </p>
-                        </div>
 
-                        <!-- Department (Signup only) -->
-                        <div v-if="!isLogin" class="input-group">
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                Department *
-                            </label>
-                            <select
-                                v-model="signupForm.department_id"
-                                required
-                                class="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white input-glow"
-                            >
-                                <option value="">Select your department</option>
-                                <option v-for="dept in departments" :key="dept.id" :value="dept.id">
-                                    {{ dept.name }}
-                                </option>
-                            </select>
-                        </div>
-
-                        <!-- Student/Employee ID (Signup only) -->
-                        <div v-if="!isLogin" class="input-group">
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                {{ selectedRole === 'student' ? 'Student ID' : 'Employee ID' }} *
-                            </label>
-                            <input
-                                v-if="selectedRole === 'student'"
-                                v-model="signupForm.student_id"
-                                type="text"
-                                required
-                                class="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white input-glow"
-                                placeholder="Enter your student ID"
-                            />
-                            <input
-                                v-else
-                                v-model="signupForm.employee_id"
-                                type="text"
-                                required
-                                class="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white input-glow"
-                                placeholder="Enter your employee ID"
-                            />
-                        </div>
-
-                        <!-- Password -->
-                        <div class="input-group">
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                Password *
-                            </label>
-                            <div class="relative">
-                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <LockClosedIcon class="h-5 w-5 text-gray-400" />
-                                </div>
-                                <input
-                                    v-if="isLogin"
-                                    v-model="loginForm.password"
-                                    :type="showPassword ? 'text' : 'password'"
-                                    required
-                                    class="block w-full pl-10 pr-10 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white input-glow"
-                                    placeholder="Enter your password"
-                                />
-                                <input
-                                    v-else
-                                    v-model="signupForm.password"
-                                    :type="showPassword ? 'text' : 'password'"
-                                    required
-                                    class="block w-full pl-10 pr-10 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white input-glow"
-                                    placeholder="Create a secure password"
-                                />
-                                <div class="absolute inset-y-0 right-0 pr-3 flex items-center">
+                            <!-- Password -->
+                            <div>
+                                <label class="ui-label">Password</label>
+                                <div class="relative">
+                                    <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                                        <LockClosedIcon class="h-5 w-5 text-content-faint" />
+                                    </span>
+                                    <input
+                                        v-if="isLogin"
+                                        v-model="loginForm.password"
+                                        :type="showPassword ? 'text' : 'password'"
+                                        required
+                                        class="ui-input pl-10 pr-10"
+                                        placeholder="Enter your password"
+                                    />
+                                    <input
+                                        v-else
+                                        v-model="signupForm.password"
+                                        :type="showPassword ? 'text' : 'password'"
+                                        required
+                                        class="ui-input pl-10 pr-10"
+                                        placeholder="Create a secure password"
+                                    />
                                     <button
                                         type="button"
                                         @click="showPassword = !showPassword"
-                                        class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 focus:outline-none"
+                                        class="absolute inset-y-0 right-0 flex items-center pr-3 text-content-faint transition-colors hover:text-content-muted focus:outline-none"
+                                        :aria-label="showPassword ? 'Hide password' : 'Show password'"
                                     >
                                         <EyeIcon v-if="!showPassword" class="h-5 w-5" />
                                         <EyeSlashIcon v-else class="h-5 w-5" />
                                     </button>
                                 </div>
+
+                                <!-- Password Strength Indicator (Signup only) -->
+                                <div v-if="!isLogin && signupForm.password" class="mt-2">
+                                    <div class="mb-1 flex items-center justify-between">
+                                        <span class="text-xs text-content-muted">Password strength</span>
+                                        <span :class="['rounded px-2 py-0.5 text-xs font-medium', passwordStrength.color]">
+                                            {{ passwordStrength.message }}
+                                        </span>
+                                    </div>
+                                    <div class="h-2 w-full rounded-full bg-neutral-bg">
+                                        <div
+                                            class="h-2 rounded-full transition-all duration-300"
+                                            :class="passwordStrength.strength <= 40 ? 'bg-danger-fg' : passwordStrength.strength <= 70 ? 'bg-warning-fg' : 'bg-success-fg'"
+                                            :style="{ width: passwordStrength.strength + '%' }"
+                                        ></div>
+                                    </div>
+                                </div>
                             </div>
 
-                            <!-- Password Strength Indicator (Signup only) -->
-                            <div v-if="!isLogin && signupForm.password" class="mt-2">
-                                <div class="flex justify-between items-center mb-1">
-                                    <span class="text-xs text-gray-600 dark:text-gray-400">Password strength</span>
-                                    <span :class="`text-xs px-2 py-1 rounded ${passwordStrength.color}`">
-                                        {{ passwordStrength.message }}
+                            <!-- Confirm Password (Signup only) -->
+                            <div v-if="!isLogin">
+                                <label class="ui-label">Confirm password</label>
+                                <div class="relative">
+                                    <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                                        <LockClosedIcon class="h-5 w-5 text-content-faint" />
+                                    </span>
+                                    <input
+                                        v-model="signupForm.password_confirmation"
+                                        type="password"
+                                        required
+                                        class="ui-input pl-10 pr-10"
+                                        placeholder="Confirm your password"
+                                    />
+                                    <span v-if="signupForm.password_confirmation && signupForm.password" class="absolute inset-y-0 right-0 flex items-center pr-3">
+                                        <CheckCircleIcon v-if="signupForm.password === signupForm.password_confirmation" class="h-5 w-5 text-success-fg" />
+                                        <ExclamationTriangleIcon v-else class="h-5 w-5 text-danger-fg" />
                                     </span>
                                 </div>
-                                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                                    <div
-                                        class="h-2 rounded-full transition-all duration-300"
-                                        :class="passwordStrength.strength <= 40 ? 'bg-red-500' : passwordStrength.strength <= 70 ? 'bg-yellow-500' : 'bg-green-500'"
-                                        :style="{ width: passwordStrength.strength + '%' }"
-                                    ></div>
-                                </div>
+                                <p v-if="signupForm.password_confirmation && signupForm.password !== signupForm.password_confirmation" class="mt-1.5 text-sm text-danger-fg">
+                                    Passwords do not match
+                                </p>
                             </div>
-                        </div>
 
-                        <!-- Confirm Password (Signup only) -->
-                        <div v-if="!isLogin" class="input-group">
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                Confirm Password *
-                            </label>
-                            <div class="relative">
-                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <LockClosedIcon class="h-5 w-5 text-gray-400" />
-                                </div>
-                                <input
-                                    v-model="signupForm.password_confirmation"
-                                    type="password"
-                                    required
-                                    class="block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white input-glow"
-                                    placeholder="Confirm your password"
-                                />
-                                <div v-if="signupForm.password_confirmation && signupForm.password" class="absolute inset-y-0 right-0 pr-3 flex items-center">
-                                    <CheckCircleIcon v-if="signupForm.password === signupForm.password_confirmation" class="h-5 w-5 text-green-500 success-pulse" />
-                                    <ExclamationTriangleIcon v-else class="h-5 w-5 text-red-500 error-shake" />
-                                </div>
+                            <!-- Remember Me & Forgot Password (Login only) -->
+                            <div v-if="isLogin" class="flex items-center justify-between">
+                                <label class="flex cursor-pointer items-center">
+                                    <input
+                                        v-model="loginForm.remember"
+                                        type="checkbox"
+                                        class="h-4 w-4 rounded border-line text-primary focus:ring-primary"
+                                    />
+                                    <span class="ml-2 text-sm text-content-muted">Remember me</span>
+                                </label>
+                                <Link
+                                    href="/password/reset"
+                                    class="text-sm font-semibold text-content-muted transition-colors hover:text-content"
+                                >
+                                    Forgot password?
+                                </Link>
                             </div>
-                            <p v-if="signupForm.password_confirmation && signupForm.password !== signupForm.password_confirmation" class="mt-1 text-sm text-red-600 dark:text-red-400 message-fade">
-                                Passwords do not match
+
+                            <!-- Terms & Conditions (Signup only) -->
+                            <div v-if="!isLogin">
+                                <label class="flex cursor-pointer items-start">
+                                    <input
+                                        v-model="signupForm.terms"
+                                        type="checkbox"
+                                        required
+                                        class="mt-0.5 h-4 w-4 rounded border-line text-primary focus:ring-primary"
+                                    />
+                                    <span class="ml-2 text-sm text-content-muted">
+                                        I agree to the
+                                        <Link href="/terms" class="font-semibold text-content hover:underline">Terms of Service</Link>
+                                        and
+                                        <Link href="/privacy" class="font-semibold text-content hover:underline">Privacy Policy</Link>
+                                    </span>
+                                </label>
+                            </div>
+
+                            <!-- Submit Button -->
+                            <button
+                                type="submit"
+                                :disabled="isLoading"
+                                class="ui-btn-primary w-full"
+                            >
+                                <template v-if="isLoading">
+                                    <span class="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent"></span>
+                                    Please wait...
+                                </template>
+                                <template v-else>
+                                    {{ isLogin ? 'Sign in' : 'Create account' }}
+                                    <ArrowRightIcon class="h-5 w-5" />
+                                </template>
+                            </button>
+                        </form>
+
+                        <!-- Toggle Login/Signup -->
+                        <div class="mt-6 text-center">
+                            <p class="text-sm text-content-muted">
+                                {{ isLogin ? "Don't have an account?" : "Already have an account?" }}
+                                <button
+                                    type="button"
+                                    @click="toggleMode"
+                                    class="font-semibold text-primary transition-colors hover:text-primary-hover"
+                                >
+                                    {{ isLogin ? 'Sign up' : 'Sign in' }}
+                                </button>
                             </p>
                         </div>
-
-                        <!-- Remember Me & Forgot Password (Login only) -->
-                        <div v-if="isLogin" class="flex items-center justify-between">
-                            <label class="flex items-center cursor-pointer hover-lift">
-                                <input
-                                    v-model="loginForm.remember"
-                                    type="checkbox"
-                                    class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 transition-all"
-                                />
-                                <span class="ml-2 text-sm text-gray-600 dark:text-gray-400">Remember me</span>
-                            </label>
-                            <Link
-                                href="/password/reset"
-                                class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 link-glow"
-                            >
-                                Forgot your password?
-                            </Link>
-                        </div>
-
-                        <!-- Terms & Conditions (Signup only) -->
-                        <div v-if="!isLogin" class="input-group">
-                            <label class="flex items-start cursor-pointer">
-                                <input
-                                    v-model="signupForm.terms"
-                                    type="checkbox"
-                                    required
-                                    class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mt-1 transition-all"
-                                />
-                                <span class="ml-2 text-sm text-gray-600 dark:text-gray-400">
-                                    I agree to the
-                                    <Link href="/terms" class="text-blue-600 dark:text-blue-400 hover:underline">Terms of Service</Link>
-                                    and
-                                    <Link href="/privacy" class="text-blue-600 dark:text-blue-400 hover:underline">Privacy Policy</Link>
-                                </span>
-                            </label>
-                        </div>
-
-                        <!-- Submit Button -->
-                        <button
-                            type="submit"
-                            :disabled="isLoading"
-                            :class="`group relative w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-xl text-white font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all bg-gradient-to-br ${currentRole.gradient} submit-enhanced ${
-                                isLoading
-                                    ? 'opacity-75 cursor-not-allowed'
-                                    : 'hover:shadow-lg hover:-translate-y-0.5 focus:ring-blue-500'
-                            }`"
-                        >
-                            <span class="absolute left-0 inset-y-0 flex items-center pl-3">
-                                <ArrowRightIcon v-if="!isLoading" class="h-5 w-5 group-hover:translate-x-1 transition-transform" />
-                                <div v-else class="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
-                            </span>
-                            {{ isLoading ? 'Please wait...' : isLogin ? 'Sign In' : 'Create Account' }}
-                        </button>
-                    </form>
-
-                    <!-- Toggle Login/Signup -->
-                    <div class="mt-8 text-center toggle-fade">
-                        <p class="text-gray-600 dark:text-gray-400">
-                            {{ isLogin ? "Don't have an account?" : "Already have an account?" }}
-                            <button
-                                @click="toggleMode"
-                                class="font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 link-glow"
-                            >
-                                {{ isLogin ? 'Sign up' : 'Sign in' }}
-                            </button>
-                        </p>
                     </div>
 
                     <!-- Footer -->
-                    <div class="mt-8 text-center text-xs text-gray-500 dark:text-gray-400 footer-fade">
+                    <p class="mt-6 text-center text-xs text-content-faint">
                         © 2024 UniGPT. Empowering education through AI.
-                    </div>
+                    </p>
                 </div>
             </div>
         </div>
     </div>
 </template>
-
-<style scoped>
-/* Keep your existing styles */
-.transition-all {
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-input:focus, select:focus, button:focus {
-    outline: none;
-}
-
-@keyframes spin {
-    to {
-        transform: rotate(360deg);
-    }
-}
-
-.animate-spin {
-    animation: spin 1s linear infinite;
-}
-
-.group:hover .group-hover\:translate-x-1 {
-    transform: translateX(0.25rem);
-}
-
-/* NEW ANIMATED STYLES - ONLY ADDITIONS */
-
-/* Animated Background */
-.animated-bg {
-    position: relative;
-    overflow: hidden;
-}
-
-.animated-bg::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background:
-        radial-gradient(circle at 20% 30%, rgba(59, 130, 246, 0.08) 0%, transparent 50%),
-        radial-gradient(circle at 80% 20%, rgba(147, 51, 234, 0.06) 0%, transparent 50%),
-        radial-gradient(circle at 40% 70%, rgba(99, 102, 241, 0.1) 0%, transparent 50%),
-        radial-gradient(circle at 90% 80%, rgba(168, 85, 247, 0.05) 0%, transparent 50%);
-    animation: backgroundFloat 25s ease-in-out infinite;
-    pointer-events: none;
-    z-index: 1;
-}
-
-@keyframes backgroundFloat {
-    0%, 100% { transform: translateY(0px) rotate(0deg); opacity: 1; }
-    33% { transform: translateY(-15px) rotate(1deg); opacity: 0.8; }
-    66% { transform: translateY(10px) rotate(-0.5deg); opacity: 0.9; }
-}
-
-/* Floating Particles */
-.animated-particles {
-    position: fixed;
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-    pointer-events: none;
-    z-index: 2;
-}
-
-.particle {
-    position: absolute;
-    background: rgba(99, 102, 241, 0.1);
-    border-radius: 50%;
-    animation: floatUp 20s infinite linear;
-}
-
-.particle-1 { left: 10%; width: 4px; height: 4px; animation-delay: 0s; animation-duration: 15s; }
-.particle-2 { left: 25%; width: 2px; height: 2px; animation-delay: 3s; animation-duration: 18s; }
-.particle-3 { left: 40%; width: 3px; height: 3px; animation-delay: 6s; animation-duration: 16s; }
-.particle-4 { left: 55%; width: 2px; height: 2px; animation-delay: 9s; animation-duration: 20s; }
-.particle-5 { left: 70%; width: 4px; height: 4px; animation-delay: 12s; animation-duration: 17s; }
-.particle-6 { left: 85%; width: 3px; height: 3px; animation-delay: 15s; animation-duration: 19s; }
-.particle-7 { left: 15%; width: 2px; height: 2px; animation-delay: 18s; animation-duration: 14s; }
-.particle-8 { left: 90%; width: 3px; height: 3px; animation-delay: 21s; animation-duration: 21s; }
-
-@keyframes floatUp {
-    0% { transform: translateY(100vh) translateX(0px) rotate(0deg); opacity: 0; }
-    5% { opacity: 1; }
-    95% { opacity: 1; }
-    100% { transform: translateY(-100px) translateX(20px) rotate(180deg); opacity: 0; }
-}
-
-/* Panel Animations */
-.fade-in-left {
-    animation: fadeInLeft 0.8s ease-out;
-}
-
-.fade-in-right {
-    animation: fadeInRight 0.8s ease-out;
-}
-
-@keyframes fadeInLeft {
-    from { opacity: 0; transform: translateX(-50px); }
-    to { opacity: 1; transform: translateX(0); }
-}
-
-@keyframes fadeInRight {
-    from { opacity: 0; transform: translateX(50px); }
-    to { opacity: 1; transform: translateX(0); }
-}
-
-/* Text Effects */
-.gradient-text {
-    background: linear-gradient(-45deg, #3b82f6, #8b5cf6, #06b6d4, #10b981);
-    background-size: 400% 400%;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    animation: gradientShift 4s ease infinite;
-}
-
-@keyframes gradientShift {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-}
-
-.glow-text {
-    text-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
-}
-
-.title-bounce {
-    animation: titleBounce 2s ease-in-out infinite;
-}
-
-@keyframes titleBounce {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-2px); }
-}
-
-/* Icon Animations */
-.floating-icon {
-    animation: floatingIcon 3s ease-in-out infinite;
-}
-
-@keyframes floatingIcon {
-    0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-8px); }
-}
-
-.pulse-icon {
-    animation: pulseIcon 2s ease-in-out infinite;
-}
-
-@keyframes pulseIcon {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.05); }
-}
-
-.icon-bounce {
-    animation: iconBounce 1s ease-in-out infinite;
-}
-
-@keyframes iconBounce {
-    0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
-    40% { transform: translateY(-3px); }
-    60% { transform: translateY(-1px); }
-}
-
-.bounce-icon {
-    animation: bounceIcon 2s ease-in-out infinite;
-}
-
-@keyframes bounceIcon {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.1); }
-}
-
-/* Card Animations */
-.floating-card {
-    animation: floatingCard 4s ease-in-out infinite;
-}
-
-@keyframes floatingCard {
-    0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-5px); }
-}
-
-.role-card {
-    animation: slideUp 0.5s ease-out both;
-    position: relative;
-    overflow: hidden;
-}
-
-@keyframes slideUp {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-.selected-glow {
-    box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
-    animation: selectedPulse 1s ease-in-out;
-}
-
-@keyframes selectedPulse {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.02); }
-    100% { transform: scale(1); }
-}
-
-/* Form Animations */
-.form-container {
-    animation: formSlideUp 0.8s ease-out;
-    position: relative;
-    z-index: 10;
-}
-
-@keyframes formSlideUp {
-    from { opacity: 0; transform: translateY(30px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-.input-group {
-    animation: inputSlide 0.6s ease-out both;
-}
-
-@keyframes inputSlide {
-    from { opacity: 0; transform: translateX(-20px); }
-    to { opacity: 1; transform: translateX(0); }
-}
-
-.input-glow:focus {
-    box-shadow:
-        0 0 0 3px rgba(59, 130, 246, 0.1),
-        0 4px 20px rgba(59, 130, 246, 0.15);
-    transform: translateY(-1px);
-}
-
-/* Button Enhancements */
-.submit-enhanced {
-    position: relative;
-    overflow: hidden;
-}
-
-.submit-enhanced::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 0;
-    height: 0;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.3);
-    transform: translate(-50%, -50%);
-    transition: width 0.6s, height 0.6s;
-}
-
-.submit-enhanced:active::after {
-    width: 300px;
-    height: 300px;
-}
-
-.hover-lift:hover {
-    transform: translateY(-2px) scale(1.02);
-}
-
-.hover-scale:hover {
-    transform: scale(1.05);
-}
-
-.demo-btn {
-    animation: demoSlide 0.5s ease-out both;
-}
-
-@keyframes demoSlide {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-/* Feature List Animation */
-.feature-slide {
-    animation: featureSlide 0.5s ease-out both;
-}
-
-@keyframes featureSlide {
-    from { opacity: 0; transform: translateX(-10px); }
-    to { opacity: 1; transform: translateX(0); }
-}
-
-/* Status Icons */
-.success-pulse {
-    animation: successPulse 1s ease-in-out;
-}
-
-@keyframes successPulse {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.2); }
-    100% { transform: scale(1); }
-}
-
-.error-shake {
-    animation: errorShake 0.5s ease-in-out;
-}
-
-@keyframes errorShake {
-    0%, 100% { transform: translateX(0); }
-    25% { transform: translateX(-2px); }
-    75% { transform: translateX(2px); }
-}
-
-/* Text Animations */
-.header-fade {
-    animation: headerFade 0.8s ease-out 0.2s both;
-}
-
-.toggle-fade {
-    animation: fadeIn 0.6s ease-out 0.8s both;
-}
-
-.footer-fade {
-    animation: fadeIn 0.6s ease-out 1s both;
-}
-
-.message-fade {
-    animation: messageFade 0.3s ease-out;
-}
-
-@keyframes headerFade {
-    from { opacity: 0; transform: translateY(-10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
-
-@keyframes messageFade {
-    from { opacity: 0; transform: translateY(-5px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-.fade-in-up {
-    animation: fadeInUp 0.6s ease-out 0.4s both;
-}
-
-@keyframes fadeInUp {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-/* Link Effects */
-.link-glow:hover {
-    text-shadow: 0 0 8px rgba(59, 130, 246, 0.6);
-    transition: text-shadow 0.3s ease;
-}
-
-/* Mobile Optimizations */
-@media (max-width: 768px) {
-    .floating-card,
-    .floating-icon {
-        animation: none;
-    }
-
-    .fade-in-left,
-    .fade-in-right {
-        animation: fadeInUp 0.6s ease-out;
-    }
-
-    .particle {
-        display: none;
-    }
-}
-
-/* Accessibility */
-@media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0.01ms !important;
-    }
-}
-</style>
-
