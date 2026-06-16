@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import { Head, Link, useForm, router,usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
 import {
@@ -17,11 +17,16 @@ import {
     SparklesIcon,
     ChatBubbleLeftRightIcon,
     ChartBarIcon,
-    BoltIcon
+    BoltIcon,
+    SunIcon,
+    MoonIcon,
 } from '@heroicons/vue/24/outline';
+import { useTheme } from '@/composables/useTheme';
 
 const toast = useToast();
 const page = usePage();
+const { isDark, initTheme, toggleTheme } = useTheme();
+onMounted(() => initTheme());
 const isLogin = ref(true);
 const showPassword = ref(false);
 const selectedRole = ref('admin');
@@ -303,17 +308,42 @@ const brandFeatures = [
     <div>
         <Head :title="isLogin ? 'Login' : 'Sign Up'" />
 
-        <div class="min-h-screen flex bg-bg">
-            <!-- Left Panel - Solid primary brand -->
-            <div class="relative hidden lg:flex lg:w-1/2 xl:w-[55%] overflow-hidden bg-primary">
-                <!-- Soft accent shapes -->
-                <div class="pointer-events-none absolute -top-24 -left-24 h-80 w-80 rounded-full bg-white/10 blur-3xl"></div>
-                <div class="pointer-events-none absolute bottom-0 right-0 h-96 w-96 rounded-full bg-white/10 blur-3xl"></div>
+        <div class="relative min-h-screen flex bg-bg">
+            <!-- Floating theme toggle (works on every breakpoint) -->
+            <button
+                type="button"
+                class="fixed right-4 top-4 z-50 flex h-10 w-10 items-center justify-center rounded-full border border-line bg-surface/80 text-content-muted shadow-card backdrop-blur transition-colors hover:text-primary"
+                :aria-label="isDark ? 'Switch to light mode' : 'Switch to dark mode'"
+                @click="toggleTheme"
+            >
+                <SunIcon v-if="isDark" class="h-5 w-5" />
+                <MoonIcon v-else class="h-5 w-5" />
+            </button>
 
-                <div class="relative z-10 flex flex-col justify-between p-12 xl:p-16 text-white">
+            <!-- Left Panel - Gradient brand -->
+            <div class="bg-brand-gradient relative hidden lg:flex lg:w-1/2 overflow-hidden">
+                <!-- Animated aurora glow -->
+                <div class="aurora animate-aurora -top-24 -left-24 h-96 w-96 bg-white/25"></div>
+                <div class="aurora animate-aurora bottom-0 right-0 h-96 w-96" style="background:#22d3ee66; animation-delay:-6s"></div>
+                <div class="aurora animate-aurora left-1/3 top-1/2 h-72 w-72 bg-white/15" style="animation-delay:-11s"></div>
+                <!-- Fine dotted texture -->
+                <div
+                    class="pointer-events-none absolute inset-0 opacity-[0.12]"
+                    style="background-image: radial-gradient(#fff 1px, transparent 1px); background-size: 22px 22px;"
+                ></div>
+
+                <!-- Floating glass chips echoing the landing hero -->
+                <div class="absolute right-12 top-28 hidden animate-float rounded-control border border-white/20 bg-white/10 px-3 py-2 text-xs font-semibold text-white backdrop-blur-md xl:block">
+                    🔒 Cited from your docs
+                </div>
+                <div class="absolute right-20 bottom-36 hidden animate-float-slow rounded-control border border-white/20 bg-white/10 px-3 py-2 text-xs font-semibold text-white backdrop-blur-md xl:block">
+                    ⚡ Answers in ~1.2s
+                </div>
+
+                <div class="relative z-10 mx-auto flex w-full max-w-lg flex-col justify-center gap-12 p-10 xl:p-14 text-white">
                     <!-- Logo & name -->
-                    <div class="flex items-center gap-3">
-                        <div class="flex h-12 w-12 items-center justify-center rounded-control bg-white text-primary">
+                    <div v-reveal class="reveal flex items-center gap-3">
+                        <div class="flex h-12 w-12 items-center justify-center rounded-control bg-white/95 text-primary shadow-lg">
                             <AcademicCapIcon class="h-7 w-7" />
                         </div>
                         <div>
@@ -323,50 +353,52 @@ const brandFeatures = [
                     </div>
 
                     <!-- Headline + features -->
-                    <div class="max-w-md">
-                        <h2 class="text-4xl font-bold leading-tight tracking-tight xl:text-[2.75rem]">
-                            Your intelligent companion for academic excellence.
+                    <div>
+                        <h2 v-reveal="80" class="reveal text-4xl font-bold leading-tight tracking-tight xl:text-[2.75rem]">
+                            Your intelligent companion for
+                            <span class="bg-gradient-to-r from-white to-cyan-200 bg-clip-text text-transparent">academic excellence.</span>
                         </h2>
-                        <p class="mt-4 text-lg leading-relaxed text-white/70">
+                        <p v-reveal="140" class="reveal mt-4 text-lg leading-relaxed text-white/75">
                             Get instant answers, personalized learning paths, and around-the-clock study support.
                         </p>
 
                         <ul class="mt-10 space-y-4">
                             <li
-                                v-for="feature in brandFeatures"
+                                v-for="(feature, i) in brandFeatures"
                                 :key="feature.text"
-                                class="flex items-start gap-3"
+                                v-reveal="200 + i * 80"
+                                class="reveal flex items-start gap-3"
                             >
-                                <span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-control bg-white/10 ring-1 ring-white/10">
+                                <span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-control bg-white/15 ring-1 ring-white/20 backdrop-blur-sm">
                                     <component :is="feature.icon" class="h-5 w-5 text-white" />
                                 </span>
-                                <span class="text-sm leading-relaxed text-white/80">{{ feature.text }}</span>
+                                <span class="text-sm leading-relaxed text-white/85">{{ feature.text }}</span>
                             </li>
                         </ul>
                     </div>
 
                     <!-- Demo accounts -->
-                    <div>
+                    <div v-reveal="520" class="reveal">
                         <p class="mb-3 text-sm text-white/60">Try a demo account</p>
                         <div class="flex flex-wrap gap-2">
                             <button
                                 type="button"
                                 @click="handleDemoLogin('student')"
-                                class="inline-flex items-center gap-1.5 rounded-control bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-white hover:text-primary"
+                                class="inline-flex items-center gap-1.5 rounded-control border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-white hover:text-primary"
                             >
                                 <AcademicCapIcon class="h-4 w-4" /> Student
                             </button>
                             <button
                                 type="button"
                                 @click="handleDemoLogin('faculty')"
-                                class="inline-flex items-center gap-1.5 rounded-control bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-white hover:text-primary"
+                                class="inline-flex items-center gap-1.5 rounded-control border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-white hover:text-primary"
                             >
                                 <UserGroupIcon class="h-4 w-4" /> Faculty
                             </button>
                             <button
                                 type="button"
                                 @click="handleDemoLogin('admin')"
-                                class="inline-flex items-center gap-1.5 rounded-control bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-white hover:text-primary"
+                                class="inline-flex items-center gap-1.5 rounded-control border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-white hover:text-primary"
                             >
                                 <ShieldCheckIcon class="h-4 w-4" /> Admin
                             </button>
@@ -376,22 +408,30 @@ const brandFeatures = [
             </div>
 
             <!-- Right Panel - Auth form -->
-            <div class="flex flex-1 flex-col justify-center px-6 py-12 sm:px-10 lg:w-1/2 xl:w-[45%]">
-                <div class="mx-auto w-full max-w-md">
+            <div class="relative flex flex-1 flex-col justify-center overflow-hidden px-6 py-12 sm:px-10 lg:w-1/2 xl:w-[45%]">
+                <!-- Ambient backdrop -->
+                <div class="pointer-events-none absolute inset-0 grid-backdrop"></div>
+                <div class="aurora animate-aurora -right-16 top-8 h-72 w-72 bg-primary/30"></div>
+
+                <div class="relative z-10 mx-auto w-full max-w-md">
                     <!-- Mobile Logo -->
                     <div class="mb-8 flex flex-col items-center text-center lg:hidden">
-                        <div class="mb-3 flex h-14 w-14 items-center justify-center rounded-card bg-primary shadow-card">
+                        <div class="bg-brand-gradient mb-3 flex h-14 w-14 items-center justify-center rounded-card shadow-card-hover">
                             <AcademicCapIcon class="h-8 w-8 text-white" />
                         </div>
                         <h1 class="text-2xl font-bold text-content">UniGPT</h1>
                         <p class="text-sm text-content-muted">AI Academic Assistant</p>
                     </div>
 
-                    <div class="ui-card p-6 sm:p-8">
+                    <!-- Card with soft gradient glow -->
+                    <div v-reveal class="reveal relative">
+                        <div class="absolute -inset-3 rounded-card bg-primary/15 blur-2xl"></div>
+                        <div class="ui-card relative p-6 sm:p-8">
                         <!-- Form Header -->
                         <div class="mb-6 text-center">
-                            <h2 class="text-2xl font-bold text-content">
-                                {{ isLogin ? 'Welcome back' : 'Create your account' }}
+                            <h2 class="text-2xl font-bold tracking-tight text-content">
+                                <template v-if="isLogin">Welcome <span class="text-gradient">back</span></template>
+                                <template v-else>Create your <span class="text-gradient">account</span></template>
                             </h2>
                             <p class="mt-1 text-sm text-content-muted">
                                 {{ isLogin ? 'Sign in to continue to your dashboard' : 'Join the academic community' }}
@@ -408,10 +448,10 @@ const brandFeatures = [
                                     type="button"
                                     @click="selectRole(role.value)"
                                     :class="[
-                                        'flex flex-col items-center gap-1.5 rounded-control px-2 py-3 text-center transition-all duration-200',
+                                        'group flex flex-col items-center gap-1.5 rounded-control px-2 py-3 text-center transition-all duration-200',
                                         selectedRole === role.value
-                                            ? 'bg-primary text-white'
-                                            : 'border border-line text-content-muted hover:bg-neutral-bg'
+                                            ? 'bg-brand-gradient text-white shadow-[0_8px_22px_-8px_rgba(124,92,252,0.6)] scale-[1.03]'
+                                            : 'border border-line text-content-muted hover:-translate-y-0.5 hover:border-primary/40 hover:bg-primary-soft hover:text-primary'
                                     ]"
                                     :aria-pressed="selectedRole === role.value"
                                 >
@@ -670,11 +710,12 @@ const brandFeatures = [
                                 </button>
                             </p>
                         </div>
+                        </div>
                     </div>
 
                     <!-- Footer -->
                     <p class="mt-6 text-center text-xs text-content-faint">
-                        © 2024 UniGPT. Empowering education through AI.
+                        © {{ new Date().getFullYear() }} UniGPT. Empowering education through AI.
                     </p>
                 </div>
             </div>
