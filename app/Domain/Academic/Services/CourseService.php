@@ -45,6 +45,7 @@ class CourseService
     public function studentMaterials(User $student): Collection
     {
         $courseIds = $student->enrolledCourses()->pluck('courses.id');
+        $completedIds = $student->completedMaterials()->pluck('course_materials.id')->all();
 
         return Course::whereIn('id', $courseIds)
             ->with(['materials' => fn ($q) => $q->where('is_published', true)->orderBy('week'), 'materials.document'])
@@ -53,14 +54,18 @@ class CourseService
                 'id' => $course->id,
                 'code' => $course->code,
                 'name' => $course->name,
-                'materials' => $course->materials->map(fn ($m) => [
+                'materials' => $course->materials->map(fn (CourseMaterial $m) => [
                     'id' => $m->id,
                     'title' => $m->title,
                     'description' => $m->description,
                     'type' => $m->type,
                     'week' => $m->week,
                     'downloads' => $m->downloads,
+                    'fileSize' => $m->file_size,
+                    'uploadedAt' => $m->created_at?->toIso8601String(),
                     'documentId' => $m->document_id,
+                    'hasFile' => $m->hasFile(),
+                    'completed' => in_array($m->id, $completedIds, strict: true),
                     'downloadUrl' => $this->studentMaterialDownloadUrl($m),
                 ])->values(),
             ]);

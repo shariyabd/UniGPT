@@ -467,6 +467,18 @@ const openFromQuery = async () => {
     const params = new URLSearchParams(window.location.search);
     const session = params.get('session');
     const message = params.get('message');
+
+    // Deep-link from other pages (e.g. "Ask AI" on a material) prefills the composer.
+    const prefill = params.get('q');
+    if (prefill && !session) {
+        messageInput.value = prefill;
+        nextTick(() => {
+            const box = document.querySelector('textarea');
+            if (box) box.focus();
+        });
+        return;
+    }
+
     if (!session) return;
 
     await selectChatHistory(Number(session));

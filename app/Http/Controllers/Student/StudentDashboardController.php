@@ -190,6 +190,31 @@ class StudentDashboardController extends Controller
         );
     }
 
+    /**
+     * Mark a course material complete/incomplete for the current student.
+     */
+    public function toggleMaterialCompletion(Request $request, \App\Models\CourseMaterial $material): \Illuminate\Http\JsonResponse
+    {
+        $user = $this->user();
+
+        abort_unless(
+            $user->enrolledCourses()->whereKey($material->course_id)->exists(),
+            403,
+        );
+
+        $completed = $request->boolean('completed');
+
+        if ($completed) {
+            $user->completedMaterials()->syncWithoutDetaching([
+                $material->id => ['completed_at' => now()],
+            ]);
+        } else {
+            $user->completedMaterials()->detach($material->id);
+        }
+
+        return response()->json(['completed' => $completed]);
+    }
+
     private function user(): User
     {
         return request()->user();

@@ -1,6 +1,8 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
+import axios from 'axios';
+import { useToast } from 'vue-toastification';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
 import Card from '@/components/ui/Card.vue';
@@ -11,29 +13,19 @@ import {
     VideoCameraIcon,
     BookOpenIcon,
     AcademicCapIcon,
-    CalendarIcon,
-    ClockIcon,
     EyeIcon,
     PlayIcon,
     CheckCircleIcon,
-    ExclamationTriangleIcon,
     MagnifyingGlassIcon,
-    FunnelIcon,
     ArrowDownTrayIcon,
-    DocumentArrowDownIcon,
     PresentationChartLineIcon,
     BeakerIcon,
-    StarIcon,
-    UserIcon,
-    BoltIcon,
     ChartBarIcon,
     Squares2X2Icon,
     ListBulletIcon,
-    ChatBubbleLeftRightIcon,
     SparklesIcon,
     FolderIcon,
-    LockClosedIcon,
-    InboxIcon
+    InboxIcon,
 } from '@heroicons/vue/24/outline';
 import { CheckCircleIcon as CheckCircleIconSolid } from '@heroicons/vue/24/solid';
 
@@ -41,26 +33,30 @@ import { CheckCircleIcon as CheckCircleIconSolid } from '@heroicons/vue/24/solid
 const props = defineProps({
     courses: {
         type: Array,
-        default: () => []
+        default: () => [],
     },
     enrolledCourses: {
         type: Array,
-        default: () => []
-    }
+        default: () => [],
+    },
 });
 
 const pageData = usePage();
+const toast = useToast();
 
 // Component state
-const selectedSemester = ref(5);
 const searchQuery = ref('');
 const selectedMaterialType = ref('all');
 const selectedWeek = ref('all');
 const viewMode = ref('grid'); // grid or list
-const showFilters = ref(false);
 
-// Tracks which materials have been opened/downloaded this session
-const viewedMaterialIds = ref(new Set());
+// Per-student completion, seeded from the DB and kept in sync via the API.
+const completedMaterialIds = ref(new Set(
+    (props.courses || [])
+        .flatMap((course) => course.materials || [])
+        .filter((material) => material.completed)
+        .map((material) => material.id),
+));
 
 // Student context (derived from authenticated user)
 const studentContext = computed(() => {
@@ -69,32 +65,26 @@ const studentContext = computed(() => {
         name: authUser.name || 'Student',
         department: authUser.department?.name || authUser.department || '',
         semester: authUser.semester ? `${authUser.semester} Semester` : '',
-        year: ''
+        year: '',
     };
 });
 
-// Enrolled courses grouped into the semester structure the template expects.
-// The sidebar iterates enrolledCourses[0]?.courses, so all enrolled courses
-// are placed under a single "Current Semester" group.
+// Enrolled courses grouped into the single "Current Semester" group the sidebar expects.
 const enrolledCourses = computed(() => {
-    const mappedCourses = (props.enrolledCourses || []).map(course => {
-        const courseEntry = (props.courses || []).find(c => c.id === course.id);
+    const mappedCourses = (props.enrolledCourses || []).map((course) => {
+        const courseEntry = (props.courses || []).find((c) => c.id === course.id);
         const courseMaterialList = courseEntry?.materials || [];
-        const completedMaterials = courseMaterialList.filter(m => viewedMaterialIds.value.has(m.id)).length;
+        const completedMaterials = courseMaterialList.filter((m) => completedMaterialIds.value.has(m.id)).length;
 
         return {
             id: course.id,
             code: course.code,
             name: course.name,
             instructor: course.instructor,
-            totalMaterials: course.totalMaterials || courseMaterialList.length,
+            totalMaterials: courseMaterialList.length,
             completedMaterials,
-            lastAccessed: null,
             credits: course.credits,
             semester: course.semester,
-            progress: course.progress,
-            grade: course.grade,
-            status: course.status
         };
     });
 
@@ -106,30 +96,33 @@ const enrolledCourses = computed(() => {
         {
             semester: 'current',
             title: 'Current Semester',
-            courses: mappedCourses
-        }
+            courses: mappedCourses,
+        },
     ];
 });
 
 // Materials keyed by course id, mapped into the {courseInfo, weeks} shape the
-// template iterates. Materials grouped into weeks based on each material's week.
+// template iterates. Materials grouped into weeks; week status derived from completion.
 const courseMaterials = computed(() => {
     const result = {};
 
-    (props.courses || []).forEach(course => {
-        const enrolled = (props.enrolledCourses || []).find(c => c.id === course.id);
+    (props.courses || []).forEach((course) => {
+        const enrolled = (props.enrolledCourses || []).find((c) => c.id === course.id);
 
         const weeksMap = {};
-        (course.materials || []).forEach(material => {
+        (course.materials || []).forEach((material) => {
             const weekNumber = material.week || 1;
             if (!weeksMap[weekNumber]) {
                 weeksMap[weekNumber] = {
                     weekNumber,
                     title: `Week ${weekNumber}`,
-                    startDate: null,
-                    status: 'completed',
-                    materials: []
+                    addedDate: material.uploadedAt || null,
+                    materials: [],
                 };
+            }
+            // Earliest upload date in the week becomes its "added" date.
+            if (material.uploadedAt && (!weeksMap[weekNumber].addedDate || material.uploadedAt < weeksMap[weekNumber].addedDate)) {
+                weeksMap[weekNumber].addedDate = material.uploadedAt;
             }
             weeksMap[weekNumber].materials.push({
                 id: material.id,
@@ -137,18 +130,28 @@ const courseMaterials = computed(() => {
                 description: material.description,
                 type: material.type,
                 format: material.type,
-                size: null,
-                pages: null,
-                duration: null,
-                uploadDate: null,
+                fileSize: material.fileSize,
+                uploadedAt: material.uploadedAt,
                 downloadCount: material.downloads,
-                viewed: viewedMaterialIds.value.has(material.id),
-                locked: false,
-                url: material.downloadUrl,
+                completed: completedMaterialIds.value.has(material.id),
+                hasFile: material.hasFile,
                 downloadUrl: material.downloadUrl,
-                documentId: material.documentId
+                documentId: material.documentId,
             });
         });
+
+        const weeks = Object.values(weeksMap)
+            .map((week) => {
+                const completed = week.materials.filter((m) => m.completed).length;
+                let status = 'not-started';
+                if (completed === week.materials.length && week.materials.length > 0) {
+                    status = 'completed';
+                } else if (completed > 0) {
+                    status = 'in-progress';
+                }
+                return { ...week, status };
+            })
+            .sort((a, b) => a.weekNumber - b.weekNumber);
 
         result[course.id] = {
             courseInfo: {
@@ -157,9 +160,8 @@ const courseMaterials = computed(() => {
                 instructor: enrolled?.instructor || '',
                 semester: enrolled?.semester || '',
                 credits: enrolled?.credits || 0,
-                description: ''
             },
-            weeks: Object.values(weeksMap).sort((a, b) => a.weekNumber - b.weekNumber)
+            weeks,
         };
     });
 
@@ -170,45 +172,39 @@ const selectedCourseId = ref(null);
 
 // Material type options (counts derived from the selected course's materials)
 const materialTypes = computed(() => {
-    const allMaterials = (currentMaterials.value.weeks || []).flatMap(week => week.materials || []);
-    const countByType = (type) => allMaterials.filter(material => material.type === type).length;
+    const allMaterials = (currentMaterials.value.weeks || []).flatMap((week) => week.materials || []);
+    const countByType = (type) => allMaterials.filter((material) => material.type === type).length;
 
     return [
         { value: 'all', label: 'All Materials', icon: DocumentTextIcon, count: allMaterials.length },
         { value: 'lecture', label: 'Lectures', icon: PresentationChartLineIcon, count: countByType('lecture') },
         { value: 'assignment', label: 'Assignments', icon: AcademicCapIcon, count: countByType('assignment') },
         { value: 'reading', label: 'Readings', icon: BookOpenIcon, count: countByType('reading') },
-        { value: 'lab', label: 'Lab Work', icon: BeakerIcon, count: countByType('lab') }
+        { value: 'lab', label: 'Lab Work', icon: BeakerIcon, count: countByType('lab') },
     ];
 });
 
-// Computed properties
-const currentCourse = computed(() => {
-    return enrolledCourses.value
-        .flatMap(semester => semester.courses)
-        .find(course => course.id === selectedCourseId.value);
-});
+const currentCourse = computed(() =>
+    enrolledCourses.value
+        .flatMap((semester) => semester.courses)
+        .find((course) => course.id === selectedCourseId.value),
+);
 
-const currentMaterials = computed(() => {
-    return courseMaterials.value[selectedCourseId.value] || { weeks: [] };
-});
+const currentMaterials = computed(() => courseMaterials.value[selectedCourseId.value] || { weeks: [] });
 
 const filteredWeeks = computed(() => {
     if (!currentMaterials.value.weeks) return [];
 
-    return currentMaterials.value.weeks.filter(week => {
+    return currentMaterials.value.weeks.filter((week) => {
         const matchesWeek = selectedWeek.value === 'all' || week.weekNumber === parseInt(selectedWeek.value);
         const matchesSearch = !searchQuery.value ||
             week.title.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-            week.materials.some(material =>
-                material.title.toLowerCase().includes(searchQuery.value.toLowerCase())
+            week.materials.some((material) =>
+                material.title.toLowerCase().includes(searchQuery.value.toLowerCase()),
             );
 
         if (selectedMaterialType.value !== 'all') {
-            const hasMatchingMaterials = week.materials.some(material =>
-                material.type === selectedMaterialType.value
-            );
-            return matchesWeek && matchesSearch && hasMatchingMaterials;
+            return matchesWeek && matchesSearch && week.materials.some((m) => m.type === selectedMaterialType.value);
         }
 
         return matchesWeek && matchesSearch;
@@ -218,125 +214,162 @@ const filteredWeeks = computed(() => {
 const weekOptions = computed(() => {
     if (!currentMaterials.value.weeks) return [{ value: 'all', label: 'All Weeks' }];
 
-    const weeks = currentMaterials.value.weeks.map(week => ({
+    const weeks = currentMaterials.value.weeks.map((week) => ({
         value: week.weekNumber.toString(),
-        label: `Week ${week.weekNumber}`
+        label: `Week ${week.weekNumber}`,
     }));
 
     return [{ value: 'all', label: 'All Weeks' }, ...weeks];
 });
 
 const overallProgress = computed(() => {
-    if (!currentCourse.value) return 0;
+    if (!currentCourse.value || !currentCourse.value.totalMaterials) return 0;
     return Math.round((currentCourse.value.completedMaterials / currentCourse.value.totalMaterials) * 100);
 });
 
-const upcomingAssignments = computed(() => {
-    const assignments = [];
-    currentMaterials.value.weeks?.forEach(week => {
-        week.materials.forEach(material => {
-            if (material.type === 'assignment' && !material.submitted && material.dueDate) {
-                assignments.push({
-                    ...material,
-                    weekNumber: week.weekNumber
-                });
-            }
-        });
-    });
-    return assignments.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate)).slice(0, 3);
-});
+// Whether the current course has at least one downloadable file.
+const hasDownloadableMaterials = computed(() =>
+    (currentMaterials.value.weeks || []).some((week) => week.materials.some((m) => m.downloadUrl)),
+);
 
 // Utility functions
 const getMaterialIcon = (type, format) => {
     if (format === 'video') return VideoCameraIcon;
-    if (format === 'pdf' && type === 'assignment') return AcademicCapIcon;
-    if (format === 'pdf' && type === 'reading') return BookOpenIcon;
-    if (format === 'zip' || type === 'lab') return BeakerIcon;
+    if (type === 'assignment') return AcademicCapIcon;
+    if (type === 'reading') return BookOpenIcon;
+    if (type === 'lab') return BeakerIcon;
     if (type === 'lecture') return PresentationChartLineIcon;
     return DocumentTextIcon;
 };
 
-// Maps a material type to a Badge variant for the modern UI.
-const getMaterialBadgeVariant = (type) => {
-    const variants = {
-        lecture: 'info',
-        assignment: 'success',
-        reading: 'violet',
-        lab: 'warning',
-        exam: 'danger'
-    };
-    return variants[type] || 'slate';
-};
+const getMaterialBadgeVariant = (type) => ({
+    lecture: 'info',
+    assignment: 'success',
+    reading: 'violet',
+    lab: 'warning',
+    exam: 'danger',
+}[type] || 'slate');
 
-// Maps a week status to a Badge variant for the modern UI.
-const getWeekBadgeVariant = (status) => {
-    switch (status) {
-        case 'completed': return 'success';
-        case 'in-progress': return 'info';
-        case 'upcoming': return 'warning';
-        case 'locked': return 'danger';
-        default: return 'slate';
-    }
-};
+const getWeekBadgeVariant = (status) => ({
+    completed: 'success',
+    'in-progress': 'info',
+    'not-started': 'slate',
+}[status] || 'slate');
+
+const weekStatusLabel = (status) => ({
+    completed: 'Completed',
+    'in-progress': 'In progress',
+    'not-started': 'Not started',
+}[status] || status);
 
 const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric'
-    });
+    if (!dateString) return '';
+    return new Date(dateString).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
-const formatFileSize = (size) => {
-    return size;
+const formatFileSize = (bytes) => {
+    if (!bytes) return '';
+    const units = ['B', 'KB', 'MB', 'GB'];
+    let size = bytes;
+    let unit = 0;
+    while (size >= 1024 && unit < units.length - 1) {
+        size /= 1024;
+        unit++;
+    }
+    return `${size.toFixed(unit === 0 ? 0 : 1)} ${units[unit]}`;
 };
 
-const isOverdue = (dueDate) => {
-    return dueDate && new Date(dueDate) < new Date();
+const weekCompletionPercent = (week) => {
+    if (!week.materials.length) return 0;
+    return Math.round((week.materials.filter((m) => m.completed).length / week.materials.length) * 100);
 };
 
-const getDaysUntil = (dateString) => {
-    const today = new Date();
-    const dueDate = new Date(dateString);
-    const diffTime = dueDate - today;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
-};
-
-// Marks a material as viewed (tracked client-side by id)
-const markViewed = (material) => {
-    if (material?.id != null && !viewedMaterialIds.value.has(material.id)) {
-        viewedMaterialIds.value.add(material.id);
-        viewedMaterialIds.value = new Set(viewedMaterialIds.value);
+// ── Completion persistence ──────────────────────────────────────────────────
+const setCompletion = async (material, completed) => {
+    try {
+        await axios.patch(route('materials.completion', material.id), { completed });
+        const next = new Set(completedMaterialIds.value);
+        completed ? next.add(material.id) : next.delete(material.id);
+        completedMaterialIds.value = next;
+        return true;
+    } catch (e) {
+        toast.error('Could not update progress.');
+        return false;
     }
 };
 
-// Actions
-const downloadMaterial = (material) => {
-    markViewed(material);
-    if (material.downloadUrl) {
-        window.open(material.downloadUrl, '_blank');
+const toggleComplete = async (material) => {
+    const next = !completedMaterialIds.value.has(material.id);
+    const ok = await setCompletion(material, next);
+    if (ok) {
+        toast.success(next ? 'Marked as complete.' : 'Marked as incomplete.');
     }
+};
+
+const markComplete = (material) => {
+    if (!material || material.id == null || completedMaterialIds.value.has(material.id)) return;
+    setCompletion(material, true);
+};
+
+// ── Download / open actions ─────────────────────────────────────────────────
+const triggerDownload = (url) => {
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.rel = 'noopener';
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
 };
 
 const viewMaterial = (material) => {
-    markViewed(material);
-    if (material.downloadUrl) {
-        window.open(material.downloadUrl, '_blank');
+    if (!material.downloadUrl) {
+        toast.info('No file is attached to this material yet.');
+        return;
     }
+    markComplete(material);
+    window.open(material.downloadUrl, '_blank');
+};
+
+const downloadMaterial = (material) => {
+    if (!material.downloadUrl) {
+        toast.info('No file is attached to this material yet.');
+        return;
+    }
+    markComplete(material);
+    triggerDownload(material.downloadUrl);
+};
+
+const downloadWeekMaterials = (week) => {
+    const downloadable = (week.materials || []).filter((m) => m.downloadUrl);
+    if (downloadable.length === 0) {
+        toast.info('No downloadable files in this week.');
+        return;
+    }
+    downloadable.forEach((material) => {
+        triggerDownload(material.downloadUrl);
+        markComplete(material);
+    });
+};
+
+const downloadAllMaterials = () => {
+    const downloadable = (currentMaterials.value.weeks || [])
+        .flatMap((week) => week.materials)
+        .filter((m) => m.downloadUrl);
+
+    if (downloadable.length === 0) {
+        toast.info('No downloadable files for this course yet.');
+        return;
+    }
+    downloadable.forEach((material) => {
+        triggerDownload(material.downloadUrl);
+        markComplete(material);
+    });
+    toast.success(`Downloading ${downloadable.length} file${downloadable.length > 1 ? 's' : ''}.`);
 };
 
 const askAIAboutMaterial = (material) => {
     const query = `Explain the concepts in ${material.title}`;
-    window.open(`/chat?q=${encodeURIComponent(query)}&material=${material.id}`, '_blank');
-};
-
-const submitAssignment = (material) => {
-    // Assignment submission flow not yet wired to a backend endpoint.
-    // Opens the material so the student can review it before submitting.
-    if (material?.downloadUrl) {
-        window.open(material.downloadUrl, '_blank');
-    }
+    window.open(`/chat?q=${encodeURIComponent(query)}`, '_blank');
 };
 
 const selectCourse = (courseId) => {
@@ -346,17 +379,7 @@ const selectCourse = (courseId) => {
     searchQuery.value = '';
 };
 
-const downloadWeekMaterials = (week) => {
-    (week.materials || []).forEach(material => {
-        if (material.downloadUrl) {
-            window.open(material.downloadUrl, '_blank');
-        }
-        markViewed(material);
-    });
-};
-
 onMounted(() => {
-    // Select the first available course on load
     const firstCourse = enrolledCourses.value[0]?.courses?.[0];
     if (firstCourse) {
         selectedCourseId.value = firstCourse.id;
@@ -372,7 +395,7 @@ onMounted(() => {
             <div class="page-container py-8 space-y-6 sm:space-y-8">
                 <PageHeader
                     title="Course Materials"
-                    subtitle="Access all your course materials organized by semester and week"
+                    subtitle="Access all your course materials organized by week"
                     :icon="BookOpenIcon"
                     :eyebrow="[studentContext.department, studentContext.year, studentContext.semester].filter(Boolean).join(' • ') || undefined"
                 >
@@ -430,44 +453,40 @@ onMounted(() => {
                         <!-- Current Semester Courses -->
                         <Card title="Current Semester" :icon="FolderIcon">
                             <div class="space-y-3">
-                                <div
+                                <button
                                     v-for="course in enrolledCourses[0]?.courses || []"
                                     :key="course.id"
                                     @click="selectCourse(course.id)"
-                                    class="cursor-pointer"
+                                    :class="`w-full text-left p-4 rounded-control border transition-all duration-200 hover:-translate-y-0.5 ${
+                                        selectedCourseId === course.id
+                                            ? 'bg-primary-soft border-primary shadow-card'
+                                            : 'bg-surface border-line hover:shadow-card'
+                                    }`"
                                 >
-                                    <button
-                                        :class="`w-full text-left p-4 rounded-control border transition-all duration-200 hover:-translate-y-0.5 ${
-                                            selectedCourseId === course.id
-                                                ? 'bg-primary-soft border-primary shadow-card'
-                                                : 'bg-surface border-line hover:shadow-card'
-                                        }`"
-                                    >
-                                        <div class="flex items-center gap-3 mb-2">
-                                            <div :class="`w-2.5 h-2.5 rounded-full ${selectedCourseId === course.id ? 'bg-primary' : 'bg-line'}`"></div>
-                                            <div class="font-semibold text-content text-sm">
-                                                {{ course.code }}
-                                            </div>
+                                    <div class="flex items-center gap-3 mb-2">
+                                        <div :class="`w-2.5 h-2.5 rounded-full ${selectedCourseId === course.id ? 'bg-primary' : 'bg-line'}`"></div>
+                                        <div class="font-semibold text-content text-sm">
+                                            {{ course.code }}
                                         </div>
-                                        <div class="text-xs text-content-muted mb-3 line-clamp-2">
-                                            {{ course.name }}
+                                    </div>
+                                    <div class="text-xs text-content-muted mb-3 line-clamp-2">
+                                        {{ course.name }}
+                                    </div>
+                                    <div class="flex items-center justify-between gap-2">
+                                        <div class="text-xs text-content-muted">
+                                            {{ course.completedMaterials }}/{{ course.totalMaterials }}
                                         </div>
-                                        <div class="flex items-center justify-between gap-2">
-                                            <div class="text-xs text-content-muted">
-                                                {{ course.completedMaterials }}/{{ course.totalMaterials }}
-                                            </div>
-                                            <div class="flex-1 bg-neutral-bg rounded-full h-1.5">
-                                                <div
-                                                    class="bg-primary h-1.5 rounded-full transition-all duration-500"
-                                                    :style="{ width: (course.completedMaterials / course.totalMaterials * 100) + '%' }"
-                                                ></div>
-                                            </div>
-                                            <span class="text-xs font-medium text-content-muted">
-                                                {{ Math.round((course.completedMaterials / course.totalMaterials) * 100) }}%
-                                            </span>
+                                        <div class="flex-1 bg-neutral-bg rounded-full h-1.5">
+                                            <div
+                                                class="bg-primary h-1.5 rounded-full transition-all duration-500"
+                                                :style="{ width: (course.totalMaterials ? course.completedMaterials / course.totalMaterials * 100 : 0) + '%' }"
+                                            ></div>
                                         </div>
-                                    </button>
-                                </div>
+                                        <span class="text-xs font-medium text-content-muted">
+                                            {{ course.totalMaterials ? Math.round(course.completedMaterials / course.totalMaterials * 100) : 0 }}%
+                                        </span>
+                                    </div>
+                                </button>
                             </div>
                         </Card>
 
@@ -516,7 +535,11 @@ onMounted(() => {
                         <!-- Quick Actions -->
                         <Card title="Quick Actions">
                             <div class="space-y-2">
-                                <button class="w-full flex items-center gap-3 p-3 rounded-control text-sm font-medium bg-success-bg text-success-fg hover:opacity-90 transition-opacity">
+                                <button
+                                    @click="downloadAllMaterials"
+                                    :disabled="!hasDownloadableMaterials"
+                                    class="w-full flex items-center gap-3 p-3 rounded-control text-sm font-medium bg-success-bg text-success-fg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
                                     <ArrowDownTrayIcon class="w-4 h-4" />
                                     Download All Materials
                                 </button>
@@ -589,24 +612,21 @@ onMounted(() => {
                                     <h2 class="text-xl font-bold text-content mb-1">
                                         {{ currentMaterials.courseInfo.code }} - {{ currentMaterials.courseInfo.name }}
                                     </h2>
-                                    <p class="text-content-muted mb-2">
-                                        {{ currentMaterials.courseInfo.instructor }} • {{ currentMaterials.courseInfo.semester }}
-                                    </p>
-                                    <p class="text-sm text-content-muted">
-                                        {{ currentMaterials.courseInfo.description }}
+                                    <p v-if="currentMaterials.courseInfo.instructor || currentMaterials.courseInfo.semester" class="text-content-muted">
+                                        {{ [currentMaterials.courseInfo.instructor, currentMaterials.courseInfo.semester].filter(Boolean).join(' • ') }}
                                     </p>
                                 </div>
-                                <div class="flex items-center gap-4 flex-shrink-0">
+                                <div v-if="currentMaterials.courseInfo.credits" class="flex items-center gap-4 flex-shrink-0">
                                     <Badge variant="slate">{{ currentMaterials.courseInfo.credits }} Credits</Badge>
                                 </div>
                             </div>
                         </Card>
 
                         <!-- Weekly Progress Overview -->
-                        <Card title="Weekly Progress Overview" :icon="ChartBarIcon">
+                        <Card v-if="currentMaterials.weeks?.length" title="Weekly Progress Overview" :icon="ChartBarIcon">
                             <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
                                 <div
-                                    v-for="week in currentMaterials.weeks?.slice(0, 8)"
+                                    v-for="week in currentMaterials.weeks.slice(0, 8)"
                                     :key="week.weekNumber"
                                     class="text-center p-3 rounded-control border border-line bg-surface hover:shadow-card transition-all"
                                 >
@@ -631,52 +651,19 @@ onMounted(() => {
                                                 stroke-width="4"
                                                 stroke-linecap="round"
                                                 :stroke-dasharray="`${2 * Math.PI * 20}`"
-                                                :stroke-dashoffset="`${2 * Math.PI * 20 * (1 - (week.materials.filter(m => m.viewed).length / week.materials.length))}`"
+                                                :stroke-dashoffset="`${2 * Math.PI * 20 * (1 - weekCompletionPercent(week) / 100)}`"
                                                 :class="week.status === 'completed' ? 'text-success-fg' : week.status === 'in-progress' ? 'text-primary' : 'text-content-faint'"
                                                 class="transition-all duration-500"
                                             />
                                         </svg>
                                         <div class="absolute inset-0 flex items-center justify-center">
                                             <span class="text-xs font-bold text-content">
-                                                {{ Math.round((week.materials.filter(m => m.viewed).length / week.materials.length) * 100) }}%
+                                                {{ weekCompletionPercent(week) }}%
                                             </span>
                                         </div>
                                     </div>
 
-                                    <Badge :variant="getWeekBadgeVariant(week.status)">{{ week.status }}</Badge>
-                                </div>
-                            </div>
-                        </Card>
-
-                        <!-- Upcoming Assignments -->
-                        <Card v-if="upcomingAssignments.length > 0" title="Upcoming Assignments" :icon="ClockIcon">
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <div
-                                    v-for="assignment in upcomingAssignments"
-                                    :key="assignment.id"
-                                    class="rounded-control border border-line bg-surface p-4"
-                                >
-                                    <h4 class="font-semibold text-content text-sm mb-1">
-                                        {{ assignment.title }}
-                                    </h4>
-                                    <p class="text-xs text-content-muted mb-2">
-                                        Week {{ assignment.weekNumber }}
-                                    </p>
-                                    <div class="flex items-center justify-between">
-                                        <span :class="`text-xs font-medium ${
-                                            getDaysUntil(assignment.dueDate) <= 3
-                                                ? 'text-danger-fg'
-                                                : 'text-warning-fg'
-                                        }`">
-                                            Due in {{ getDaysUntil(assignment.dueDate) }} days
-                                        </span>
-                                        <button
-                                            @click="viewMaterial(assignment)"
-                                            class="text-xs ui-btn-primary px-2.5 py-1"
-                                        >
-                                            View
-                                        </button>
-                                    </div>
+                                    <Badge :variant="getWeekBadgeVariant(week.status)">{{ weekStatusLabel(week.status) }}</Badge>
                                 </div>
                             </div>
                         </Card>
@@ -693,20 +680,21 @@ onMounted(() => {
                                     <div class="flex flex-wrap items-center justify-between gap-3">
                                         <div>
                                             <h3 class="text-base font-bold text-content">
-                                                Week {{ week.weekNumber }}: {{ week.title }}
+                                                Week {{ week.weekNumber }}
                                             </h3>
-                                            <p class="text-sm text-content-muted mt-0.5">
-                                                Started {{ formatDate(week.startDate) }}
+                                            <p v-if="week.addedDate" class="text-sm text-content-muted mt-0.5">
+                                                Added {{ formatDate(week.addedDate) }}
                                             </p>
                                         </div>
                                         <div class="flex items-center gap-3">
                                             <Badge :variant="getWeekBadgeVariant(week.status)">
-                                                {{ week.status.charAt(0).toUpperCase() + week.status.slice(1) }}
+                                                {{ weekStatusLabel(week.status) }}
                                             </Badge>
                                             <span class="text-sm text-content-muted">
                                                 {{ week.materials.length }} materials
                                             </span>
                                             <button
+                                                v-if="week.materials.some((m) => m.downloadUrl)"
                                                 @click="downloadWeekMaterials(week)"
                                                 aria-label="Download all week materials"
                                                 class="p-2 text-content-muted hover:text-primary hover:bg-primary-soft rounded-control transition-colors"
@@ -722,22 +710,13 @@ onMounted(() => {
                                 <div class="p-5 sm:p-6">
                                     <div :class="viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 gap-4' : 'space-y-3'">
                                         <div
-                                            v-for="material in week.materials.filter(m => selectedMaterialType === 'all' || m.type === selectedMaterialType)"
+                                            v-for="material in week.materials.filter((m) => selectedMaterialType === 'all' || m.type === selectedMaterialType)"
                                             :key="material.id"
-                                            :class="`rounded-control border border-line bg-surface p-4 transition-all duration-200 ${
-                                                material.locked
-                                                    ? 'opacity-50 cursor-not-allowed'
-                                                    : 'hover:shadow-card hover:-translate-y-0.5 cursor-pointer'
-                                            }`"
-                                            @click="!material.locked && viewMaterial(material)"
+                                            class="rounded-control border border-line bg-surface p-4 transition-all duration-200 hover:shadow-card"
                                         >
                                             <div class="flex items-start gap-4">
                                                 <!-- Material Icon -->
-                                                <div :class="`ui-icon-tile h-12 w-12 flex-shrink-0 ${
-                                                    material.locked
-                                                        ? 'bg-neutral-bg text-content-faint'
-                                                        : 'bg-primary-soft text-primary'
-                                                }`">
+                                                <div class="ui-icon-tile h-12 w-12 flex-shrink-0 bg-primary-soft text-primary">
                                                     <component
                                                         :is="getMaterialIcon(material.type, material.format)"
                                                         class="w-6 h-6"
@@ -750,19 +729,16 @@ onMounted(() => {
                                                         <h4 class="font-semibold text-content truncate">
                                                             {{ material.title }}
                                                         </h4>
-                                                        <div class="flex items-center gap-2 flex-shrink-0">
-                                                            <CheckCircleIconSolid
-                                                                v-if="material.viewed && !material.locked"
-                                                                class="w-5 h-5 text-success-fg"
-                                                            />
-                                                            <LockClosedIcon v-if="material.locked" class="w-4 h-4 text-content-faint" />
-                                                            <Badge
-                                                                v-if="material.grade"
-                                                                :variant="material.grade.includes('A') ? 'success' : material.grade.includes('B') ? 'info' : 'warning'"
-                                                            >
-                                                                {{ material.grade }}
-                                                            </Badge>
-                                                        </div>
+                                                        <button
+                                                            @click.stop="toggleComplete(material)"
+                                                            :aria-label="material.completed ? 'Mark as incomplete' : 'Mark as complete'"
+                                                            :title="material.completed ? 'Completed — click to undo' : 'Mark as complete'"
+                                                            class="flex-shrink-0 transition-colors"
+                                                            :class="material.completed ? 'text-success-fg hover:text-success-fg/80' : 'text-content-faint hover:text-success-fg'"
+                                                        >
+                                                            <CheckCircleIconSolid v-if="material.completed" class="w-5 h-5" />
+                                                            <CheckCircleIcon v-else class="w-5 h-5" />
+                                                        </button>
                                                     </div>
 
                                                     <p v-if="material.description" class="text-sm text-content-muted mt-1 line-clamp-2">
@@ -771,55 +747,35 @@ onMounted(() => {
 
                                                     <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-3 text-xs text-content-muted">
                                                         <Badge :variant="getMaterialBadgeVariant(material.type)">{{ material.type }}</Badge>
-                                                        <span>{{ formatFileSize(material.size) }}</span>
-                                                        <span v-if="material.duration">{{ material.duration }}</span>
-                                                        <span v-if="material.pages">{{ material.pages }} pages</span>
+                                                        <span v-if="material.fileSize">{{ formatFileSize(material.fileSize) }}</span>
+                                                        <span v-if="material.uploadedAt">{{ formatDate(material.uploadedAt) }}</span>
                                                         <span v-if="material.downloadCount">{{ material.downloadCount }} downloads</span>
-                                                    </div>
-
-                                                    <!-- Assignment specific info -->
-                                                    <div v-if="material.type === 'assignment'" class="mt-3">
-                                                        <div class="flex items-center gap-4 text-xs">
-                                                            <span v-if="material.dueDate" :class="`font-medium ${
-                                                                isOverdue(material.dueDate)
-                                                                    ? 'text-danger-fg'
-                                                                    : 'text-content-muted'
-                                                            }`">
-                                                                Due: {{ formatDate(material.dueDate) }}
-                                                            </span>
-                                                            <span v-if="material.submitted" class="text-success-fg font-medium inline-flex items-center gap-1">
-                                                                <CheckCircleIcon class="w-3.5 h-3.5" /> Submitted
-                                                            </span>
-                                                            <span v-else-if="material.dueDate && !material.locked" class="text-warning-fg font-medium">
-                                                                Not Submitted
-                                                            </span>
-                                                        </div>
+                                                        <span v-if="!material.hasFile" class="text-content-faint italic">No file attached</span>
                                                     </div>
                                                 </div>
                                             </div>
 
                                             <!-- Action Buttons -->
-                                            <div v-if="!material.locked" class="flex items-center gap-2 mt-4 pt-4 border-t border-line">
-                                                <!-- Primary Action Button -->
+                                            <div class="flex items-center gap-2 mt-4 pt-4 border-t border-line">
                                                 <button
                                                     @click.stop="viewMaterial(material)"
-                                                    class="flex-1 ui-btn-primary text-sm"
+                                                    :disabled="!material.downloadUrl"
+                                                    class="flex-1 ui-btn-primary text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                                                 >
                                                     <component :is="material.format === 'video' ? PlayIcon : EyeIcon" class="w-4 h-4" />
                                                     {{ material.format === 'video' ? 'Play Video' : 'Open' }}
                                                 </button>
 
-                                                <!-- Download Button -->
                                                 <button
                                                     @click.stop="downloadMaterial(material)"
+                                                    :disabled="!material.downloadUrl"
                                                     aria-label="Download"
-                                                    class="px-3 py-2 bg-neutral-bg text-neutral-fg rounded-control hover:bg-primary-soft hover:text-primary transition-colors"
+                                                    class="px-3 py-2 bg-neutral-bg text-neutral-fg rounded-control hover:bg-primary-soft hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                                     title="Download"
                                                 >
                                                     <ArrowDownTrayIcon class="w-4 h-4" />
                                                 </button>
 
-                                                <!-- AI Assistant Button -->
                                                 <button
                                                     @click.stop="askAIAboutMaterial(material)"
                                                     aria-label="Ask AI about this material"
@@ -828,23 +784,6 @@ onMounted(() => {
                                                 >
                                                     <SparklesIcon class="w-4 h-4" />
                                                 </button>
-
-                                                <!-- Assignment Submission (if assignment) -->
-                                                <button
-                                                    v-if="material.type === 'assignment' && !material.submitted"
-                                                    @click.stop="submitAssignment(material)"
-                                                    class="px-3 py-2 bg-success-bg text-success-fg rounded-control hover:opacity-90 transition-opacity text-sm font-medium"
-                                                >
-                                                    Submit
-                                                </button>
-                                            </div>
-
-                                            <!-- Locked Material Message -->
-                                            <div v-if="material.locked" class="mt-4 p-3 bg-neutral-bg rounded-control">
-                                                <div class="flex items-center gap-2 text-sm text-content-muted">
-                                                    <LockClosedIcon class="w-4 h-4 flex-shrink-0" />
-                                                    <span>This material will be available after completing previous weeks</span>
-                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -875,14 +814,6 @@ onMounted(() => {
 </template>
 
 <style scoped>
-/* Line clamp utilities */
-.line-clamp-1 {
-    display: -webkit-box;
-    -webkit-line-clamp: 1;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
-
 .line-clamp-2 {
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -890,7 +821,6 @@ onMounted(() => {
     overflow: hidden;
 }
 
-/* Progress circle animation */
 circle {
     transition: stroke-dashoffset 0.5s ease-in-out;
 }

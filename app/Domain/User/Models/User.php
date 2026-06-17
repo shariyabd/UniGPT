@@ -81,6 +81,16 @@ class User extends Authenticatable
         return $this->hasMany(\App\Models\Course::class, 'faculty_id');
     }
 
+    /**
+     * Course materials this student has marked complete.
+     */
+    public function completedMaterials(): BelongsToMany
+    {
+        return $this->belongsToMany(\App\Models\CourseMaterial::class, 'material_completions')
+            ->withPivot('completed_at')
+            ->withTimestamps();
+    }
+
     public function submissions(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(\App\Models\AssignmentSubmission::class);

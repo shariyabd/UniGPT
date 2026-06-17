@@ -81,6 +81,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/documents/{document}/download', [StudentDashboardController::class, 'downloadDocument'])->middleware('permission:download_document')->name('documents.download');
         Route::get('/materials', [StudentDashboardController::class, 'materials'])->middleware('permission:view_courses')->name('materials');
         Route::get('/materials/{material}/download', [StudentDashboardController::class, 'downloadMaterial'])->middleware('permission:view_courses')->name('materials.download');
+        Route::patch('/materials/{material}/completion', [StudentDashboardController::class, 'toggleMaterialCompletion'])->middleware('permission:view_courses')->name('materials.completion');
         Route::get('/attendance', [StudentDashboardController::class, 'attendance'])->middleware('permission:view_attendance')->name('attendance');
         Route::get('/transcript', [StudentDashboardController::class, 'transcript'])->middleware('permission:view_courses')->name('transcript');
         Route::get('/exams', [StudentDashboardController::class, 'exams'])->middleware('permission:view_exams')->name('exams');
