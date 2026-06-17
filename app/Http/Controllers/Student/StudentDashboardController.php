@@ -287,22 +287,45 @@ class StudentDashboardController extends Controller
     private function buildRoadmap(User $user): array
     {
         $courses = $user->enrolledCourses()->with('faculty')->get();
-        $bysemester = $courses->groupBy('semester')->map(function ($group, $semester) {
-            return [
-                'semester' => $semester,
-                'title' => "Semester {$semester}",
-                'credits' => $group->sum('credits'),
-                'modules' => $group->map(fn ($c) => [
-                    'id' => $c->id,
-                    'title' => $c->name,
-                    'code' => $c->code,
-                    'status' => $c->pivot->status === 'completed' ? 'completed' : 'in-progress',
-                    'progress' => (int) $c->pivot->progress,
-                    'grade' => $c->pivot->grade,
-                    'credits' => $c->credits,
-                ])->values(),
-            ];
-        })->values();
+        $courseIds = $courses->pluck('id');
+
+        // Assignment deadlines per course, with this student's submission state.
+        $submittedAssignmentIds = \App\Models\AssignmentSubmission::where('user_id', $user->id)
+            ->pluck('assignment_id')
+            ->all();
+
+        $assignmentsByCourse = Assignment::whereIn('course_id', $courseIds)
+            ->whereNotNull('due_at')
+            ->orderBy('due_at')
+            ->get()
+            ->groupBy('course_id');
+
+        $bysemester = $courses->groupBy('semester')
+            ->map(function ($group, $semester) use ($assignmentsByCourse, $submittedAssignmentIds) {
+                return [
+                    'semester' => $semester,
+                    'title' => "Semester {$semester}",
+                    'credits' => $group->sum('credits'),
+                    'gpa' => $this->gpaFor($group),
+                    'modules' => $group->map(fn ($c) => [
+                        'id' => $c->id,
+                        'title' => $c->name,
+                        'code' => $c->code,
+                        'instructor' => $c->faculty?->name,
+                        'status' => $c->pivot->status === 'completed' ? 'completed' : 'in-progress',
+                        'progress' => (int) $c->pivot->progress,
+                        'grade' => $c->pivot->grade,
+                        'credits' => $c->credits,
+                        'assignments' => ($assignmentsByCourse->get($c->id) ?? collect())
+                            ->map(fn (Assignment $a) => [
+                                'id' => $a->id,
+                                'title' => $a->title,
+                                'due' => $a->due_at->toDateString(),
+                                'status' => in_array($a->id, $submittedAssignmentIds, strict: true) ? 'completed' : 'pending',
+                            ])->values(),
+                    ])->values(),
+                ];
+            })->values();
 
         return [
             'semesters' => $bysemester,
@@ -313,11 +336,45 @@ class StudentDashboardController extends Controller
         ];
     }
 
+    /**
+     * Grade-letter → grade-point scale (4.0 system).
+     *
+     * @var array<string, float>
+     */
+    private const GRADE_POINTS = [
+        'A' => 4.0, 'A-' => 3.7,
+        'B+' => 3.3, 'B' => 3.0, 'B-' => 2.7,
+        'C+' => 2.3, 'C' => 2.0, 'C-' => 1.7,
+        'D+' => 1.3, 'D' => 1.0,
+        'F' => 0.0,
+    ];
+
+    /**
+     * Credit-weighted GPA for a set of enrolled courses, or null when ungraded.
+     *
+     * @param  \Illuminate\Support\Collection<int, \App\Models\Course>  $courses
+     */
+    private function gpaFor($courses): ?float
+    {
+        $gradedCredits = 0.0;
+        $weightedPoints = 0.0;
+
+        foreach ($courses as $course) {
+            $points = self::GRADE_POINTS[$course->pivot->grade] ?? null;
+            if ($points === null) {
+                continue;
+            }
+            $gradedCredits += (float) $course->credits;
+            $weightedPoints += $points * (float) $course->credits;
+        }
+
+        return $gradedCredits > 0 ? round($weightedPoints / $gradedCredits, 2) : null;
+    }
+
     private function cgpa(User $user): float
     {
-        $points = ['A' => 4.0, 'A-' => 3.7, 'B+' => 3.3, 'B' => 3.0, 'B-' => 2.7, 'C+' => 2.3, 'C' => 2.0, 'D' => 1.0, 'F' => 0.0];
         $grades = $user->enrolledCourses()->get()
-            ->map(fn ($c) => $points[$c->pivot->grade] ?? null)
+            ->map(fn ($c) => self::GRADE_POINTS[$c->pivot->grade] ?? null)
             ->filter();
 
         return $grades->isEmpty() ? 0.0 : round($grades->avg(), 2);

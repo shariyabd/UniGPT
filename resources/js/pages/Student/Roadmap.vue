@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
@@ -23,8 +23,6 @@ import {
     EyeIcon,
     ChevronRightIcon,
     ChevronDownIcon,
-    ArrowRightIcon,
-    FireIcon,
     BeakerIcon,
     CodeBracketIcon,
     CpuChipIcon,
@@ -32,8 +30,6 @@ import {
     GlobeAltIcon,
     ShieldCheckIcon,
     SparklesIcon,
-    BoltIcon,
-    LightBulbIcon
 } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
@@ -41,11 +37,19 @@ const props = defineProps({
     student: Object
 });
 
-// Component state
-const selectedSemester = ref(props.student?.semester ?? 1); // Current semester
-const viewMode = ref('timeline'); // timeline, grid, progress
+// Component state. The roadmap groups by the numeric course semester, while
+// `student.semester` may be a label (e.g. "5th Semester") — so default to the
+// matching numeric semester when possible, otherwise the first one available.
+const initialSemester = (() => {
+    const semesters = props.roadmap?.semesters || [];
+    if (!semesters.length) return null;
+    const match = semesters.find((s) => String(s.semester) === String(props.student?.semester));
+    return (match ?? semesters[0]).semester;
+})();
+
+const selectedSemester = ref(initialSemester);
+const viewMode = ref('timeline'); // timeline, grid
 const expandedModules = ref(new Set()); // Currently expanded modules
-const selectedTrack = ref('core');
 
 // Student context — mapped from server `student` + `roadmap` props.
 const studentContext = computed(() => {
@@ -56,7 +60,7 @@ const studentContext = computed(() => {
         studentId: student.student_id,
         department: student.department ?? 'Not assigned',
         currentSemester: student.semester,
-        currentYear: student.semester ? `Semester ${student.semester}` : '',
+        currentYear: student.semester || '',
         overallProgress: roadmap.overallProgress ?? 0,
         cgpa: student.cgpa ?? roadmap.cgpa,
         completedCredits: roadmap.completedCredits ?? 0,
@@ -65,14 +69,11 @@ const studentContext = computed(() => {
 });
 
 
-// Roadmap data — mapped from server `roadmap.semesters`. The template expects
-// each module to expose `difficulty` and a `code`-based title; map those in.
+// Roadmap data — mapped from server `roadmap.semesters` (real per-semester GPA
+// and module assignments come from the backend).
 const roadmapData = computed(() => {
     const semesters = (props.roadmap?.semesters || []).map((semester) => {
-        const modules = (semester.modules || []).map((module) => ({
-            ...module,
-            difficulty: module.difficulty ?? 'medium'
-        }));
+        const modules = semester.modules || [];
         const allCompleted = modules.length > 0 && modules.every((module) => module.status === 'completed');
         const anyActive = modules.some((module) => module.status === 'in-progress');
         const status = allCompleted ? 'completed' : anyActive ? 'in-progress' : 'upcoming';
@@ -81,7 +82,7 @@ const roadmapData = computed(() => {
             title: semester.title,
             status,
             credits: semester.credits,
-            gpa: null,
+            gpa: semester.gpa ?? null,
             modules
         };
     });
@@ -126,17 +127,6 @@ const upcomingDeadlines = computed(() => {
     return deadlines.sort((a, b) => new Date(a.due) - new Date(b.due)).slice(0, 5);
 });
 
-// Utility functions
-const getStatusColor = (status) => {
-    const colors = {
-        completed: 'text-success-fg bg-success-bg',
-        'in-progress': 'text-primary bg-primary-soft',
-        locked: 'text-neutral-fg bg-neutral-bg',
-        upcoming: 'text-warning-fg bg-warning-bg'
-    };
-    return colors[status] || colors.upcoming;
-};
-
 // Maps a status string to a Badge variant.
 const getStatusVariant = (status) => {
     const variants = {
@@ -157,25 +147,6 @@ const getStatusIcon = (status) => {
         upcoming: ClockIcon
     };
     return icons[status] || ClockIcon;
-};
-
-const getDifficultyColor = (difficulty) => {
-    const colors = {
-        easy: 'text-success-fg bg-success-bg',
-        medium: 'text-warning-fg bg-warning-bg',
-        hard: 'text-danger-fg bg-danger-bg'
-    };
-    return colors[difficulty] || colors.medium;
-};
-
-// Maps a difficulty string to a Badge variant.
-const getDifficultyVariant = (difficulty) => {
-    const variants = {
-        easy: 'success',
-        medium: 'warning',
-        hard: 'danger'
-    };
-    return variants[difficulty] || 'warning';
 };
 
 const getGradeColor = (grade) => {
@@ -213,27 +184,29 @@ const getDaysUntil = (dateString) => {
 
 // Actions
 const toggleModuleExpansion = (moduleId) => {
-    if (expandedModules.value.has(moduleId)) {
-        expandedModules.value.delete(moduleId);
-    } else {
-        expandedModules.value.add(moduleId);
-    }
+    const next = new Set(expandedModules.value);
+    next.has(moduleId) ? next.delete(moduleId) : next.add(moduleId);
+    expandedModules.value = next;
 };
 
-const startModule = () => {
-    router.visit('/student/materials');
+const goToMaterials = () => {
+    router.visit(route('materials'));
 };
 
 const viewAssignment = () => {
-    router.visit('/student/materials');
+    // Assignment deadlines surface on the calendar.
+    router.visit(route('calendar'));
 };
 
 const downloadRoadmap = () => {
-    router.visit('/student/materials');
+    // Print-to-PDF via the browser dialog.
+    if (typeof window !== 'undefined') {
+        window.print();
+    }
 };
 
 const getAIRecommendations = () => {
-    router.visit('/chat');
+    router.visit(route('chat'));
 };
 </script>
 
@@ -497,11 +470,11 @@ const getAIRecommendations = () => {
                                                         <component :is="getStatusIcon(module.status)" class="w-3.5 h-3.5" />
                                                         {{ module.status }}
                                                     </Badge>
-                                                    <Badge :variant="getDifficultyVariant(module.difficulty)">
-                                                        {{ module.difficulty }}
-                                                    </Badge>
                                                     <span class="text-sm text-content-muted">
                                                         {{ module.credits }} credits
+                                                    </span>
+                                                    <span v-if="module.instructor" class="text-sm text-content-muted">
+                                                        • {{ module.instructor }}
                                                     </span>
                                                     <span v-if="module.grade" :class="`text-sm font-bold ${getGradeColor(module.grade)}`">
                                                         Grade: {{ module.grade }}
@@ -539,36 +512,13 @@ const getAIRecommendations = () => {
 
                                 <!-- Expanded Content -->
                                 <div v-if="expandedModules.has(module.id)" class="p-5 sm:p-6 bg-neutral-bg">
-                                    <!-- Current Topic (for in-progress modules) -->
-                                    <div v-if="module.currentTopic" class="mb-4">
-                                        <h4 class="font-semibold text-content mb-2">Currently Learning</h4>
-                                        <div class="p-3 bg-primary-soft rounded-control">
-                                            <p class="text-sm text-primary">{{ module.currentTopic }}</p>
-                                        </div>
-                                    </div>
-
-                                    <!-- Upcoming Topics -->
-                                    <div v-if="module.upcomingTopics && module.upcomingTopics.length" class="mb-4">
-                                        <h4 class="font-semibold text-content mb-2">Upcoming Topics</h4>
-                                        <div class="space-y-1">
-                                            <div
-                                                v-for="topic in module.upcomingTopics"
-                                                :key="topic"
-                                                class="flex items-center gap-2 text-sm text-content-muted"
-                                            >
-                                                <ArrowRightIcon class="w-4 h-4 text-content-faint shrink-0" />
-                                                {{ topic }}
-                                            </div>
-                                        </div>
-                                    </div>
-
                                     <!-- Assignments -->
                                     <div v-if="module.assignments && module.assignments.length" class="mb-4">
                                         <h4 class="font-semibold text-content mb-2">Assignments</h4>
                                         <div class="space-y-2">
                                             <div
                                                 v-for="assignment in module.assignments"
-                                                :key="assignment.title"
+                                                :key="assignment.id"
                                                 class="flex items-center justify-between gap-3 p-3 bg-surface rounded-control border border-line"
                                             >
                                                 <div class="min-w-0">
@@ -580,9 +530,10 @@ const getAIRecommendations = () => {
                                                         {{ assignment.status }}
                                                     </Badge>
                                                     <button
-                                                        @click="viewAssignment(module.id, assignment.title)"
+                                                        @click="viewAssignment"
                                                         class="p-1.5 text-content-muted hover:text-primary hover:bg-primary-soft rounded-control transition-colors"
-                                                        aria-label="View assignment"
+                                                        aria-label="View on calendar"
+                                                        title="View on calendar"
                                                     >
                                                         <EyeIcon class="w-4 h-4" />
                                                     </button>
@@ -590,44 +541,23 @@ const getAIRecommendations = () => {
                                             </div>
                                         </div>
                                     </div>
-
-                                    <!-- Prerequisites -->
-                                    <div v-if="module.prerequisites && module.prerequisites.length" class="mb-4">
-                                        <h4 class="font-semibold text-content mb-2">Prerequisites</h4>
-                                        <div class="flex flex-wrap gap-2">
-                                            <Badge
-                                                v-for="prereq in module.prerequisites"
-                                                :key="prereq"
-                                                variant="warning"
-                                            >
-                                                Module {{ prereq }}
-                                            </Badge>
-                                        </div>
-                                    </div>
+                                    <p v-else class="text-sm text-content-muted mb-4">No assignments for this course yet.</p>
 
                                     <!-- Action Buttons -->
                                     <div class="flex flex-wrap items-center gap-3 pt-4 border-t border-line">
                                         <button
                                             v-if="module.status === 'in-progress'"
-                                            @click="startModule(module.id)"
+                                            @click="goToMaterials"
                                             class="ui-btn-primary"
                                         >
                                             <PlayCircleIcon class="w-4 h-4" />
                                             Continue Learning
                                         </button>
-                                        <button
-                                            v-else-if="module.status === 'locked'"
-                                            disabled
-                                            class="ui-btn-secondary opacity-60 cursor-not-allowed"
-                                        >
-                                            <LockClosedIcon class="w-4 h-4" />
-                                            Prerequisites Required
-                                        </button>
-                                        <button class="ui-btn-secondary">
+                                        <button @click="goToMaterials" class="ui-btn-secondary">
                                             <BookOpenIcon class="w-4 h-4" />
                                             View Materials
                                         </button>
-                                        <Link href="/chat" class="ui-btn-ghost">
+                                        <Link :href="route('chat')" class="ui-btn-ghost">
                                             <ChatBubbleLeftRightIcon class="w-4 h-4" />
                                             Ask AI
                                         </Link>
