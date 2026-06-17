@@ -20,7 +20,7 @@ class SavedAnswerController extends Controller
     public function index(Request $request): Response
     {
         $user = $request->user();
-        $answers = $user->savedAnswers()->latest()->get();
+        $answers = $user->savedAnswers()->with('chatMessage:id,chat_session_id')->latest()->get();
 
         $folders = $answers->groupBy('folder')->map(fn ($items, $name) => [
             'id' => Str::slug($name) ?: 'general',
@@ -86,6 +86,23 @@ class SavedAnswerController extends Controller
     }
 
     /**
+     * Record that the student opened a saved answer (drives the view count and
+     * the "Recently Viewed" collection).
+     */
+    public function view(SavedAnswer $savedAnswer): JsonResponse
+    {
+        Gate::authorize('update', $savedAnswer);
+
+        $savedAnswer->increment('view_count');
+        $savedAnswer->update(['last_viewed_at' => now()]);
+
+        return response()->json([
+            'viewCount' => $savedAnswer->view_count,
+            'lastViewed' => $savedAnswer->last_viewed_at?->toIso8601String(),
+        ]);
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function present(SavedAnswer $answer): array
@@ -105,7 +122,10 @@ class SavedAnswerController extends Controller
             'viewCount' => $answer->view_count,
             'savedAt' => $answer->created_at?->toIso8601String(),
             'lastViewed' => optional($answer->last_viewed_at)->toIso8601String(),
-            'chatId' => $answer->chat_message_id,
+            // Deep-link back to the original conversation: the session to open and
+            // the message to highlight. sessionId is null if the message was deleted.
+            'sessionId' => $answer->chatMessage?->chat_session_id,
+            'messageId' => $answer->chat_message_id,
         ];
     }
 }

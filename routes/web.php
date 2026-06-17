@@ -74,6 +74,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/saved', [SavedAnswerController::class, 'index'])->middleware('permission:view_chat_history')->name('saved');
         Route::post('/saved', [SavedAnswerController::class, 'store'])->middleware('permission:use_ai_chat')->name('saved.store');
         Route::patch('/saved/{savedAnswer}', [SavedAnswerController::class, 'update'])->middleware('permission:use_ai_chat')->name('saved.update');
+        Route::post('/saved/{savedAnswer}/view', [SavedAnswerController::class, 'view'])->middleware('permission:view_chat_history')->name('saved.view');
         Route::delete('/saved/{savedAnswer}', [SavedAnswerController::class, 'destroy'])->middleware('permission:delete_chat')->name('saved.destroy');
         Route::get('/roadmap', [StudentDashboardController::class, 'roadmap'])->middleware('permission:view_courses')->name('roadmap');
         Route::get('/documents', [StudentDashboardController::class, 'documents'])->middleware('permission:view_documents')->name('documents');

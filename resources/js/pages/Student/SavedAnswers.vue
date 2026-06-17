@@ -1,6 +1,8 @@
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import axios from 'axios';
+import { useToast } from 'vue-toastification';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
 import Card from '@/components/ui/Card.vue';
@@ -12,6 +14,8 @@ const props = defineProps({
     folders: { type: Array, default: () => [] },
     categories: { type: Array, default: () => [] },
 });
+
+const toast = useToast();
 
 const slugify = (s) => (s || 'general').toString().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 import {
@@ -48,7 +52,6 @@ import {
 const viewMode = ref('grid'); // grid, list
 const searchQuery = ref('');
 const selectedCategory = ref('all');
-const selectedCourse = ref('all');
 const selectedTags = ref([]);
 const sortBy = ref('date_desc'); // date_desc, date_asc, title_asc, confidence_desc
 const showFilters = ref(false);
@@ -56,7 +59,6 @@ const selectedItems = ref(new Set());
 const showCreateFolder = ref(false);
 const newFolderName = ref('');
 const editingItem = ref(null);
-const showExportModal = ref(false);
 const expandedFolders = ref(new Set(['favorites', 'recent']));
 
 // Student context (from shared auth user)
@@ -74,7 +76,6 @@ const savedAnswers = ref(props.savedAnswers.map((a) => ({
     title: a.title,
     question: a.question ?? '',
     answer: a.answer ?? '',
-    course: a.category ?? 'General',
     category: a.category ?? 'General',
     tags: a.tags ?? [],
     confidence: a.confidence ?? 0,
@@ -85,7 +86,8 @@ const savedAnswers = ref(props.savedAnswers.map((a) => ({
     notes: a.notes ?? '',
     folder: slugify(a.folder),
     starred: a.starred ?? false,
-    chatId: a.chatId,
+    sessionId: a.sessionId ?? null,
+    messageId: a.messageId ?? null,
 })));
 
 // Folders: special (favorites/recent) + server-provided collections.
@@ -133,11 +135,6 @@ const filteredAnswers = computed(() => {
         filtered = filtered.filter(item => item.category === selectedCategory.value);
     }
 
-    // Course filter
-    if (selectedCourse.value !== 'all') {
-        filtered = filtered.filter(item => item.course === selectedCourse.value);
-    }
-
     // Tags filter
     if (selectedTags.value.length > 0) {
         filtered = filtered.filter(item =>
@@ -176,9 +173,10 @@ const folderItems = computed(() => {
         };
     });
 
-    // Add special folders
+    // Add special folders (copy before sorting so the source order isn't mutated)
     folderMap.favorites.items = savedAnswers.value.filter(item => item.starred);
-    folderMap.recent.items = savedAnswers.value
+    folderMap.recent.items = [...savedAnswers.value]
+        .filter(item => item.lastViewed)
         .sort((a, b) => new Date(b.lastViewed) - new Date(a.lastViewed))
         .slice(0, 10);
 
@@ -206,6 +204,9 @@ const allTags = computed(() => {
 });
 
 const selectedItemsCount = computed(() => selectedItems.value.size);
+
+// Real, user-defined collections (excludes the special Favorites/Recent views).
+const movableFolders = computed(() => folders.value.filter((f) => f.id !== 'favorites' && f.id !== 'recent'));
 
 // Utility functions
 const formatDate = (dateString) => {
@@ -342,7 +343,6 @@ const removeTagFilter = (tag) => {
 const clearFilters = () => {
     searchQuery.value = '';
     selectedCategory.value = 'all';
-    selectedCourse.value = 'all';
     selectedTags.value = [];
 };
 
@@ -362,18 +362,58 @@ const createFolder = () => {
     }
 };
 
+// Build a printable HTML document of the (filtered) answers and hand it to the
+// browser's print dialog, where the user can save it as a real PDF.
 const exportToPDF = () => {
-    showExportModal.value = true;
-    // Mock PDF export
-    setTimeout(() => {
-        alert('PDF export feature - would generate comprehensive study notes with citations');
-        showExportModal.value = false;
-    }, 2000);
+    const answers = filteredAnswers.value;
+    if (answers.length === 0) {
+        toast.info('Nothing to export with the current filters.');
+        return;
+    }
+
+    const esc = (s) => String(s ?? '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+    const body = answers.map((a) => `
+        <section style="margin:0 0 28px;page-break-inside:avoid;">
+            <h2 style="font-size:16px;margin:0 0 4px;">${esc(a.title)}</h2>
+            <div style="color:#666;font-size:12px;margin-bottom:8px;">${esc(a.category)} • ${a.confidence}% confidence • saved ${esc(formatDate(a.savedAt))}</div>
+            ${a.question ? `<p style="font-style:italic;color:#444;">Q: ${esc(a.question)}</p>` : ''}
+            <div style="white-space:pre-wrap;line-height:1.5;">${esc(a.answer)}</div>
+            ${a.notes ? `<p style="margin-top:8px;border-left:3px solid #f59e0b;padding-left:8px;color:#92400e;">Notes: ${esc(a.notes)}</p>` : ''}
+        </section>`).join('');
+
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>UniGPT — Saved Answers</title></head>
+        <body style="font-family:Inter,Arial,sans-serif;max-width:760px;margin:24px auto;padding:0 16px;color:#111;">
+            <h1 style="font-size:20px;">UniGPT — Saved Answers (${answers.length})</h1>
+            ${body}
+        </body></html>`;
+
+    const win = window.open('', '_blank');
+    if (!win) {
+        toast.error('Please allow pop-ups to export.');
+        return;
+    }
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    win.onload = () => win.print();
+    // Fallback if onload doesn't fire (already-loaded blank document).
+    setTimeout(() => { try { win.print(); } catch (e) { /* ignore */ } }, 400);
 };
 
-const goToOriginalChat = (chatId, messageId) => {
-    // Navigate to the original chat message
-    window.open(`/chat?chatId=${chatId}&messageId=${messageId}`, '_blank');
+const goToOriginalChat = (item) => {
+    if (!item.sessionId) {
+        toast.info('The original conversation is no longer available.');
+        return;
+    }
+
+    // Record the view (count + recency), then open the conversation deep-linked
+    // to the saved message.
+    axios.post(route('saved.view', item.id)).then(({ data }) => {
+        item.viewCount = data.viewCount;
+        item.lastViewed = data.lastViewed;
+    }).catch(() => { /* non-critical */ });
+
+    window.open(`/chat?session=${item.sessionId}&message=${item.messageId}`, '_blank');
 };
 
 const editNotes = (itemId) => {
@@ -382,21 +422,21 @@ const editNotes = (itemId) => {
 
 const saveNotes = (itemId, notes) => {
     const item = savedAnswers.value.find(a => a.id === itemId);
-    if (item) {
-        item.notes = notes;
-    }
+    if (item) item.notes = notes;
     editingItem.value = null;
+
+    router.patch(route('saved.update', itemId), { notes }, {
+        preserveScroll: true,
+        preserveState: true,
+        onSuccess: () => toast.success('Notes saved.'),
+        onError: () => toast.error('Could not save notes.'),
+    });
 };
 
-// Lifecycle
-onMounted(() => {
-    // Update view count for demo
-    savedAnswers.value.forEach((item, index) => {
-        if (index < 3) {
-            item.lastViewed = new Date().toISOString();
-        }
-    });
-});
+const shareAnswer = (item) => {
+    const text = `${item.title}\n\n${item.question ? 'Q: ' + item.question + '\n\n' : ''}${item.answer}`;
+    navigator.clipboard.writeText(text).then(() => toast.success('Answer copied to clipboard.'));
+};
 </script>
 
 <template>
@@ -503,7 +543,7 @@ onMounted(() => {
                                             </span>
                                             <div class="min-w-0 flex-1">
                                                 <div class="truncate text-sm font-medium text-content">{{ folder.name }}</div>
-                                                <div class="text-xs text-content-muted">{{ folder.count }} items</div>
+                                                <div class="text-xs text-content-muted">{{ folderItems[folder.id] ? folderItems[folder.id].count : 0 }} items</div>
                                             </div>
                                         </button>
 
@@ -524,16 +564,6 @@ onMounted(() => {
                                     </div>
                                 </div>
 
-                                <!-- Course Filter -->
-                                <div class="mt-6 border-t border-line pt-6">
-                                    <label class="ui-label mb-2">Filter by Course</label>
-                                    <select v-model="selectedCourse" class="ui-input">
-                                        <option value="all">All Courses</option>
-                                        <option v-for="course in studentContext.currentCourses" :key="course" :value="course">
-                                            {{ course }}
-                                        </option>
-                                    </select>
-                                </div>
                             </Card>
                         </div>
                     </div>
@@ -658,10 +688,17 @@ onMounted(() => {
                                         {{ selectedItemsCount }} items selected
                                     </span>
                                     <div class="flex items-center gap-2">
-                                        <button @click="bulkMoveToFolder('exam-prep')" class="ui-btn-secondary text-sm">
-                                            <FolderIcon class="h-4 w-4" />
-                                            Move to Exam Prep
-                                        </button>
+                                        <select
+                                            :value="''"
+                                            @change="bulkMoveToFolder($event.target.value); $event.target.value = ''"
+                                            class="ui-input w-auto text-sm"
+                                            aria-label="Move selected to folder"
+                                        >
+                                            <option value="" disabled>Move to folder…</option>
+                                            <option v-for="folder in movableFolders" :key="folder.id" :value="folder.id">
+                                                {{ folder.name }}
+                                            </option>
+                                        </select>
                                         <button @click="bulkDelete" class="ui-btn-danger text-sm">
                                             <TrashIcon class="h-4 w-4" />
                                             Delete Selected
@@ -731,8 +768,7 @@ onMounted(() => {
 
                                             <!-- Metadata -->
                                             <div class="mb-4 flex flex-wrap items-center gap-2">
-                                                <span class="inline-flex items-center rounded-pill bg-primary-soft px-2.5 py-1 text-xs font-medium text-primary">{{ answer.course }}</span>
-                                                <span class="inline-flex items-center rounded-pill bg-neutral-bg px-2.5 py-1 text-xs font-medium text-neutral-fg">{{ answer.category }}</span>
+                                                <span class="inline-flex items-center rounded-pill bg-primary-soft px-2.5 py-1 text-xs font-medium text-primary">{{ answer.category }}</span>
                                                 <Badge :variant="getConfidenceVariant(answer.confidence)">
                                                     {{ answer.confidence }}% confident
                                                 </Badge>
@@ -819,8 +855,10 @@ onMounted(() => {
                                     <div class="flex items-center justify-between border-t border-line pt-4">
                                         <div class="flex items-center gap-1">
                                             <button
-                                                @click="goToOriginalChat(answer.chatId, answer.messageId)"
-                                                class="inline-flex items-center gap-1.5 rounded-control px-3 py-1.5 text-sm font-semibold text-content-muted transition-colors hover:bg-primary-soft hover:text-primary"
+                                                @click="goToOriginalChat(answer)"
+                                                :disabled="!answer.sessionId"
+                                                :title="answer.sessionId ? 'Open the original conversation' : 'Original conversation no longer available'"
+                                                class="inline-flex items-center gap-1.5 rounded-control px-3 py-1.5 text-sm font-semibold text-content-muted transition-colors hover:bg-primary-soft hover:text-primary disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-content-muted"
                                             >
                                                 <ChatBubbleLeftRightIcon class="h-4 w-4" />
                                                 View in Chat
@@ -836,9 +874,10 @@ onMounted(() => {
 
                                         <div class="flex items-center gap-1">
                                             <button
+                                                @click="shareAnswer(answer)"
                                                 class="rounded-control p-1.5 text-content-faint transition-colors hover:bg-primary-soft hover:text-primary"
-                                                aria-label="Share"
-                                                title="Share"
+                                                aria-label="Copy answer"
+                                                title="Copy answer to clipboard"
                                             >
                                                 <ShareIcon class="h-4 w-4" />
                                             </button>
@@ -861,13 +900,13 @@ onMounted(() => {
                             <EmptyState
                                 title="No saved answers found"
                                 :icon="BookmarkIcon"
-                                :description="searchQuery || selectedCategory !== 'all' || selectedCourse !== 'all' || selectedTags.length > 0
+                                :description="searchQuery || selectedCategory !== 'all' || selectedTags.length > 0
                                     ? 'Try adjusting your filters or search terms.'
                                     : 'Start saving helpful AI responses from your chats to build your personal knowledge library.'"
                             >
                                 <div class="flex flex-wrap justify-center gap-3">
                                     <button
-                                        v-if="searchQuery || selectedCategory !== 'all' || selectedCourse !== 'all' || selectedTags.length > 0"
+                                        v-if="searchQuery || selectedCategory !== 'all' || selectedTags.length > 0"
                                         @click="clearFilters"
                                         class="ui-btn-secondary"
                                     >
@@ -880,28 +919,6 @@ onMounted(() => {
                                 </div>
                             </EmptyState>
                         </Card>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Export Modal -->
-            <div v-if="showExportModal" class="fixed inset-0 z-50 overflow-y-auto">
-                <div class="flex min-h-full items-center justify-center p-4">
-                    <div class="fixed inset-0 bg-content/40 backdrop-blur-sm"></div>
-
-                    <div class="ui-card relative w-full max-w-md p-6">
-                        <div class="text-center">
-                            <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-card bg-success-bg text-success-fg">
-                                <DocumentArrowDownIcon class="h-8 w-8" />
-                            </div>
-                            <h3 class="mb-2 text-xl font-bold text-content">
-                                Generating Study Notes
-                            </h3>
-                            <p class="mb-4 text-sm text-content-muted">
-                                Creating comprehensive PDF with citations and sources...
-                            </p>
-                            <div class="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
-                        </div>
                     </div>
                 </div>
             </div>
