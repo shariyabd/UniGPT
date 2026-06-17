@@ -16,7 +16,9 @@ class DocumentResource extends JsonResource
     public function toArray(Request $request): array
     {
         $user = $request->user();
-        $downloadRoute = $user && $user->isAdmin() ? 'admin.documents.download' : 'documents.download';
+        $isAdmin = $user && $user->isAdmin();
+        $downloadRoute = $isAdmin ? 'admin.documents.download' : 'documents.download';
+        $previewRoute = $isAdmin ? 'admin.documents.preview' : 'documents.preview';
 
         return [
             'id' => $this->id,
@@ -39,6 +41,7 @@ class DocumentResource extends JsonResource
             'approvedAt' => $this->approved_at?->toDateString(),
             'rejectionReason' => $this->rejection_reason,
             'downloadUrl' => Route::has($downloadRoute) ? route($downloadRoute, $this->id) : null,
+            'previewUrl' => Route::has($previewRoute) ? route($previewRoute, $this->id) : null,
         ];
     }
 

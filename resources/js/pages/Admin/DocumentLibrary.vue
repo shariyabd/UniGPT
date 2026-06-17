@@ -1,6 +1,8 @@
 <script setup>
 import { ref, computed } from 'vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
+import { useToast } from 'vue-toastification';
+import { useConfirm } from '@/composables/useConfirm';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
 import Card from '@/components/ui/Card.vue';
@@ -28,6 +30,7 @@ import {
     DocumentChartBarIcon,
     PresentationChartBarIcon,
     XMarkIcon,
+    TrashIcon,
 } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
@@ -38,11 +41,15 @@ const props = defineProps({
     filters: { type: Object, default: () => ({}) },
 });
 
+const toast = useToast();
+const { confirm } = useConfirm();
+
 // Component state
 const viewMode = ref('grid');
 const selectedCategory = ref('all');
 const selectedDepartment = ref('all');
 const selectedFileType = ref('all');
+const selectedStatus = ref('all');
 const sortBy = ref('recent');
 const searchQuery = ref('');
 const showFilters = ref(false);
@@ -65,9 +72,14 @@ const documents = ref((props.documents?.data ?? []).map((d) => ({
     downloads: d.downloads,
     tags: d.tags ?? [],
     downloadUrl: d.downloadUrl,
+    previewUrl: d.previewUrl,
     isBookmarked: false,
     rating: null,
 })));
+
+// Server pagination metadata (from the Laravel paginator wrapped by the resource).
+const pagination = computed(() => props.documents?.meta ?? null);
+const pageLinks = computed(() => props.documents?.links ?? {});
 
 // Filter options derived from server-provided facets.
 const categories = computed(() => [
@@ -86,6 +98,15 @@ const fileTypes = [
     { value: 'docx', label: 'Word Document' },
     { value: 'txt', label: 'Text' },
     { value: 'pptx', label: 'PowerPoint' }
+];
+
+const statusOptions = [
+    { value: 'all', label: 'All Statuses' },
+    { value: 'pending', label: 'Pending' },
+    { value: 'approved', label: 'Approved' },
+    { value: 'processing', label: 'Processing' },
+    { value: 'rejected', label: 'Rejected' },
+    { value: 'draft', label: 'Draft' },
 ];
 
 const sortOptions = [
@@ -109,6 +130,10 @@ const filteredDocuments = computed(() => {
 
     if (selectedFileType.value !== 'all') {
         filtered = filtered.filter(doc => doc.fileType.toLowerCase() === selectedFileType.value);
+    }
+
+    if (selectedStatus.value !== 'all') {
+        filtered = filtered.filter(doc => (doc.status ?? '').toLowerCase() === selectedStatus.value);
     }
 
     if (searchQuery.value) {
@@ -207,29 +232,73 @@ const toggleBookmark = (docId) => {
 };
 
 const downloadDocument = (doc) => {
-    if (doc.downloadUrl) {
-        window.open(doc.downloadUrl, '_blank');
-        doc.downloads++;
+    if (!doc.downloadUrl) {
+        toast.error('This document has no file to download.');
+        return;
     }
+
+    // Trigger a real download without opening a blank tab.
+    const link = document.createElement('a');
+    link.href = doc.downloadUrl;
+    link.rel = 'noopener';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    doc.downloads++;
 };
 
 const previewDocument = (doc) => {
-    if (doc.downloadUrl) {
-        window.open(doc.downloadUrl, '_blank');
-        doc.views++;
+    const url = doc.previewUrl ?? doc.downloadUrl;
+    if (!url) {
+        toast.error('This document has no file to preview.');
+        return;
+    }
+
+    // Open inline in a new tab (PDFs/text render in-browser).
+    window.open(url, '_blank', 'noopener');
+    doc.views++;
+};
+
+const shareDocument = async (doc) => {
+    const path = doc.previewUrl ?? doc.downloadUrl;
+    if (!path) {
+        toast.error('This document has no shareable link.');
+        return;
+    }
+
+    const url = path.startsWith('http') ? path : window.location.origin + path;
+
+    try {
+        await navigator.clipboard.writeText(url);
+        toast.success('Document link copied to clipboard.');
+    } catch {
+        toast.error('Could not copy the link. Please copy it manually.');
     }
 };
 
-const shareDocument = (doc) => {
-    if (doc.downloadUrl && navigator.clipboard) {
-        navigator.clipboard.writeText(window.location.origin + doc.downloadUrl);
-    }
+const deleteDocument = async (doc) => {
+    const confirmed = await confirm({
+        title: 'Delete document',
+        message: `This will permanently delete "${doc.title}". This action cannot be undone.`,
+        confirmLabel: 'Delete',
+        variant: 'danger',
+    });
+
+    if (!confirmed) return;
+
+    router.delete(route('admin.documents.destroy', doc.id), {
+        preserveScroll: true,
+        onSuccess: () => {
+            documents.value = documents.value.filter((d) => d.id !== doc.id);
+        },
+    });
 };
 
 const clearAllFilters = () => {
     selectedCategory.value = 'all';
     selectedDepartment.value = 'all';
     selectedFileType.value = 'all';
+    selectedStatus.value = 'all';
     searchQuery.value = '';
     sortBy.value = 'recent';
 };
@@ -321,7 +390,17 @@ const clearAllFilters = () => {
                         v-if="showFilters"
                         class="mt-6 border-t border-line pt-6"
                     >
-                        <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+                        <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+                            <!-- Status Filter -->
+                            <div>
+                                <label class="ui-label">Status</label>
+                                <select v-model="selectedStatus" class="ui-input">
+                                    <option v-for="status in statusOptions" :key="status.value" :value="status.value">
+                                        {{ status.label }}
+                                    </option>
+                                </select>
+                            </div>
+
                             <!-- Category Filter -->
                             <div>
                                 <label class="ui-label">Category</label>
@@ -483,13 +562,22 @@ const clearAllFilters = () => {
                                     </button>
                                 </div>
 
-                                <button
-                                    @click="shareDocument(document)"
-                                    class="rounded-control p-1.5 text-content-faint transition-colors hover:bg-primary-soft hover:text-primary"
-                                    aria-label="Share document"
-                                >
-                                    <ShareIcon class="h-4 w-4" />
-                                </button>
+                                <div class="flex items-center gap-1">
+                                    <button
+                                        @click="shareDocument(document)"
+                                        class="rounded-control p-1.5 text-content-faint transition-colors hover:bg-primary-soft hover:text-primary"
+                                        aria-label="Share document"
+                                    >
+                                        <ShareIcon class="h-4 w-4" />
+                                    </button>
+                                    <button
+                                        @click="deleteDocument(document)"
+                                        class="rounded-control p-1.5 text-content-faint transition-colors hover:bg-danger-bg hover:text-danger-fg"
+                                        aria-label="Delete document"
+                                    >
+                                        <TrashIcon class="h-4 w-4" />
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </Card>
@@ -596,6 +684,13 @@ const clearAllFilters = () => {
                                             >
                                                 <ShareIcon class="h-4 w-4" />
                                             </button>
+                                            <button
+                                                @click="deleteDocument(document)"
+                                                class="rounded-control p-1.5 text-content-faint transition-colors hover:bg-danger-bg hover:text-danger-fg"
+                                                aria-label="Delete document"
+                                            >
+                                                <TrashIcon class="h-4 w-4" />
+                                            </button>
                                         </div>
                                     </td>
                                 </tr>
@@ -618,20 +713,38 @@ const clearAllFilters = () => {
                     </EmptyState>
                 </Card>
 
-                <!-- Pagination -->
-                <div v-if="filteredDocuments.length > 0" class="flex items-center justify-center">
+                <!-- Pagination (real server paging; only shown when there is more than one page) -->
+                <div
+                    v-if="pagination && pagination.last_page > 1"
+                    class="flex flex-col items-center justify-between gap-3 sm:flex-row"
+                >
+                    <p class="text-sm text-content-muted">
+                        Showing {{ pagination.from }}–{{ pagination.to }} of {{ pagination.total }} documents
+                    </p>
                     <nav class="flex items-center gap-2">
-                        <button class="ui-btn-secondary">Previous</button>
-                        <button class="inline-flex h-9 w-9 items-center justify-center rounded-control bg-primary text-sm font-medium text-white">
-                            1
-                        </button>
-                        <button class="inline-flex h-9 w-9 items-center justify-center rounded-control border border-line bg-surface text-sm text-content transition-colors hover:bg-bg">
-                            2
-                        </button>
-                        <button class="inline-flex h-9 w-9 items-center justify-center rounded-control border border-line bg-surface text-sm text-content transition-colors hover:bg-bg">
-                            3
-                        </button>
-                        <button class="ui-btn-secondary">Next</button>
+                        <Link
+                            v-if="pageLinks.prev"
+                            :href="pageLinks.prev"
+                            preserve-scroll
+                            class="ui-btn-secondary"
+                        >
+                            Previous
+                        </Link>
+                        <span v-else class="ui-btn-secondary cursor-not-allowed opacity-50">Previous</span>
+
+                        <span class="px-2 text-sm text-content-muted">
+                            Page {{ pagination.current_page }} of {{ pagination.last_page }}
+                        </span>
+
+                        <Link
+                            v-if="pageLinks.next"
+                            :href="pageLinks.next"
+                            preserve-scroll
+                            class="ui-btn-secondary"
+                        >
+                            Next
+                        </Link>
+                        <span v-else class="ui-btn-secondary cursor-not-allowed opacity-50">Next</span>
                     </nav>
                 </div>
             </div>

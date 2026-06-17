@@ -134,13 +134,32 @@ class DocumentService
     }
 
     /**
+     * Every document for the approval workflow, in any status, so admins can
+     * review the queue and revisit already-decided documents (filtered by
+     * status client-side).
+     */
+    public function reviewQueue(): Collection
+    {
+        return Document::with(['uploader', 'department', 'approvals.reviewer'])
+            ->latest()
+            ->get();
+    }
+
+    /**
      * Approved documents for the library, optionally filtered.
+     *
+     * @param  array<string, mixed>  $filters
+     */
+    /**
+     * Admin document library — shows documents in every status (pending,
+     * approved, rejected, …) so admins can see and manage their own uploads,
+     * not just approved ones. Status can be narrowed via the `status` filter.
      *
      * @param  array<string, mixed>  $filters
      */
     public function library(array $filters = [], int $perPage = 12): LengthAwarePaginator
     {
-        return $this->applyFilters(Document::approved()->with(['uploader', 'department']), $filters)
+        return $this->applyFilters(Document::with(['uploader', 'department']), $filters)
             ->latest()
             ->paginate($perPage)
             ->withQueryString();
@@ -159,6 +178,33 @@ class DocumentService
             ->latest()
             ->paginate($perPage)
             ->withQueryString();
+    }
+
+    /**
+     * Stats for the upload page sidebar (today / this week / pending / storage).
+     *
+     * @return array<string, mixed>
+     */
+    public function uploadStatistics(): array
+    {
+        return [
+            'today' => Document::whereDate('created_at', today())->count(),
+            'this_week' => Document::where('created_at', '>=', now()->startOfWeek())->count(),
+            'pending_review' => Document::where('status', DocumentStatus::PENDING->value)->count(),
+            'storage_used' => $this->humanBytes((int) Document::sum('file_size')),
+        ];
+    }
+
+    private function humanBytes(int $bytes): string
+    {
+        if ($bytes <= 0) {
+            return '0 B';
+        }
+
+        $units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        $power = min((int) floor(log($bytes, 1024)), count($units) - 1);
+
+        return round($bytes / (1024 ** $power), 1).' '.$units[$power];
     }
 
     /**
@@ -182,6 +228,10 @@ class DocumentService
     {
         if (! empty($filters['category']) && $filters['category'] !== 'all') {
             $query->where('category', $filters['category']);
+        }
+
+        if (! empty($filters['status']) && $filters['status'] !== 'all') {
+            $query->where('status', $filters['status']);
         }
 
         if (! empty($filters['department_id'])) {

@@ -4,6 +4,7 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
 import Card from '@/components/ui/Card.vue';
+import { useConfirm } from '@/composables/useConfirm';
 import {
     ArrowUpTrayIcon,
     CloudArrowUpIcon,
@@ -23,9 +24,12 @@ const props = defineProps({
     departments: { type: Array, default: () => [] },
     categories: { type: Array, default: () => [] },
     recentUploads: { type: Object, default: () => ({ data: [] }) },
+    stats: { type: Object, default: () => ({}) },
 });
 
 // Upload state management
+const { notify } = useConfirm();
+
 const dragActive = ref(false);
 const uploadedFiles = ref([]);
 const isUploading = ref(false);
@@ -89,12 +93,18 @@ const validateFile = (file) => {
     const fileExtension = file.name.split('.').pop().toLowerCase();
 
     if (!allowedTypes.includes(fileExtension)) {
-        alert('File type not allowed. Please upload PDF, DOC, DOCX, TXT, PPT, or PPTX files.');
+        notify({
+            title: 'File type not allowed',
+            message: 'Please upload a PDF, DOC, DOCX, TXT, PPT, or PPTX file.'
+        });
         return false;
     }
 
     if (file.size > maxSize) {
-        alert('File size too large. Maximum size is 50MB.');
+        notify({
+            title: 'File too large',
+            message: 'The maximum file size is 50MB.'
+        });
         return false;
     }
 
@@ -488,19 +498,19 @@ const getStatusColor = (status) => {
                             <div class="space-y-3 text-sm">
                                 <div class="flex justify-between">
                                     <span class="text-content-muted">Today</span>
-                                    <span class="font-semibold text-content">12 files</span>
+                                    <span class="font-semibold text-content">{{ stats.today || 0 }} files</span>
                                 </div>
                                 <div class="flex justify-between">
                                     <span class="text-content-muted">This Week</span>
-                                    <span class="font-semibold text-content">89 files</span>
+                                    <span class="font-semibold text-content">{{ stats.this_week || 0 }} files</span>
                                 </div>
                                 <div class="flex justify-between">
                                     <span class="text-content-muted">Pending Review</span>
-                                    <span class="font-semibold text-content">23 files</span>
+                                    <span class="font-semibold text-content">{{ stats.pending_review || 0 }} files</span>
                                 </div>
                                 <div class="flex justify-between">
                                     <span class="text-content-muted">Storage Used</span>
-                                    <span class="font-semibold text-content">2.4 GB</span>
+                                    <span class="font-semibold text-content">{{ stats.storage_used || '0 B' }}</span>
                                 </div>
                             </div>
                         </Card>

@@ -150,6 +150,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/documents', [AdminDocumentController::class, 'store'])->middleware('permission:upload_document')->name('documents.store');
         Route::get('/documents', [AdminDocumentController::class, 'library'])->middleware('permission:view_documents')->name('documents');
         Route::get('/documents/{document}/download', [AdminDocumentController::class, 'download'])->middleware('permission:download_document')->name('documents.download');
+        Route::get('/documents/{document}/preview', [AdminDocumentController::class, 'preview'])->middleware('permission:view_documents')->name('documents.preview');
         Route::delete('/documents/{document}', [AdminDocumentController::class, 'destroy'])->middleware('permission:delete_document')->name('documents.destroy');
 
         Route::get('/approvals', [AdminDocumentController::class, 'approvals'])->middleware('permission:approve_document')->name('approvals');

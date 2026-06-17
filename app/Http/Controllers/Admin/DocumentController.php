@@ -26,6 +26,7 @@ class DocumentController extends Controller
             'recentUploads' => DocumentResource::collection(
                 Document::with(['uploader', 'department'])->latest()->limit(5)->get()
             ),
+            'stats' => $this->documents->uploadStatistics(),
         ]);
     }
 
@@ -42,7 +43,7 @@ class DocumentController extends Controller
 
     public function library(Request $request): Response
     {
-        $filters = $request->only(['category', 'department_id', 'file_type', 'search']);
+        $filters = $request->only(['category', 'department_id', 'file_type', 'search', 'status']);
 
         return Inertia::render('Admin/DocumentLibrary', [
             'documents' => DocumentResource::collection($this->documents->library($filters)),
@@ -55,7 +56,7 @@ class DocumentController extends Controller
 
     public function approvals(): Response
     {
-        $pending = $this->documents->pendingQueue()->map(
+        $pending = $this->documents->reviewQueue()->map(
             fn (Document $document) => $this->presentForApproval($document)
         );
 
@@ -103,7 +104,6 @@ class DocumentController extends Controller
             'uploadDate' => $document->created_at?->toIso8601String(),
             'size' => (new DocumentResource($document))->resolve()['fileSize'],
             'fileType' => strtoupper((string) $document->file_type),
-            'priority' => 'normal',
             'status' => $document->status->value,
             'tags' => $document->tags ?? [],
             'version' => $document->version,
@@ -116,6 +116,7 @@ class DocumentController extends Controller
             'comments' => $comments,
             'approvalHistory' => $history,
             'downloadUrl' => route('admin.documents.download', $document->id),
+            'previewUrl' => route('admin.documents.preview', $document->id),
         ];
     }
 
@@ -152,11 +153,28 @@ class DocumentController extends Controller
 
     public function download(Document $document)
     {
+        abort_unless($document->file_path && Storage::disk('local')->exists($document->file_path), 404);
+
         $this->documents->recordDownload($document);
 
         return Storage::disk('local')->download(
             $document->file_path,
             $document->original_filename ?? $document->title
+        );
+    }
+
+    public function preview(Document $document)
+    {
+        abort_unless($document->file_path && Storage::disk('local')->exists($document->file_path), 404);
+
+        $this->documents->recordView($document);
+
+        // Serve inline so PDFs/text render in the browser instead of downloading.
+        return Storage::disk('local')->response(
+            $document->file_path,
+            $document->original_filename ?? $document->title,
+            ['Content-Type' => Storage::disk('local')->mimeType($document->file_path) ?: 'application/octet-stream'],
+            'inline'
         );
     }
 

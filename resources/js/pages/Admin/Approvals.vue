@@ -19,6 +19,7 @@ import {
     UserIcon,
     TagIcon,
     ArrowDownTrayIcon,
+    ArrowTopRightOnSquareIcon,
     MagnifyingGlassIcon,
     ChevronDownIcon,
     ChevronUpIcon,
@@ -30,9 +31,8 @@ const props = defineProps({
     stats: { type: Object, default: () => ({}) },
 });
 
-// Component state
-const selectedStatus = ref('all');
-const selectedPriority = ref('all');
+// Component state — default to the pending review queue.
+const selectedStatus = ref('pending');
 const searchQuery = ref('');
 const selectedDocument = ref(null);
 const showPreviewModal = ref(false);
@@ -46,20 +46,12 @@ const pendingDocuments = computed(() => props.pendingDocuments);
 
 // Filter options
 const statusOptions = computed(() => [
-    { value: 'all', label: 'All Status', count: props.stats.pending ?? 0 },
+    { value: 'all', label: 'All Status', count: props.stats.total ?? 0 },
     { value: 'pending', label: 'Pending Review', count: props.stats.pending ?? 0 },
     { value: 'processing', label: 'Processing', count: props.stats.processing ?? 0 },
     { value: 'approved', label: 'Approved', count: props.stats.approved ?? 0 },
     { value: 'rejected', label: 'Rejected', count: props.stats.rejected ?? 0 }
 ]);
-
-const priorityOptions = [
-    { value: 'all', label: 'All Priorities' },
-    { value: 'urgent', label: 'Urgent', color: 'red' },
-    { value: 'high', label: 'High Priority', color: 'orange' },
-    { value: 'normal', label: 'Normal', color: 'blue' },
-    { value: 'low', label: 'Low Priority', color: 'gray' }
-];
 
 // Computed properties
 const filteredDocuments = computed(() => {
@@ -68,11 +60,6 @@ const filteredDocuments = computed(() => {
     // Filter by status
     if (selectedStatus.value !== 'all') {
         filtered = filtered.filter(doc => doc.status === selectedStatus.value);
-    }
-
-    // Filter by priority
-    if (selectedPriority.value !== 'all') {
-        filtered = filtered.filter(doc => doc.priority === selectedPriority.value);
     }
 
     // Filter by search query
@@ -110,16 +97,6 @@ const getTimeAgo = (dateString) => {
     if (diffInHours < 24) return `${diffInHours}h ago`;
     const diffInDays = Math.floor(diffInHours / 24);
     return `${diffInDays}d ago`;
-};
-
-const getPriorityColor = (priority) => {
-    const colors = {
-        urgent: 'bg-danger-bg text-danger-fg',
-        high: 'bg-warning-bg text-warning-fg',
-        normal: 'bg-primary-soft text-primary',
-        low: 'bg-neutral-bg text-neutral-fg'
-    };
-    return colors[priority] || colors.normal;
 };
 
 // Map document status to Badge variant (pending=warning, approved=success, rejected=danger).
@@ -195,10 +172,15 @@ const requestChanges = (document) => {
     openCommentModal(document, 'changes');
 };
 
-const downloadDocument = (document) => {
-    if (document.downloadUrl) {
-        window.open(document.downloadUrl, '_blank');
-    }
+const downloadDocument = (doc) => {
+    if (!doc.downloadUrl) return;
+
+    const link = window.document.createElement('a');
+    link.href = doc.downloadUrl;
+    link.rel = 'noopener';
+    window.document.body.appendChild(link);
+    link.click();
+    link.remove();
 };
 </script>
 
@@ -217,7 +199,7 @@ const downloadDocument = (document) => {
                 >
                     <template #actions>
                         <Badge variant="warning" dot>
-                            {{ filteredDocuments.length }} pending
+                            {{ stats.pending || 0 }} pending
                         </Badge>
                         <Link href="/admin/dashboard" class="ui-btn-secondary">
                             Dashboard
@@ -253,17 +235,6 @@ const downloadDocument = (document) => {
                                     {{ status.label }} ({{ status.count }})
                                 </option>
                             </select>
-
-                            <!-- Priority Filter -->
-                            <select
-                                v-model="selectedPriority"
-                                class="ui-input"
-                                aria-label="Filter by priority"
-                            >
-                                <option v-for="priority in priorityOptions" :key="priority.value" :value="priority.value">
-                                    {{ priority.label }}
-                                </option>
-                            </select>
                         </div>
                     </div>
                 </Card>
@@ -293,9 +264,6 @@ const downloadDocument = (document) => {
                                                 </h3>
 
                                                 <div class="flex items-center gap-2 flex-shrink-0">
-                                                    <span :class="`px-3 py-1 rounded-pill text-xs font-bold ${getPriorityColor(document.priority)}`">
-                                                        {{ document.priority.toUpperCase() }}
-                                                    </span>
                                                     <Badge :variant="getStatusVariant(document.status)">
                                                         <component :is="getStatusIcon(document.status)" class="w-3 h-3 mr-1" />
                                                         {{ document.status.replace('_', ' ').toUpperCase() }}
@@ -521,7 +489,7 @@ const downloadDocument = (document) => {
                         :icon="DocumentTextIcon"
                     >
                         <button
-                            @click="searchQuery = ''; selectedStatus = 'all'; selectedPriority = 'all'"
+                            @click="searchQuery = ''; selectedStatus = 'all'"
                             class="ui-btn-primary"
                         >
                             Clear Filters
@@ -572,28 +540,50 @@ const downloadDocument = (document) => {
                 <div class="flex min-h-full items-center justify-center p-4">
                     <div class="fixed inset-0 bg-content/40 backdrop-blur-sm" @click="showPreviewModal = false"></div>
 
-                    <div class="relative w-full max-w-4xl bg-surface rounded-card border border-line shadow-card">
-                        <div class="p-6">
-                            <div class="flex items-center justify-between mb-4">
-                                <h3 class="text-lg font-bold text-content">
-                                    Document Preview: {{ selectedDocument?.title }}
-                                </h3>
+                    <div class="relative flex h-[85vh] w-full max-w-5xl flex-col overflow-hidden bg-surface rounded-card border border-line shadow-card">
+                        <div class="flex items-center justify-between gap-3 border-b border-line px-6 py-4">
+                            <h3 class="text-lg font-bold text-content truncate">
+                                {{ selectedDocument?.title }}
+                            </h3>
+                            <div class="flex items-center gap-2 flex-shrink-0">
+                                <a
+                                    v-if="selectedDocument?.previewUrl"
+                                    :href="selectedDocument.previewUrl"
+                                    target="_blank"
+                                    rel="noopener"
+                                    class="ui-btn-ghost"
+                                >
+                                    <ArrowTopRightOnSquareIcon class="w-4 h-4 mr-1" />
+                                    Open in new tab
+                                </a>
+                                <button
+                                    @click="downloadDocument(selectedDocument)"
+                                    class="ui-btn-ghost"
+                                >
+                                    <ArrowDownTrayIcon class="w-4 h-4 mr-1" />
+                                    Download
+                                </button>
                                 <button
                                     @click="showPreviewModal = false"
-                                    class="p-2 text-content-faint hover:text-content-muted"
+                                    class="ui-btn-ghost p-2"
                                     aria-label="Close preview"
                                 >
-                                    <XMarkIcon class="w-6 h-6" />
+                                    <XMarkIcon class="w-5 h-5" />
                                 </button>
                             </div>
+                        </div>
 
-                            <div class="h-96 bg-bg rounded-control flex items-center justify-center">
+                        <div class="flex-1 bg-bg">
+                            <iframe
+                                v-if="selectedDocument?.previewUrl"
+                                :src="selectedDocument.previewUrl"
+                                class="h-full w-full border-0"
+                                title="Document preview"
+                            ></iframe>
+                            <div v-else class="flex h-full items-center justify-center">
                                 <div class="text-center">
                                     <DocumentTextIcon class="w-16 h-16 text-content-faint mx-auto mb-4" />
-                                    <p class="text-content-muted">Document preview would appear here</p>
-                                    <p class="text-sm text-content-faint mt-2">
-                                        File: {{ selectedDocument?.title }}
-                                    </p>
+                                    <p class="text-content-muted">No preview available for this document.</p>
                                 </div>
                             </div>
                         </div>
