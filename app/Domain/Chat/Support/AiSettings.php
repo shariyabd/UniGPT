@@ -25,7 +25,7 @@ class AiSettings
     public function chatOptions(): array
     {
         return [
-            'temperature' => (float) $this->value('temperature', config('ai.providers.openai.temperature', 0.7)),
+            'temperature' => (float) $this->value('temperature', config('ai.providers.openai.temperature', 0.3)),
             'max_tokens' => (int) $this->value('max_tokens', config('ai.providers.openai.max_tokens', 4096)),
         ];
     }

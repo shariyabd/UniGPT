@@ -23,8 +23,8 @@ const props = defineProps({
         type: Object,
         default: () => ({
             provider: 'mock',
-            model: '',
-            temperature: 0.7,
+            model: 'gpt-4o',
+            temperature: 0.3,
             max_tokens: 2048,
             embedding_model: '',
             rag_top_k: 5,
@@ -34,11 +34,23 @@ const props = defineProps({
     },
     providerStatus: {
         type: Object,
-        default: () => ({ active: 'mock', openaiConfigured: false }),
+        default: () => ({ active: 'mock', openaiConfigured: false, openaiKeyStored: false }),
+    },
+    providerOptions: {
+        type: Array,
+        default: () => [
+            { value: 'openai', label: 'OpenAI' },
+            { value: 'mock', label: 'Mock (offline / no key)' },
+        ],
     },
 });
 
 const form = useForm({
+    provider: props.settings.provider ?? 'openai',
+    model: props.settings.model ?? '',
+    embedding_model: props.settings.embedding_model ?? '',
+    openai_api_key: '',
+    remove_openai_key: false,
     temperature: Number(props.settings.temperature),
     max_tokens: Number(props.settings.max_tokens),
     rag_top_k: Number(props.settings.rag_top_k),
@@ -49,8 +61,18 @@ const form = useForm({
 const isTesting = ref(false);
 const testResult = ref(null);
 
+const chatModelSuggestions = ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo'];
+const embeddingModelSuggestions = ['text-embedding-3-small', 'text-embedding-3-large', 'text-embedding-ada-002'];
+
 const save = () => {
-    form.patch(route('admin.settings.update'), { preserveScroll: true });
+    form.patch(route('admin.settings.update'), {
+        preserveScroll: true,
+        // Never keep the typed key in memory after a successful save.
+        onSuccess: () => {
+            form.openai_api_key = '';
+            form.remove_openai_key = false;
+        },
+    });
 };
 
 const testConnection = async () => {
@@ -136,6 +158,72 @@ const testConnection = async () => {
 
                 <!-- Editable settings -->
                 <form @submit.prevent="save" class="space-y-6 sm:space-y-8">
+                    <Card title="Provider & Credentials" subtitle="Choose the AI backend, set the API key and models" :icon="CloudIcon">
+                        <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                            <div>
+                                <label class="ui-label">Provider</label>
+                                <select v-model="form.provider" class="ui-input">
+                                    <option v-for="option in providerOptions" :key="option.value" :value="option.value">
+                                        {{ option.label }}
+                                    </option>
+                                </select>
+                                <p class="mt-1 text-xs text-content-muted">
+                                    OpenAI needs an API key. Mock works offline with canned responses.
+                                </p>
+                                <p v-if="form.errors.provider" class="mt-1 text-xs text-danger-fg">{{ form.errors.provider }}</p>
+                            </div>
+
+                            <div>
+                                <label class="ui-label">OpenAI API Key</label>
+                                <input
+                                    v-model="form.openai_api_key"
+                                    type="password"
+                                    autocomplete="off"
+                                    :placeholder="providerStatus.openaiKeyStored ? '•••••••••• (stored — leave blank to keep)' : 'sk-…'"
+                                    class="ui-input font-mono"
+                                />
+                                <div class="mt-1 flex items-center justify-between gap-2">
+                                    <p class="text-xs text-content-muted">Stored encrypted; never shown again.</p>
+                                    <label v-if="providerStatus.openaiKeyStored" class="inline-flex items-center gap-1.5 text-xs text-danger-fg">
+                                        <input v-model="form.remove_openai_key" type="checkbox" class="rounded border-line text-danger-fg" />
+                                        Remove stored key
+                                    </label>
+                                </div>
+                                <p v-if="form.errors.openai_api_key" class="mt-1 text-xs text-danger-fg">{{ form.errors.openai_api_key }}</p>
+                            </div>
+
+                            <div>
+                                <label class="ui-label">Chat Model</label>
+                                <input
+                                    v-model="form.model"
+                                    type="text"
+                                    list="chat-model-options"
+                                    placeholder="gpt-4o"
+                                    class="ui-input"
+                                />
+                                <datalist id="chat-model-options">
+                                    <option v-for="m in chatModelSuggestions" :key="m" :value="m" />
+                                </datalist>
+                                <p v-if="form.errors.model" class="mt-1 text-xs text-danger-fg">{{ form.errors.model }}</p>
+                            </div>
+
+                            <div>
+                                <label class="ui-label">Embedding Model</label>
+                                <input
+                                    v-model="form.embedding_model"
+                                    type="text"
+                                    list="embedding-model-options"
+                                    placeholder="text-embedding-3-small"
+                                    class="ui-input"
+                                />
+                                <datalist id="embedding-model-options">
+                                    <option v-for="m in embeddingModelSuggestions" :key="m" :value="m" />
+                                </datalist>
+                                <p v-if="form.errors.embedding_model" class="mt-1 text-xs text-danger-fg">{{ form.errors.embedding_model }}</p>
+                            </div>
+                        </div>
+                    </Card>
+
                     <Card title="Model Parameters" subtitle="Tune generation behavior" :icon="CpuChipIcon">
                         <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
                             <div>

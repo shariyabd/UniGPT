@@ -15,9 +15,9 @@ return [
     'providers' => [
         'openai' => [
             'api_key' => env('OPENAI_API_KEY'),
-            'model' => env('OPENAI_MODEL', 'gpt-4-turbo-preview'),
+            'model' => env('OPENAI_MODEL', 'gpt-4o'),
             'max_tokens' => env('OPENAI_MAX_TOKENS', 4096),
-            'temperature' => env('OPENAI_TEMPERATURE', 0.7),
+            'temperature' => env('OPENAI_TEMPERATURE', 0.3),
         ],
 
         'gemini' => [

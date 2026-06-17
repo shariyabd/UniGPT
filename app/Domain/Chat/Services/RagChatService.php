@@ -58,9 +58,25 @@ class RagChatService
     private function buildMessages(string $question, ChatMode $mode, string $context, array $history): array
     {
         $system = $mode->systemPrompt()
-            ."\n\nYou are UniGPT, a university academic copilot. Answer using the provided context "
-            .'and cite sources by their bracket numbers (e.g. [1]). If the context does not contain '
-            .'the answer, say so honestly and suggest where the student might look.';
+            ."\n\nYou are UniGPT, a university academic copilot for students and faculty.";
+
+        if ($context !== '') {
+            // Documents matched — ground the answer in them, but allow sensible
+            // supplementation from general knowledge.
+            $system .= ' Answer using the provided context below and cite sources by their bracket '
+                .'numbers (e.g. [1]). If the context only partially covers the question, you may '
+                .'supplement with your general academic knowledge, but rely on the context first '
+                .'and cite it wherever you use it.';
+        } else {
+            // No documents matched — answer common/general questions directly from
+            // the model's own knowledge, while staying within the assistant's scope.
+            $system .= ' No reference documents matched this question, so answer it directly using '
+                .'your own general academic knowledge as a knowledgeable, helpful university '
+                .'assistant. Do not invent citations or references. Keep answers relevant to '
+                .'academics, courses, study skills, research and university life; if a question '
+                .'falls clearly outside what a university academic assistant should help with, '
+                .'politely steer the user back on topic.';
+        }
 
         if ($override = $this->settings->systemPromptOverride()) {
             $system .= "\n\n".$override;
