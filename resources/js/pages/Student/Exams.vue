@@ -1,4 +1,5 @@
 <script setup>
+import { ref, computed } from 'vue';
 import { Head } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
@@ -26,6 +27,25 @@ const typeVariant = (type) => ({
     quiz: 'info',
     practical: 'success',
 }[type] ?? 'slate');
+
+// Distinct courses across every exam — drives the filter dropdown.
+const courseOptions = computed(() => {
+    const seen = new Map();
+    for (const exam of [...props.upcoming, ...props.past]) {
+        if (exam.course && exam.course.code && !seen.has(exam.course.code)) {
+            seen.set(exam.course.code, exam.course.name || exam.course.code);
+        }
+    }
+    return [...seen.entries()].map(([code, name]) => ({ code, name }));
+});
+
+const selectedCourse = ref('all');
+
+const matchesCourse = (exam) =>
+    selectedCourse.value === 'all' || (exam.course && exam.course.code === selectedCourse.value);
+
+const filteredUpcoming = computed(() => props.upcoming.filter(matchesCourse));
+const filteredPast = computed(() => props.past.filter(matchesCourse));
 </script>
 
 <template>
@@ -38,24 +58,32 @@ const typeVariant = (type) => ({
                     title="Exams"
                     subtitle="Upcoming and past exams for your courses."
                     :icon="PencilSquareIcon"
-                />
+                >
+                    <template v-if="courseOptions.length > 1" #actions>
+                        <label class="sr-only" for="exam-course-filter">Filter by course</label>
+                        <select id="exam-course-filter" v-model="selectedCourse" class="ui-input w-auto">
+                            <option value="all">All courses</option>
+                            <option v-for="course in courseOptions" :key="course.code" :value="course.code">{{ course.code }}</option>
+                        </select>
+                    </template>
+                </PageHeader>
 
                 <!-- Upcoming -->
                 <section class="space-y-4">
                     <div class="flex items-center gap-2">
                         <h2 class="text-lg font-bold tracking-tight text-content">Upcoming</h2>
-                        <Badge variant="slate">{{ upcoming.length }}</Badge>
+                        <Badge variant="slate">{{ filteredUpcoming.length }}</Badge>
                     </div>
 
                     <EmptyState
-                        v-if="upcoming.length === 0"
+                        v-if="filteredUpcoming.length === 0"
                         :icon="CalendarIcon"
                         title="No upcoming exams"
-                        description="You have no exams scheduled right now. Check back later."
+                        :description="selectedCourse === 'all' ? 'You have no exams scheduled right now. Check back later.' : 'No upcoming exams for this course.'"
                     />
 
                     <div v-else class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
-                        <div v-for="exam in upcoming" :key="exam.id" class="ui-card p-5 transition-all hover:shadow-card hover:-translate-y-0.5">
+                        <div v-for="exam in filteredUpcoming" :key="exam.id" class="ui-card p-5 transition-all hover:shadow-card hover:-translate-y-0.5">
                             <div class="flex items-start gap-4">
                                 <!-- Date tile -->
                                 <div class="flex-shrink-0 w-16 rounded-card bg-primary-soft py-2 text-center text-primary">
@@ -67,6 +95,7 @@ const typeVariant = (type) => ({
                                     <div class="flex flex-wrap items-center gap-2">
                                         <span class="text-xs font-semibold text-content-muted">{{ exam.course.code }}</span>
                                         <Badge :variant="typeVariant(exam.type)">{{ exam.typeLabel }}</Badge>
+                                        <Badge v-if="exam.countdown" variant="primary">{{ exam.countdown }}</Badge>
                                     </div>
                                     <h3 class="mt-1 font-bold tracking-tight text-content truncate">{{ exam.title }}</h3>
 
@@ -96,7 +125,7 @@ const typeVariant = (type) => ({
                 </section>
 
                 <!-- Past -->
-                <section v-if="past.length > 0" class="space-y-4">
+                <section v-if="filteredPast.length > 0" class="space-y-4">
                     <h2 class="text-lg font-bold tracking-tight text-content">Past</h2>
 
                     <Card padding="p-0">
@@ -112,7 +141,7 @@ const typeVariant = (type) => ({
                                 </thead>
                                 <tbody>
                                     <tr
-                                        v-for="exam in past"
+                                        v-for="exam in filteredPast"
                                         :key="exam.id"
                                         class="border-b border-line hover:bg-bg transition-colors"
                                     >

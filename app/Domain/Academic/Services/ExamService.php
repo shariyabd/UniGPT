@@ -6,6 +6,7 @@ use App\Domain\Notification\Services\NotificationService;
 use App\Domain\User\Models\User;
 use App\Enums\NotificationType;
 use App\Models\Exam;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
 /**
@@ -129,6 +130,8 @@ class ExamService
      */
     public function present(Exam $exam): array
     {
+        $daysUntil = (int) now()->startOfDay()->diffInDays($exam->exam_date->copy()->startOfDay(), false);
+
         return [
             'id' => $exam->id,
             'title' => $exam->title,
@@ -136,16 +139,45 @@ class ExamService
             'typeLabel' => $exam->type->getLabel(),
             'date' => $exam->exam_date->toDateString(),
             'dateLabel' => $exam->exam_date->toFormattedDateString(),
-            'startTime' => $exam->start_time,
+            'startTime' => $this->formatTime($exam->start_time),
             'durationMinutes' => $exam->duration_minutes,
             'location' => $exam->location,
             'totalMarks' => $exam->total_marks,
             'instructions' => $exam->instructions,
+            'daysUntil' => $daysUntil,
+            'countdown' => $this->countdownLabel($daysUntil),
             'course' => [
                 'id' => $exam->course?->id,
                 'code' => $exam->course?->code,
                 'name' => $exam->course?->name,
             ],
         ];
+    }
+
+    /**
+     * Normalise a stored "HH:MM:SS" time into a human label, e.g. "12:53 PM".
+     */
+    private function formatTime(?string $time): ?string
+    {
+        if ($time === null || $time === '') {
+            return null;
+        }
+
+        return Carbon::parse($time)->format('g:i A');
+    }
+
+    /**
+     * A friendly relative label for an upcoming exam date.
+     */
+    private function countdownLabel(int $daysUntil): ?string
+    {
+        return match (true) {
+            $daysUntil < 0 => null,
+            $daysUntil === 0 => 'Today',
+            $daysUntil === 1 => 'Tomorrow',
+            $daysUntil < 7 => "In {$daysUntil} days",
+            $daysUntil < 14 => 'In 1 week',
+            default => 'In '.intdiv($daysUntil, 7).' weeks',
+        };
     }
 }
