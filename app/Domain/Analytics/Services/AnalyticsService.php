@@ -48,6 +48,7 @@ class AnalyticsService
             })
             ->groupBy('departments.id', 'departments.name')
             ->select('departments.name', DB::raw('COUNT(chat_messages.id) as queries'))
+            ->having('queries', '>', 0)
             ->orderByDesc('queries')
             ->get()
             ->map(fn ($row) => [
