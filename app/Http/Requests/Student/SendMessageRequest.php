@@ -21,6 +21,7 @@ class SendMessageRequest extends FormRequest
             'message' => ['required', 'string', 'max:4000'],
             'session_id' => ['nullable', 'integer'],
             'mode' => ['nullable', 'string'],
+            'language' => ['nullable', 'string', 'max:10'],
         ];
     }
 }

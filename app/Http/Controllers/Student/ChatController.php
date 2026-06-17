@@ -3,24 +3,37 @@
 namespace App\Http\Controllers\Student;
 
 use App\Domain\Chat\Services\ChatService;
+use App\Domain\Chat\Support\AiSettings;
 use App\Enums\ChatMode;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Student\SendMessageRequest;
 use App\Models\ChatMessage;
 use App\Models\ChatSession;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class ChatController extends Controller
 {
-    public function __construct(private readonly ChatService $chat) {}
+    public function __construct(
+        private readonly ChatService $chat,
+        private readonly AiSettings $aiSettings,
+    ) {}
 
     public function index(): Response
     {
         $user = request()->user();
+
+        $courses = $user->enrolledCourses()
+            ->get(['courses.id', 'courses.code', 'courses.name'])
+            ->map(fn ($course) => [
+                'id' => $course->id,
+                'code' => $course->code,
+                'name' => $course->name,
+            ])
+            ->all();
 
         return Inertia::render('Student/Chat', [
             'sessions' => $this->chat->sessionsFor($user)->map(fn (ChatSession $s) => $this->presentSession($s)),
@@ -28,12 +41,12 @@ class ChatController extends Controller
                 'name' => $user->name,
                 'department' => $user->department?->name,
                 'semester' => $user->semester,
-                // Populated once the academic module (enrollments) is in place.
-                'currentCourses' => method_exists($user, 'enrolledCourses')
-                    ? $user->enrolledCourses()->pluck('code')->all()
-                    : [],
+                'currentCourses' => $courses,
             ],
             'modes' => collect(ChatMode::cases())->map(fn ($m) => ['value' => $m->value, 'label' => $m->label()]),
+            'supportedLanguages' => $this->aiSettings->supportedLanguages(),
+            // Prefer the student's saved language preference when it's still supported.
+            'defaultLanguage' => $this->preferredLanguage($user),
         ]);
     }
 
@@ -48,7 +61,18 @@ class ChatController extends Controller
 
         $mode = ChatMode::tryFrom($validated['mode'] ?? '') ?? ChatMode::ACADEMIC;
 
-        $result = $this->chat->sendMessage($request->user(), $session, $validated['message'], $mode);
+        $language = $validated['language'] ?? '';
+        if (! $this->aiSettings->isSupportedLanguage($language)) {
+            $language = $this->aiSettings->defaultLanguageCode();
+        }
+
+        $result = $this->chat->sendMessage(
+            user: $request->user(),
+            session: $session,
+            content: $validated['message'],
+            mode: $mode,
+            language: $language,
+        );
 
         return response()->json([
             'session' => $this->presentSession($result['session']),
@@ -68,12 +92,77 @@ class ChatController extends Controller
         ]);
     }
 
-    public function destroy(ChatSession $session): RedirectResponse
+    public function destroy(ChatSession $session): JsonResponse
     {
         Gate::authorize('delete', $session);
         $this->chat->deleteSession($session);
 
-        return back()->with('success', 'Conversation deleted.');
+        return response()->json(['ok' => true]);
+    }
+
+    public function togglePin(ChatSession $session): JsonResponse
+    {
+        Gate::authorize('view', $session);
+        $this->chat->togglePin($session);
+
+        return response()->json([
+            'session' => $this->presentSession($session),
+        ]);
+    }
+
+    public function rename(Request $request, ChatSession $session): JsonResponse
+    {
+        Gate::authorize('view', $session);
+
+        $validated = $request->validate([
+            'title' => ['required', 'string', 'max:120'],
+        ]);
+
+        $this->chat->rename($session, trim($validated['title']));
+
+        return response()->json([
+            'session' => $this->presentSession($session),
+        ]);
+    }
+
+    public function archive(ChatSession $session): JsonResponse
+    {
+        Gate::authorize('view', $session);
+        $this->chat->archive($session);
+
+        return response()->json(['ok' => true]);
+    }
+
+    public function unarchive(ChatSession $session): JsonResponse
+    {
+        Gate::authorize('view', $session);
+        $this->chat->unarchive($session);
+
+        return response()->json(['ok' => true]);
+    }
+
+    public function archived(): Response
+    {
+        $user = request()->user();
+
+        return Inertia::render('Student/ArchivedChats', [
+            'sessions' => $this->chat->archivedSessionsFor($user)->map(fn (ChatSession $s) => $this->presentSession($s)),
+        ]);
+    }
+
+    /**
+     * The student's saved language preference when it is still an enabled
+     * language, otherwise the admin-configured default.
+     */
+    private function preferredLanguage(\App\Domain\User\Models\User $user): string
+    {
+        $preferred = $user->preferences['language'] ?? null;
+
+        if (is_string($preferred) && $this->aiSettings->isSupportedLanguage($preferred)) {
+            return $preferred;
+        }
+
+        return $this->aiSettings->defaultLanguageCode();
     }
 
     /**
@@ -85,6 +174,7 @@ class ChatController extends Controller
             'id' => $session->id,
             'title' => $session->title,
             'mode' => $session->mode->value,
+            'pinned' => (bool) $session->is_pinned,
             'messageCount' => $session->messages_count ?? $session->messages()->count(),
             'lastMessage' => optional($session->last_message_at)->diffForHumans(),
             'timestamp' => optional($session->last_message_at ?? $session->created_at)->toIso8601String(),

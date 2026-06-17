@@ -18,6 +18,8 @@ class ChatSession extends Model
         'title',
         'mode',
         'language',
+        'is_pinned',
+        'is_archived',
         'last_message_at',
     ];
 
@@ -25,6 +27,8 @@ class ChatSession extends Model
     {
         return [
             'mode' => ChatMode::class,
+            'is_pinned' => 'boolean',
+            'is_archived' => 'boolean',
             'last_message_at' => 'datetime',
         ];
     }

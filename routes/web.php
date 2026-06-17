@@ -61,8 +61,13 @@ Route::middleware(['auth'])->group(function () {
 
         // AI chat (page is Inertia; send/load are JSON for a live feel)
         Route::get('/chat', [ChatController::class, 'index'])->middleware('permission:use_ai_chat')->name('chat');
+        Route::get('/chat/archived', [ChatController::class, 'archived'])->middleware('permission:view_chat_history')->name('chat.archived');
         Route::post('/chat', [ChatController::class, 'store'])->middleware('permission:use_ai_chat')->name('chat.send');
         Route::get('/chat/sessions/{session}', [ChatController::class, 'show'])->middleware('permission:view_chat_history')->name('chat.session');
+        Route::patch('/chat/sessions/{session}', [ChatController::class, 'rename'])->middleware('permission:use_ai_chat')->name('chat.session.rename');
+        Route::patch('/chat/sessions/{session}/pin', [ChatController::class, 'togglePin'])->middleware('permission:view_chat_history')->name('chat.session.pin');
+        Route::patch('/chat/sessions/{session}/archive', [ChatController::class, 'archive'])->middleware('permission:use_ai_chat')->name('chat.session.archive');
+        Route::patch('/chat/sessions/{session}/unarchive', [ChatController::class, 'unarchive'])->middleware('permission:use_ai_chat')->name('chat.session.unarchive');
         Route::delete('/chat/sessions/{session}', [ChatController::class, 'destroy'])->middleware('permission:delete_chat')->name('chat.session.destroy');
 
         // Saved answers

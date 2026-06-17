@@ -30,14 +30,14 @@ class RagChatService
      * @param  array<int, array{role: string, content: string}>  $history
      * @return array{content: string, confidence: int, confidence_level: string, sources: array, follow_ups: array, model: string, tokens: int}
      */
-    public function answer(string $question, User $user, ChatMode $mode = ChatMode::ACADEMIC, array $history = []): array
+    public function answer(string $question, User $user, ChatMode $mode = ChatMode::ACADEMIC, array $history = [], string $language = 'en'): array
     {
         $retrieved = $this->retrieval->retrieve($question, $user);
         $context = $this->citations->buildContext($retrieved);
         $sources = $this->citations->toSources($retrieved);
         $score = $this->citations->overallConfidence($retrieved);
 
-        $messages = $this->buildMessages($question, $mode, $context, $history);
+        $messages = $this->buildMessages($question, $mode, $context, $history, $language);
         $result = $this->provider->chat($messages, $this->settings->chatOptions());
 
         return [
@@ -55,10 +55,15 @@ class RagChatService
      * @param  array<int, array{role: string, content: string}>  $history
      * @return array<int, array{role: string, content: string}>
      */
-    private function buildMessages(string $question, ChatMode $mode, string $context, array $history): array
+    private function buildMessages(string $question, ChatMode $mode, string $context, array $history, string $language = 'en'): array
     {
         $system = $mode->systemPrompt()
             ."\n\nYou are UniGPT, a university academic copilot for students and faculty.";
+
+        $languageName = $this->settings->languageName($language);
+        $system .= " Always write your entire response in {$languageName}, regardless of the "
+            .'language the question is written in. Keep proper nouns, code, and standard technical '
+            .'terms in their original form.';
 
         if ($context !== '') {
             // Documents matched — ground the answer in them, but allow sensible

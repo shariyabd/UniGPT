@@ -35,6 +35,12 @@ class ChatService
     ): array {
         $session ??= $this->startSession($user, $mode, $language);
 
+        // The mode is chosen per message in the UI, so honour the latest choice
+        // rather than the value the session was first created with.
+        if ($session->mode !== $mode) {
+            $session->mode = $mode;
+        }
+
         // Persist the user's message.
         $userMessage = $session->messages()->create([
             'role' => ChatMessage::ROLE_USER,
@@ -52,7 +58,7 @@ class ChatService
             ->values()
             ->all();
 
-        $answer = $this->rag->answer($content, $user, $session->mode, $history);
+        $answer = $this->rag->answer($content, $user, $mode, $history, $language);
 
         $assistantMessage = $session->messages()->create([
             'role' => ChatMessage::ROLE_ASSISTANT,
@@ -103,7 +109,9 @@ class ChatService
     public function sessionsFor(User $user): Collection
     {
         return $user->chatSessions()
+            ->where('is_archived', false)
             ->withCount('messages')
+            ->orderByDesc('is_pinned')
             ->orderByDesc('last_message_at')
             ->orderByDesc('created_at')
             ->get();
@@ -112,5 +120,47 @@ class ChatService
     public function deleteSession(ChatSession $session): void
     {
         $session->delete();
+    }
+
+    public function togglePin(ChatSession $session): ChatSession
+    {
+        $session->update(['is_pinned' => ! $session->is_pinned]);
+
+        return $session;
+    }
+
+    public function rename(ChatSession $session, string $title): ChatSession
+    {
+        $session->update(['title' => $title]);
+
+        return $session;
+    }
+
+    public function archive(ChatSession $session): ChatSession
+    {
+        // Archiving also clears any pin so it doesn't linger pinned when restored.
+        $session->update(['is_archived' => true, 'is_pinned' => false]);
+
+        return $session;
+    }
+
+    public function unarchive(ChatSession $session): ChatSession
+    {
+        $session->update(['is_archived' => false]);
+
+        return $session;
+    }
+
+    /**
+     * @return Collection<int, ChatSession>
+     */
+    public function archivedSessionsFor(User $user): Collection
+    {
+        return $user->chatSessions()
+            ->where('is_archived', true)
+            ->withCount('messages')
+            ->orderByDesc('last_message_at')
+            ->orderByDesc('created_at')
+            ->get();
     }
 }
