@@ -1,11 +1,13 @@
 <script setup>
 import { ref, computed } from 'vue';
-import { Head } from '@inertiajs/vue3';
+import { Head, useForm, router } from '@inertiajs/vue3';
+import { useToast } from 'vue-toastification';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
 import Card from '@/components/ui/Card.vue';
 import Badge from '@/components/ui/Badge.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
+import { useConfirm } from '@/composables/useConfirm';
 import {
     ChevronLeftIcon,
     ChevronRightIcon,
@@ -14,12 +16,24 @@ import {
     ClipboardDocumentCheckIcon,
     CheckCircleIcon,
     ClockIcon,
+    PlusIcon,
+    TrashIcon,
 } from '@heroicons/vue/24/outline';
+import { CheckCircleIcon as CheckCircleSolid } from '@heroicons/vue/24/solid';
 
 const props = defineProps({
     events: { type: Array, default: () => [] },
     today: { type: String, default: '' },
+    courses: { type: Array, default: () => [] },
+    priorities: { type: Array, default: () => [] },
 });
+
+const toast = useToast();
+const { confirm } = useConfirm();
+
+// Keep the viewed month/day and scroll position across task mutations — task
+// routes redirect back, so Inertia refreshes props while local state persists.
+const visitOptions = { preserveScroll: true, preserveState: true };
 
 const typeStyle = {
     assignment: { dot: 'bg-warning-fg', label: 'Deadline', badge: 'warning', icon: ClipboardDocumentCheckIcon, accent: 'border-warning-fg', tile: 'bg-warning-bg text-warning-fg' },
@@ -79,7 +93,7 @@ const selectedEvents = computed(() =>
 
 const upcoming = computed(() =>
     props.events
-        .filter((e) => e.date >= props.today)
+        .filter((e) => e.date >= props.today && !e.completed)
         .slice(0, 8)
 );
 
@@ -92,6 +106,73 @@ const move = (delta) => {
 const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 const styleFor = (type) => typeStyle[type] ?? { dot: 'bg-neutral-fg', label: 'Event', badge: 'neutral', icon: ClockIcon, accent: 'border-line', tile: 'bg-neutral-bg text-neutral-fg' };
+
+// ── Task management (the only events the student owns) ──────────────────────
+const priorityVariant = (priority) => ({
+    high: 'danger',
+    medium: 'warning',
+    low: 'success',
+}[priority] ?? 'neutral');
+
+const showTaskForm = ref(false);
+const defaultPriority = computed(() =>
+    props.priorities.some((p) => p.value === 'medium') ? 'medium' : (props.priorities[0]?.value ?? 'medium')
+);
+
+const taskForm = useForm({
+    title: '',
+    description: '',
+    due_date: '',
+    priority: 'medium',
+    course_id: null,
+    is_completed: false,
+});
+
+const openTaskForm = () => {
+    taskForm.reset();
+    taskForm.clearErrors();
+    taskForm.priority = defaultPriority.value;
+    taskForm.due_date = selected.value || props.today;
+    showTaskForm.value = true;
+};
+
+const submitTask = () => {
+    taskForm.due_date = selected.value || props.today;
+    taskForm.post(route('tasks.store'), {
+        ...visitOptions,
+        onSuccess: () => {
+            taskForm.reset();
+            taskForm.priority = defaultPriority.value;
+            showTaskForm.value = false;
+            toast.success('Task added.');
+        },
+        onError: () => toast.error('Could not add the task.'),
+    });
+};
+
+const toggleTask = (event) => {
+    router.patch(route('tasks.toggle', event.taskId), {}, {
+        ...visitOptions,
+        onSuccess: () => toast.success(event.completed ? 'Task reopened.' : 'Task completed.'),
+        onError: () => toast.error('Could not update the task.'),
+    });
+};
+
+const removeTask = async (event) => {
+    const ok = await confirm({
+        title: 'Delete task',
+        message: `“${event.title}” will be permanently deleted.`,
+        confirmLabel: 'Delete',
+        variant: 'danger',
+    });
+    if (!ok) return;
+
+    router.delete(route('tasks.destroy', event.taskId), {
+        ...visitOptions,
+        onSuccess: () => toast.success('Task deleted.'),
+        onError: () => toast.error('Could not delete the task.'),
+    });
+};
 </script>
 
 <template>
@@ -180,21 +261,84 @@ const styleFor = (type) => typeStyle[type] ?? { dot: 'bg-neutral-fg', label: 'Ev
 
                     <!-- Agenda -->
                     <div class="space-y-6">
-                        <Card title="Selected day" :subtitle="selected || undefined" :icon="CalendarIcon">
+                        <Card :icon="CalendarIcon">
+                            <template #header>
+                                <div class="flex items-center justify-between gap-2">
+                                    <div class="min-w-0">
+                                        <h2 class="ui-card-title">Selected day</h2>
+                                        <p v-if="selected" class="text-xs text-content-faint">{{ selected }}</p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        @click="openTaskForm"
+                                        class="ui-btn-ghost text-xs flex-shrink-0"
+                                    >
+                                        <PlusIcon class="w-4 h-4" />
+                                        Add task
+                                    </button>
+                                </div>
+                            </template>
+
+                            <!-- Inline task form, scoped to the selected day -->
+                            <form
+                                v-if="showTaskForm"
+                                @submit.prevent="submitTask"
+                                class="mb-4 space-y-3 rounded-control border border-line bg-bg p-3"
+                            >
+                                <div>
+                                    <input
+                                        v-model="taskForm.title"
+                                        type="text"
+                                        placeholder="What needs doing?"
+                                        class="ui-input"
+                                        autofocus
+                                    />
+                                    <p v-if="taskForm.errors.title" class="text-xs text-danger-fg mt-1">{{ taskForm.errors.title }}</p>
+                                </div>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <select v-model="taskForm.priority" class="ui-input" aria-label="Priority">
+                                        <option v-for="p in priorities" :key="p.value" :value="p.value">{{ p.label }}</option>
+                                    </select>
+                                    <select v-model="taskForm.course_id" class="ui-input" aria-label="Course">
+                                        <option :value="null">— No course —</option>
+                                        <option v-for="course in courses" :key="course.id" :value="course.id">{{ course.code }}</option>
+                                    </select>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <button type="submit" :disabled="taskForm.processing" class="ui-btn-primary flex-1">
+                                        {{ taskForm.processing ? 'Saving…' : 'Add for ' + (selected || today) }}
+                                    </button>
+                                    <button type="button" @click="showTaskForm = false" class="ui-btn-ghost">Cancel</button>
+                                </div>
+                            </form>
+
                             <EmptyState
-                                v-if="selectedEvents.length === 0"
+                                v-if="selectedEvents.length === 0 && !showTaskForm"
                                 title="No events"
                                 description="Nothing scheduled for this day."
                                 :icon="CalendarIcon"
                             />
-                            <div v-else class="space-y-2.5">
+                            <div v-else-if="selectedEvents.length" class="space-y-2.5">
                                 <div
                                     v-for="ev in selectedEvents"
                                     :key="ev.id"
                                     class="flex items-start gap-3 rounded-control border-l-4 bg-bg p-3 transition-colors"
                                     :class="styleFor(ev.type).accent"
                                 >
+                                    <!-- Tasks: clickable completion toggle. Other events: type icon. -->
+                                    <button
+                                        v-if="ev.type === 'task'"
+                                        type="button"
+                                        @click="toggleTask(ev)"
+                                        :aria-label="ev.completed ? 'Mark task incomplete' : 'Mark task complete'"
+                                        class="mt-0.5 flex-shrink-0 transition-colors"
+                                        :class="ev.completed ? 'text-success-fg hover:text-success-fg/80' : 'text-content-faint hover:text-success-fg'"
+                                    >
+                                        <CheckCircleSolid v-if="ev.completed" class="w-6 h-6" />
+                                        <CheckCircleIcon v-else class="w-6 h-6" />
+                                    </button>
                                     <span
+                                        v-else
                                         class="ui-icon-tile flex-shrink-0"
                                         :class="styleFor(ev.type).tile"
                                     >
@@ -203,16 +347,31 @@ const styleFor = (type) => typeStyle[type] ?? { dot: 'bg-neutral-fg', label: 'Ev
                                             class="w-5 h-5"
                                         />
                                     </span>
-                                    <div class="min-w-0">
-                                        <p class="text-sm font-semibold text-content">{{ ev.title }}</p>
+
+                                    <div class="min-w-0 flex-1">
+                                        <p
+                                            class="text-sm font-semibold text-content"
+                                            :class="{ 'line-through text-content-faint': ev.completed }"
+                                        >{{ ev.title }}</p>
                                         <div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-content-muted">
                                             <Badge :variant="styleFor(ev.type).badge">{{ styleFor(ev.type).label }}</Badge>
+                                            <Badge v-if="ev.type === 'task' && ev.priority" :variant="priorityVariant(ev.priority)">{{ ev.priority }}</Badge>
                                             <span v-if="ev.course" class="truncate">{{ ev.course }}</span>
                                             <span v-if="ev.time" class="inline-flex items-center gap-1">
                                                 <ClockIcon class="w-3.5 h-3.5" /> {{ ev.time }}
                                             </span>
                                         </div>
                                     </div>
+
+                                    <button
+                                        v-if="ev.type === 'task'"
+                                        type="button"
+                                        @click="removeTask(ev)"
+                                        aria-label="Delete task"
+                                        class="ui-btn-ghost p-1.5 flex-shrink-0 text-content-faint hover:text-danger-fg"
+                                    >
+                                        <TrashIcon class="w-4 h-4" />
+                                    </button>
                                 </div>
                             </div>
                         </Card>

@@ -9,6 +9,7 @@ use App\Domain\Academic\Services\ExamService;
 use App\Domain\Academic\Services\TranscriptService;
 use App\Domain\Chat\Document\Services\DocumentService;
 use App\Domain\User\Models\User;
+use App\Enums\TaskPriority;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\DocumentResource;
 use App\Models\ActivityLog;
@@ -104,7 +105,16 @@ class StudentDashboardController extends Controller
 
     public function calendar(): Response
     {
-        return Inertia::render('Student/Calendar', $this->calendar->build($this->user()));
+        $user = $this->user();
+
+        return Inertia::render('Student/Calendar', [
+            ...$this->calendar->build($user),
+            'courses' => $user->enrolledCourses()->get(['courses.id', 'courses.code', 'courses.name']),
+            'priorities' => array_map(
+                fn (TaskPriority $priority) => ['value' => $priority->value, 'label' => $priority->getLabel()],
+                TaskPriority::cases(),
+            ),
+        ]);
     }
 
     public function roadmap(): Response

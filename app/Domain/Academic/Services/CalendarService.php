@@ -92,11 +92,14 @@ class CalendarService
             ->get()
             ->map(fn (Task $t) => [
                 'id' => 'task-'.$t->id,
+                'taskId' => $t->id,
                 'type' => 'task',
                 'title' => $t->title,
+                'description' => $t->description,
                 'date' => $t->due_date->toDateString(),
                 'time' => null,
                 'course' => $t->course?->code,
+                'priority' => $t->priority->value,
                 'completed' => $t->is_completed,
             ]);
     }
