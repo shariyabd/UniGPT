@@ -35,20 +35,36 @@ class StudentDashboardController extends Controller
     {
         $user = $this->user();
         $courses = $this->courses->studentCourses($user);
+        $courseIds = $courses->pluck('id');
         $deadlines = $this->upcomingDeadlines($user);
+
+        $materialsTotal = \App\Models\CourseMaterial::whereIn('course_id', $courseIds)
+            ->where('is_published', true)
+            ->count();
+        $materialsViewed = $user->completedMaterials()
+            ->where('is_published', true)
+            ->whereIn('course_id', $courseIds)
+            ->count();
 
         return Inertia::render('Student/Dashboard', [
             'student' => $this->studentProfile($user),
             'stats' => [
                 ['label' => 'Courses', 'value' => (string) $courses->count(), 'change' => null, 'trend' => 'neutral', 'icon' => 'AcademicCapIcon', 'color' => 'blue'],
-                ['label' => 'CGPA', 'value' => (string) $this->cgpa($user), 'change' => null, 'trend' => 'up', 'icon' => 'ChartBarIcon', 'color' => 'green'],
+                ['label' => 'CGPA', 'value' => (string) $this->cgpa($user), 'change' => null, 'trend' => 'neutral', 'icon' => 'ChartBarIcon', 'color' => 'green'],
                 ['label' => 'Saved Answers', 'value' => (string) $user->savedAnswers()->count(), 'change' => null, 'trend' => 'neutral', 'icon' => 'BookmarkIcon', 'color' => 'purple'],
                 ['label' => 'Chat Sessions', 'value' => (string) $user->chatSessions()->count(), 'change' => null, 'trend' => 'neutral', 'icon' => 'ChatBubbleLeftRightIcon', 'color' => 'orange'],
             ],
-            'recentActivities' => $this->recentActivities($user),
+            'recentChats' => $this->recentChats($user),
             'upcomingDeadlines' => $deadlines,
             'courses' => $courses,
             'quickActions' => $this->quickActions(),
+            'attendanceRate' => $this->attendanceRate($user),
+            'studyStreak' => $this->studyStreak($user),
+            'materialsSummary' => [
+                'total' => $materialsTotal,
+                'viewed' => $materialsViewed,
+                'pending' => max($materialsTotal - $materialsViewed, 0),
+            ],
         ]);
     }
 
@@ -237,22 +253,69 @@ class StudentDashboardController extends Controller
     }
 
     /**
+     * The student's most recent (non-archived) chat sessions, for the
+     * "Recent Conversations" card. Each entry deep-links into the chat page.
+     *
      * @return array<int, array<string, mixed>>
      */
-    private function recentActivities(User $user): array
+    private function recentChats(User $user): array
     {
-        return ActivityLog::where('user_id', $user->id)
-            ->latest()
-            ->limit(6)
+        return $user->chatSessions()
+            ->where('is_archived', false)
+            ->whereNotNull('last_message_at')
+            ->orderByDesc('last_message_at')
+            ->limit(5)
             ->get()
-            ->map(fn (ActivityLog $log) => [
-                'id' => $log->id,
-                'type' => explode('.', $log->action)[0],
-                'title' => $log->description ?? $log->action,
-                'description' => '',
-                'time' => $log->created_at?->diffForHumans(),
-                'icon' => 'ClockIcon',
+            ->map(fn (\App\Models\ChatSession $session) => [
+                'id' => $session->id,
+                'question' => $session->title ?? 'Untitled conversation',
+                'mode' => $session->mode->value,
+                'time' => optional($session->last_message_at)->diffForHumans(),
             ])->all();
+    }
+
+    /**
+     * The student's overall attendance rate across enrolled courses, or null
+     * when no attendance has been recorded yet.
+     */
+    private function attendanceRate(User $user): ?int
+    {
+        $summary = $this->attendance->studentSummary($user);
+        $total = (int) $summary->sum('total');
+        $attended = (int) $summary->sum('attended');
+
+        return $total > 0 ? (int) round($attended / $total * 100) : null;
+    }
+
+    /**
+     * Consecutive days (ending today, or yesterday with a one-day grace) on
+     * which the student has any recorded activity.
+     */
+    private function studyStreak(User $user): int
+    {
+        $days = ActivityLog::where('user_id', $user->id)
+            ->orderByDesc('created_at')
+            ->get(['created_at'])
+            ->map(fn (ActivityLog $log) => $log->created_at->toDateString())
+            ->unique()
+            ->flip();
+
+        if ($days->isEmpty()) {
+            return 0;
+        }
+
+        $cursor = now()->startOfDay();
+        if (! $days->has($cursor->toDateString()) && $days->has($cursor->copy()->subDay()->toDateString())) {
+            $cursor = $cursor->subDay();
+        }
+
+        $streak = 0;
+        while ($days->has($cursor->toDateString())) {
+            $streak++;
+            $cursor = $cursor->subDay();
+        }
+
+        return $streak;
     }
 
     /**

@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { ref, computed } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Card from '@/components/ui/Card.vue';
@@ -28,10 +28,13 @@ const props = defineProps({
     permissions: Array,
     student: Object,
     stats: Array,
-    recentActivities: Array,
+    recentChats: { type: Array, default: () => [] },
     upcomingDeadlines: Array,
     courses: Array,
-    quickActions: Array
+    quickActions: Array,
+    attendanceRate: { type: Number, default: null },
+    studyStreak: { type: Number, default: 0 },
+    materialsSummary: { type: Object, default: () => ({ total: 0, viewed: 0, pending: 0 }) }
 });
 
 const iconMap = {
@@ -89,43 +92,32 @@ const upcomingDeadlines = computed(() =>
     }))
 );
 
-// Use server `recentActivities` to power the "Recent Conversations" list.
+// Recent chat sessions (real, deep-linkable) for the "Recent Conversations" list.
 const recentChats = computed(() =>
-    (props.recentActivities || []).map((activity) => ({
-        id: activity.id,
-        question: activity.title,
-        time: activity.time,
-        mode: activity.type,
-        confidence: null,
-        saved: false
+    (props.recentChats || []).map((chat) => ({
+        id: chat.id,
+        question: chat.question,
+        time: chat.time,
+        mode: chat.mode,
     }))
 );
 
-// Derive course-materials summary from enrolled `courses`.
-const materialsStats = computed(() => {
-    const courses = props.courses || [];
-    const total = courses.reduce((sum, course) => sum + (course.totalMaterials || 0), 0);
-    const viewed = courses.reduce(
-        (sum, course) => sum + Math.round(((course.totalMaterials || 0) * (course.progress || 0)) / 100),
-        0
-    );
-    return {
-        total,
-        viewed,
-        pending: total - viewed,
-        recentlyAdded: 0
-    };
-});
+// Real course-materials completion summary from the server.
+const materialsStats = computed(() => ({
+    total: props.materialsSummary?.total ?? 0,
+    viewed: props.materialsSummary?.viewed ?? 0,
+    pending: props.materialsSummary?.pending ?? 0,
+}));
 
 const navigateToMaterials = () => {
-    router.visit('/student/materials');
+    router.visit(route('materials'));
 };
 
 // Derive the learning-path preview from enrolled `courses`.
 const roadmapPreview = computed(() => {
     const courses = props.courses || [];
-    const activeCourse = courses.find((course) => course.status === 'in-progress') || courses[0] || {};
-    const nextCourse = courses.find((course) => course.status === 'not-started') || {};
+    const activeCourse = courses.find((course) => course.status !== 'completed') || courses[0] || {};
+    const nextCourse = courses.find((course) => course.id !== activeCourse.id) || {};
     const completedTopics = courses.filter((course) => course.status === 'completed').length;
     const overallProgress = courses.length
         ? Math.round(courses.reduce((sum, course) => sum + (course.progress || 0), 0) / courses.length)
@@ -139,11 +131,18 @@ const roadmapPreview = computed(() => {
     };
 });
 
-// Confidence chip tone (semantic).
-const getConfidenceColor = (confidence) => {
-    if (confidence >= 90) return 'bg-success-bg text-success-fg';
-    if (confidence >= 75) return 'bg-primary-soft text-primary';
-    return 'bg-warning-bg text-warning-fg';
+// Rotating study tips powering the "Daily Tip" card and its button.
+const studyTips = [
+    'Break your study sessions into 25-minute focused intervals with 5-minute breaks. This technique improves concentration and retention!',
+    'Review your notes within 24 hours of a lecture — spaced repetition dramatically improves long-term recall.',
+    'Teach a concept to someone else (or out loud to yourself). If you can explain it simply, you truly understand it.',
+    'Tackle your hardest subject first, when your focus and energy are at their peak.',
+    'Use the AI assistant to turn your lecture notes into practice questions before an exam.',
+];
+const tipIndex = ref(0);
+const currentTip = computed(() => studyTips[tipIndex.value]);
+const nextTip = () => {
+    tipIndex.value = (tipIndex.value + 1) % studyTips.length;
 };
 
 // Deadline card accent: urgent → danger, soon → warning, otherwise success.
@@ -178,17 +177,20 @@ const getDeadlineColor = (daysLeft) => {
                         </div>
                     </div>
                     <div class="flex flex-wrap gap-3">
-                        <div class="flex items-center gap-2.5 rounded-card border border-line bg-surface px-4 py-2.5 shadow-card">
+                        <Link
+                            :href="route('attendance')"
+                            class="flex items-center gap-2.5 rounded-card border border-line bg-surface px-4 py-2.5 shadow-card transition-shadow hover:shadow-card-hover"
+                        >
                             <span class="ui-icon-tile h-9 w-9 bg-success-bg text-success-fg">
                                 <ClipboardDocumentCheckIcon class="h-5 w-5" />
                             </span>
-                            <div class="leading-tight"><div class="text-lg font-bold text-content">87%</div><div class="text-[11px] font-medium text-content-muted">Attendance</div></div>
-                        </div>
+                            <div class="leading-tight"><div class="text-lg font-bold text-content">{{ attendanceRate !== null ? attendanceRate + '%' : '—' }}</div><div class="text-[11px] font-medium text-content-muted">Attendance</div></div>
+                        </Link>
                         <div class="flex items-center gap-2.5 rounded-card border border-line bg-surface px-4 py-2.5 shadow-card">
                             <span class="ui-icon-tile h-9 w-9 bg-warning-bg text-warning-fg">
                                 <FireIcon class="h-5 w-5" />
                             </span>
-                            <div class="leading-tight"><div class="text-lg font-bold text-content">7</div><div class="text-[11px] font-medium text-content-muted">Day Streak</div></div>
+                            <div class="leading-tight"><div class="text-lg font-bold text-content">{{ studyStreak }}</div><div class="text-[11px] font-medium text-content-muted">Day Streak</div></div>
                         </div>
                     </div>
                 </div>
@@ -235,28 +237,23 @@ const getDeadlineColor = (daysLeft) => {
                         <!-- Recent Chats -->
                         <Card title="Recent Conversations" :icon="ChatBubbleLeftRightIcon">
                             <template #actions>
-                                <Link href="/chat/history" class="ui-btn-ghost text-sm">
+                                <Link :href="route('chat')" class="ui-btn-ghost text-sm">
                                     View All
                                     <ArrowRightIcon class="h-4 w-4" />
                                 </Link>
                             </template>
 
-                            <div class="space-y-3">
-                                <div
+                            <div v-if="recentChats.length" class="space-y-3">
+                                <Link
                                     v-for="chat in recentChats"
                                     :key="chat.id"
-                                    class="group cursor-pointer rounded-card border border-line bg-bg p-4 transition-shadow duration-200 hover:bg-surface hover:shadow-card-hover"
+                                    :href="`/chat?session=${chat.id}`"
+                                    class="group block cursor-pointer rounded-card border border-line bg-bg p-4 transition-shadow duration-200 hover:bg-surface hover:shadow-card-hover"
                                 >
                                     <div class="flex items-start justify-between gap-4">
                                         <div class="min-w-0 flex-1">
                                             <div class="mb-2 flex flex-wrap items-center gap-2">
                                                 <Badge variant="primary">{{ chat.mode }}</Badge>
-                                                <span v-if="chat.confidence != null" class="ui-badge" :class="getConfidenceColor(chat.confidence)">
-                                                    {{ chat.confidence }}% Confidence
-                                                </span>
-                                                <span v-if="chat.saved" class="text-warning-fg">
-                                                    <BookmarkIcon class="h-4 w-4 fill-current" />
-                                                </span>
                                             </div>
                                             <p class="mb-1 line-clamp-2 font-medium text-content">
                                                 {{ chat.question }}
@@ -265,9 +262,13 @@ const getDeadlineColor = (daysLeft) => {
                                                 {{ chat.time }}
                                             </p>
                                         </div>
+                                        <ArrowRightIcon class="h-4 w-4 flex-shrink-0 text-content-faint transition-colors group-hover:text-primary" />
                                     </div>
-                                </div>
+                                </Link>
                             </div>
+                            <p v-else class="py-6 text-center text-sm text-content-muted">
+                                No conversations yet. Start chatting with the AI assistant.
+                            </p>
                         </Card>
 
                         <!-- Academic Roadmap Preview -->
@@ -359,13 +360,13 @@ const getDeadlineColor = (daysLeft) => {
                         <!-- Upcoming Deadlines -->
                         <Card title="Deadlines" :icon="BellIcon">
                             <template #actions>
-                                <Link href="/deadlines" class="ui-btn-ghost text-sm">
+                                <Link :href="route('calendar')" class="ui-btn-ghost text-sm">
                                     View All
                                     <ArrowRightIcon class="h-4 w-4" />
                                 </Link>
                             </template>
 
-                            <div class="space-y-4">
+                            <div v-if="upcomingDeadlines.length" class="space-y-4">
                                 <div
                                     v-for="deadline in upcomingDeadlines"
                                     :key="deadline.id"
@@ -389,6 +390,9 @@ const getDeadlineColor = (daysLeft) => {
                                     </div>
                                 </div>
                             </div>
+                            <p v-else class="py-6 text-center text-sm text-content-muted">
+                                No upcoming deadlines. You're all caught up!
+                            </p>
                         </Card>
 
                         <!-- Daily Tip Card -->
@@ -400,9 +404,9 @@ const getDeadlineColor = (daysLeft) => {
                                 <h3 class="text-lg font-bold text-content">Daily Tip</h3>
                             </div>
                             <p class="text-sm leading-relaxed text-content-muted">
-                                Break your study sessions into 25-minute focused intervals with 5-minute breaks. This technique improves concentration and retention!
+                                {{ currentTip }}
                             </p>
-                            <button class="ui-btn-secondary mt-4 w-full">
+                            <button @click="nextTip" class="ui-btn-secondary mt-4 w-full">
                                 Get More Tips
                             </button>
                         </Card>
