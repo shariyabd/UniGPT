@@ -67,11 +67,18 @@ class HandleInertiaRequests extends Middleware
             return ['unread' => 0, 'items' => []];
         }
 
+        // Respect the user's notification preference — when muted, the bell shows
+        // nothing rather than a stale badge.
+        if (($user->preferences['notifications'] ?? true) === false) {
+            return ['unread' => 0, 'items' => [], 'muted' => true];
+        }
+
         $service = app(NotificationService::class);
 
         return [
             'unread' => $service->unreadCountFor($user),
             'items' => $service->recentFor($user)->all(),
+            'muted' => false,
         ];
     }
 
@@ -104,6 +111,7 @@ class HandleInertiaRequests extends Middleware
             'student_id' => $user->student_id,
             'employee_id' => $user->employee_id,
             'is_active' => $user->is_active,
+            'preferences' => $user->preferences,
             'department' => $user->department?->only(['id', 'name', 'slug', 'code']),
             'roles' => $user->roles->pluck('slug')->values()->all(),
             'permissions' => $permissions,

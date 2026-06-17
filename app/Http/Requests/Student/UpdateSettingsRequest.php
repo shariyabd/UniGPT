@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests\Student;
 
+use App\Domain\Chat\Support\AiSettings;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateSettingsRequest extends FormRequest
 {
@@ -16,10 +18,12 @@ class UpdateSettingsRequest extends FormRequest
      */
     public function rules(): array
     {
+        $languageCodes = array_column(app(AiSettings::class)->supportedLanguages(), 'code');
+
         return [
             'theme' => ['required', 'in:light,dark,system'],
             'notifications' => ['required', 'boolean'],
-            'language' => ['required', 'string', 'max:10'],
+            'language' => ['required', 'string', Rule::in($languageCodes)],
         ];
     }
 }

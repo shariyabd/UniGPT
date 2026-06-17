@@ -43,6 +43,31 @@ function toggleTheme() {
     }
 }
 
+function prefersDark() {
+    return typeof window !== 'undefined'
+        && window.matchMedia
+        && window.matchMedia('(prefers-color-scheme: dark)').matches;
+}
+
+/**
+ * Apply an explicit preference: 'light' | 'dark' | 'system'. 'system' clears the
+ * stored choice and mirrors the OS setting; the others persist so the pre-paint
+ * blade script and the navbar toggle stay in sync everywhere.
+ */
+function setTheme(value) {
+    try {
+        if (value === 'system') {
+            localStorage.removeItem(STORAGE_KEY);
+            applyTheme(prefersDark());
+            return;
+        }
+        applyTheme(value === 'dark');
+        localStorage.setItem(STORAGE_KEY, value === 'dark' ? 'dark' : 'light');
+    } catch (e) {
+        applyTheme(value === 'dark' || (value === 'system' && prefersDark()));
+    }
+}
+
 export function useTheme() {
-    return { isDark, initTheme, toggleTheme };
+    return { isDark, initTheme, toggleTheme, setTheme };
 }

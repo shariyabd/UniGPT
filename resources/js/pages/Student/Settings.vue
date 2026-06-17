@@ -3,16 +3,20 @@ import { Head, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
 import Card from '@/components/ui/Card.vue';
+import { useTheme } from '@/composables/useTheme';
 import { Cog6ToothIcon, SunIcon, MoonIcon, ComputerDesktopIcon, BellIcon, LanguageIcon, SwatchIcon } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
     preferences: { type: Object, default: () => ({ theme: 'system', notifications: true, language: 'en' }) },
+    supportedLanguages: { type: Array, default: () => [{ code: 'en', name: 'English' }] },
 });
+
+const { setTheme } = useTheme();
 
 const form = useForm({
     theme: props.preferences.theme ?? 'system',
     notifications: props.preferences.notifications ?? true,
-    language: props.preferences.language ?? 'en',
+    language: props.preferences.language ?? (props.supportedLanguages[0]?.code ?? 'en'),
 });
 
 const themes = [
@@ -21,13 +25,11 @@ const themes = [
     { value: 'system', label: 'System', icon: ComputerDesktopIcon },
 ];
 
-const languages = [
-    { value: 'en', label: 'English' },
-    { value: 'ar', label: 'العربية' },
-    { value: 'es', label: 'Español' },
-    { value: 'fr', label: 'Français' },
-    { value: 'de', label: 'Deutsch' },
-];
+// Apply the chosen theme immediately for a live preview; it's persisted on save.
+const chooseTheme = (value) => {
+    form.theme = value;
+    setTheme(value);
+};
 
 const submit = () => {
     form.patch(route('settings.update'), { preserveScroll: true });
@@ -46,7 +48,7 @@ const submit = () => {
                     <!-- Appearance -->
                     <Card title="Appearance" subtitle="Choose how UniGPT looks to you" :icon="SwatchIcon">
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            <button v-for="theme in themes" :key="theme.value" type="button" @click="form.theme = theme.value"
+                            <button v-for="theme in themes" :key="theme.value" type="button" @click="chooseTheme(theme.value)"
                                 :aria-label="theme.label"
                                 :class="[
                                     'flex flex-col items-center gap-2 p-5 rounded-card border transition-all',
@@ -89,11 +91,15 @@ const submit = () => {
                     </Card>
 
                     <!-- Language -->
-                    <Card title="Language" subtitle="Set your preferred display language" :icon="LanguageIcon">
-                        <label for="settings-language" class="ui-label">Display language</label>
+                    <Card title="Language" subtitle="Default language for AI chat responses" :icon="LanguageIcon">
+                        <label for="settings-language" class="ui-label">Preferred language</label>
                         <select id="settings-language" v-model="form.language" class="ui-input w-full md:w-72">
-                            <option v-for="lang in languages" :key="lang.value" :value="lang.value">{{ lang.label }}</option>
+                            <option v-for="lang in supportedLanguages" :key="lang.code" :value="lang.code">{{ lang.name }}</option>
                         </select>
+                        <p class="mt-2 text-xs text-content-muted">
+                            New chats with the AI assistant will default to this language. Available languages are managed by your administrator.
+                        </p>
+                        <p v-if="form.errors.language" class="mt-1 text-xs text-danger-fg">{{ form.errors.language }}</p>
                     </Card>
 
                     <div class="flex justify-end">

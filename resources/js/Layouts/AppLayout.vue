@@ -263,7 +263,7 @@ if (typeof window !== 'undefined') {
                         <MoonIcon v-else class="h-5 w-5" />
                     </button>
 
-                    <NotificationBell v-if="user" />
+                    <NotificationBell v-if="user && !(user.preferences && user.preferences.notifications === false)" />
 
                     <div v-if="user" class="relative" data-user-menu>
                         <button @click.stop="showUserMenu = !showUserMenu" class="flex items-center gap-2.5 rounded-pill border border-line bg-surface py-1.5 pl-1.5 pr-2.5 shadow-card transition-colors hover:bg-primary-soft">

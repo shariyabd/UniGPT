@@ -133,8 +133,12 @@ class StudentDashboardController extends Controller
 
     public function settings(): Response
     {
+        $aiSettings = app(\App\Domain\Chat\Support\AiSettings::class);
+
         return Inertia::render('Student/Settings', [
             'preferences' => $this->user()->preferences ?? $this->defaultPreferences(),
+            // Languages an admin has enabled for the AI — the same source the chat uses.
+            'supportedLanguages' => $aiSettings->supportedLanguages(),
         ]);
     }
 
