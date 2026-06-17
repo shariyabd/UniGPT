@@ -12,6 +12,7 @@ use App\Http\Requests\Admin\UpdateUserRequest;
 use App\Models\Department;
 use App\Models\Role;
 use App\Services\ActivityLogger;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -57,14 +58,49 @@ class UserManagementController extends Controller
 
     public function update(UpdateUserRequest $request, User $user): RedirectResponse
     {
-        $this->users->updateUser($user, $request->validated());
+        $data = $request->validated();
+
+        // The System Administrator account must never be deactivated, regardless
+        // of what the form submits.
+        if ($user->isProtectedAdmin()) {
+            unset($data['is_active']);
+        }
+
+        $this->users->updateUser($user, $data);
         $this->activity->log('user.updated', "Updated user {$user->name}", $user, [], $request->user());
 
         return back()->with('success', 'User updated.');
     }
 
+    public function destroy(Request $request, User $user): RedirectResponse
+    {
+        if ($user->isProtectedAdmin()) {
+            return back()->with('error', 'The System Administrator account cannot be deleted.');
+        }
+
+        if ($user->id === $request->user()->id) {
+            return back()->with('error', 'You cannot delete your own account.');
+        }
+
+        $name = $user->name;
+
+        try {
+            $this->users->deleteUser($user);
+        } catch (QueryException) {
+            return back()->with('error', "Cannot delete {$name}: the account has related records. Deactivate it instead.");
+        }
+
+        $this->activity->log('user.deleted', "Deleted user {$name}", null, [], $request->user());
+
+        return back()->with('success', 'User deleted.');
+    }
+
     public function toggleActive(Request $request, User $user): RedirectResponse
     {
+        if ($user->isProtectedAdmin()) {
+            return back()->with('error', 'The System Administrator account cannot be deactivated.');
+        }
+
         $this->users->updateUser($user, ['is_active' => ! $user->is_active]);
         $this->activity->log('user.toggled', ($user->is_active ? 'Deactivated' : 'Activated')." {$user->name}", $user, [], $request->user());
 
@@ -73,6 +109,10 @@ class UserManagementController extends Controller
 
     public function assignRole(AssignRoleRequest $request, User $user): RedirectResponse
     {
+        if ($user->isProtectedAdmin()) {
+            return back()->with('error', 'The System Administrator role cannot be changed.');
+        }
+
         $validated = $request->validated();
         $user->syncRoles([UserRole::from($validated['role'])]);
         $this->activity->log('user.role_changed', "Set {$user->name} role to {$validated['role']}", $user, [], $request->user());
@@ -92,8 +132,10 @@ class UserManagementController extends Controller
             'avatar' => 'https://ui-avatars.com/api/?name='.urlencode($user->name).'&background=6366f1&color=fff',
             'role' => $user->getPrimaryRole()?->slug ?? 'student',
             'department' => $user->department?->name,
+            'department_id' => $user->department_id,
             'semester' => $user->semester,
             'status' => $user->is_active ? 'active' : 'inactive',
+            'isProtected' => $user->isProtectedAdmin(),
             'lastLogin' => $user->last_login_at?->diffForHumans(),
             'joinedDate' => $user->created_at?->toDateString(),
             'permissions' => $user->roles->flatMap->permissions->pluck('slug')->unique()->count(),

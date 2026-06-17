@@ -70,6 +70,14 @@ class UserManagementService
     }
 
     /**
+     * Permanently delete a user.
+     */
+    public function deleteUser(User $user): bool
+    {
+        return $this->userRepository->delete($user);
+    }
+
+    /**
      * Get users by department
      */
     public function getUsersByDepartment(string $department): Collection

@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { usePermissions } from '@/composables/usePermissions';
+import { useConfirm } from '@/composables/useConfirm';
 import PageHeader from '@/components/ui/PageHeader.vue';
 import Card from '@/components/ui/Card.vue';
 import Badge from '@/components/ui/Badge.vue';
@@ -23,6 +24,7 @@ import {
 
 // Component state
 const { can } = usePermissions();
+const { confirm } = useConfirm();
 
 const selectedTab = ref('users');
 const selectedRole = ref('all');
@@ -31,6 +33,8 @@ const searchQuery = ref('');
 const selectedUsers = ref(new Set());
 const showUserModal = ref(false);
 const editingUser = ref(null);
+const formErrors = ref({});
+const isSaving = ref(false);
 
 // Props from the backend
 const props = defineProps({
@@ -49,8 +53,10 @@ const users = computed(() =>
         avatar: user.avatar,
         role: user.role,
         department: user.department,
+        department_id: user.department_id,
         semester: user.semester,
         status: user.status,
+        isProtected: user.isProtected,
         lastLogin: user.lastLogin,
         joinedDate: user.joinedDate,
         permissions: user.permissions
@@ -116,17 +122,6 @@ const formatDate = (dateString) => {
     });
 };
 
-const getTimeAgo = (dateString) => {
-    const now = new Date();
-    const date = new Date(dateString);
-    const diffInHours = Math.floor((now - date) / (1000 * 60 * 60));
-
-    if (diffInHours < 1) return 'Just now';
-    if (diffInHours < 24) return `${diffInHours}h ago`;
-    const diffInDays = Math.floor(diffInHours / 24);
-    return `${diffInDays}d ago`;
-};
-
 const getRoleVariant = (role) => {
     const variants = {
         student: 'info',
@@ -174,6 +169,7 @@ const selectAllUsers = () => {
 };
 
 const openUserModal = (user = null) => {
+    formErrors.value = {};
     editingUser.value = user ? {
         ...user,
         department_id: user.department_id ?? '',
@@ -197,20 +193,32 @@ const openUserModal = (user = null) => {
 
 const saveUser = () => {
     const editing = editingUser.value;
+    formErrors.value = {};
+    isSaving.value = true;
+
+    const options = {
+        preserveScroll: true,
+        onSuccess: () => {
+            showUserModal.value = false;
+            editingUser.value = null;
+        },
+        onError: (errors) => {
+            formErrors.value = errors;
+        },
+        onFinish: () => {
+            isSaving.value = false;
+        }
+    };
+
     if (editing.id) {
         // Update existing user
         router.patch(route('admin.users.update', editing.id), {
             name: editing.name,
             email: editing.email,
             department_id: editing.department_id || null,
-            semester: editing.semester || null
-        }, {
-            preserveScroll: true,
-            onSuccess: () => {
-                showUserModal.value = false;
-                editingUser.value = null;
-            }
-        });
+            semester: editing.semester || null,
+            is_active: editing.status === 'active'
+        }, options);
     } else {
         // Create new user
         router.post(route('admin.users.store'), {
@@ -222,22 +230,23 @@ const saveUser = () => {
             student_id: editing.student_id || null,
             employee_id: editing.employee_id || null,
             semester: editing.semester || null
-        }, {
-            preserveScroll: true,
-            onSuccess: () => {
-                showUserModal.value = false;
-                editingUser.value = null;
-            }
-        });
+        }, options);
     }
 };
 
-const deleteUser = (userId) => {
-    if (confirm('Are you sure you want to deactivate this user?')) {
-        router.patch(route('admin.users.toggle-active', userId), {}, {
-            preserveScroll: true
-        });
-    }
+const deleteUser = async (userId) => {
+    const confirmed = await confirm({
+        title: 'Delete user',
+        message: 'This will permanently delete the user account. This action cannot be undone.',
+        confirmLabel: 'Delete',
+        variant: 'danger'
+    });
+
+    if (!confirmed) return;
+
+    router.delete(route('admin.users.destroy', userId), {
+        preserveScroll: true
+    });
 };
 
 const bulkUpdateStatus = (status) => {
@@ -463,7 +472,7 @@ const bulkUpdateRole = (role) => {
                                             </Badge>
                                         </td>
                                         <td class="px-4 py-3 align-middle whitespace-nowrap text-content-muted">
-                                            {{ getTimeAgo(user.lastLogin) }}
+                                            {{ user.lastLogin || 'Never' }}
                                         </td>
                                         <td class="px-4 py-3 align-middle whitespace-nowrap text-right">
                                             <div class="flex items-center justify-end gap-1">
@@ -476,7 +485,7 @@ const bulkUpdateRole = (role) => {
                                                     <PencilIcon class="h-4 w-4" />
                                                 </button>
                                                 <button
-                                                    v-if="can('update_user')"
+                                                    v-if="can('update_user') && !user.isProtected"
                                                     @click="deleteUser(user.id)"
                                                     class="ui-btn-ghost p-2 text-danger-fg hover:text-danger-fg"
                                                     aria-label="Deactivate user"
@@ -528,6 +537,14 @@ const bulkUpdateRole = (role) => {
                         </div>
 
                         <div class="space-y-4 p-6">
+                            <div
+                                v-if="editingUser?.isProtected"
+                                class="rounded-card border border-warning bg-warning-soft px-4 py-3 text-sm text-warning-fg"
+                            >
+                                This is the protected System Administrator account. Its role and
+                                active status cannot be changed.
+                            </div>
+
                             <div>
                                 <label class="ui-label">Full Name *</label>
                                 <input
@@ -536,6 +553,7 @@ const bulkUpdateRole = (role) => {
                                     class="ui-input"
                                     placeholder="Enter full name"
                                 />
+                                <p v-if="formErrors.name" class="mt-1 text-sm text-danger-fg">{{ formErrors.name }}</p>
                             </div>
 
                             <div>
@@ -546,10 +564,23 @@ const bulkUpdateRole = (role) => {
                                     class="ui-input"
                                     placeholder="Enter email address"
                                 />
+                                <p v-if="formErrors.email" class="mt-1 text-sm text-danger-fg">{{ formErrors.email }}</p>
+                            </div>
+
+                            <div v-if="!editingUser?.id">
+                                <label class="ui-label">Password *</label>
+                                <input
+                                    v-model="editingUser.password"
+                                    type="password"
+                                    class="ui-input"
+                                    placeholder="At least 8 characters"
+                                    autocomplete="new-password"
+                                />
+                                <p v-if="formErrors.password" class="mt-1 text-sm text-danger-fg">{{ formErrors.password }}</p>
                             </div>
 
                             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                <div>
+                                <div v-if="!editingUser?.id">
                                     <label class="ui-label">Role *</label>
                                     <select
                                         v-model="editingUser.role"
@@ -559,39 +590,52 @@ const bulkUpdateRole = (role) => {
                                         <option value="faculty">Faculty</option>
                                         <option value="admin">Administrator</option>
                                     </select>
+                                    <p v-if="formErrors.role" class="mt-1 text-sm text-danger-fg">{{ formErrors.role }}</p>
                                 </div>
 
-                                <div>
+                                <div v-if="editingUser?.id">
                                     <label class="ui-label">Status</label>
                                     <select
                                         v-model="editingUser.status"
-                                        class="ui-input"
+                                        class="ui-input disabled:cursor-not-allowed disabled:opacity-60"
+                                        :disabled="editingUser?.isProtected"
                                     >
                                         <option value="active">Active</option>
                                         <option value="inactive">Inactive</option>
-                                        <option value="pending">Pending</option>
                                     </select>
+                                    <p v-if="editingUser?.isProtected" class="mt-1 text-xs text-content-faint">
+                                        The System Administrator is always active.
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <label class="ui-label">Department</label>
+                                    <select
+                                        v-model="editingUser.department_id"
+                                        class="ui-input"
+                                    >
+                                        <option value="">No department</option>
+                                        <option
+                                            v-for="department in departments"
+                                            :key="department.id"
+                                            :value="department.id"
+                                        >
+                                            {{ department.name }}
+                                        </option>
+                                    </select>
+                                    <p v-if="formErrors.department_id" class="mt-1 text-sm text-danger-fg">{{ formErrors.department_id }}</p>
                                 </div>
                             </div>
 
                             <div>
-                                <label class="ui-label">Department</label>
+                                <label class="ui-label">Semester</label>
                                 <input
-                                    v-model="editingUser.department"
+                                    v-model="editingUser.semester"
                                     type="text"
                                     class="ui-input"
-                                    placeholder="Enter department"
+                                    placeholder="e.g. Fall 2026"
                                 />
-                            </div>
-
-                            <div>
-                                <label class="ui-label">Phone Number</label>
-                                <input
-                                    v-model="editingUser.phone"
-                                    type="tel"
-                                    class="ui-input"
-                                    placeholder="Enter phone number"
-                                />
+                                <p v-if="formErrors.semester" class="mt-1 text-sm text-danger-fg">{{ formErrors.semester }}</p>
                             </div>
                         </div>
 

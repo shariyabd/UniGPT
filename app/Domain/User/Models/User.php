@@ -16,6 +16,12 @@ class User extends Authenticatable
 {
     use HasFactory, Notifiable;
 
+    /**
+     * The canonical System Administrator account. This account is protected
+     * from deactivation and role changes so admins can never be locked out.
+     */
+    public const PROTECTED_ADMIN_EMAIL = 'admin@university.edu';
+
     protected $fillable = [
         'name',
         'email',
@@ -253,6 +259,15 @@ class User extends Authenticatable
     public function isAdmin(): bool
     {
         return $this->hasRole(UserRole::ADMIN);
+    }
+
+    /**
+     * The protected System Administrator account cannot be deactivated or
+     * have its role changed, preventing accidental admin lockout.
+     */
+    public function isProtectedAdmin(): bool
+    {
+        return $this->email === self::PROTECTED_ADMIN_EMAIL;
     }
 
     public function getPrimaryRole(): ?Role

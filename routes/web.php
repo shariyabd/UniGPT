@@ -166,6 +166,7 @@ Route::middleware(['auth'])->group(function () {
         Route::patch('/users/{user}', [UserManagementController::class, 'update'])->middleware('permission:update_user')->name('users.update');
         Route::patch('/users/{user}/toggle-active', [UserManagementController::class, 'toggleActive'])->middleware('permission:update_user')->name('users.toggle-active');
         Route::patch('/users/{user}/role', [UserManagementController::class, 'assignRole'])->middleware('permission:manage_user_roles')->name('users.role');
+        Route::delete('/users/{user}', [UserManagementController::class, 'destroy'])->middleware('permission:delete_user')->name('users.destroy');
 
         // Role-permission matrix editor
         Route::get('/roles', [RoleController::class, 'index'])->middleware('permission:manage_permissions')->name('roles');
