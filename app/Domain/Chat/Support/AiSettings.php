@@ -50,6 +50,71 @@ class AiSettings
         return $value === '' ? null : $value;
     }
 
+    /**
+     * Languages the AI is allowed to answer in, configured by an admin. Each
+     * entry is ['code' => 'en', 'name' => 'English']. Defaults to English + Bangla.
+     *
+     * @return array<int, array{code: string, name: string}>
+     */
+    public function supportedLanguages(): array
+    {
+        $stored = $this->overrides()['supported_languages'] ?? null;
+
+        $languages = [];
+        if (is_array($stored)) {
+            foreach ($stored as $entry) {
+                $code = trim((string) ($entry['code'] ?? ''));
+                $name = trim((string) ($entry['name'] ?? ''));
+                if ($code !== '' && $name !== '') {
+                    $languages[$code] = ['code' => $code, 'name' => $name];
+                }
+            }
+        }
+
+        if ($languages === []) {
+            $languages = [
+                'en' => ['code' => 'en', 'name' => 'English'],
+                'bn' => ['code' => 'bn', 'name' => 'Bangla'],
+            ];
+        }
+
+        return array_values($languages);
+    }
+
+    /**
+     * Resolve a language code to its configured display name, falling back to
+     * the first supported language when the code is unknown.
+     */
+    public function languageName(string $code): string
+    {
+        foreach ($this->supportedLanguages() as $language) {
+            if ($language['code'] === $code) {
+                return $language['name'];
+            }
+        }
+
+        return $this->supportedLanguages()[0]['name'];
+    }
+
+    /**
+     * Whether the given language code is one an admin has enabled.
+     */
+    public function isSupportedLanguage(string $code): bool
+    {
+        foreach ($this->supportedLanguages() as $language) {
+            if ($language['code'] === $code) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public function defaultLanguageCode(): string
+    {
+        return $this->supportedLanguages()[0]['code'];
+    }
+
     private function value(string $key, mixed $default): mixed
     {
         $value = $this->overrides()[$key] ?? null;

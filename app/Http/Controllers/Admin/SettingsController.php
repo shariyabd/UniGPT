@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Domain\Chat\Contracts\AIProviderInterface;
+use App\Domain\Chat\Support\AiSettings;
 use App\Http\Controllers\Controller;
 use App\Models\Setting;
 use Illuminate\Http\JsonResponse;
@@ -30,6 +31,7 @@ class SettingsController extends Controller
                 'rag_top_k' => (int) config('rag.retrieval.top_k'),
                 'rag_similarity_threshold' => (float) config('rag.retrieval.similarity_threshold'),
                 'system_prompt' => is_string($saved['system_prompt'] ?? null) ? $saved['system_prompt'] : '',
+                'supported_languages' => app(AiSettings::class)->supportedLanguages(),
             ],
             'providerOptions' => [
                 ['value' => 'openai', 'label' => 'OpenAI'],
@@ -56,7 +58,23 @@ class SettingsController extends Controller
             'rag_top_k' => ['nullable', 'integer', 'min:1', 'max:20'],
             'rag_similarity_threshold' => ['nullable', 'numeric', 'between:0,1'],
             'system_prompt' => ['nullable', 'string', 'max:4000'],
+            'supported_languages' => ['nullable', 'array', 'min:1'],
+            'supported_languages.*.code' => ['required', 'string', 'max:10'],
+            'supported_languages.*.name' => ['required', 'string', 'max:50'],
         ]);
+
+        // Normalise supported languages: trim, drop blanks, de-duplicate by code.
+        if (array_key_exists('supported_languages', $validated)) {
+            $languages = [];
+            foreach ((array) $validated['supported_languages'] as $entry) {
+                $code = trim((string) ($entry['code'] ?? ''));
+                $name = trim((string) ($entry['name'] ?? ''));
+                if ($code !== '' && $name !== '') {
+                    $languages[$code] = ['code' => $code, 'name' => $name];
+                }
+            }
+            $validated['supported_languages'] = array_values($languages);
+        }
 
         $existing = (array) Setting::get('ai', []);
 

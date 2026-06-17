@@ -16,6 +16,9 @@ import {
     PlayIcon,
     ChatBubbleLeftRightIcon,
     CircleStackIcon,
+    LanguageIcon,
+    PlusIcon,
+    TrashIcon,
 } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
@@ -30,6 +33,10 @@ const props = defineProps({
             rag_top_k: 5,
             rag_similarity_threshold: 0.7,
             system_prompt: '',
+            supported_languages: [
+                { code: 'en', name: 'English' },
+                { code: 'bn', name: 'Bangla' },
+            ],
         }),
     },
     providerStatus: {
@@ -56,10 +63,19 @@ const form = useForm({
     rag_top_k: Number(props.settings.rag_top_k),
     rag_similarity_threshold: Number(props.settings.rag_similarity_threshold),
     system_prompt: props.settings.system_prompt ?? '',
+    supported_languages: (props.settings.supported_languages ?? []).map((l) => ({ code: l.code, name: l.name })),
 });
 
 const isTesting = ref(false);
 const testResult = ref(null);
+
+const addLanguage = () => {
+    form.supported_languages.push({ code: '', name: '' });
+};
+
+const removeLanguage = (index) => {
+    form.supported_languages.splice(index, 1);
+};
 
 const chatModelSuggestions = ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo'];
 const embeddingModelSuggestions = ['text-embedding-3-small', 'text-embedding-3-large', 'text-embedding-ada-002'];
@@ -273,6 +289,54 @@ const testConnection = async () => {
                                 />
                                 <p v-if="form.errors.rag_similarity_threshold" class="mt-1 text-xs text-danger-fg">{{ form.errors.rag_similarity_threshold }}</p>
                             </div>
+                        </div>
+                    </Card>
+
+                    <Card title="Supported Languages" subtitle="Languages students and faculty can ask the AI to respond in" :icon="LanguageIcon">
+                        <div class="space-y-3">
+                            <div
+                                v-for="(language, index) in form.supported_languages"
+                                :key="index"
+                                class="flex items-end gap-3"
+                            >
+                                <div class="w-28">
+                                    <label class="ui-label">Code</label>
+                                    <input
+                                        v-model="language.code"
+                                        type="text"
+                                        placeholder="en"
+                                        class="ui-input font-mono"
+                                    />
+                                </div>
+                                <div class="flex-1">
+                                    <label class="ui-label">Name</label>
+                                    <input
+                                        v-model="language.name"
+                                        type="text"
+                                        placeholder="English"
+                                        class="ui-input"
+                                    />
+                                </div>
+                                <button
+                                    type="button"
+                                    @click="removeLanguage(index)"
+                                    :disabled="form.supported_languages.length <= 1"
+                                    class="ui-btn-ghost h-11 w-11 p-0 text-danger-fg disabled:opacity-40"
+                                    aria-label="Remove language"
+                                >
+                                    <TrashIcon class="h-4 w-4" />
+                                </button>
+                            </div>
+
+                            <button type="button" @click="addLanguage" class="ui-btn-secondary">
+                                <PlusIcon class="h-4 w-4" /> Add Language
+                            </button>
+
+                            <p class="text-xs text-content-muted">
+                                Use a short code (e.g. <span class="font-mono">en</span>, <span class="font-mono">bn</span>)
+                                and a display name. The first language is the default for new chats.
+                            </p>
+                            <p v-if="form.errors.supported_languages" class="text-xs text-danger-fg">{{ form.errors.supported_languages }}</p>
                         </div>
                     </Card>
 
