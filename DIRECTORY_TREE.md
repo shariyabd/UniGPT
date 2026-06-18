@@ -129,7 +129,6 @@ uni-chat/
 ├── storage/   public/build/   tests/{Feature,Unit}
 │
 └── Docs: README.md · PROJECT_ANALYSIS.md · PROJECT_STATUS.md · DIRECTORY_TREE.md · CLAUDE.md
-        (faculty-panel-*.md and plan.md are point-in-time work logs)
 ```
 
 ---

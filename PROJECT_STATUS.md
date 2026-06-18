@@ -104,7 +104,6 @@ exams and attendance are section-scoped (`BelongsToSection`).
 ### Faculty panel functionalization
 Full audit removed the last mock/dead items on the AI Assistant page (free-text topics,
 real export, **publish → real `Assignment` + student notifications**, real resources).
-Detailed log: [faculty-panel-audit-report.md](faculty-panel-audit-report.md).
 
 ### P1 / P2 / P2.5 bands (historical)
 Attendance · admin frontends wired to real props · Faculty Course/Material CRUD ·
@@ -165,10 +164,4 @@ library** so students get answers grounded specifically in the available library
 - **Predictive analytics / recommendation engine** — ML over the now-rich academic data.
 - **Alternate LLM providers** — Gemini / Local-LLM (config stubs today; only OpenAI + Mock built).
 - **Document versioning** and **conversation memory/summarization** — empty domain dirs.
-
----
-
-> Older one-off work plans are preserved as point-in-time logs:
-> [plan.md](plan.md), [faculty-panel-plan.md](faculty-panel-plan.md),
-> [faculty-panel-audit-report.md](faculty-panel-audit-report.md).
 </content>
