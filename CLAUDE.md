@@ -1,24 +1,46 @@
+Yes — I merged your original `CLAUDE.md` with the improvements, while keeping it **compact and high-signal** (still roughly within your 200–300 line target).
+
+I intentionally **did not bloat it** with the project audit workflow. This version focuses only on instructions that should apply to **every Claude Code request**.
+
 # CLAUDE.md
 
 ## Project
 
-**UniGPT** — university AI academic copilot with role-based dashboards (**Student / Faculty / Admin**).
-Stack: **Laravel 11 + Inertia 2 + Vue 3 + Vite + Tailwind + MySQL**.
+**UniGPT** — AI-powered university academic copilot with role-based dashboards (**Student / Faculty / Admin**).
+
+Stack:
+
+* Laravel 11
+* Inertia 2
+* Vue 3
+* Vite
+* Tailwind
+* MySQL
 
 ⚠️ Root docs (`README.md`, `PROJECT_STRUCTURE.md`, etc.) are partially outdated.
 
 * Docs mention **Livewire** → incorrect (installed but unused)
 * Actual frontend → **Inertia + Vue**
-* AI/RAG/VectorDB layers are mostly unimplemented scaffolding in `app/Domain/*` and `app/Infrastructure/*`
+* AI/RAG/VectorDB mostly unimplemented scaffolding in `app/Domain/*` and `app/Infrastructure/*`
 
-Trust the code over docs.
+**Trust code over docs.**
+
+---
+
+## Response Style
+
+* Be concise and high-signal
+* Avoid repeating obvious context
+* Prefer precise analysis over long explanations
+* Do not overengineer
+* Prioritize maintainability and correctness
 
 ---
 
 ## Commands
 
 ```bash
-composer dev                    # full dev environment
+composer dev
 php artisan serve
 npm run dev
 npm run build
@@ -40,13 +62,14 @@ php artisan optimize:clear
 
 ## Database
 
-Uses **MySQL** (`uni_gpt`), not SQLite.
-`phpunit.xml` SQLite config is commented out. Tests use configured DB.
+Uses **MySQL** database (`uni_gpt`), not SQLite.
+
+`phpunit.xml` SQLite config is commented out.
 
 Always ensure:
 
 * migrations valid
-* FKs correct
+* foreign keys correct
 * indexes added where needed
 * schema matches code
 
@@ -82,8 +105,8 @@ Frontend structure:
 
 Uses:
 
-* **Ziggy** for route helper
-* **vue-toastification** for toasts
+* Ziggy for route helper
+* vue-toastification for toasts
 
 ⚠️ Inertia page names and route names are string-based and fail silently.
 
@@ -107,12 +130,33 @@ Editing them does nothing unless registered in `bootstrap/app.php`.
 
 Route groups:
 
-* Public → login/register/password reset/terms/privacy
+* Public
 * Authenticated:
 
   * `role:student`
   * `role:faculty`
   * `role:admin`
+
+Routes must be:
+
+* RESTful
+* grouped
+* named
+* consistent
+
+Avoid:
+
+```php
+/getUsers
+/deleteCourse
+```
+
+Prefer:
+
+```php
+/admin/users
+/admin/courses
+```
 
 ---
 
@@ -184,17 +228,19 @@ Important methods:
 
 ## Known Gotchas
 
-### Role slug mismatch
+### Role Slug Mismatch
 
-Enum returns uppercase (`ADMIN`) but DB stores lowercase (`admin`).
+Enum may return uppercase (`ADMIN`) but DB stores lowercase (`admin`).
 
-Source of truth = **lowercase DB slug**.
+Source of truth = lowercase DB slug.
 
-Do not write logic relying on uppercase role slugs.
+Never rely on uppercase role values.
 
-### Shared auth user broken
+---
 
-`HandleInertiaRequests` shares:
+### Shared Auth User Broken
+
+`HandleInertiaRequests` currently shares:
 
 ```php
 auth.user => null
@@ -208,65 +254,48 @@ $request->user()
 
 ---
 
-## Conventions
+## Task Mode
 
-### Naming
+Before making code changes, determine task type:
 
-* Variables → `camelCase`
-* Methods → verb-first `camelCase`
-* Classes → `PascalCase`
-* Use meaningful names only
+* Bug Fix
+* Refactor
+* New Feature
+* Architecture Audit
+* Database Change
 
-Bad:
+Workflow:
 
-```php
-$a, $x, data(), handle()
-```
+1. Understand existing implementation
+2. Identify dependencies
+3. Detect blast radius
+4. Propose plan
+5. Execute safely
 
-Good:
-
-```php
-$totalPrice
-calculateTotalAmount()
-```
+Never code before understanding context.
 
 ---
 
-## Typing
+## Search First Policy
 
-Always type:
+Before modifying logic, search for all related code.
 
-* params
-* returns
-* nullable values
-* collections/models where possible
+Search:
 
-Prefer in new files:
+* routes
+* controllers
+* services
+* actions
+* models
+* relationships
+* Vue pages
+* migrations
+* tests
+* configs
 
-```php
-declare(strict_types=1);
-```
+Never assume a file is isolated.
 
-Example:
-
-```php
-public function assignRole(User $user, string $role): bool
-```
-
----
-
-## Named Arguments
-
-Use named args for multi-param calls.
-
-Good:
-
-```php
-calculateTotal(
-    price: $price,
-    quantity: $qty
-);
-```
+Large systems often hide indirect dependencies.
 
 ---
 
@@ -339,16 +368,157 @@ Old symbol must be gone.
 
 ### 4. Verify
 
+Use verification proportionally.
+
+Small change:
+
+```bash
+./vendor/bin/pint
+php artisan test --filter=RelevantTest
+```
+
+Large change:
+
 ```bash
 php artisan route:list
-php artisan migrate:fresh --seed
 php artisan optimize:clear
-./vendor/bin/pint
+php artisan migrate:fresh --seed
 php artisan test
 npm run build
 ```
 
 Never leave partial refactors.
+
+---
+
+## Legacy Preservation Rule
+
+This project is partially migrated from legacy code.
+
+Before deleting or rewriting logic, verify whether code exists for:
+
+* backward compatibility
+* unfinished migration
+* hidden business rules
+
+Prefer refactor over rewrite.
+
+Do not remove old code unless confirmed unused.
+
+---
+
+## Implementation Awareness
+
+Many modules are scaffolding only.
+
+Presence of:
+
+* class
+* interface
+* migration
+* Vue page
+* service
+
+DOES NOT mean feature is complete.
+
+Always verify end-to-end:
+
+Database
+→ Backend logic
+→ API / Controller
+→ Frontend integration
+→ User workflow
+
+---
+
+## Feature Status Labels
+
+Use during audits:
+
+* COMPLETE
+* PARTIAL
+* NOT_STARTED
+* BLOCKED
+
+A feature is COMPLETE only if user can use it end-to-end.
+
+---
+
+## Naming
+
+Use meaningful names only.
+
+Variables:
+
+```php
+camelCase
+```
+
+Methods:
+
+```php
+verbFirstCamelCase
+```
+
+Classes:
+
+```php
+PascalCase
+```
+
+Bad:
+
+```php
+$a
+$x
+data()
+handle()
+```
+
+Good:
+
+```php
+$totalPrice
+calculateTotalAmount()
+```
+
+---
+
+## Typing
+
+Always type:
+
+* params
+* returns
+* nullable values
+* collections/models when possible
+
+Prefer:
+
+```php
+declare(strict_types=1);
+```
+
+Example:
+
+```php
+public function assignRole(User $user, string $role): bool
+```
+
+---
+
+## Named Arguments
+
+Use named args for multi-parameter calls.
+
+Good:
+
+```php
+calculateTotal(
+    price: $price,
+    quantity: $quantity
+);
+```
 
 ---
 
@@ -360,19 +530,18 @@ Controllers:
 * orchestration
 * response only
 
-Keep business logic in:
+Business logic belongs in:
 
 * Services
 * Domain layer
 * Actions
-* Repositories
 
 Vue:
 
 * UI only
 * local state only
 
-Avoid business logic in Vue.
+Avoid business logic inside Vue.
 
 ---
 
@@ -388,48 +557,16 @@ Prefer:
 Avoid:
 
 * raw SQL
-* `DB::raw`
-* manual joins when relationships suffice
+* excessive `DB::raw`
+* manual joins if relationships suffice
 
-Always prevent N+1 with eager loading.
+Always prevent N+1.
 
 Example:
 
 ```php
 User::with(['roles', 'permissions'])->get();
 ```
-
----
-
-## Routes
-
-Routes must be:
-
-* RESTful
-* grouped
-* named
-* consistent
-
-Avoid:
-
-```php
-/getUsers
-/deleteCourse
-```
-
-Prefer:
-
-```php
-/admin/users
-/admin/courses
-```
-
-Any route change must update:
-
-* backend
-* Vue route()
-* redirects
-* tests
 
 ---
 
@@ -454,7 +591,7 @@ protected $casts = [
 
 ## Refactor Priority
 
-1. DB design
+1. Database design
 2. Raw SQL removal
 3. Naming
 4. Type safety
@@ -477,25 +614,18 @@ Always follow:
 * Clean Architecture
 * Separation of Concerns
 
-Use only when justified:
+Avoid unnecessary abstraction.
 
-* Services
-* DTOs
-* Form Requests
-* Actions
-* Policies
-* Resources
-* Repositories
-
-No overengineering.
+Use DTOs / repositories only when complexity justifies them.
 
 ---
 
 ## Workflow (Every Task)
 
 1. Analyze domain + dependencies
-2. Explain problem & risk
+2. Explain problem and risks
 3. Refactor safely
 4. Propagate all changes (Rule 0)
-5. Verify commands
+5. Verify changes
 6. Confirm behavior unchanged
+
