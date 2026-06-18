@@ -96,7 +96,8 @@ class User extends Authenticatable
     }
 
     /**
-     * IDs of the sections this student is enrolled in, excluding dropped ones.
+     * IDs of the sections this student is enrolled in, excluding dropped ones
+     * and pending placements the student has not yet confirmed (registered).
      * Completed (past-term) enrolments are retained so the student keeps
      * read access to their finished sections' materials and history.
      *
@@ -105,7 +106,7 @@ class User extends Authenticatable
     public function enrolledSectionIds(): \Illuminate\Support\Collection
     {
         return $this->enrolledSections()
-            ->wherePivotNotIn('status', ['dropped'])
+            ->wherePivotNotIn('status', ['dropped', 'pending'])
             ->pluck('sections.id')
             ->unique()
             ->values();

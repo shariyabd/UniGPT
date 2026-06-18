@@ -25,7 +25,7 @@ class NoteController extends Controller
 
         return Inertia::render('Student/Notes', [
             'notes' => $notes,
-            'courses' => $user->enrolledCourses()->get(['courses.id', 'courses.code', 'courses.name']),
+            'courses' => $user->enrolledCourses()->wherePivotNotIn('status', ['pending'])->get(['courses.id', 'courses.code', 'courses.name']),
         ]);
     }
 

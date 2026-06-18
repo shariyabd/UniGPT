@@ -86,7 +86,7 @@ class AttendanceService
      */
     public function studentSummary(User $student): Collection
     {
-        $courses = $student->enrolledCourses()->get();
+        $courses = $student->enrolledCourses()->wherePivotNotIn('status', ['pending'])->get();
 
         $records = AttendanceRecord::where('user_id', $student->id)
             ->whereIn('course_id', $courses->pluck('id'))

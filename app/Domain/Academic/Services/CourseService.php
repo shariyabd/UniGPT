@@ -44,7 +44,8 @@ class CourseService
                     'maxEnrollment' => $section->max_enrollment,
                     'isActive' => $section->is_active,
                     'schedule' => $section->schedule,
-                    'studentCount' => $section->students->where('pivot.status', 'enrolled')->count(),
+                    // Reserved seats: confirmed enrolments + pending placements.
+                    'studentCount' => $section->students->whereIn('pivot.status', ['enrolled', 'pending'])->count(),
                     'roster' => $section->students->map(fn (User $student) => [
                         'id' => $student->id,
                         'name' => $student->name,
@@ -65,7 +66,10 @@ class CourseService
         $currentTermId = Term::query()->where('is_current', true)->value('id');
         $termNames = Term::query()->pluck('name', 'id');
 
+        // Pending placements (assigned but not yet registered by the student)
+        // belong on the registration page, not in the student's course list.
         $courses = $student->enrolledCourses()
+            ->wherePivotNotIn('status', ['pending'])
             ->with(['faculty', 'department'])
             ->get();
 
@@ -138,7 +142,7 @@ class CourseService
         // section has its own resources, so a student must only see the materials
         // of the section they are in, grouped under their course.
         return $student->enrolledSections()
-            ->wherePivotNotIn('status', ['dropped'])
+            ->wherePivotNotIn('status', ['dropped', 'pending'])
             ->with([
                 'course',
                 'materials' => fn ($q) => $q->where('is_published', true)->orderBy('week'),

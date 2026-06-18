@@ -27,6 +27,7 @@ class ChatController extends Controller
         $user = request()->user();
 
         $courses = $user->enrolledCourses()
+            ->wherePivotNotIn('status', ['pending'])
             ->get(['courses.id', 'courses.code', 'courses.name'])
             ->map(fn ($course) => [
                 'id' => $course->id,

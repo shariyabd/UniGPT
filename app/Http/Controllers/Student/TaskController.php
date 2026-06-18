@@ -26,7 +26,7 @@ class TaskController extends Controller
 
         return Inertia::render('Student/Tasks', [
             'tasks' => $tasks,
-            'courses' => $user->enrolledCourses()->get(['courses.id', 'courses.code', 'courses.name']),
+            'courses' => $user->enrolledCourses()->wherePivotNotIn('status', ['pending'])->get(['courses.id', 'courses.code', 'courses.name']),
             'priorities' => array_map(
                 fn (TaskPriority $p) => ['value' => $p->value, 'label' => $p->getLabel()],
                 TaskPriority::cases(),

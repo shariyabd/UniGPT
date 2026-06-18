@@ -44,7 +44,7 @@ class StudentDashboardController extends Controller
         // Material stats count only the student's own sections, so they reflect
         // the resources actually shared with them (not every section's total).
         $currentSectionIds = $user->enrolledSections()
-            ->wherePivotNotIn('status', ['dropped', 'completed'])
+            ->wherePivotNotIn('status', ['dropped', 'completed', 'pending'])
             ->pluck('sections.id');
 
         $materialsTotal = \App\Models\CourseMaterial::whereIn('section_id', $currentSectionIds)
@@ -134,7 +134,7 @@ class StudentDashboardController extends Controller
 
         return Inertia::render('Student/Calendar', [
             ...$this->calendar->build($user),
-            'courses' => $user->enrolledCourses()->get(['courses.id', 'courses.code', 'courses.name']),
+            'courses' => $user->enrolledCourses()->wherePivotNotIn('status', ['pending'])->get(['courses.id', 'courses.code', 'courses.name']),
             'priorities' => array_map(
                 fn (TaskPriority $priority) => ['value' => $priority->value, 'label' => $priority->getLabel()],
                 TaskPriority::cases(),
@@ -356,7 +356,7 @@ class StudentDashboardController extends Controller
      */
     private function buildRoadmap(User $user): array
     {
-        $courses = $user->enrolledCourses()->with('faculty')->get();
+        $courses = $user->enrolledCourses()->wherePivotNotIn('status', ['pending'])->with('faculty')->get();
 
         // Each enrolment points to the section the student attends; show that
         // section's instructor and only that section's assignments.
@@ -448,7 +448,7 @@ class StudentDashboardController extends Controller
 
     private function cgpa(User $user): float
     {
-        $grades = $user->enrolledCourses()->get()
+        $grades = $user->enrolledCourses()->wherePivotNotIn('status', ['pending'])->get()
             ->map(fn ($c) => self::GRADE_POINTS[$c->pivot->grade] ?? null)
             ->filter();
 
