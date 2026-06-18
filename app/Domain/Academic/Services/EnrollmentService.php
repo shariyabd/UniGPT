@@ -8,7 +8,6 @@ use App\Domain\User\Models\User;
 use App\Models\Section;
 use App\Models\Term;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 
 /**
  * Registrar enrollment: place students into a section (offering) or drop them.
@@ -16,9 +15,22 @@ use Illuminate\Support\Facades\DB;
  * Enrollment lives on the course_user pivot, which is unique per (course, user)
  * — so a student holds one enrollment per course, stamped with the section and
  * term they were placed in.
+ *
+ * Placement is a two-step flow: the admin {@see assign()}s a student to a section
+ * (status `pending`, which reserves a seat), then the student confirms it on the
+ * registration page via {@see enroll()} (status `enrolled`). A student only ever
+ * sees — and can only register for — sections the admin has assigned to them.
  */
 class EnrollmentService
 {
+    /**
+     * Statuses that occupy a seat: confirmed enrolments plus pending placements
+     * the admin has reserved for a student awaiting their confirmation.
+     *
+     * @var list<string>
+     */
+    private const RESERVING_STATUSES = ['enrolled', 'pending'];
+
     /**
      * Whether the section has room for another active enrollment.
      */
@@ -27,14 +39,36 @@ class EnrollmentService
         return $this->activeCount($section) < $section->max_enrollment;
     }
 
+    /**
+     * Reserved seats: confirmed enrolments + pending (assigned) placements.
+     */
     public function activeCount(Section $section): int
     {
-        return $section->students()->wherePivot('status', 'enrolled')->count();
+        return $section->students()->wherePivotIn('status', self::RESERVING_STATUSES)->count();
     }
 
     /**
-     * Enroll (or re-enroll) a student into a section. Caller is responsible for
-     * checking {@see hasCapacity()} first.
+     * Admin action: assign a student to a section as a pending placement (reserves
+     * a seat). The student confirms it later via {@see enroll()}. Caller is
+     * responsible for checking {@see hasCapacity()} first.
+     */
+    public function assign(Section $section, User $student): void
+    {
+        $section->course->students()->syncWithoutDetaching([
+            $student->id => [
+                'role' => 'student',
+                'status' => 'pending',
+                'section_id' => $section->id,
+                'term_id' => $section->term_id,
+                'enrolled_at' => null,
+            ],
+        ]);
+    }
+
+    /**
+     * Student action: confirm a pending placement, turning it into an active
+     * enrollment. The seat is already reserved by {@see assign()}, so no capacity
+     * re-check is needed. Eligibility is validated via {@see eligibilityError()}.
      */
     public function enroll(Section $section, User $student): void
     {
@@ -75,31 +109,25 @@ class EnrollmentService
     }
 
     /**
-     * Sections a student may still register for: current term, their curriculum
-     * semester, not full, and not a course they're already registered in.
+     * Sections the admin has assigned to a student (pending placements) in the
+     * current term, awaiting the student's confirmation. These are the only
+     * courses the student may register for — placement is admin-controlled.
      *
      * @return Collection<int, array<string, mixed>>
      */
-    public function availableFor(User $student): Collection
+    public function assignedFor(User $student): Collection
     {
         $term = $this->currentTerm();
 
-        if ($term === null || $student->semester === null) {
+        if ($term === null) {
             return collect();
         }
 
-        $registeredCourseIds = DB::table('course_user')
-            ->where('user_id', $student->id)
-            ->where('status', 'enrolled')
-            ->pluck('course_id');
-
         return Section::where('term_id', $term->id)
             ->where('is_active', true)
-            ->whereHas('course', fn ($q) => $q->where('semester', $student->semester))
-            ->whereNotIn('course_id', $registeredCourseIds)
+            ->whereHas('students', fn ($q) => $q->where('users.id', $student->id)->where('course_user.status', 'pending'))
             ->with(['course', 'faculty'])
             ->get()
-            ->filter(fn (Section $section) => $this->hasCapacity($section))
             ->map(fn (Section $section) => $this->presentSection($section))
             ->values();
     }
@@ -138,7 +166,10 @@ class EnrollmentService
     }
 
     /**
-     * Validate a self-registration request; returns an error string or null.
+     * Validate a student's registration (confirmation) request; returns an error
+     * string or null. A student may only register for a section the admin has
+     * assigned to them (a pending placement) — the seat is already reserved, so
+     * no capacity check is needed here.
      */
     public function eligibilityError(Section $section, User $student): ?string
     {
@@ -152,22 +183,13 @@ class EnrollmentService
             return 'This section is not open for registration.';
         }
 
-        if ((int) $section->course->semester !== (int) $student->semester) {
-            return 'This course is not part of your semester.';
-        }
-
-        $alreadyRegistered = DB::table('course_user')
-            ->where('user_id', $student->id)
-            ->where('course_id', $section->course_id)
-            ->where('status', 'enrolled')
+        $isAssigned = $section->students()
+            ->where('users.id', $student->id)
+            ->wherePivot('status', 'pending')
             ->exists();
 
-        if ($alreadyRegistered) {
-            return 'You are already registered for this course.';
-        }
-
-        if (! $this->hasCapacity($section)) {
-            return 'This section is full.';
+        if (! $isAssigned) {
+            return 'This course has not been assigned to you. Contact the registrar.';
         }
 
         return null;
@@ -184,6 +206,7 @@ class EnrollmentService
             'code' => $section->course?->code,
             'name' => $section->course?->name,
             'credits' => $section->course?->credits,
+            'semester' => $section->course?->semester,
             'label' => $section->label,
             'faculty' => $section->faculty?->name,
             'seatsLeft' => max($section->max_enrollment - $this->activeCount($section), 0),

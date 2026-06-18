@@ -64,9 +64,11 @@ class SectionController extends Controller
     }
 
     /**
-     * Enroll a student into a section (registrar action), capacity-enforced.
+     * Assign a student to a section (registrar action), capacity-enforced. This
+     * creates a pending placement that reserves a seat; the student confirms it
+     * on their registration page to become enrolled.
      */
-    public function enroll(Request $request, Section $section): RedirectResponse
+    public function assign(Request $request, Section $section): RedirectResponse
     {
         $data = $request->validate([
             'student_id' => ['required', Rule::exists('users', 'id')],
@@ -75,28 +77,28 @@ class SectionController extends Controller
         $student = User::findOrFail($data['student_id']);
 
         if (! $student->isStudent()) {
-            return back()->with('error', 'Only students can be enrolled.');
+            return back()->with('error', 'Only students can be assigned to a section.');
         }
 
         if (! $this->enrollment->hasCapacity($section)) {
             return back()->with('error', "Section {$section->label} is full.");
         }
 
-        $this->enrollment->enroll($section, $student);
+        $this->enrollment->assign($section, $student);
 
         $course = $section->course;
-        $this->activity->log('enrollment.created', "Enrolled {$student->name} in {$course->code} ({$section->label})", $section, [], $request->user());
+        $this->activity->log('enrollment.assigned', "Assigned {$student->name} to {$course->code} ({$section->label})", $section, [], $request->user());
 
         $this->notifications->notify(
             user: $student,
             type: NotificationType::ENROLLMENT,
-            title: 'Enrolled in a course',
-            message: "You have been enrolled in {$course->code} — {$course->name} (Section {$section->label}).",
-            link: route('dashboard'),
+            title: 'Course assigned — register to confirm',
+            message: "You have been assigned to {$course->code} — {$course->name} (Section {$section->label}). Go to Registration and click Register to confirm your seat.",
+            link: route('register'),
             data: ['course_id' => $course->id, 'section_id' => $section->id],
         );
 
-        return back()->with('success', "Enrolled {$student->name} in Section {$section->label}.");
+        return back()->with('success', "Assigned {$student->name} to Section {$section->label}.");
     }
 
     /**

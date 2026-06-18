@@ -17,7 +17,9 @@ import {
 } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
-    available: { type: Array, default: () => [] },
+    // Courses the admin has assigned to this student (pending placements),
+    // awaiting the student's confirmation.
+    assigned: { type: Array, default: () => [] },
     registered: { type: Array, default: () => [] },
     registrationOpen: { type: Boolean, default: false },
     term: { type: String, default: null },
@@ -82,7 +84,7 @@ const drop = (course) => {
                     <EmptyState
                         v-if="registered.length === 0"
                         title="No courses registered"
-                        description="Pick from the available courses below to build your schedule."
+                        description="Register for the courses assigned to you below to build your schedule."
                         :icon="AcademicCapIcon"
                     />
 
@@ -110,23 +112,24 @@ const drop = (course) => {
                     </div>
                 </Card>
 
-                <!-- Available courses -->
-                <Card title="Available for your semester" :icon="PlusCircleIcon">
+                <!-- Assigned courses awaiting confirmation -->
+                <Card title="Assigned to you — register to confirm" :icon="PlusCircleIcon">
                     <EmptyState
-                        v-if="available.length === 0"
-                        title="Nothing left to register"
-                        :description="registrationOpen ? 'You are registered for all offered courses for your semester.' : 'Registration is closed.'"
+                        v-if="assigned.length === 0"
+                        title="Nothing to register"
+                        :description="registrationOpen ? 'The registrar has not assigned you any courses to register for yet.' : 'Registration is closed.'"
                         :icon="CheckCircleIcon"
                     />
 
                     <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div v-for="section in available" :key="section.sectionId" class="rounded-card border border-line bg-surface p-4">
+                        <div v-for="section in assigned" :key="section.sectionId" class="rounded-card border border-line bg-surface p-4">
                             <div class="flex items-start justify-between gap-2">
                                 <div class="min-w-0">
                                     <div class="flex flex-wrap items-center gap-2">
                                         <span class="font-semibold text-content">{{ section.code }}</span>
                                         <Badge variant="violet">{{ section.credits }} cr</Badge>
                                         <Badge variant="slate">Section {{ section.label }}</Badge>
+                                        <Badge v-if="section.semester" variant="info">Semester {{ section.semester }}</Badge>
                                     </div>
                                     <h3 class="font-bold text-content truncate mt-0.5">{{ section.name }}</h3>
                                 </div>

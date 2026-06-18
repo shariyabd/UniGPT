@@ -13,8 +13,10 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * Student self-registration: register for / drop the sections offered for the
- * student's semester in the current term, while registration is open.
+ * Student registration: confirm (register for) / drop the sections the admin has
+ * assigned to the student in the current term, while registration is open. The
+ * student can only register for assigned (pending) placements — section
+ * placement is admin-controlled, not self-service.
  */
 class RegistrationController extends Controller
 {
@@ -27,7 +29,7 @@ class RegistrationController extends Controller
         $user = $request->user();
 
         return Inertia::render('Student/Registration', [
-            'available' => $this->enrollment->availableFor($user),
+            'assigned' => $this->enrollment->assignedFor($user),
             'registered' => $this->enrollment->registeredFor($user),
             'registrationOpen' => $this->enrollment->registrationOpen(),
             'term' => $this->enrollment->currentTerm()?->name,

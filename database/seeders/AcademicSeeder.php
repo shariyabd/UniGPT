@@ -79,6 +79,22 @@ class AcademicSeeder extends Seeder
                 ]);
             }
 
+            // Demonstrate the assigned→register flow: the registrar has placed the
+            // demo student into CS330 Section A as a pending placement, so it shows
+            // up on the registration page awaiting their confirmation. CS340 is
+            // left unassigned to illustrate a course the student cannot register for.
+            if ($data['code'] === 'CS330') {
+                $course->students()->syncWithoutDetaching([
+                    $student->id => [
+                        'role' => 'student',
+                        'status' => 'pending',
+                        'term_id' => $currentTerm->id,
+                        'section_id' => $section->id,
+                        'enrolled_at' => null,
+                    ],
+                ]);
+            }
+
             $this->seedMaterials($course, $faculty->id);
             $this->seedAssignments($course, $faculty->id, $student->id);
             $this->seedExams($course, $faculty->id);

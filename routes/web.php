@@ -216,7 +216,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/courses/{course}/sections', [AdminSectionController::class, 'store'])->middleware('permission:manage_sections')->name('sections.store');
         Route::patch('/sections/{section}', [AdminSectionController::class, 'update'])->middleware('permission:manage_sections')->name('sections.update');
         Route::delete('/sections/{section}', [AdminSectionController::class, 'destroy'])->middleware('permission:manage_sections')->name('sections.destroy');
-        Route::post('/sections/{section}/enrollments', [AdminSectionController::class, 'enroll'])->middleware('permission:manage_sections')->name('sections.enroll');
+        Route::post('/sections/{section}/enrollments', [AdminSectionController::class, 'assign'])->middleware('permission:manage_sections')->name('sections.assign');
         Route::delete('/sections/{section}/enrollments/{user}', [AdminSectionController::class, 'drop'])->middleware('permission:manage_sections')->name('sections.drop');
 
         // Academic terms + end-of-term rollover
