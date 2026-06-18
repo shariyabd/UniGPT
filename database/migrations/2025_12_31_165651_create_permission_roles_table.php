@@ -1,4 +1,5 @@
 <?php
+
 // database/migrations/2024_01_01_000005_create_permission_role_table.php
 
 use Illuminate\Database\Migrations\Migration;
@@ -21,7 +22,6 @@ return new class extends Migration
                 ->onDelete('cascade');
             $table->timestamps();
 
-    
             $table->unique(['permission_id', 'role_id']);
 
             // Indexes for performance

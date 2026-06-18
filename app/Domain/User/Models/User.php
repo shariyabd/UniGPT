@@ -50,6 +50,8 @@ class User extends Authenticatable
             'is_active' => 'boolean',
             'preferences' => 'array',
             'password' => 'hashed',
+            // Curriculum level (1–8), aligned with courses.semester.
+            'semester' => 'integer',
         ];
     }
 
@@ -71,14 +73,66 @@ class User extends Authenticatable
     public function enrolledCourses(): BelongsToMany
     {
         return $this->belongsToMany(\App\Models\Course::class, 'course_user')
-            ->withPivot(['role', 'status', 'grade', 'progress', 'enrolled_at'])
+            ->withPivot(['role', 'status', 'grade', 'progress', 'enrolled_at', 'term_id', 'section_id'])
             ->withTimestamps()
             ->wherePivot('role', 'student');
+    }
+
+    /**
+     * Sections (offerings) this user is enrolled in as a student.
+     *
+     * The section — not the course — is the unit a student actually attends, so
+     * every section-scoped read (the section's instructor, its materials,
+     * assignments and exams) hangs off this relation. It is the section-level
+     * analog of {@see enrolledCourses()}, joined through the same pivot on its
+     * `section_id`.
+     */
+    public function enrolledSections(): BelongsToMany
+    {
+        return $this->belongsToMany(\App\Models\Section::class, 'course_user', 'user_id', 'section_id')
+            ->withPivot(['role', 'status', 'grade', 'progress', 'enrolled_at', 'term_id', 'course_id'])
+            ->withTimestamps()
+            ->wherePivot('role', 'student');
+    }
+
+    /**
+     * IDs of the sections this student is enrolled in, excluding dropped ones.
+     * Completed (past-term) enrolments are retained so the student keeps
+     * read access to their finished sections' materials and history.
+     *
+     * @return \Illuminate\Support\Collection<int, int>
+     */
+    public function enrolledSectionIds(): \Illuminate\Support\Collection
+    {
+        return $this->enrolledSections()
+            ->wherePivotNotIn('status', ['dropped'])
+            ->pluck('sections.id')
+            ->unique()
+            ->values();
+    }
+
+    /**
+     * IDs of the sections this faculty member teaches.
+     *
+     * @return \Illuminate\Support\Collection<int, int>
+     */
+    public function teachingSectionIds(): \Illuminate\Support\Collection
+    {
+        return $this->teachingSections()->pluck('id');
     }
 
     public function teachingCourses(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(\App\Models\Course::class, 'faculty_id');
+    }
+
+    /**
+     * Sections (offerings) this faculty member teaches. One faculty can teach
+     * many sections, across courses and terms.
+     */
+    public function teachingSections(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(\App\Models\Section::class, 'faculty_id');
     }
 
     /**

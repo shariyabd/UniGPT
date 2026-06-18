@@ -26,6 +26,8 @@ enum Permission: string
     case DELETE_COURSE = 'delete_course';
     case ENROLL_COURSE = 'enroll_course';
     case MANAGE_MATERIALS = 'manage_materials';
+    case MANAGE_SECTIONS = 'manage_sections';
+    case MANAGE_TERMS = 'manage_terms';
 
     // Assignment Management
     case VIEW_ASSIGNMENTS = 'view_assignments';
@@ -81,7 +83,8 @@ enum Permission: string
             self::MANAGE_DEPARTMENTS => 'User Management',
 
             self::VIEW_COURSES, self::CREATE_COURSE, self::UPDATE_COURSE,
-            self::DELETE_COURSE, self::ENROLL_COURSE, self::MANAGE_MATERIALS => 'Courses',
+            self::DELETE_COURSE, self::ENROLL_COURSE, self::MANAGE_MATERIALS,
+            self::MANAGE_SECTIONS, self::MANAGE_TERMS => 'Courses',
 
             self::VIEW_ASSIGNMENTS, self::CREATE_ASSIGNMENT, self::SUBMIT_ASSIGNMENT,
             self::GRADE_ASSIGNMENT, self::DELETE_ASSIGNMENT => 'Assignments',

@@ -3,16 +3,19 @@
 namespace App\Models;
 
 use App\Domain\User\Models\User;
+use App\Models\Concerns\BelongsToSection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class CourseMaterial extends Model
 {
+    use BelongsToSection;
     use HasFactory;
 
     protected $fillable = [
         'course_id',
+        'section_id',
         'document_id',
         'file_path',
         'original_filename',

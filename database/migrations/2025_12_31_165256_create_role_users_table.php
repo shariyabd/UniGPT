@@ -27,7 +27,6 @@ return new class extends Migration
             $table->timestamp('expires_at')->nullable();
             $table->timestamps();
 
-
             $table->unique(['user_id', 'role_id']);
 
             $table->index(['user_id', 'expires_at']);

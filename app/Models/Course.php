@@ -45,10 +45,41 @@ class Course extends Model
         return $this->belongsTo(User::class, 'faculty_id');
     }
 
+    public function sections(): HasMany
+    {
+        return $this->hasMany(Section::class);
+    }
+
+    /**
+     * The course's primary (first) section — the single offering in the current
+     * flat model. Used by write paths that must attach a record to a section.
+     */
+    public function primarySection(): ?Section
+    {
+        return $this->sections()->orderBy('id')->first();
+    }
+
+    /**
+     * The section of this course that the given faculty member teaches.
+     *
+     * Used to scope a faculty member's actions and reads to their own offering:
+     * when Prof. B uploads a material to a course they teach Section B of, it
+     * must land on Section B — not blindly the course's first section. Falls
+     * back to the primary section for legacy/owner-only cases.
+     */
+    public function sectionFor(User $faculty): ?Section
+    {
+        return $this->sections()
+            ->where('faculty_id', $faculty->id)
+            ->orderBy('id')
+            ->first()
+            ?? $this->primarySection();
+    }
+
     public function students(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'course_user')
-            ->withPivot(['role', 'status', 'grade', 'progress', 'enrolled_at'])
+            ->withPivot(['role', 'status', 'grade', 'progress', 'enrolled_at', 'term_id', 'section_id'])
             ->withTimestamps()
             ->wherePivot('role', 'student');
     }

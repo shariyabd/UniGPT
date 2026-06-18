@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Domain\User\Models\User;
 use App\Enums\ExamType;
+use App\Models\Concerns\BelongsToSection;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -11,10 +12,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Exam extends Model
 {
+    use BelongsToSection;
     use HasFactory;
 
     protected $fillable = [
         'course_id',
+        'section_id',
         'title',
         'type',
         'exam_date',

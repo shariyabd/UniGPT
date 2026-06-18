@@ -6,6 +6,9 @@ enum NotificationType: string
 {
     case GRADE = 'grade';
     case MATERIAL = 'material';
+    case ASSIGNMENT = 'assignment';
+    case SUBMISSION = 'submission';
+    case ENROLLMENT = 'enrollment';
     case EXAM = 'exam';
     case ANNOUNCEMENT = 'announcement';
     case SYSTEM = 'system';
@@ -23,6 +26,9 @@ enum NotificationType: string
         return match ($this) {
             self::GRADE => 'AcademicCapIcon',
             self::MATERIAL => 'BookOpenIcon',
+            self::ASSIGNMENT => 'DocumentTextIcon',
+            self::SUBMISSION => 'InboxArrowDownIcon',
+            self::ENROLLMENT => 'UserPlusIcon',
             self::EXAM => 'CalendarDaysIcon',
             self::ANNOUNCEMENT => 'MegaphoneIcon',
             self::SYSTEM => 'BellIcon',

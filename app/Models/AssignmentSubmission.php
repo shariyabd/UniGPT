@@ -16,6 +16,7 @@ class AssignmentSubmission extends Model
         'user_id',
         'content',
         'file_path',
+        'original_filename',
         'status',
         'grade',
         'feedback',
