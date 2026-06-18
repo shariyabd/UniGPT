@@ -8,6 +8,8 @@ import {
     ShieldCheckIcon,
     ChartPieIcon,
     BellAlertIcon,
+    ClipboardDocumentCheckIcon,
+    CalendarDaysIcon,
 } from '@heroicons/vue/24/outline';
 </script>
 
@@ -76,6 +78,18 @@ import {
                     <span class="ui-icon-tile bg-warning-bg text-warning-fg"><BellAlertIcon class="h-5 w-5" /></span>
                     <h3 class="mt-4 font-semibold text-content">Announcements & alerts</h3>
                     <p class="mt-1.5 text-sm text-content-muted">Broadcast to any audience and notify the right people on exams, grades and new materials.</p>
+                </div>
+
+                <div v-reveal="60" class="reveal ui-card ui-card-hover p-6">
+                    <span class="ui-icon-tile bg-accent-rose-soft text-accent-rose-fg"><ClipboardDocumentCheckIcon class="h-5 w-5" /></span>
+                    <h3 class="mt-4 font-semibold text-content">Registration & rostering</h3>
+                    <p class="mt-1.5 text-sm text-content-muted">Admins assign students to course sections; students confirm in one click — seats, terms and rosters stay consistent.</p>
+                </div>
+
+                <div v-reveal="120" class="reveal ui-card ui-card-hover p-6">
+                    <span class="ui-icon-tile bg-accent-yellow-soft text-accent-yellow-fg"><CalendarDaysIcon class="h-5 w-5" /></span>
+                    <h3 class="mt-4 font-semibold text-content">Exams, transcripts & calendar</h3>
+                    <p class="mt-1.5 text-sm text-content-muted">Schedule exams, auto-build transcripts with GPA & CGPA, and merge every deadline into one calendar.</p>
                 </div>
             </div>
         </div>

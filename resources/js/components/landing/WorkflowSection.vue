@@ -9,8 +9,8 @@ import {
 } from '@heroicons/vue/24/outline';
 
 const flow = [
-    { icon: Cog6ToothIcon, role: 'Admin', title: 'Sets the foundation', body: 'Creates departments, onboards users, approves documents and tunes the AI.' },
-    { icon: PresentationChartLineIcon, role: 'Faculty', title: 'Runs the classroom', body: 'Builds courses, publishes materials, marks attendance and grades with AI help.' },
+    { icon: Cog6ToothIcon, role: 'Admin', title: 'Sets the foundation', body: 'Builds the catalog, sections and terms, onboards users, approves documents and tunes the AI.' },
+    { icon: PresentationChartLineIcon, role: 'Faculty', title: 'Runs the classroom', body: 'Teaches assigned sections, publishes materials, marks attendance and grades with AI help.' },
     { icon: AcademicCapIcon, role: 'Student', title: 'Engages & learns', body: 'Asks grounded questions, tracks progress and plans the term.' },
     { icon: SparklesIcon, role: 'AI', title: 'Analyses everything', body: 'Surfaces top queries, engagement and grade trends across the institution.' },
     { icon: ArrowTrendingUpIcon, role: 'Leadership', title: 'Decides faster', body: 'Acts on live insight instead of stale end-of-term reports.' },

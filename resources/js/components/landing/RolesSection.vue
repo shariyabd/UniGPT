@@ -18,6 +18,7 @@ const tabs = [
         features: [
             'AI chat with citations, confidence & saved answers',
             'Personal dashboard: courses, CGPA & deadlines',
+            'One-click registration for assigned course sections',
             'Attendance, transcript & GPA tracking',
             'Course roadmap, materials & document library',
             'Exam schedule, calendar, notes & tasks',
@@ -37,7 +38,7 @@ const tabs = [
         blurb: 'Faculty manage courses end to end while the AI teaching assistant drafts assessments and feedback in seconds.',
         features: [
             'AI teaching assistant: quizzes, assignments & rubrics',
-            'Full course CRUD with material publishing',
+            'Manage taught sections & publish course materials',
             'One-click attendance with live class stats',
             'Grading workspace with AI-drafted feedback',
             'Per-course analytics & grade distributions',
@@ -57,6 +58,7 @@ const tabs = [
         blurb: 'Admins govern users, knowledge and the AI itself — with a real-time view of system and academic health.',
         features: [
             'User, role & permission matrix management',
+            'Course catalog, sections, terms & student assignment',
             'Document approval workflow & knowledge base',
             'Institution-wide analytics & top queries',
             'AI provider settings, prompts & retrieval tuning',

@@ -5,6 +5,7 @@ import { XMarkIcon, CheckIcon } from '@heroicons/vue/24/outline';
 const rows = [
     { label: 'Answers to policy questions', old: 'Email staff and wait', uni: 'Instant, cited from source docs' },
     { label: 'Attendance', old: 'Paper sheets & spreadsheets', uni: 'One-click marking with live stats' },
+    { label: 'Course registration', old: 'Clashing, self-picked sections', uni: 'Admin-assigned, one-click confirm' },
     { label: 'Quizzes & feedback', old: 'Written from scratch each term', uni: 'AI-drafted in seconds, then edited' },
     { label: 'Academic tracking', old: 'Manual GPA spreadsheets', uni: 'Automatic transcript & analytics' },
     { label: 'AI accuracy', old: 'Generic bots that hallucinate', uni: 'Grounded with confidence scores' },
