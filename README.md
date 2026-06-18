@@ -1,274 +1,189 @@
-# UniGPT - University Academic Copilot
+# UniGPT — University Academic Copilot
 
-A comprehensive university AI assistant built with Laravel 11, Vue 3, Vite, and Tailwind CSS, following Domain-Driven Design (DDD) architecture.
+UniGPT is an **AI-powered academic platform** for a university. It pairs a
+**RAG-grounded AI assistant** (answers cited from the institution's own approved
+documents) with **role-based dashboards** for **Students, Faculty, and
+Administrators**. Built with **Laravel 11 + Inertia 2 + Vue 3 + Tailwind**, backed by
+**MySQL** — and runnable end-to-end with **no API keys** thanks to a deterministic
+mock AI provider.
 
-## 🏗️ Architecture
-
-This project implements **Domain-Driven Design (DDD)** with a clear separation of concerns:
-
-### Directory Structure
-
-```
-📁 app/
-├── Console/              # Artisan commands
-├── Enums/               # Enum classes (UserRole, DocumentStatus, ChatMode, etc.)
-├── Exceptions/          # Custom exception handlers
-├── Http/                # HTTP layer
-│   ├── Controllers/     # Controllers (Auth, Student, Faculty, Admin, Api)
-│   ├── Middleware/      # HTTP middleware
-│   ├── Requests/        # Form requests
-│   └── Resources/       # API resources
-├── Livewire/           # Livewire components
-│   ├── Student/        # Student dashboard components
-│   ├── Faculty/        # Faculty components
-│   ├── Admin/          # Admin panel components
-│   └── Shared/         # Shared components
-├── Domain/             # Domain layer (business logic)
-│   ├── User/           # User domain
-│   ├── Academic/       # Academic domain
-│   ├── Document/       # Document processing
-│   ├── RAG/            # RAG (Retrieval-Augmented Generation)
-│   ├── Chat/           # Chat functionality
-│   └── Analytics/      # Analytics and metrics
-├── Infrastructure/     # Infrastructure layer
-│   ├── AI/             # AI client implementations (OpenAI, Gemini, Local LLM)
-│   ├── VectorDB/       # Vector database clients (Pinecone, FAISS, Chroma)
-│   ├── FileStorage/    # File storage handling
-│   └── Speech/         # Speech-to-text services
-├── Services/           # Application services
-└── Providers/          # Service providers
-```
-
-## 🚀 Technology Stack
-
-### Backend
-- **Laravel 11** - PHP framework
-- **Livewire** - Dynamic Laravel components
-- **Domain-Driven Design** - Architecture pattern
-
-### Frontend
-- **Vue 3** - Progressive JavaScript framework
-- **Vite** - Next-generation frontend tooling
-- **Tailwind CSS** - Utility-first CSS framework
-- **Headless UI** - Unstyled, accessible UI components
-- **Heroicons** - SVG icon set
-
-### AI & Vector Databases
-- **OpenAI** - GPT models
-- **Google Gemini** - Google's AI models
-- **Local LLM** - Self-hosted language models
-- **Pinecone** - Vector database
-- **FAISS** - Facebook AI Similarity Search
-- **ChromaDB** - Open-source embedding database
-
-## 📦 Installation
-
-### Prerequisites
-- PHP 8.2+
-- Composer
-- Node.js 18+
-- npm or yarn
-
-### Setup Steps
-
-1. **Install PHP dependencies**
-```bash
-composer install
-```
-
-2. **Install Node dependencies**
-```bash
-npm install
-```
-
-3. **Environment Configuration**
-```bash
-cp .env.example .env
-php artisan key:generate
-```
-
-4. **Configure your `.env` file**
-```env
-# AI Configuration
-AI_DEFAULT_PROVIDER=openai
-OPENAI_API_KEY=your_api_key_here
-OPENAI_MODEL=gpt-4-turbo-preview
-GEMINI_API_KEY=your_gemini_key_here
-
-# Vector Database
-VECTOR_DB_DEFAULT=pinecone
-PINECONE_API_KEY=your_pinecone_key
-PINECONE_ENVIRONMENT=your_environment
-PINECONE_INDEX_NAME=unigpt
-
-# Embedding
-EMBEDDING_PROVIDER=openai
-EMBEDDING_MODEL=text-embedding-ada-002
-```
-
-5. **Run migrations**
-```bash
-php artisan migrate
-```
-
-6. **Build assets**
-```bash
-npm run build
-```
-
-## 🔥 Development
-
-### Start Development Servers
-
-**Terminal 1 - Laravel Server:**
-```bash
-php artisan serve
-```
-
-**Terminal 2 - Vite Dev Server:**
-```bash
-npm run dev
-```
-
-Your application will be available at:
-- Laravel: `http://localhost:8000`
-- Vite HMR: `http://localhost:5173`
-
-## 📋 Features
-
-### Core Features
-- ✅ **Domain-Driven Design Architecture**
-- ✅ **Multi-AI Provider Support** (OpenAI, Gemini, Local LLM)
-- ✅ **RAG System** with advanced retrieval
-- ✅ **Role-Based Access Control** (Admin, Faculty, Student)
-- ✅ **Document Processing** with smart chunking
-- ✅ **Vector Database Integration**
-- ✅ **Real-time Chat Interface**
-- ✅ **Analytics Dashboard**
-
-### User Roles
-
-#### Admin
-- Manage users and permissions
-- Upload and approve documents
-- View analytics
-- Control AI prompts and settings
-
-#### Faculty
-- Upload course documents
-- Use AI teaching assistant
-- View student progress
-- Access analytics
-
-#### Student
-- Interactive AI chat
-- View learning roadmap
-- Save important answers
-- Access course materials
-
-## 🎨 Frontend Components
-
-### Vue 3 Components
-Located in `resources/js/components/`:
-- **ChatBox.vue** - Interactive chat interface
-- More components will be added as development progresses
-
-### Livewire Components
-Located in `app/Livewire/`:
-- Student dashboard components
-- Faculty tools
-- Admin panel
-- Shared utilities
-
-## 🔧 Configuration Files
-
-### AI Configuration (`config/ai.php`)
-Configure AI providers, models, and parameters
-
-### RAG Configuration (`config/rag.php`)
-Set up chunking strategies, retrieval settings, and citation formats
-
-### Vector Database (`config/vector.php`)
-Configure Pinecone, FAISS, or ChromaDB
-
-### Permissions (`config/permissions.php`)
-Define role-based access control
-
-## 📝 Usage Examples
-
-### Using Enums
-```php
-use App\Enums\UserRole;
-use App\Enums\ChatMode;
-
-// Check user role
-if ($user->role === UserRole::ADMIN) {
-    // Admin logic
-}
-
-// Get chat mode system prompt
-$prompt = ChatMode::ACADEMIC->systemPrompt();
-```
-
-### AI Service Integration
-```php
-use App\Infrastructure\AI\OpenAIClient;
-
-$client = app(OpenAIClient::class);
-$response = $client->chat($message, $context);
-```
-
-## 🛣️ Routes
-
-Routes are organized by user roles:
-- `routes/web.php` - Public routes
-- `routes/student.php` - Student routes
-- `routes/faculty.php` - Faculty routes
-- `routes/admin.php` - Admin routes
-- `routes/api.php` - API routes
-
-## 🎯 Next Steps
-
-This is Phase 1 completion:
-1. ✅ Directory structure created
-2. ✅ Vue 3 + Vite integration
-3. ✅ Tailwind CSS configured
-4. ✅ Basic enums and configs
-5. ✅ Sample components
-
-### Upcoming Phases:
-- Phase 2: Database schema and migrations
-- Phase 3: Authentication and authorization
-- Phase 4: AI integration and RAG system
-- Phase 5: Chat interface and UI
-- Phase 6: Document processing
-- Phase 7: Analytics and reporting
-
-## 📚 Documentation
-
-- [Laravel Documentation](https://laravel.com/docs/11.x)
-- [Vue 3 Documentation](https://vuejs.org/)
-- [Vite Documentation](https://vitejs.dev/)
-- [Tailwind CSS Documentation](https://tailwindcss.com/)
-- [Headless UI Documentation](https://headlessui.com/vue/menu)
-
-## 🤝 Contributing
-
-This project follows Domain-Driven Design principles. When adding features:
-1. Identify the domain
-2. Place business logic in `app/Domain/`
-3. Infrastructure concerns go in `app/Infrastructure/`
-4. Keep controllers thin
-5. Use services for complex operations
-
-## 📄 License
-
-[Your License Here]
-
-## 👨‍💻 Author
-
-UniGPT Development Team
+> **Trust code over docs.** Where any document disagrees with the source, the code
+> wins. These docs are kept current as of **2026-06-18**.
 
 ---
 
-**Built with ❤️ using Laravel 11, Vue 3, Vite, and Tailwind CSS**
+## 📖 Documentation Map
+
+This README is the front door. The deeper references:
+
+| Doc | What it covers |
+|---|---|
+| **[README.md](README.md)** (this file) | Overview, quick start, tech stack, roles at a glance |
+| **[PROJECT_ANALYSIS.md](PROJECT_ANALYSIS.md)** | **Deep reference** — application logic, architecture, end-to-end workflows, roles & responsibilities, communication flow |
+| **[DIRECTORY_TREE.md](DIRECTORY_TREE.md)** | Annotated directory structure (what lives where) |
+| **[PROJECT_STATUS.md](PROJECT_STATUS.md)** | Feature completion tracker, **incomplete tasks**, and **Future Plans / Upcoming Features** |
+| **[CLAUDE.md](CLAUDE.md)** | Conventions & rules for contributors (and AI assistants) |
+
+New here? Read this page, then **PROJECT_ANALYSIS.md** for the full mental model.
+
+---
+
+## 1. What it does (Abstract)
+
+UniGPT gives a university a single, governed AI layer over its own academic content:
+
+- **Students** chat with an AI tutor that answers from *approved* university documents
+  with **citations + a confidence score**, follow a course roadmap, track attendance,
+  grades, exams, and a calendar, register for admin-assigned course sections, submit
+  assignments, and keep personal notes/tasks/saved answers.
+- **Faculty** manage the sections they teach, upload materials, grade submissions
+  (with AI-drafted feedback), generate quizzes/assignments with an AI teaching
+  assistant, and view learning analytics.
+- **Administrators** govern users and the RBAC matrix, own the course catalog,
+  sections, terms and departments, curate the document knowledge base (upload →
+  approve → embed), configure the AI provider, broadcast announcements, and monitor
+  the system.
+
+The differentiator: AI answers are **grounded in institution-approved documents
+(RAG)** rather than generic LLM output — reducing hallucination and making guidance
+**cited and auditable**.
+
+---
+
+## 2. Technology Stack
+
+| Layer | Technology |
+|---|---|
+| Backend framework | **Laravel 11** (PHP 8.2+) |
+| Frontend | **Inertia.js 2 + Vue 3** SPA (`<script setup>`) — *not* Blade pages, *not* Livewire |
+| Build tooling | **Vite + Tailwind CSS** |
+| Route bridge | **Ziggy** (`route()` helper in Vue) |
+| Database | **MySQL** (`uni_gpt`) — application data **and** the vector store |
+| Toasts | `vue-toastification` |
+| AI provider | Pluggable **OpenAI** (native HTTP, no SDK) + always-available **deterministic Mock** fallback |
+| Document parsing | `smalot/pdfparser` (PDF) + native ZipArchive/XML (DOCX) |
+| JS testing | **Vitest** + `@vue/test-utils` + `jsdom` |
+| Architecture | **Domain-Driven Design** layout (`app/Domain/*`, `app/Infrastructure/*`) |
+
+> `livewire/livewire` is installed but **unused** — the UI is entirely Inertia + Vue.
+> No external vector-DB client or LLM SDK is installed: embeddings are JSON in MySQL
+> and AI calls use Laravel's HTTP client. Both are swappable behind interfaces.
+
+---
+
+## 3. Quick Start
+
+### Prerequisites
+- PHP 8.2+, Composer
+- Node.js 18+, npm
+- MySQL (database `uni_gpt`)
+
+### Setup
+```bash
+composer install
+npm install
+
+cp .env.example .env
+php artisan key:generate
+# set DB_DATABASE=uni_gpt and DB credentials in .env
+
+php artisan migrate:fresh --seed   # schema + demo data (RBAC, academic, knowledge base)
+npm run build
+```
+
+### Run (two terminals)
+```bash
+php artisan serve     # http://localhost:8000
+npm run dev           # Vite HMR
+```
+`composer dev` runs the common dev processes together if configured.
+
+### Demo accounts (seeded, password `demo123`)
+| Role | Email |
+|---|---|
+| Student | `student@university.edu` |
+| Faculty | `prof.smith@university.edu`, `prof.jones@university.edu` |
+| Admin | `admin@university.edu` |
+
+The login page also offers **demo-login** buttons (auto-seeds RBAC if missing). Login
+requires picking a role (`student | faculty | admin`); it is validated against the
+user's assigned roles and rate-limited per email+IP.
+
+---
+
+## 4. Common Commands
+
+```bash
+# Dev
+php artisan serve
+npm run dev
+npm run build
+
+# Database
+php artisan migrate
+php artisan migrate:fresh --seed
+php artisan db:seed --class=RBACSeeder
+
+# Tests
+php artisan test                       # PHP feature/unit suite
+npm run test:js                        # Vitest (Vue components/composables)
+
+# Quality / inspection
+./vendor/bin/pint                      # PHP code style
+php artisan route:list
+php artisan optimize:clear
+```
+
+---
+
+## 5. Roles at a Glance
+
+| | Student | Faculty | Administrator |
+|---|---|---|---|
+| AI chat | RAG tutor (6 modes), saved answers | AI teaching assistant (quiz/assignment gen, feedback) | Configures the AI provider |
+| Courses | Register for **admin-assigned** sections; view materials | Manage taught sections; upload materials | Owns catalog, sections, terms, departments |
+| Assessment | Submit assignments, view grades/transcript | Grade submissions, mark attendance | — |
+| Visibility | Own roadmap, attendance, exams, calendar | Per-course learning analytics | Platform analytics, system monitor, audit log |
+| Knowledge base | Read/download approved docs | Upload course materials | Upload + approve/reject documents (→ RAG) |
+| Governance | — | Department-scoped | User & RBAC management, announcements |
+
+Access is enforced by **role middleware + 40 fine-grained permissions** (with
+temporal role assignment via `role_user.expires_at`). See **PROJECT_ANALYSIS.md §3**.
+
+---
+
+## 6. Architecture in one breath
+
+```
+Browser (Vue 3 page) ──Inertia──▶ routes/web.php ──▶ Controller (thin)
+        ▲                                              │ validates via Form Request
+        │ Inertia::render(props)                        │ authorizes via Policy
+        │                                              ▼
+   Ziggy route()                              Domain Service (business logic)
+                                                       │
+                                    ┌──────────────────┼───────────────────┐
+                                    ▼                  ▼                   ▼
+                              Eloquent models     RAG pipeline       AI provider
+                              (MySQL)         (chunk→embed→retrieve   (OpenAI | Mock)
+                                               →cite, MySQL vectors)
+```
+
+- **One route file** — `routes/web.php` (the `routes/{student,faculty,admin}.php`
+  files are unregistered dead stubs). API-style actions are web routes returning
+  Inertia/redirects — a deliberate Inertia-monolith design.
+- **Custom auth + RBAC** — `User` model lives at `app/Domain/User/Models/User.php`.
+- Full detail in **[PROJECT_ANALYSIS.md](PROJECT_ANALYSIS.md)**.
+
+---
+
+## 7. What's next
+
+The completion tracker, the list of **incomplete tasks**, and the **Future Plans /
+Upcoming Features** (real-time student↔faculty chat, Telegram/WhatsApp notifications,
+and an AI-assisted digital library) live in **[PROJECT_STATUS.md](PROJECT_STATUS.md)**.
+
+---
+
+**Built with Laravel 11, Inertia 2, Vue 3, Vite, and Tailwind CSS.**
+</content>
+</invoke>

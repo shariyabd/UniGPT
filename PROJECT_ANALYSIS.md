@@ -1,431 +1,410 @@
-# UniGPT — Comprehensive Project Analysis
+# UniGPT — Architecture & Developer Reference
 
-> **Generated:** 2026-06-16 (supersedes the 2026-06-14 draft, which predated most feature work and badly understated completion)
-> **Scope:** Full architectural, business-logic, and feature analysis across all three roles (Student, Faculty, Administrator), with a completion-status report and a combined project maturity assessment.
-> **Source of truth:** The codebase itself. Where the repo's older marketing docs contradict the code, the code wins.
-> **History note:** The earlier Phase-1 docs (`PHASE_1_COMPLETE.md`, `QUICK_START.md`, `PROJECT_STRUCTURE.md`) described only the scaffolding phase, were inaccurate (claimed Livewire UI, "no DB yet", a MAMP path, and listed implemented features as "pending"), and have been **removed**. This file is now the single source of truth.
-
----
-
-## 1. Project Abstraction / Executive Summary
-
-### 1.1 What this project is
-
-**UniGPT** (codebase folder `uni-chat`) is a **university AI academic copilot** — a web application that gives students, faculty, and administrators a single AI-assisted platform for academic work. It is a **RAG-backed (Retrieval-Augmented Generation) chat assistant** grounded in a university's own documents (handbooks, syllabi, lecture notes, policies), surrounded by **role-based dashboards**:
-
-- **Students** chat with an AI tutor, follow a learning roadmap, save useful answers, and browse course materials.
-- **Faculty** manage courses, grade assignments, and use an AI teaching assistant to generate quizzes/assignments.
-- **Administrators** manage users and roles, curate and approve the document knowledge base, configure the AI provider, and monitor the system.
-
-### 1.2 Technology stack
-
-| Layer | Technology |
-|---|---|
-| Backend framework | **Laravel 11** (PHP 8.2+) |
-| Frontend | **Inertia.js 2 + Vue 3** SPA (not Blade-rendered pages, not Livewire) |
-| Build tooling | **Vite + Tailwind CSS** |
-| Routing bridge | **Ziggy** (exposes named Laravel routes to Vue) |
-| Database | **MySQL** (`uni_gpt`) — used for application data **and** as the vector store |
-| Notifications | `vue-toastification` |
-| AI provider | Pluggable: **OpenAI** (HTTP, no SDK) with an always-available **deterministic Mock provider** fallback |
-| Document parsing | `smalot/pdfparser` (PDF) + native ZipArchive/XML (DOCX) |
-| JS testing | **Vitest** + `@vue/test-utils` + `jsdom` |
-| Architecture style | **Domain-Driven Design (DDD)** layout — `app/Domain/*`, `app/Infrastructure/*` |
-
-> Note: `livewire/livewire` is installed but unused — the UI is entirely Inertia + Vue. No OpenAI/Anthropic SDK or external vector-DB client is installed; the AI integration uses Laravel's native HTTP client and embeddings are stored as JSON in MySQL.
-
-### 1.3 Main goal & purpose
-
-To act as an **AI academic copilot** where AI answers are **grounded in institution-approved documents** (RAG) rather than generic LLM output — reducing hallucination and giving cited, confidence-scored academic guidance. It layers role-specific productivity tools on top of that chat core.
-
-### 1.4 The problem it solves
-
-- **Students** get instant, context-aware academic help with answers traceable to real, approved sources.
-- **Faculty** offload repetitive work — drafting quizzes/assignments and grading support — to an AI teaching assistant, and gain visibility into student progress.
-- **Administrators** govern the knowledge base (which documents the AI may cite), manage who can access what, and tune/monitor the AI centrally.
-- **The institution** gets a controlled, auditable AI layer over its own academic content.
-
-### 1.5 Primary users & stakeholders
-
-| Stakeholder | Interest |
-|---|---|
-| **Students** | Day-to-day AI tutoring, materials, progress tracking |
-| **Faculty / Instructors** | Course management, AI-assisted teaching, grading, student analytics |
-| **Administrators / IT** | User & role governance, document approval, AI configuration, system monitoring |
-| **University leadership** | A governed, branded AI platform with usage analytics |
-
-### 1.6 Current reality (one-line verdict)
-
-**A working, end-to-end RAG academic platform: real authentication + RBAC, a functioning document→chunk→embed→retrieve→cite→answer pipeline, real chat/saved-answers, a real academic domain (courses/materials/assignments/grading), and real admin governance — runnable without any API key thanks to a deterministic mock AI provider.** A handful of dashboard/analytics screens still carry hardcoded display data, and a few subsystems (external vector DB, speech, alternate LLM providers, document versioning) remain unbuilt.
+> **Updated:** 2026-06-18. The deep reference for the whole system — read this after
+> [README.md](README.md) to build a complete mental model.
+> **Source of truth = the code.** Where older marketing docs disagree, the code wins.
+>
+> **Contents:** [1. Overview](#1-overview--abstract) · [2. Application Logic](#2-application-logic)
+> · [3. Architecture](#3-architecture) · [4. Directory Structure](#4-directory-structure)
+> · [5. Workflows](#5-workflows-end-to-end) · [6. Roles & Responsibilities](#6-roles--responsibilities)
+> · [7. Communication Flow](#7-communication-flow) · [8. Data Model](#8-data-model-reference)
+> · [9. Appendix](#9-appendix)
 
 ---
 
-## 2. System Architecture Overview
+## 1. Overview / Abstract
 
-### 2.1 Request flow
+**UniGPT** (repo folder `uni-chat`) is a **university AI academic copilot**: a web app
+that gives **Students, Faculty, and Administrators** a single AI-assisted platform for
+academic work. Its core is a **RAG-backed (Retrieval-Augmented Generation) chat
+assistant** grounded in the university's own approved documents (handbooks, syllabi,
+policies, lecture notes), wrapped in **role-based dashboards** and a real **academic
+domain** (terms, courses, sections, enrollment, grading, attendance, exams).
 
-1. A single root Blade view `resources/views/app.blade.php` boots `resources/js/app.js`.
-2. Controllers return `Inertia::render('SomePage', [...props])`; pages auto-resolve from `resources/js/pages/**/*.vue` by name.
-3. Named routes reach Vue via **Ziggy** (`route()` helper); flash messages via shared props + `vue-toastification`.
-4. The shared `auth.user` prop is now **the real authenticated user** (id, name, roles, permissions, department, dashboard route) — hydrated in [HandleInertiaRequests](app/Http/Middleware/HandleInertiaRequests.php).
+**Why it exists:** generic LLMs hallucinate. UniGPT answers from *institution-approved*
+content and returns **citations + a confidence score**, so academic guidance is
+traceable and auditable. Around that core it layers role-specific productivity tools.
 
-### 2.2 Routing model
+**Tech stack:** Laravel 11 (PHP 8.2+) · Inertia 2 + Vue 3 SPA · Vite + Tailwind · MySQL
+(`uni_gpt`, also the vector store) · Ziggy · `vue-toastification` · OpenAI (native HTTP)
+with a deterministic **Mock** fallback · `smalot/pdfparser` for documents.
 
-- **All live web routes are in [routes/web.php](routes/web.php)**, organized into public, `role:student`, `role:faculty` (prefix `faculty.`), and `role:admin` (prefix `admin.`) groups, with per-route `permission:` middleware on sensitive actions.
-- `routes/student.php`, `routes/faculty.php`, `routes/admin.php` still exist as **empty (~16-line) skeletons NOT registered** in [bootstrap/app.php](bootstrap/app.php) — dead scaffolding. Editing them does nothing.
-- `routes/api.php` is effectively empty. **There is no separate REST API layer** — "API-style" actions (POST `/chat`, save answers, grade submissions, document approve/reject, etc.) are served as **web routes returning Inertia/redirects**, protected by session auth + role + permission middleware. This is a deliberate Inertia-monolith design, not a gap.
-
-### 2.3 Authentication & RBAC (custom, not Laravel scaffolding)
-
-- `role` / `permission` middleware aliases registered in [bootstrap/app.php](bootstrap/app.php) → [RoleMiddleware](app/Http/Middleware/RoleMiddleware.php) / [PermissionMiddleware](app/Http/Middleware/PermissionMiddleware.php).
-- Guests redirect to `/login`; **deactivated users (`is_active = false`) are force-logged-out** by middleware.
-- Login **requires the user to pick a role** (`student|faculty|admin`) and pass `hasRole()` for it; rate-limited per email+IP (5 attempts).
-- Many-to-many roles/permissions with **temporal role assignment** (`role_user.expires_at`).
-- The **User model lives at [app/Domain/User/Models/User.php](app/Domain/User/Models/User.php)** (not `app/Models`). It owns all RBAC helpers and goes through [UserManagementService](app/Domain/User/Services/UserManagementService.php) backed by `EloquentUserRepository`.
-- **Authorization is layered:** route middleware (role + permission) → **Form Requests** with permission-aware `authorize()` → **Policies** for per-record ownership.
-
-### 2.4 DDD layer status at a glance
-
-| Layer | Component | Status |
-|---|---|---|
-| Domain | **User** (RBAC, service, repository, provider) | ✅ Implemented |
-| Domain | **Chat** (`ChatService`, `RagChatService`, `TeachingAssistantService`, DTOs, `AiSettings`) | ✅ Implemented |
-| Domain | **RAG** (`RetrievalService`, `EmbeddingService`, `CitationService`, `ChunkingService`, `AIProviderInterface`) | ✅ Implemented (MySQL-native) |
-| Domain | **Document** (`DocumentService`, `DocumentProcessingService`) | ✅ Implemented (upload→approval→processing) |
-| Domain | **Academic** (`CourseService`, `GradingService`) | ✅ Implemented |
-| Domain | **Analytics** (`AnalyticsService`) | ✅ Implemented |
-| Domain | Chat/Memory, RAG/Prompts, Academic/Rules+ValueObjects, Document/Versioning | ❌ Empty (logic inlined elsewhere or not needed) |
-| Infrastructure | **AI** (`OpenAiProvider`, `MockProvider`, `AIProviderManager`) | ✅ Implemented |
-| Infrastructure | **FileStorage** (`DocumentStorageService`, `DocumentTextExtractor`) | ✅ Implemented |
-| Infrastructure | **Repositories/EloquentUserRepository** | ✅ Implemented |
-| Infrastructure | **VectorDB**, **Speech** | ❌ Empty (MySQL used for vectors; speech not built) |
-| Services (`app/Services/`) | `ActivityLogger` | ✅ Implemented |
-| Config | `ai.php`, `rag.php`, `vector.php`, `permissions.php` | ✅ `ai.php`/`rag.php` consumed; `vector.php` largely unused (MySQL store) |
-| Controllers | Auth, Student, Faculty, Admin (18 total) | ✅ Real, service-backed |
-| Composer deps | OpenAI/Anthropic SDK, external vector/embedding libs | ❌ None (HTTP + MySQL by design) |
+**One-line verdict:** a working, end-to-end RAG academic platform — real auth + RBAC, a
+real document→chunk→embed→retrieve→cite→answer pipeline, real chat/saved-answers, a real
+academic domain, and real admin governance — **runnable with zero API keys** via the mock
+provider. Remaining gaps are scale/polish (external vector DB, speech, streaming, alternate
+LLMs) tracked in [PROJECT_STATUS.md](PROJECT_STATUS.md).
 
 ---
 
-## 3. Role-by-Role Analysis
+## 2. Application Logic
+
+The business rules that define how the system behaves. These are the things a new
+developer most often gets wrong.
+
+### 2.1 Identity & access (custom RBAC)
+
+- The **`User` model lives at `app/Domain/User/Models/User.php`** — *not* `app/Models`.
+  It owns all RBAC helpers: `hasRole`, `hasPermission`, `assignRole`, `syncRoles`,
+  `isStudent`/`isFaculty`/`isAdmin`, `getPrimaryRole`, `getDashboardRoute`.
+- **Roles ↔ Permissions** are many-to-many. **40 fine-grained permission slugs**
+  (`app/Enums/Permission.php`) are the source of truth — `config/permissions.php` is a
+  legacy soft map.
+- **Temporal roles:** `role_user.expires_at` lets a role assignment expire.
+- **Role slug casing:** the canonical slug is the **lowercase** DB value (`admin`,
+  `faculty`, `student`). Never compare against an uppercase enum name.
+- **Login requires a role selection** (`student|faculty|admin`) that is validated
+  against the user's assigned roles, `.edu`-style email, and rate-limited per email+IP.
+- **Deactivated users** (`is_active = false`) are **force-logged-out** by the role and
+  permission middleware on their next request.
+
+### 2.2 The academic spine: Term → Course → Section → Enrollment
+
+This is the most important domain model and was recently redesigned.
+
+- A **Course** is the catalog entry (code, name, department, **semester** 1–8, credits).
+  Admin-owned.
+- A **Section** is a concrete **offering** of a course in a **Term** — it carries the
+  instructor (`faculty_id`), schedule, capacity (`max_enrollment`), and is the unit that
+  owns **materials, assignments, exams, attendance, and the roster**.
+- **Section labels are constrained to a fixed A–J set**, normalized to uppercase and
+  **unique per (course, term)** — enforced in `SectionRequest` + `CourseManagementService`.
+  This prevents inconsistent values like `A` vs `a`. The admin picks the label from a
+  dropdown, never free text.
+- A **Term** has `is_current` (exactly one) and `is_registration_open`. Most student
+  reads are scoped to the current term.
+
+### 2.3 Enrollment: admin-assigns → student-confirms (two-step)
+
+Enrollment lives on the **`course_user` pivot** (unique per `(course, user)`), stamped
+with `section_id`, `term_id`, `status`, `grade`, `progress`, `enrolled_at`.
+
+The flow (in `EnrollmentService`):
+
+1. **Admin assigns** a student to a specific section → pivot `status = 'pending'`,
+   `enrolled_at = null`. This **reserves a seat** but grants the student **no access**.
+2. The student sees *only* their **assigned (pending)** sections on the **Registration**
+   page and clicks **Register** to confirm → `status = 'enrolled'`, `enrolled_at = now()`.
+3. Dropping sets `status = 'dropped'` (the row is kept for history).
+
+Statuses: **`pending`** (reserved, awaiting confirm) · **`enrolled`** (active) ·
+**`completed`** (past term) · **`dropped`** (withdrawn).
+
+Critical rules:
+- **A student may only register for sections the admin assigned to them** —
+  `eligibilityError()` rejects anything else ("not assigned… contact the registrar").
+- **Capacity** = enrolled **+** pending (a reserved seat counts). Checked at *assign*
+  time, not at student confirm (the seat is already held).
+- **Pending placements grant zero access.** `User::enrolledSectionIds()` excludes both
+  `dropped` and `pending`, which centrally gates materials, exams, calendar,
+  submissions, attendance, dashboards, and the chat/notes/tasks course pickers. A
+  pending course must never leak content before the student confirms.
+
+### 2.4 RAG chat: grounded, cited, confidence-scored
+
+When a user sends a chat message (`ChatService` → `RagChatService`):
+
+1. **Embed the query** (`EmbeddingService`) and **retrieve** the top-K most similar
+   document chunks by **cosine similarity computed in PHP** over vectors stored in the
+   MySQL `embeddings` table (`RetrievalService`). Retrieval is scoped to **approved
+   documents the user may see**.
+2. **Build a grounded context block** from those chunks and call the **AI provider**.
+3. **Persist** the session + messages + **citations** (`message_citations`) + a
+   **confidence score/level** + suggested **follow-ups**.
+
+- **Chat modes** (`ChatMode`): general / academic / research / exam_prep /
+  assignment_help / career_guidance — each injects a different system prompt.
+- **Provider resolution** (`AIProviderManager`): use the configured provider
+  (OpenAI) if a key is present; otherwise **fall back to the deterministic
+  `MockProvider`** so chat works with no credentials. The mock composes an answer from
+  the injected context and produces stable lexical-hash embeddings.
+
+### 2.5 Document knowledge base lifecycle
+
+`Document` → **upload** (admin) → stored on local disk → **approval workflow**
+(approve / reject / request-changes / comment, audited in `document_approvals`) →
+on approval a queued **`ProcessDocumentJob`** runs **extract text → chunk
+(`ChunkingService`) → embed (`EmbeddingService`) → store**. Only **approved** chunks are
+retrievable in chat. Visibility is scoped; downloads are logged. Documents soft-delete.
+
+### 2.6 Other domain rules worth knowing
+
+- **Attendance:** faculty mark a section roster by date; `AttendanceStatus` LATE and
+  EXCUSED both `countsAsPresent()`. Students see a per-course rate.
+- **Grades & transcript:** grades live on `course_user.grade`; `TranscriptService`
+  computes per-term GPA and credit-weighted CGPA on a 4.0 scale (no extra schema).
+- **Notifications** are per-recipient rows; auto-fired on graded submission, published
+  material, scheduled exam, published assignment, and enrollment assignment; admins can
+  **broadcast** announcements.
+- **Calendar** (`CalendarService`) merges assignment deadlines + exams + personal tasks.
+- **Notes/Tasks** are personal and **owner-scoped** (a user only ever sees their own).
+- **Auditing:** `ActivityLogger` writes to `activity_logs` for key actions.
 
 ---
 
-## 3.A STUDENT
+## 3. Architecture
 
-### 3.A.1 Workflows & responsibilities
+### 3.1 Request flow (Inertia monolith)
 
-1. **Log in** (selecting "student") → Student Dashboard.
-2. **Chat** with the AI tutor in academic/exam/assignment/etc. modes; receive **cited, confidence-scored** answers; **save** useful ones.
-3. **Follow a learning roadmap** built from real enrolled courses (progress, CGPA).
-4. **Browse course materials & approved documents**; **download** documents (logged).
-5. **Manage saved answers**, profile, and settings — all persisted.
+1. `resources/views/app.blade.php` (single root view) boots `resources/js/app.js`.
+2. A controller returns `Inertia::render('Page', [...props])`; Vue pages auto-resolve
+   from `resources/js/pages/**/*.vue` by name.
+3. Vue calls named routes via **Ziggy** (`route()`); flash messages flow through shared
+   props into `vue-toastification`.
+4. `HandleInertiaRequests` shares the **real authenticated user** (id, name, roles,
+   permissions, department, dashboard route) plus the notifications badge.
 
-### 3.A.2 Accessible routes & pages
+> **There is no separate REST API.** "API-style" actions (POST `/chat`, grade, approve,
+> register, …) are **web routes returning Inertia/redirects**, guarded by session auth +
+> role + permission middleware. `routes/api.php` is effectively empty. This is deliberate.
 
-Middleware `['auth', 'role:student']`, unprefixed (key routes):
-
-| Route | Controller method | Page | Backend |
-|---|---|---|---|
-| `GET /dashboard` | `StudentDashboardController::index` | `Student/Dashboard` | ✅ Real (courses, activities, deadlines via `CourseService`/`ActivityLog`) |
-| `GET /chat`, `POST /chat` | `ChatController::index/store` | `Student/Chat` | ✅ Real RAG chat (`ChatService`/`RagChatService`); persists sessions+messages+citations |
-| `GET/DELETE /chat/sessions/{session}` | `ChatController::show/destroy` | `Student/Chat` | ✅ Real (policy-guarded ownership) |
-| `GET/POST/PATCH/DELETE /saved` | `SavedAnswerController` | `Student/SavedAnswers` | ✅ Real CRUD (folders, tags, starred) |
-| `GET /roadmap` | `::roadmap` | `Student/Roadmap` | ✅ Real (semester roadmap from enrollments) |
-| `GET /documents`, `GET /documents/{document}/download` | `::documents/downloadDocument` | `Student/Documents` | ✅ Real (visibility-scoped; download logged) |
-| `GET /materials` | `::materials` | `Student/Materials` | ✅ Real (`CourseService`) |
-| `GET/PATCH /profile` | `::profile/updateProfile` | `Student/Profile` | ✅ Real (persisted) |
-| `GET/PATCH /settings` | `::settings/updateSettings` | `Student/Settings` | ✅ Real (preferences JSON persisted) |
-
-### 3.A.3 What the student can actually do today
-
-- ✅ Register / log in / log out; reach a working role-gated area.
-- ✅ **Chat with the AI tutor and get grounded, cited, confidence-scored answers** (real even with no API key, via the mock provider).
-- ✅ Save/organize answers; track a roadmap from real enrollments; browse/download approved materials & documents; edit profile and settings.
-- ⚠️ The Chat page renders a hardcoded **initial greeting** message (cosmetic).
-
-### 3.A.4 Interaction with other roles
-
-- Consumes documents **Admins upload/approve** and materials linked by **Faculty** — *wired*.
-- Activity feeds analytics that admins/faculty consume — *wired via `ActivityLogger`/`AnalyticsService`*.
-- Admin governs the student's account status, role, and permissions — *real*.
-
-### 3.A.5 Student feature list
-
-**Core (implemented):** RAG AI tutor chat (modes: general/academic/research/exam-prep/assignment-help/career-guidance) with citations + confidence + follow-ups; saved answers with folders/tags/starred; multi-semester roadmap; course materials & approved-document library with downloads.
-**Permissions (seeded):** `view_documents`, `download_document`, `view_courses`, `enroll_course`, `view_assignments`, `submit_assignment`, `use_ai_chat`, `view_chat_history`, `delete_chat`, `view_own_analytics`.
-**Restrictions:** No upload, no user management, no analytics beyond own, no AI configuration.
-
----
-
-## 3.B FACULTY
-
-### 3.B.1 Workflows & responsibilities
-
-1. **Log in** (role "faculty") → Faculty Dashboard with course/student overview.
-2. **Use the AI teaching assistant** — RAG chat plus **quiz** and **assignment** generators.
-3. **Grade** submissions with rubric scores and feedback.
-4. **View courses** and per-course detail (roster, materials, assignments).
-
-### 3.B.2 Accessible routes & pages
-
-Middleware `['auth', 'role:faculty']`, prefix `faculty.` (key routes):
-
-| Route | Controller method | Page | Backend |
-|---|---|---|---|
-| `GET /faculty/dashboard` | `FacultyDashboardController::index` | `Faculty/Dashboard` | ✅ Real (courses, stats, pending grading) |
-| `GET /faculty/courses`, `GET /faculty/courses/{course}` | `CourseController::index/show` | `Faculty/CourseDetail` | ✅ Real (`CourseService`, `CoursePolicy`-guarded) |
-| `GET /faculty/ai-assistant` | `AIAssistantController::index` | `Faculty/AIAssistant` | ✅ Real faculty context |
-| `POST /faculty/ai-assistant/chat` | `::chat` | — | ✅ Real RAG (`RagChatService`) |
-| `POST /faculty/ai-assistant/quiz` | `::generateQuiz` | — | ✅ Real (`TeachingAssistantService`, deterministic fallback w/o key) |
-| `POST /faculty/ai-assistant/assignment` | `::generateAssignment` | — | ✅ Real (`create_assignment` gated) |
-| `GET /faculty/grading`, `GET /faculty/courses/{course}/grading` | `GradingController::index` | `Faculty/Grading` | ✅ Real (`GradingService`) |
-| `POST /faculty/submissions/{submission}/grade` | `::grade` | — | ✅ Real (persists grade/feedback/rubric, logs activity) |
-
-> The previously "unrouted" `Faculty/CourseDetail.vue` is now wired via `GET /faculty/courses/{course}`.
-
-### 3.B.3 What faculty can actually do today
-
-- ✅ View a real dashboard (courses, students, pending grading from live data).
-- ✅ **Generate quizzes/assignments** (LLM when configured, deterministic templates otherwise) and **RAG-chat** with the teaching assistant.
-- ✅ **Grade real submissions** with rubric scores + feedback; see per-course detail with roster/materials/assignments.
-
-### 3.B.4 Interaction with other roles
-
-- Materials/documents are consumed by **Students** — *wired*.
-- Faculty grading + AI usage feed **Analytics** — *wired*.
-- **Admin** manages faculty accounts, roles, and department assignment — *real*.
-
-### 3.B.5 Faculty feature list
-
-**Core (implemented):** AI teaching assistant (RAG chat, quiz generator, assignment creator), assignment grading with rubrics, course management + detail, dashboard stats.
-**Permissions (seeded):** all student permissions **plus** `upload_document`, `create_course`, `update_course`, `create_assignment`, `grade_assignment`, `view_department_analytics`.
-**Restrictions:** No user management, no AI provider configuration, no system administration, department-scoped only.
-
----
-
-## 3.C ADMINISTRATOR
-
-### 3.C.1 Workflows & responsibilities
-
-1. **Log in** (role "admin") → Admin Dashboard (system overview, real user stats).
-2. **Manage users & roles/permissions** (create/update/deactivate/assign-role; edit the role-permission matrix).
-3. **Curate the knowledge base** — upload, library, and **approve/reject/request-changes/comment** with an audit trail; documents then get chunked + embedded.
-4. **Configure the AI** (provider/model/RAG parameters) and **test** provider availability.
-5. **View analytics** and **monitor system health**.
-
-### 3.C.2 Accessible routes & pages
-
-Middleware `['auth', 'role:admin']`, prefix `admin.`. **All routes use real controllers** (the old inline closures are gone):
-
-| Route | Handler | Page | Backend |
-|---|---|---|---|
-| `GET /admin/dashboard` | `AdminDashboardController::index` | `Admin/Dashboard` | ✅ Real user/document stats; ⚠️ some health/insight figures hardcoded in the Vue page |
-| `GET /admin/users` + `POST/PATCH …` | `UserManagementController` | `Admin/UserManagement` | ✅ Real (paginate, create, update, toggle-active, assign-role) |
-| `GET /admin/roles`, `PATCH /admin/roles/{role}/permissions` | `RoleController` | `Admin/RolePermissions` | ✅ Real matrix editor (admin role protected) |
-| `GET /admin/documents/upload`, `POST /admin/documents` | `DocumentController::upload/store` | `Admin/DocumentUpload` | ✅ Real (stores file, chunks, embeds) |
-| `GET /admin/documents`, `GET …/download`, `DELETE …` | `DocumentController` | `Admin/DocumentLibrary` | ✅ Real (filters, download, soft delete) |
-| `GET /admin/approvals` + approve/reject/request-changes/comment | `DocumentController` | `Admin/Approvals` | ✅ Real approval workflow w/ audit (`document_approvals`) |
-| `GET /admin/analytics` | `AnalyticsController::index` | `Admin/Analytics` | ⚠️ Controller is real (`AnalyticsService`); the Vue page still contains mock arrays |
-| `GET /admin/monitor` | `MonitorController::index` | `Admin/SystemMonitor` | ✅ Real metrics (memory, DB up, etc.) |
-| `GET/PATCH /admin/settings`, `POST /admin/settings/test` | `SettingsController` | `Admin/AISettings` | ✅ Real (persists to `settings`; tests provider); ⚠️ Vue page carries hardcoded defaults |
-
-> **Resolved from the old report:** the previously dead/unrouted `userManagement()` method is replaced by a real `UserManagementController`; document upload/library/approvals are fully persisted; AI settings read/write the `settings` table.
-
-### 3.C.3 What admins can actually do today
-
-- ✅ See a dashboard with **real aggregate user/document statistics**.
-- ✅ **Full user lifecycle** (create/update/deactivate/search/paginate/assign-role) and **role-permission matrix editing** — all persisted with activity logging.
-- ✅ **Upload documents that are stored, chunked, and embedded**, and **approve/reject** them through a real workflow with an audit trail; approved docs become retrievable by chat.
-- ✅ **Configure & test the AI provider**; **monitor real system metrics**.
-- ⚠️ Analytics, AI-settings, and parts of the dashboard still display some **hardcoded values in the Vue layer** even though backend services exist.
-
-### 3.C.4 Interaction with other roles
-
-- **Owns the lifecycle** of Student & Faculty accounts (creation, role assignment with expiry, activation/deactivation, department) — **real**.
-- Approves documents feeding the **Student/Faculty** knowledge base — **real, persisted**.
-- Configures the AI all roles consume — **real (settings table + provider manager)**.
-
-### 3.C.5 Administrator feature list
-
-**Core (implemented):** user management, role/permission matrix, document upload + library + approval workflow (with chunk/embed pipeline), AI provider/RAG configuration + test, analytics service, system monitoring, activity audit log.
-**Permissions (seeded):** all 24 permissions incl. `manage_user_roles`, `approve_document`, `configure_ai`, `manage_system`, `manage_permissions`, `view_all_analytics`.
-**Restrictions:** None within the app (top of hierarchy).
-
----
-
-## 4. Role Relationships
+### 3.2 Layered design (DDD-flavored)
 
 ```
-                 ┌─────────────────────────────────────────────┐
-                 │              ADMINISTRATOR                   │
-                 │  • Creates/manages Student & Faculty accounts│
-                 │  • Assigns roles/permissions (with expiry)   │
-                 │  • Approves documents → knowledge base       │
-                 │  • Configures + tests the AI provider        │
-                 └───────────────┬──────────────┬──────────────┘
-                                 │ governs       │ governs
-                ┌────────────────▼───┐      ┌────▼─────────────────┐
-                │      FACULTY        │      │      STUDENT         │
-                │ • Course materials  │─────▶│ • Consumes materials │
-                │ • AI teaching tools │ docs │ • RAG AI tutor chat  │
-                │ • Grades work       │      │ • Roadmap / saved    │
-                │ • Course detail     │◀─────│ • Generates activity │
-                │                     │ data │   & analytics        │
-                └─────────────────────┘      └──────────────────────┘
+Controller (thin: orchestrate + respond)
+  → Form Request (validation + permission-aware authorize())
+  → Policy (per-record ownership, e.g. "this faculty owns this course")
+  → Domain Service (all business logic)
+      → Eloquent models (MySQL)
+      → Infrastructure adapters (AI provider, file storage, repositories)
 ```
 
-- **Admin → Faculty/Student:** account governance, document approval, AI config — **all real**.
-- **Faculty → Student:** materials/document provision — **wired**.
-- **Student/Faculty → Analytics:** activity logged and aggregated — **wired**.
-- **Shared dependency:** all three depend on the **Chat/RAG core** and the **document knowledge base**, both now **implemented**.
+- **Controllers stay thin.** Business logic belongs in `app/Domain/{Context}/Services/`.
+- **Authorization is layered:** route middleware (role + permission) → Form Request
+  `authorize()` → Policy for record ownership.
+- **Bounded contexts:** User, Academic, Chat, RAG, Notification, Analytics.
 
----
+### 3.3 Authentication & middleware
 
-## 5. Completion Status Report
+- Aliases registered in `bootstrap/app.php`: `role` → `RoleMiddleware`,
+  `permission` → `PermissionMiddleware`. Only **`routes/web.php`** is registered.
+- `RoleMiddleware` / `PermissionMiddleware`: gate access, log unauthorized attempts,
+  and force-logout deactivated users. Guests redirect to `/login`.
 
-### 5.1 ✅ Fully completed / functional
+### 3.4 AI / RAG infrastructure
 
-| Area | Detail |
+- **Contract:** `AIProviderInterface` (`chat`, `embed`, `embeddingDimensions`,
+  `embeddingModel`, `name`, `isAvailable`).
+- **Implementations:** `OpenAiProvider` (native HTTP, no SDK) and `MockProvider`
+  (deterministic, always available); resolved by `AIProviderManager` with auto-fallback.
+- **Vector store = MySQL.** Embeddings are JSON in the `embeddings` table; retrieval is
+  PHP cosine similarity. `app/Infrastructure/VectorDB/` is empty and `config/vector.php`
+  is unused — both are swap points for a managed vector DB at scale.
+- **File storage:** `DocumentStorageService` (local disk) + `DocumentTextExtractor`
+  (PDF/DOCX/txt/md, page-aware).
+
+### 3.5 Domain-layer status
+
+| Context | State |
 |---|---|
-| **Authentication** | Login/register/logout, role-selection at login, `.edu` validation, password-reset flow, per-email+IP rate limiting, demo-login with auto-seeding |
-| **RBAC core** | Roles, Permissions, Departments, pivots; many-to-many with temporal (`expires_at`) assignment; full helper API; role-permission matrix editor |
-| **Authorization** | Role + permission route middleware; **14 permission-aware Form Requests**; **4 Policies** (`ChatSession`, `Document`, `SavedAnswer`, `Course`) for per-record ownership |
-| **User management** | `UserManagementService` + `EloquentUserRepository`: stats, pagination, create/update/deactivate, search, role assignment — all routed & persisted |
-| **RAG chat (core product)** | `ChatService` + `RagChatService`: retrieve → build cited context → call provider → persist sessions/messages/citations/confidence/follow-ups |
-| **RAG pipeline** | `ChunkingService`, `EmbeddingService`, `RetrievalService` (cosine similarity in PHP over MySQL-stored vectors), `CitationService` |
-| **AI provider** | `OpenAiProvider` (HTTP) + `MockProvider` (deterministic, always available) + `AIProviderManager` with auto-fallback |
-| **Document management** | Upload → store → chunk → embed; approval workflow (approve/reject/request-changes/comment) with `document_approvals` audit; visibility scoping; PDF/DOCX/txt/md extraction |
-| **Academic domain** | Courses, enrollments, materials, assignments, submissions; `CourseService` + `GradingService` |
-| **Analytics service** | `AnalyticsService`: platform overview, department breakdown, top queries, users-by-role |
-| **Faculty AI tools** | RAG chat + quiz/assignment generators (`TeachingAssistantService`) |
-| **Activity audit** | `ActivityLogger` + `activity_logs` table across key actions |
-| **Inertia auth sharing** | `auth.user` now hydrated with real user + roles + permissions + dashboard route |
-| **Tests** | 5 PHP feature/unit tests (role gating, permission matrix) + 5 Vitest JS suites (nav gating, permissions composable, matrix editor, button gating) |
-| **Frontend UI** | Every screen for all three roles built and polished (responsive, dark mode, modals, tables) |
-
-### 5.2 ⚠️ Partially completed (backend real, frontend carries leftover mock data)
-
-| Area | What works | What's left |
-|---|---|---|
-| **Admin Analytics** | `AnalyticsService` + controller return real data | `Admin/Analytics.vue` still defines mock arrays + a "simplified for demo" chart |
-| **Admin Dashboard** | Real user/doc stats from services | `systemHealth`/`studentInsights` and some badge counts hardcoded in the Vue page |
-| **Admin AI Settings** | Read/write `settings`, provider test | `Admin/AISettings.vue` carries hardcoded default config blocks |
-| **Student Chat** | Full real RAG chat | Hardcoded **initial greeting** message in the Vue page |
-| **Login** | Real credential/role auth + demo-login endpoint | Demo credentials hardcoded in `Auth/Login.vue` (intentional for demo, but worth gating) |
-
-### 5.3 ❌ Not implemented
-
-| Area | Status |
-|---|---|
-| **External vector database** | Not built. `app/Infrastructure/VectorDB/` empty; `config/vector.php` largely unused. **By design** — embeddings live in MySQL (`embeddings.vector` JSON) with PHP cosine similarity. Will need a real vector DB to scale beyond ~100k vectors. |
-| **Speech (STT/TTS)** | Absent. `app/Infrastructure/Speech/` empty; config only. |
-| **Alternate LLM providers** | Gemini / Local-LLM are config stubs only; only OpenAI + Mock are implemented. |
-| **Document versioning** | `app/Domain/Document/Versioning/` empty. |
-| **Conversation memory** | `app/Domain/Chat/Memory/` empty (history is replayed from `chat_messages`, but no summarization/long-term memory). |
-| **Separate REST/WebSocket API** | `routes/api.php` empty; no broadcasting/real-time streaming (chat is request/response over web routes). |
-| **Dead route skeletons** | `routes/{student,faculty,admin}.php` still present and unregistered. |
-
-### 5.4 🐞 Resolved bugs (from the prior analysis) & remaining nits
-
-| # | Prior issue | Status now |
-|---|---|---|
-| 1 | Role slug casing (enum returned UPPERCASE) | ✅ **Fixed** — `UserRole` cases are lowercase-backed and `getSlug()` returns `$this->value`. |
-| 2 | `auth.user` hardcoded to `null` | ✅ **Fixed** — `HandleInertiaRequests` returns the real user with roles/permissions. |
-| 3 | `Permission` `category` in `$fillable` with no column | ✅ **Fixed** — migration creates a `category` column. |
-| 4 | Dead unregistered route files | ⚠️ Still present (harmless); candidates for deletion. |
-| 5 | Unrouted `userManagement()` | ✅ **Resolved** — real `UserManagementController` is routed. |
-| 6 | Unrouted `Faculty/CourseDetail.vue` | ✅ **Resolved** — routed at `GET /faculty/courses/{course}`. |
-| 7 | Mock data in prop-fed pages | ⚠️ Mostly cleaned; remnants remain in Admin Analytics/Dashboard/AISettings and the Chat greeting (see §5.2). |
+| User (RBAC, service, repository) | ✅ Implemented |
+| Academic (Course/Section/Term/Enrollment/Grading/Attendance/Exam/Transcript/Calendar/Submission) | ✅ Implemented |
+| Chat (`ChatService`, `RagChatService`, `TeachingAssistantService`) | ✅ Implemented |
+| RAG (Embedding/Retrieval/Citation, MySQL-native) | ✅ Implemented |
+| Document (Service, Processing, Chunking) | ✅ Implemented |
+| Notification, Analytics (platform + faculty) | ✅ Implemented |
+| AI Infrastructure (OpenAI + Mock + Manager) | ✅ Implemented |
+| Chat/Memory, RAG/Prompts, Academic/Rules+ValueObjects | ⬜ Empty (inlined or unneeded) |
+| VectorDB, Speech infrastructure | ⬜ Empty (MySQL store; no speech) |
 
 ---
 
-## 6. Combined Project Report
+## 4. Directory Structure
 
-### 6.1 System depth & complexity
+A high-level map lives here; the **fully annotated tree** is in
+[DIRECTORY_TREE.md](DIRECTORY_TREE.md).
 
-- **Breadth:** 3 roles, ~23 Vue screens, 24 fine-grained permissions, temporal role assignment, department modeling, demo-seeding, rate-limited multi-role auth.
-- **Depth:** Now genuinely deep across **Auth + RBAC + User management, the full RAG pipeline, document lifecycle, and the academic domain** — clean DDD (model → service → repository/contract → infrastructure provider).
-- **Notable engineering choice:** a **MySQL-native vector store** + **deterministic mock AI provider** make the whole product runnable end-to-end with **zero external dependencies or API keys** — excellent for demos, with a clear scaling path (swap in a real provider/vector DB behind the existing interfaces).
-
-### 6.2 Core business features (intended vs. real)
-
-| Business capability | Intended | Real today |
-|---|---|---|
-| RAG-grounded AI chat | ✅ Centerpiece | ✅ Implemented (cited, confidence-scored) |
-| Role-based dashboards | ✅ | ✅ (a few hardcoded display figures remain) |
-| User & role governance | ✅ | ✅ Implemented |
-| Document knowledge base + approval | ✅ | ✅ Implemented (with embed pipeline + audit) |
-| Faculty AI teaching tools & grading | ✅ | ✅ Implemented |
-| Student roadmap / saved answers / materials | ✅ | ✅ Implemented |
-| Analytics & system monitoring | ✅ | ✅ Backend real; ⚠️ some frontend mock remnants |
-| AI provider configuration | ✅ | ✅ OpenAI + Mock (Gemini/Local stubbed) |
-
-### 6.3 Major workflows (end-to-end status)
-
-1. **Auth & role routing** — ✅ Works end to end.
-2. **Admin user lifecycle** — ✅ Works (create/assign/deactivate/search, persisted).
-3. **Student asks AI a question** — ✅ Works: retrieves approved-doc chunks, builds cited context, answers with confidence + follow-ups, persists session.
-4. **Faculty generates a quiz / grades** — ✅ Works (LLM or deterministic fallback; grading persisted).
-5. **Admin uploads & approves a document → student reads/queries it** — ✅ Works: stored → chunked → embedded → approval → retrievable in chat & downloadable.
-
-### 6.4 Overall project maturity
-
-**Phase: Mid/Late — "working RAG MVP with polish gaps."**
-
-- **Maturity (qualitative): ~70–80% of a usable MVP.** The core product (RAG chat grounded in approved documents) and all three role workflows function end-to-end.
-- **Production-quality foundation:** Auth, RBAC, user management, document pipeline, and the academic domain are well-architected, typed, and test-covered.
-- **Remaining gaps are mostly polish + scale:** strip leftover frontend mock data (Analytics/Dashboard/AISettings/Chat greeting), remove dead route files, and — for real-world scale — introduce a managed vector DB and a production LLM provider behind the existing interfaces. Speech, alternate providers, document versioning, and conversation memory remain future work.
-
-### 6.5 Priority roadmap from here
-
-1. **Frontend mock cleanup:** wire `Admin/Analytics.vue`, `Admin/Dashboard.vue`, and `Admin/AISettings.vue` to their already-real backend props; move the Chat greeting and Login demo creds behind props/flags.
-2. **Delete dead scaffolding:** remove unregistered `routes/{student,faculty,admin}.php`.
-3. **Scale the RAG store:** swap the MySQL JSON vector store for a managed vector DB behind `RetrievalService`/`EmbeddingService` when corpus size demands it.
-4. **Harden AI:** add a real production provider (and optionally Gemini/Local) behind `AIProviderInterface`; consider streaming responses.
-5. **Optional subsystems:** document versioning, conversation memory/summarization, speech (STT/TTS).
-6. **Test depth:** add feature tests for the chat/RAG/document pipelines (currently strongest on RBAC).
+```
+app/
+  Domain/{User,Academic,Chat,RAG,Notification,Analytics}/   business logic
+  Infrastructure/{AI,FileStorage,Repositories}/             external adapters
+  Http/{Controllers,Requests,Middleware}/                   thin HTTP layer
+  Models/                                                    Eloquent entities
+  Enums/  Policies/  Jobs/  Services/  Console/Commands/
+resources/js/{pages,components,Layouts,composables}/         Inertia + Vue SPA
+routes/web.php                                               the only live route file
+database/{migrations,seeders,factories}/
+config/{ai,rag,permissions,vector}.php
+```
 
 ---
 
-## 7. Appendix — Quick Reference
+## 5. Workflows (end-to-end)
 
-### 7.1 Database tables (application)
+### 5.1 Auth & role routing
+Login (pick role) → validate credentials + role + rate limit → `HandleInertiaRequests`
+shares the user → redirect to `getDashboardRoute()` → role/permission middleware gates
+every subsequent page. Deactivated mid-session → force logout.
 
-**RBAC/User:** `users`, `roles`, `permissions`, `role_user`, `permission_role`, `departments`.
-**Chat/RAG:** `chat_sessions`, `chat_messages`, `message_citations`, `saved_answers`.
-**Documents:** `documents`, `document_chunks`, `embeddings`, `document_approvals`.
-**Academic:** `courses`, `course_user`, `course_materials`, `assignments`, `assignment_submissions`.
-**System:** `activity_logs`, `settings` — plus Laravel infra (`cache`, `jobs`, `password_reset_tokens`, `sessions`, …).
+### 5.2 Admin sets up an offering and assigns a student
+1. Admin creates a **Term** (sets current, opens registration).
+2. Admin creates a **Course** (catalog).
+3. Admin creates a **Section** under it — picks an **A–J label** (dropdown), term,
+   faculty, capacity.
+4. Admin **assigns** a student to that section → `pending` placement (seat reserved,
+   notification sent: "register to confirm").
+5. Student opens **Registration**, sees only the assigned course, clicks **Register** →
+   `enrolled`; the section's materials/exams/etc. become accessible.
 
-### 7.2 Key services & infrastructure
+### 5.3 Student asks the AI a question
+Chat page → POST `/chat` → embed query → retrieve approved-doc chunks → build cited
+context → provider answers (OpenAI or Mock) → response shows answer + **citations** +
+**confidence** + follow-ups; session/messages/citations persisted. Useful answers can be
+**saved** (folders/tags/starred).
 
-- **Chat:** `app/Domain/Chat/Services/{ChatService,RagChatService,TeachingAssistantService}.php`
-- **RAG:** `app/Domain/RAG/{Retrieval/RetrievalService,Embeddings/EmbeddingService,Citations/CitationService}.php`; `app/Domain/Chat/Document/Chunking/ChunkingService.php`
-- **Documents:** `app/Domain/Chat/Document/Services/{DocumentService,DocumentProcessingService}.php`
-- **Academic:** `app/Domain/Academic/Services/{CourseService,GradingService}.php`
-- **User:** `app/Domain/User/Services/UserManagementService.php`; `app/Infrastructure/Repositories/EloquentUserRepository.php`
-- **AI:** `app/Infrastructure/AI/{OpenAiProvider,MockProvider,AIProviderManager}.php`; contract `app/Domain/RAG/Contracts/AIProviderInterface.php`
-- **FileStorage:** `app/Infrastructure/FileStorage/{DocumentStorageService,DocumentTextExtractor}.php`
-- **Analytics:** `app/Domain/Analytics/Services/AnalyticsService.php`; **Audit:** `app/Services/ActivityLogger.php`
+### 5.4 Admin curates a document → student queries it
+Upload → stored → approval workflow (approve/reject/request-changes/comment, audited) →
+on approve, `ProcessDocumentJob` chunks + embeds → the doc becomes **retrievable in chat**
+and **downloadable** by permitted roles.
 
-### 7.3 Authorization artifacts
+### 5.5 Faculty teaches, generates, grades
+View taught sections → upload materials → **AI teaching assistant** generates a
+**quiz/assignment** (LLM when keyed, deterministic template otherwise) → **publish** it
+as a real `Assignment` (notifies enrolled students) → students submit → faculty **grade**
+with rubric + **AI-drafted feedback** (the draft is editable, nothing auto-saved) → grade
+notification fires → **learning analytics** (grade distribution, attendance, at-risk).
 
-- **Form Requests (14):** `app/Http/Requests/{Student,Faculty,Admin}/*` — permission-aware `authorize()`.
-- **Policies (4):** `app/Policies/{ChatSessionPolicy,DocumentPolicy,SavedAnswerPolicy,CoursePolicy}.php`.
+### 5.6 Student term lifecycle
+Register → attend (faculty mark attendance) → submit assignments → receive grades →
+view **transcript** (term GPA + CGPA) and **exams/calendar**; manage personal
+**notes/tasks**.
 
-### 7.4 Enums (`app/Enums/`)
+---
 
-`UserRole` (admin/faculty/student, lowercase-backed), `Permission` (24), `ChatMode` (6), `DocumentStatus`, `Language`, `ConfidenceLevel`.
+## 6. Roles & Responsibilities
 
-### 7.5 Tests
+### 6.A Student
+**Can:** chat with the RAG tutor (6 modes, cited + confidence); save/organize answers;
+follow a roadmap from real enrollments; register for **admin-assigned** sections; view
+materials & approved documents (download logged); submit assignments; view grades,
+transcript, attendance, exams, calendar; keep personal notes/tasks; edit profile/settings.
+**Cannot:** upload/approve documents, manage users, configure AI, or see analytics beyond
+their own.
+**Key permissions:** `use_ai_chat`, `view_chat_history`, `view_courses`, `enroll_course`,
+`view_assignments`, `submit_assignment`, `view_attendance`, `view_exams`, `view_documents`,
+`download_document`, `view_own_analytics`.
 
-- **PHP:** `tests/Feature/{AdminRoleTest,FacultyRoleTest,StudentRoleTest,RolePermissionMatrixTest}.php`.
-- **JS (Vitest):** `resources/js/tests/{AppLayout,usePermissions,RolePermissions,buttonGating}.test.js` (+ `setup.js`). Run via `npm run test:js`.
+### 6.B Faculty
+**Can:** view/manage the **sections they teach**; upload/manage course materials; use the
+**AI teaching assistant** (RAG chat + quiz/assignment generators + publish); grade
+submissions with rubrics + AI-drafted feedback; mark attendance; read exam timetable; view
+per-course **learning analytics** (grade distribution, attendance rate, submission
+completion, at-risk flags).
+**Cannot:** manage users, configure the AI provider, own the catalog/terms/sections
+(admin-owned), or administer the system. Department-scoped.
+**Key permissions:** all student perms **+** `manage_materials`, `create_assignment`,
+`grade_assignment`, `mark_attendance`, `view_department_analytics`.
+> The catalog, sections, and term/registration are **admin-owned**; faculty are *assigned*
+> to sections and manage teaching artifacts within them.
 
-### 7.6 Demo credentials (seeded)
+### 6.C Administrator
+**Can:** full user lifecycle + RBAC matrix; own the **course catalog, sections, terms,
+departments**; **assign students** to sections; curate the **document knowledge base**
+(upload + approve/reject/request-changes/comment → embed pipeline); configure & **test**
+the AI provider; broadcast **announcements**; manage **exams**; view **platform analytics**;
+**monitor** system health; review the **audit log**.
+**Cannot:** nothing within the app (top of hierarchy).
+**Key permissions:** all 40, incl. `manage_user_roles`, `manage_permissions`,
+`manage_departments`, `manage_terms`, `manage_sections`, `approve_document`, `configure_ai`,
+`manage_exams`, `send_notifications`, `manage_system`, `view_all_analytics`.
 
-- Student — `student@university.edu`
-- Faculty — `prof.smith@university.edu`
-- Admin — `admin@university.edu`
+---
 
-(`demoLogin` auto-runs `RBACSeeder` if these are missing. Password: `demo123`.)
+## 7. Communication Flow
+
+How roles and components interact (all relationships below are **wired and real**):
+
+```
+                       ┌──────────────────────────────────────────────┐
+                       │                ADMINISTRATOR                  │
+                       │ • Owns users + RBAC, catalog, sections, terms │
+                       │ • Assigns students → sections (pending)       │
+                       │ • Approves documents → knowledge base (RAG)   │
+                       │ • Configures the AI provider; broadcasts       │
+                       └───────┬───────────────────────────┬──────────┘
+                  governs +    │ assigns students /          │ governs accounts,
+                  approves docs │ owns offerings              │ approves docs
+                  ┌────────────▼──────────────┐   ┌──────────▼───────────────┐
+                  │          FACULTY           │   │          STUDENT          │
+                  │ • Teach assigned sections  │   │ • Register for assigned   │
+                  │ • Upload materials ────────┼──▶│   sections; read materials│
+                  │ • Publish quizzes/assigns ─┼──▶│ • Submit assignments ─────┼─┐
+                  │ • Grade + AI feedback ─────┼──▶│ • View grades/attendance  │ │
+                  │ • View learning analytics ◀┼───┤ • RAG AI tutor chat       │ │
+                  └────────────────────────────┘   └───────────────────────────┘ │
+                          ▲                                  │ activity + grades   │
+                          │ submissions feed grading ◀───────┘                     │
+                          └───────────────── Notifications fire on grade / material /
+                                              exam / assignment / enrollment ───────┘
+                  Shared core: every role depends on the Chat/RAG engine and the
+                  admin-approved Document knowledge base. Activity → Analytics.
+```
+
+- **Admin → Faculty/Student:** account governance, document approval, AI config,
+  section/term ownership, student↔section assignment.
+- **Faculty → Student:** materials, published assignments/quizzes, grades + feedback.
+- **Student → Faculty:** submissions and activity feed grading and analytics.
+- **System events → Notifications:** grade posted, material/assignment/exam published,
+  enrollment assigned, admin announcement.
+- **Everyone → Chat/RAG + Knowledge base:** the shared dependency at the center.
+
+> **Not yet present** (see [PROJECT_STATUS.md](PROJECT_STATUS.md) → Future Plans):
+> direct real-time student↔faculty messaging, and external (Telegram/WhatsApp) push.
+> Today, cross-role communication is asynchronous via in-app notifications.
+
+---
+
+## 8. Data Model Reference
+
+**RBAC / User:** `users`, `roles`, `permissions`, `role_user` (`expires_at`),
+`permission_role`, `departments`.
+**Academic:** `terms`, `courses`, `sections`, `course_user` (pivot: status, grade,
+progress, `term_id`, `section_id`, `enrolled_at`), `course_materials`,
+`material_completions`, `assignments`, `assignment_submissions`, `attendance_records`,
+`exams`, `notes`, `tasks`.
+**Chat / RAG / Documents:** `chat_sessions`, `chat_messages`, `message_citations`,
+`saved_answers`, `documents` (soft-deletes), `document_chunks`, `embeddings`,
+`document_approvals`.
+**System:** `notifications`, `activity_logs`, `settings` + Laravel infra
+(`cache`, `jobs`, `sessions`, `password_reset_tokens`).
+
+Key relationships: `User ↔ Course` via `course_user`; `Course → Section → Term`;
+section-scoped models (`CourseMaterial`, `Assignment`, `Exam`, `AttendanceRecord`) use
+the `BelongsToSection` trait; `Document → DocumentChunk → Embedding`;
+`ChatMessage → MessageCitation → Document`.
+
+---
+
+## 9. Appendix
+
+### 9.1 Key services
+- **Academic:** `Course`, `CourseManagement`, `Enrollment`, `Grading`, `Submission`,
+  `Attendance`, `Exam`, `Transcript`, `Calendar`, `Term` services (`app/Domain/Academic/Services/`).
+- **Chat/RAG:** `ChatService`, `RagChatService`, `TeachingAssistantService`;
+  `EmbeddingService`, `RetrievalService`, `CitationService`; `ChunkingService`.
+- **Documents:** `DocumentService`, `DocumentProcessingService` (+ `ProcessDocumentJob`).
+- **User/Analytics:** `UserManagementService`, `EloquentUserRepository`,
+  `AnalyticsService`, `FacultyAnalyticsService`, `NotificationService`, `ActivityLogger`.
+
+### 9.2 Enums (`app/Enums/`)
+`Permission` (40, categorized), `UserRole` (admin/faculty/student, lowercase),
+`ChatMode` (6), `NotificationType` (8), `AttendanceStatus` (4), `ExamType` (4),
+`TaskPriority` (3), `DocumentStatus` (6), `ConfidenceLevel` (5), `Language` (7).
+
+### 9.3 Authorization artifacts
+~28 permission-aware Form Requests (`app/Http/Requests/{Admin,Faculty,Student}/`);
+4 Policies — `ChatSessionPolicy`, `CoursePolicy`, `DocumentPolicy`, `SavedAnswerPolicy`.
+
+### 9.4 Tests
+**PHP** (`tests/Feature/`): role gating (Admin/Faculty/Student), permission matrix,
+attendance, course/department/exam/section management, enrollment, **section assignment +
+isolation**, self-registration, multi-section, notifications, transcript, faculty
+analytics, feedback generation, term rollover/separation, productivity.
+**JS** (`resources/js/tests/`, Vitest): `AppLayout` nav gating, `usePermissions`,
+`RolePermissions` matrix, button gating.
+
+### 9.5 Demo credentials (seeded, password `demo123`)
+Student `student@university.edu` · Faculty `prof.smith@university.edu`,
+`prof.jones@university.edu` · Admin `admin@university.edu`.
+`demoLogin` auto-seeds RBAC if these are missing.
+</content>

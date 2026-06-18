@@ -1,5 +1,9 @@
 # Faculty Panel — Dynamic Verification Plan
 
+> **Status: completed — historical record.** All 12 faculty routes were audited and
+> verified; see [faculty-panel-audit-report.md](faculty-panel-audit-report.md) for results
+> and [PROJECT_STATUS.md](PROJECT_STATUS.md) for current state.
+
 > Note: `plan.md` already exists for an unrelated work plan, so this audit's
 > inventory lives here to avoid overwriting it.
 

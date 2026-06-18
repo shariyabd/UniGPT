@@ -1,239 +1,153 @@
-# 🌳 UniGPT Directory Tree
+# UniGPT — Directory Structure
 
-## Complete Project Structure
+> Annotated map of the codebase as it actually exists (2026-06-18). Legend:
+> ✅ implemented · ⬜ empty/scaffold-only · ⚠️ present but unused.
+> For the *why* behind this layout, see [PROJECT_ANALYSIS.md](PROJECT_ANALYSIS.md).
+
+The project follows a **Domain-Driven Design** layout: HTTP is a thin layer over
+**domain services**, which use **Eloquent models** and **infrastructure** adapters.
 
 ```
 uni-chat/
-│
-├── 📁 app/
-│   ├── 📁 Console/                      # Artisan commands
+├── app/
+│   ├── Console/Commands/                 ✅ SendAssignmentReminders (assignments:remind)
 │   │
-│   ├── 📁 Enums/                        # Type-safe enumerations
-│   │   ├── 📄 UserRole.php              ✅ Created
-│   │   ├── 📄 DocumentStatus.php        ✅ Created
-│   │   ├── 📄 ChatMode.php              ✅ Created
-│   │   ├── 📄 Language.php              ✅ Created
-│   │   └── 📄 ConfidenceLevel.php       ✅ Created
+│   ├── Enums/                            ✅ Type-safe constants
+│   │   ├── Permission.php                ✅ 40 permission slugs (categorized + helpers)
+│   │   ├── UserRole.php                  ✅ admin | faculty | student (lowercase-backed)
+│   │   ├── ChatMode.php                  ✅ general/academic/research/exam_prep/assignment_help/career_guidance
+│   │   ├── NotificationType.php          ✅ grade/material/assignment/submission/enrollment/exam/announcement/system
+│   │   ├── AttendanceStatus.php          ✅ present/absent/late/excused
+│   │   ├── ExamType.php                  ✅ midterm/final/quiz/practical
+│   │   ├── TaskPriority.php              ✅ low/medium/high
+│   │   ├── DocumentStatus.php            ✅ pending/processing/processed/failed/approved/rejected
+│   │   ├── ConfidenceLevel.php           ✅ very_low … very_high (maps a 0–1 score)
+│   │   └── Language.php                  ✅ en/ar/es/fr/de/zh/ja
 │   │
-│   ├── 📁 Exceptions/                   # Exception handlers
+│   ├── Http/
+│   │   ├── Controllers/                  ✅ Thin controllers (31 total)
+│   │   │   ├── Auth/                      AuthenticationController, PasswordResetController
+│   │   │   ├── Student/                   Dashboard, Chat, SavedAnswer, Registration, Assignment, Note, Task
+│   │   │   ├── Faculty/                   Dashboard, Course, CourseMaterial, AIAssistant, Attendance, Analytics, Assignment, Grading
+│   │   │   ├── Admin/                     Dashboard, UserManagement, Role, Document, Analytics, Monitor, Settings,
+│   │   │   │                              Course, Section, Term, Department, Exam, Announcement
+│   │   │   ├── Api/                       ⬜ effectively empty (no separate REST API)
+│   │   │   ├── NotificationController.php ✅ in-app notifications (poll/read/delete)
+│   │   │   └── LegalController.php        ✅ terms / privacy pages
+│   │   ├── Middleware/
+│   │   │   ├── RoleMiddleware.php         ✅ role gate (`role:`) + force-logout deactivated users
+│   │   │   ├── PermissionMiddleware.php   ✅ permission gate (`permission:`)
+│   │   │   └── HandleInertiaRequests.php  ✅ shares real auth.user + notifications + flash + Ziggy
+│   │   ├── Requests/{Admin,Faculty,Student}/  ✅ ~28 permission-aware Form Requests
+│   │   └── Resources/                     (API resources)
 │   │
-│   ├── 📁 Http/                         # HTTP Layer
-│   │   ├── 📁 Controllers/
-│   │   │   ├── 📁 Auth/                 ✅ Created
-│   │   │   ├── 📁 Student/              ✅ Created
-│   │   │   ├── 📁 Faculty/              ✅ Created
-│   │   │   ├── 📁 Admin/                ✅ Created
-│   │   │   └── 📁 Api/                  ✅ Created
-│   │   ├── 📁 Middleware/               ✅ Created
-│   │   ├── 📁 Requests/                 ✅ Created
-│   │   └── 📁 Resources/                ✅ Created
+│   ├── Domain/                           🎯 Business logic (DDD bounded contexts)
+│   │   ├── User/
+│   │   │   ├── Models/User.php            ✅ THE User model (RBAC helpers live here, not app/Models)
+│   │   │   ├── Services/UserManagementService.php  ✅
+│   │   │   ├── Contracts/ Policies/ Providers/     ✅
+│   │   ├── Academic/Services/             ✅ Course, CourseManagement, Enrollment, Grading, Submission,
+│   │   │   │                                 Attendance, Exam, Transcript, Calendar, Term services
+│   │   │   ├── Rules/ ValueObjects/       ⬜ empty (logic inlined in services)
+│   │   ├── Chat/
+│   │   │   ├── Services/                  ✅ ChatService, RagChatService, TeachingAssistantService
+│   │   │   ├── Document/                  ✅ DocumentService, DocumentProcessingService, ChunkingService
+│   │   │   ├── Contracts/ DataObjects/ Support/  ✅ AIProviderInterface, ChatResult DTO, AIProviderManager
+│   │   │   ├── Models/                    ⬜ (chat models live in app/Models)
+│   │   │   └── Memory/                    ⬜ empty (no long-term memory/summarization yet)
+│   │   ├── RAG/
+│   │   │   ├── Embeddings/EmbeddingService.php    ✅
+│   │   │   ├── Retrieval/RetrievalService.php     ✅ cosine similarity in PHP over MySQL vectors
+│   │   │   ├── Citations/CitationService.php      ✅
+│   │   │   ├── Contracts/                 ✅
+│   │   │   └── Prompts/                   ⬜ empty
+│   │   ├── Notification/Services/NotificationService.php  ✅
+│   │   └── Analytics/Services/            ✅ AnalyticsService, FacultyAnalyticsService
 │   │
-│   ├── 📁 Livewire/                     # Livewire Components
-│   │   ├── 📁 Student/                  ✅ Created
-│   │   │   ├── Dashboard.php (planned)
-│   │   │   ├── Chat.php (planned)
-│   │   │   ├── Roadmap.php (planned)
-│   │   │   └── SavedAnswers.php (planned)
-│   │   ├── 📁 Faculty/                  ✅ Created
-│   │   │   ├── Dashboard.php (planned)
-│   │   │   └── AIAssist.php (planned)
-│   │   ├── 📁 Admin/                    ✅ Created
-│   │   │   ├── Dashboard.php (planned)
-│   │   │   ├── Documents.php (planned)
-│   │   │   ├── Approval.php (planned)
-│   │   │   ├── Analytics.php (planned)
-│   │   │   └── PromptControl.php (planned)
-│   │   └── 📁 Shared/                   ✅ Created
-│   │       ├── ChatBox.php (planned)
-│   │       ├── SourceViewer.php (planned)
-│   │       └── LanguageSwitcher.php (planned)
+│   ├── Infrastructure/                   🔌 External-edge adapters
+│   │   ├── AI/                            ✅ OpenAiProvider, MockProvider, AIProviderManager
+│   │   ├── FileStorage/                   ✅ DocumentStorageService, DocumentTextExtractor
+│   │   ├── Repositories/                  ✅ EloquentUserRepository
+│   │   ├── VectorDB/                      ⬜ empty (MySQL is the vector store)
+│   │   └── Speech/                        ⬜ empty (no STT/TTS)
 │   │
-│   ├── 📁 Domain/                       # 🎯 DOMAIN LAYER (DDD)
-│   │   │
-│   │   ├── 📁 User/                     # User Domain
-│   │   │   ├── 📁 Models/               ✅ Created
-│   │   │   ├── 📁 Services/             ✅ Created
-│   │   │   └── 📁 Policies/             ✅ Created
-│   │   │
-│   │   ├── 📁 Academic/                 # Academic Domain
-│   │   │   ├── 📁 Models/               ✅ Created
-│   │   │   ├── 📁 Services/             ✅ Created
-│   │   │   ├── 📁 Rules/                ✅ Created
-│   │   │   └── 📁 ValueObjects/         ✅ Created
-│   │   │
-│   │   ├── 📁 Document/                 # Document Processing
-│   │   │   ├── 📁 Models/               ✅ Created
-│   │   │   ├── 📁 Services/             ✅ Created
-│   │   │   ├── 📁 Parsers/              ✅ Created
-│   │   │   ├── 📁 Chunking/             ✅ Created
-│   │   │   └── 📁 Versioning/           ✅ Created
-│   │   │
-│   │   ├── 📁 RAG/                      # RAG System
-│   │   │   ├── 📁 Contracts/            ✅ Created
-│   │   │   ├── 📁 Services/             ✅ Created
-│   │   │   ├── 📁 Prompts/              ✅ Created
-│   │   │   ├── 📁 Retrieval/            ✅ Created
-│   │   │   ├── 📁 Embeddings/           ✅ Created
-│   │   │   └── 📁 Citations/            ✅ Created
-│   │   │
-│   │   ├── 📁 Chat/                     # Chat Domain
-│   │   │   ├── 📁 Models/               ✅ Created
-│   │   │   ├── 📁 Services/             ✅ Created
-│   │   │   └── 📁 Memory/               ✅ Created
-│   │   │
-│   │   └── 📁 Analytics/                # Analytics Domain
-│   │       ├── 📁 Models/               ✅ Created
-│   │       ├── 📁 Services/             ✅ Created
-│   │       └── 📁 Metrics/              ✅ Created
+│   ├── Models/                           ✅ Eloquent models (most domain entities)
+│   │   ├── Course, Section, Term, Department
+│   │   ├── CourseMaterial, Assignment, AssignmentSubmission, AttendanceRecord, Exam
+│   │   ├── Document, DocumentChunk, Embedding, DocumentApproval
+│   │   ├── ChatSession, ChatMessage, MessageCitation, SavedAnswer
+│   │   ├── Role, Permission, RoleUser, PermissionRole
+│   │   ├── Notification, Note, Task, ActivityLog, Setting
+│   │   └── Concerns/BelongsToSection.php  ✅ shared trait (section-scoped models)
 │   │
-│   ├── 📁 Infrastructure/               # 🔌 INFRASTRUCTURE LAYER
-│   │   ├── 📁 AI/                       ✅ Created
-│   │   │   ├── OpenAIClient.php (planned)
-│   │   │   ├── GeminiClient.php (planned)
-│   │   │   └── LocalLLMClient.php (planned)
-│   │   ├── 📁 VectorDB/                 ✅ Created
-│   │   │   ├── PineconeStore.php (planned)
-│   │   │   ├── FAISSStore.php (planned)
-│   │   │   └── ChromaStore.php (planned)
-│   │   ├── 📁 FileStorage/              ✅ Created
-│   │   │   └── DocumentStorage.php (planned)
-│   │   └── 📁 Speech/                   ✅ Created
-│   │       └── SpeechToText.php (planned)
-│   │
-│   ├── 📁 Services/                     # 🔧 APPLICATION SERVICES
-│   │   ├── ChatService.php (planned)
-│   │   ├── RAGService.php (planned)
-│   │   ├── NotificationService.php (planned)
-│   │   ├── ReminderService.php (planned)
-│   │   └── AuditService.php (planned)
-│   │
-│   ├── 📁 Providers/                    # Service providers
-│   └── 📁 Support/                      # Helper classes
+│   ├── Jobs/ProcessDocumentJob.php       ✅ queued RAG ingest (extract→chunk→embed)
+│   ├── Policies/                         ✅ ChatSession, Course, Document, SavedAnswer
+│   ├── Services/ActivityLogger.php       ✅ audit trail writer
+│   ├── Providers/  Support/  Livewire/   ⚠️ Livewire dirs exist but are unused
 │
-├── 📁 bootstrap/                        # Bootstrap files
+├── bootstrap/app.php                     ✅ registers web.php + `role`/`permission` middleware aliases
 │
-├── 📁 config/                           # Configuration
-│   ├── 📄 ai.php                        ✅ Created
-│   ├── 📄 rag.php                       ✅ Created
-│   ├── 📄 vector.php                    ✅ Created
-│   ├── 📄 permissions.php               ✅ Created
-│   └── ... (other Laravel configs)
+├── config/
+│   ├── ai.php                            ✅ provider/model/embedding config
+│   ├── rag.php                           ✅ chunking/retrieval/citation config
+│   ├── permissions.php                   ⚠️ legacy soft map (enum is source of truth)
+│   ├── vector.php                        ⚠️ Pinecone/FAISS/Chroma config — unused (MySQL store)
+│   └── … (standard Laravel configs)
 │
-├── 📁 database/                         # Database
-│   ├── 📁 migrations/
-│   ├── 📁 seeders/
-│   └── 📁 factories/
+├── database/
+│   ├── migrations/                       ✅ ~40 migrations (RBAC, academic, RAG, terms/sections, etc.)
+│   ├── seeders/                          ✅ DatabaseSeeder → RBACSeeder, AcademicSeeder, KnowledgeBaseSeeder
+│   └── factories/
 │
-├── 📁 public/                           # Public assets
-│   ├── 📁 build/                        # Built assets
-│   └── index.php
+├── resources/
+│   ├── js/
+│   │   ├── app.js                        ✅ Inertia + Vue 3 + Ziggy bootstrap; vue-toastification
+│   │   ├── pages/                        ✅ Inertia pages (~45)
+│   │   │   ├── Landing.vue, Dashboard.vue
+│   │   │   ├── Auth/Login.vue
+│   │   │   ├── Admin/                     14 pages (Users, Roles, Courses, Terms, Departments,
+│   │   │   │                              Documents, Approvals, Analytics, Monitor, AISettings,
+│   │   │   │                              Announcements, Exams, …)
+│   │   │   ├── Faculty/                   8 pages (Dashboard, CourseDetail, AIAssistant,
+│   │   │   │                              Attendance, Analytics, Exams, Grading, ArchivedChats)
+│   │   │   ├── Student/                   17 pages (Dashboard, Chat, Materials, Registration,
+│   │   │   │                              Assignments, Attendance, Transcript, Exams, Calendar,
+│   │   │   │                              Notes, Tasks, Roadmap, SavedAnswers, Documents, …)
+│   │   │   └── Notifications/Index.vue
+│   │   ├── components/                    ✅ ui/ (Badge, Card, …), Chat/, landing/, shared widgets
+│   │   ├── Layouts/AppLayout.vue          ✅ authenticated shell + role-aware nav
+│   │   ├── composables/                   ✅ usePermissions, useConfirm, useReveal, useTheme
+│   │   └── tests/                         ✅ Vitest specs
+│   ├── css/app.css                        ✅ Tailwind
+│   └── views/app.blade.php                ✅ single Inertia root view (@routes for Ziggy)
 │
-├── 📁 resources/                        # Frontend resources
-│   │
-│   ├── 📁 css/
-│   │   └── 📄 app.css                   ✅ Tailwind configured
-│   │
-│   ├── 📁 js/
-│   │   ├── 📄 app.js                    ✅ Vue 3 entry point
-│   │   ├── 📄 App.vue                   ✅ Main Vue component
-│   │   ├── 📄 bootstrap.js
-│   │   ├── 📁 components/               ✅ Created
-│   │   │   └── 📄 ChatBox.vue           ✅ Created
-│   │   ├── 📁 layouts/                  ✅ Created
-│   │   └── 📁 pages/                    ✅ Created
-│   │
-│   ├── 📁 views/                        # Blade templates
-│   │   ├── 📁 layouts/                  ✅ Created
-│   │   │   └── 📄 app.blade.php         ✅ Created
-│   │   ├── 📁 student/                  ✅ Created
-│   │   ├── 📁 faculty/                  ✅ Created
-│   │   ├── 📁 admin/                    ✅ Created
-│   │   ├── 📁 livewire/                 ✅ Created
-│   │   └── 📄 welcome.blade.php         ✅ Updated
-│   │
-│   └── 📁 lang/                         # Language files
+├── routes/
+│   ├── web.php                            ✅ THE route file (public + student + faculty + admin)
+│   ├── api.php                            ⬜ effectively empty
+│   └── student.php / faculty.php / admin.php  ⚠️ unregistered dead stubs — editing them does nothing
 │
-├── 📁 routes/                           # Routes
-│   ├── 📄 web.php
-│   ├── 📄 api.php
-│   ├── 📄 student.php                   ✅ Created
-│   ├── 📄 faculty.php                   ✅ Created
-│   └── 📄 admin.php                     ✅ Created
+├── storage/   public/build/   tests/{Feature,Unit}
 │
-├── 📁 storage/                          # Storage
-│   ├── 📁 app/
-│   ├── 📁 framework/
-│   ├── 📁 logs/                         ✅ Created
-│   ├── 📁 analytics/                    ✅ Created
-│   └── 📁 documents/                    ✅ Created
-│       ├── 📁 raw/                      ✅ Created
-│       ├── 📁 processed/                ✅ Created
-│       └── 📁 embeddings/               ✅ Created
-│
-├── 📁 tests/                            # Tests
-│   ├── 📁 Feature/
-│   └── 📁 Unit/
-│
-├── 📁 vendor/                           # Composer dependencies
-│
-├── 📁 node_modules/                     # NPM dependencies
-│
-├── 📄 .env                              # Environment config
-├── 📄 .env.example
-├── 📄 .gitignore
-├── 📄 artisan                           # Artisan CLI
-├── 📄 composer.json
-├── 📄 composer.lock
-├── 📄 package.json                      ✅ Updated (Vue 3 deps)
-├── 📄 package-lock.json
-├── 📄 vite.config.js                    ✅ Updated (Vue plugin)
-├── 📄 tailwind.config.js                ✅ Updated (paths)
-├── 📄 postcss.config.js
-├── 📄 phpunit.xml
-│
-└── 📄 Documentation/
-    ├── 📄 README.md                     ✅ Created
-    ├── 📄 PROJECT_STRUCTURE.md          ✅ Created
-    ├── 📄 QUICK_START.md                ✅ Created
-    └── 📄 PHASE_1_COMPLETE.md           ✅ Created
+└── Docs: README.md · PROJECT_ANALYSIS.md · PROJECT_STATUS.md · DIRECTORY_TREE.md · CLAUDE.md
+        (faculty-panel-*.md and plan.md are point-in-time work logs)
 ```
 
 ---
 
-## 📊 Statistics
+## Where do I put a new feature?
 
-| Component | Status | Count |
-|-----------|--------|-------|
-| **Directories Created** | ✅ | 50+ |
-| **Enums** | ✅ | 5 |
-| **Config Files** | ✅ | 4 |
-| **Routes** | ✅ | 3 |
-| **Vue Components** | ✅ | 2 |
-| **Blade Templates** | ✅ | 2 |
-| **Documentation** | ✅ | 4 |
+| You're adding… | Put it in |
+|---|---|
+| A new page | `resources/js/pages/{Role}/Name.vue` + a route in `routes/web.php` |
+| A new endpoint | A thin method on the matching `app/Http/Controllers/{Role}/*Controller` |
+| Validation | `app/Http/Requests/{Role}/*Request` (permission-aware `authorize()`) |
+| Business logic | A **service** under `app/Domain/{Context}/Services/` |
+| A DB entity | Migration in `database/migrations/` + model in `app/Models/` (or `app/Domain/*/Models`) |
+| Per-record access rule | A policy in `app/Policies/` |
+| A new permission | A case in `app/Enums/Permission.php` + grant it in `RBACSeeder` |
+| An external integration | An adapter under `app/Infrastructure/` behind a `Contracts/` interface |
 
----
-
-## 🎯 Legend
-
-- ✅ **Created** - Directory/File exists and configured
-- 📁 **Directory** - Folder structure
-- 📄 **File** - Code file
-- 🎯 **Domain** - Business logic layer
-- 🔌 **Infrastructure** - External integrations
-- 🔧 **Services** - Application services
-
----
-
-## 🚀 Next Phase
-
-All base structures are in place. Ready to populate with:
-- Models and migrations
-- Service implementations
-- AI client integrations
-- Frontend components
-- Business logic
-
----
-
-**UniGPT - Built with Domain-Driven Design**
+> **Rule 0:** a rename/change isn't done until *every* usage site is updated
+> (routes, Vue `route()` calls, props, services, models, migrations, tests). See
+> [CLAUDE.md](CLAUDE.md).
+</content>

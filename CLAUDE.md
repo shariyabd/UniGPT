@@ -238,19 +238,11 @@ Never rely on uppercase role values.
 
 ---
 
-### Shared Auth User Broken
+### Shared Auth User (resolved)
 
-`HandleInertiaRequests` currently shares:
-
-```php
-auth.user => null
-```
-
-Vue cannot access current user until replaced with:
-
-```php
-$request->user()
-```
+`HandleInertiaRequests` now shares the **real authenticated user** (id, name, roles,
+permissions, department, dashboard route) — not `null`. Vue can read `auth.user`
+via `usePage()`/`usePermissions()`. (Historical note: an earlier build shared `null`.)
 
 ---
 

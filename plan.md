@@ -1,4 +1,11 @@
-# UniGPT — Follow-up Work Plan
+# UniGPT — Follow-up Work Plan (historical work log)
+
+> **Status (2026-06-18): largely complete — kept as a point-in-time record.**
+> Task 2 (Vitest component tests) and Task 3 (faculty/student Form Requests + policies +
+> eager-loading) are **done**. Task 1 (mock-data cleanup) is **done for the Faculty panel**
+> (see [faculty-panel-audit-report.md](faculty-panel-audit-report.md)); a few residual admin
+> display values remain — tracked under "Incomplete tasks" in
+> [PROJECT_STATUS.md](PROJECT_STATUS.md). The live roadmap is PROJECT_STATUS.md, not this file.
 
 Three remaining tasks, to be executed **one at a time, with approval between each**.
 Each task is broken into phases. After every phase: run `./vendor/bin/pint`,

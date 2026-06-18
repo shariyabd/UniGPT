@@ -1,5 +1,9 @@
 # Faculty Panel — Audit & Functionalization Report
 
+> **Status: completed audit — historical record.** All issues below were fixed and
+> verified. For current system state see [PROJECT_STATUS.md](PROJECT_STATUS.md) and
+> [PROJECT_ANALYSIS.md](PROJECT_ANALYSIS.md).
+
 Scope: every Faculty Panel route, page, component, button, link, and datum.
 Method: route inventory → page-by-page deep audit → fix static/mock/dead items → verify.
 
