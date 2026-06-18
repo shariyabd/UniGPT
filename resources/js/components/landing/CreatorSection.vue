@@ -13,10 +13,15 @@ const email = 'shariya873@gmail.com';
                 <div class="relative grid items-center gap-8 sm:grid-cols-[auto,1fr]">
                     <!-- Avatar -->
                     <div class="mx-auto sm:mx-0">
-                        <div class="ring-gradient flex h-28 w-28 items-center justify-center rounded-card">
-                            <div class="flex h-full w-full items-center justify-center rounded-[14px] bg-primary text-4xl font-bold text-white">
-                                MS
-                            </div>
+                        <div class="ring-gradient h-48 w-48 rounded-card sm:h-56 sm:w-56">
+                            <img
+                                src="/images/creator.png"
+                                alt="Mohammad Shariya"
+                                width="640"
+                                height="640"
+                                loading="lazy"
+                                class="h-full w-full rounded-[14px] object-cover object-center"
+                            />
                         </div>
                     </div>
 
