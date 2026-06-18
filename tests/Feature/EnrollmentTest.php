@@ -39,36 +39,38 @@ class EnrollmentTest extends TestCase
         return $section;
     }
 
-    public function test_admin_can_enroll_a_student_into_a_section(): void
+    public function test_admin_can_assign_a_student_to_a_section(): void
     {
         $student = $this->user('student@university.edu');
         $section = $this->openSection($student);
 
         $this->actingAs($this->user('admin@university.edu'))
-            ->post(route('admin.sections.enroll', $section->id), ['student_id' => $student->id])
+            ->post(route('admin.sections.assign', $section->id), ['student_id' => $student->id])
             ->assertRedirect();
 
+        // Assignment is a pending placement, not an immediate enrolment — the
+        // student confirms it on their registration page.
         $this->assertDatabaseHas('course_user', [
             'user_id' => $student->id,
             'section_id' => $section->id,
-            'status' => 'enrolled',
+            'status' => 'pending',
         ]);
 
-        // The student is notified.
+        // The student is notified to register.
         $this->assertDatabaseHas('notifications', [
             'user_id' => $student->id,
             'type' => 'enrollment',
         ]);
     }
 
-    public function test_admin_can_drop_a_student(): void
+    public function test_admin_can_drop_an_assigned_student(): void
     {
         $student = $this->user('student@university.edu');
         $section = $this->openSection($student);
 
         $admin = $this->user('admin@university.edu');
 
-        $this->actingAs($admin)->post(route('admin.sections.enroll', $section->id), ['student_id' => $student->id]);
+        $this->actingAs($admin)->post(route('admin.sections.assign', $section->id), ['student_id' => $student->id]);
         $this->actingAs($admin)->delete(route('admin.sections.drop', [$section->id, $student->id]))->assertRedirect();
 
         $this->assertDatabaseHas('course_user', [
@@ -78,7 +80,7 @@ class EnrollmentTest extends TestCase
         ]);
     }
 
-    public function test_enrollment_respects_section_capacity(): void
+    public function test_assignment_respects_section_capacity(): void
     {
         $student = $this->user('student@university.edu');
         $section = $this->openSection($student);
@@ -98,14 +100,15 @@ class EnrollmentTest extends TestCase
         ]);
 
         $this->actingAs($this->user('admin@university.edu'))
-            ->post(route('admin.sections.enroll', $section->id), ['student_id' => $student->id])
+            ->post(route('admin.sections.assign', $section->id), ['student_id' => $student->id])
             ->assertRedirect();
 
-        // Capacity is full, so the student must not have been enrolled.
+        // Capacity (enrolled + pending) is full, so the student must not have been
+        // assigned a (pending) seat.
         $this->assertDatabaseMissing('course_user', [
             'user_id' => $student->id,
             'section_id' => $section->id,
-            'status' => 'enrolled',
+            'status' => 'pending',
         ]);
     }
 
@@ -115,7 +118,7 @@ class EnrollmentTest extends TestCase
         $section = $this->openSection($student);
 
         $response = $this->actingAs($this->user('prof.smith@university.edu'))
-            ->post(route('admin.sections.enroll', $section->id), ['student_id' => $student->id]);
+            ->post(route('admin.sections.assign', $section->id), ['student_id' => $student->id]);
 
         $this->assertContains($response->status(), [302, 403]);
     }

@@ -56,7 +56,7 @@ class AdminCatalogTest extends TestCase
 
         $this->actingAs($this->user('admin@university.edu'))
             ->post("/admin/courses/{$course->id}/sections", [
-                'label' => 'Z',
+                'label' => 'B',
                 'term_id' => Term::where('is_current', true)->value('id'),
                 'faculty_id' => $faculty->id,
                 'max_enrollment' => 40,
@@ -66,7 +66,7 @@ class AdminCatalogTest extends TestCase
 
         $this->assertDatabaseHas('sections', [
             'course_id' => $course->id,
-            'label' => 'Z',
+            'label' => 'B',
             'faculty_id' => $faculty->id,
         ]);
     }

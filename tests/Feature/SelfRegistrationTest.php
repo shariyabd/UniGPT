@@ -42,21 +42,23 @@ class SelfRegistrationTest extends TestCase
         $this->actingAs($this->student())->get('/register')->assertOk();
     }
 
-    public function test_available_list_excludes_already_registered_courses(): void
+    public function test_assigned_list_shows_only_admin_assigned_pending_placements(): void
     {
-        $available = app(EnrollmentService::class)->availableFor($this->student());
+        $assigned = app(EnrollmentService::class)->assignedFor($this->student());
+        $codes = $assigned->pluck('code');
 
-        // The student is already enrolled in CS301/CS305/CS310 — none should be offered.
-        $codes = $available->pluck('code');
-        $this->assertFalse($codes->contains('CS301'));
-        // ...but the un-enrolled sem-5 offering should be available.
+        // The seeder assigns the demo student CS330 (pending) — it must appear.
         $this->assertTrue($codes->contains('CS330'));
+        // Already-enrolled courses are not pending placements.
+        $this->assertFalse($codes->contains('CS301'));
+        // CS340 is a sem-5 offering the admin never assigned — it must NOT appear.
+        $this->assertFalse($codes->contains('CS340'));
     }
 
-    public function test_student_can_register_for_an_offered_course(): void
+    public function test_student_can_register_for_an_assigned_course(): void
     {
         $student = $this->student();
-        $section = $this->sectionByCode('CS330');
+        $section = $this->sectionByCode('CS330'); // seeded as a pending placement
 
         $this->actingAs($student)
             ->post(route('register.store'), ['section_id' => $section->id])
@@ -69,10 +71,10 @@ class SelfRegistrationTest extends TestCase
         ]);
     }
 
-    public function test_student_cannot_register_for_another_semesters_course(): void
+    public function test_student_cannot_register_for_an_unassigned_course(): void
     {
         $student = $this->student();
-        $section = $this->sectionByCode('CS320'); // semester 6; student is semester 5
+        $section = $this->sectionByCode('CS340'); // never assigned to the student
 
         $this->actingAs($student)
             ->post(route('register.store'), ['section_id' => $section->id])
@@ -108,7 +110,7 @@ class SelfRegistrationTest extends TestCase
     public function test_student_can_drop_a_registered_course(): void
     {
         $student = $this->student();
-        $section = $this->sectionByCode('CS330');
+        $section = $this->sectionByCode('CS330'); // pending → register → drop
 
         $this->actingAs($student)->post(route('register.store'), ['section_id' => $section->id]);
         $this->actingAs($student)->delete(route('register.drop', $section->id))->assertRedirect();
