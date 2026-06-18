@@ -58,7 +58,7 @@ class CourseManagementService
         return $course->sections()->create([
             'term_id' => $data['term_id'] ?? Term::query()->where('is_current', true)->value('id'),
             'faculty_id' => $data['faculty_id'] ?? null,
-            'label' => $data['label'] ?? 'A',
+            'label' => $this->normalizeLabel($data['label'] ?? null) ?? 'A',
             'schedule' => $this->normalizeSchedule($data['schedule'] ?? null) ?? $course->schedule,
             'max_enrollment' => $data['max_enrollment'] ?? $course->max_enrollment ?? 60,
             'is_active' => $data['is_active'] ?? true,
@@ -73,7 +73,7 @@ class CourseManagementService
         $section->update([
             'term_id' => $data['term_id'] ?? $section->term_id,
             'faculty_id' => array_key_exists('faculty_id', $data) ? $data['faculty_id'] : $section->faculty_id,
-            'label' => $data['label'] ?? $section->label,
+            'label' => $this->normalizeLabel($data['label'] ?? null) ?? $section->label,
             'max_enrollment' => $data['max_enrollment'] ?? $section->max_enrollment,
             'is_active' => $data['is_active'] ?? $section->is_active,
             'schedule' => array_key_exists('schedule', $data)
@@ -194,6 +194,17 @@ class CourseManagementService
         if ($material->file_path && Storage::disk('local')->exists($material->file_path)) {
             Storage::disk('local')->delete($material->file_path);
         }
+    }
+
+    /**
+     * Normalize a section label to a trimmed, uppercase value (e.g. " b " → "B")
+     * so labels stay consistent regardless of how they were entered.
+     */
+    private function normalizeLabel(?string $label): ?string
+    {
+        $label = strtoupper(trim((string) $label));
+
+        return $label === '' ? null : $label;
     }
 
     /**

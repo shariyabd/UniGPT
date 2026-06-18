@@ -123,6 +123,10 @@ const isEditingSection = computed(() => editingSectionId.value !== null);
 
 const currentTermId = computed(() => props.terms.find((t) => t.is_current)?.id ?? props.terms[0]?.id ?? null);
 
+// Section labels are a fixed alphabetical A–J set (mirrors SectionRequest::LABELS
+// on the server) so labels stay consistent — a dropdown, never free text.
+const SECTION_LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+
 const sectionForm = useForm({
     label: 'A',
     term_id: null,
@@ -137,10 +141,10 @@ const openCreateSection = (course) => {
     editingSectionId.value = null;
     sectionForm.reset();
     sectionForm.clearErrors();
-    // Suggest the next section label and default to the current term.
-    const used = course.sections.map((s) => s.label);
-    sectionForm.label = ['A', 'B', 'C', 'D', 'E', 'F'].find((l) => !used.includes(l)) || '';
+    // Default to the current term, then suggest the next free label for it.
     sectionForm.term_id = currentTermId.value;
+    const used = course.sections.filter((s) => s.termId === sectionForm.term_id).map((s) => s.label);
+    sectionForm.label = SECTION_LABELS.find((l) => !used.includes(l)) || '';
     showSectionModal.value = true;
 };
 
@@ -160,6 +164,16 @@ const openEditSection = (course, section) => {
     };
     showSectionModal.value = true;
 };
+
+// Label options for the dropdown: every A–J label, with those already used by
+// another section of this course in the selected term disabled (the server
+// enforces the same uniqueness per course + term).
+const sectionLabelOptions = computed(() => {
+    const used = (sectionCourse.value?.sections || [])
+        .filter((s) => s.id !== editingSectionId.value && s.termId === sectionForm.term_id)
+        .map((s) => s.label);
+    return SECTION_LABELS.map((label) => ({ label, disabled: used.includes(label) }));
+});
 
 const closeSectionModal = () => { showSectionModal.value = false; sectionForm.reset(); sectionForm.clearErrors(); };
 
@@ -201,11 +215,15 @@ const rosterSection = computed(() => {
     return null;
 });
 
-const enrolledRoster = computed(() => (rosterSection.value?.roster || []).filter((r) => r.status === 'enrolled'));
+// Reserved seats = registered (enrolled) + assigned (pending). Both occupy a
+// seat and both belong on the roster; dropped students are excluded.
+const activeRoster = computed(() =>
+    (rosterSection.value?.roster || []).filter((r) => ['enrolled', 'pending'].includes(r.status)),
+);
 
 const availableStudents = computed(() => {
-    const enrolledIds = new Set(enrolledRoster.value.map((r) => r.id));
-    return props.students.filter((s) => !enrolledIds.has(s.id));
+    const takenIds = new Set(activeRoster.value.map((r) => r.id));
+    return props.students.filter((s) => !takenIds.has(s.id));
 });
 
 const openRoster = (section) => {
@@ -216,8 +234,8 @@ const openRoster = (section) => {
 };
 const closeRoster = () => { showRoster.value = false; rosterSectionId.value = null; enrollForm.reset(); };
 
-const submitEnroll = () => {
-    enrollForm.post(route('admin.sections.enroll', rosterSectionId.value), {
+const submitAssign = () => {
+    enrollForm.post(route('admin.sections.assign', rosterSectionId.value), {
         preserveScroll: true,
         preserveState: true,
         onSuccess: () => enrollForm.reset(),
@@ -440,7 +458,16 @@ const dropStudent = async (student) => {
                                 <div class="grid grid-cols-2 gap-3">
                                     <div>
                                         <label class="ui-label">Section label *</label>
-                                        <input v-model="sectionForm.label" type="text" placeholder="A" class="ui-input" />
+                                        <select v-model="sectionForm.label" class="ui-input">
+                                            <option
+                                                v-for="opt in sectionLabelOptions"
+                                                :key="opt.label"
+                                                :value="opt.label"
+                                                :disabled="opt.disabled"
+                                            >
+                                                {{ opt.label }}{{ opt.disabled ? ' (in use)' : '' }}
+                                            </option>
+                                        </select>
                                         <p v-if="sectionForm.errors.label" class="text-xs text-danger-fg mt-1">{{ sectionForm.errors.label }}</p>
                                     </div>
                                     <div>
@@ -504,16 +531,16 @@ const dropStudent = async (student) => {
                         <div class="flex flex-shrink-0 items-center justify-between border-b border-line px-6 py-4">
                             <h3 class="ui-card-title">
                                 Roster · {{ rosterSection.courseCode }} Section {{ rosterSection.label }}
-                                <span class="text-content-muted font-normal">({{ enrolledRoster.length }}/{{ rosterSection.maxEnrollment }})</span>
+                                <span class="text-content-muted font-normal">({{ activeRoster.length }}/{{ rosterSection.maxEnrollment }})</span>
                             </h3>
                             <button type="button" @click="closeRoster" class="ui-btn-ghost p-2" aria-label="Close"><XMarkIcon class="h-5 w-5" /></button>
                         </div>
 
                         <div class="flex min-h-0 flex-1 flex-col">
-                            <!-- Enroll form -->
-                            <form @submit.prevent="submitEnroll" class="flex items-end gap-3 border-b border-line p-6">
+                            <!-- Assign form -->
+                            <form @submit.prevent="submitAssign" class="flex items-end gap-3 border-b border-line p-6">
                                 <div class="flex-1">
-                                    <label class="ui-label">Enroll a student</label>
+                                    <label class="ui-label">Assign a student</label>
                                     <select v-model="enrollForm.student_id" class="ui-input">
                                         <option :value="null">Select a student…</option>
                                         <option v-for="s in availableStudents" :key="s.id" :value="s.id">
@@ -525,25 +552,30 @@ const dropStudent = async (student) => {
                                 <button
                                     type="submit"
                                     class="ui-btn-primary"
-                                    :disabled="enrollForm.processing || !enrollForm.student_id || enrolledRoster.length >= rosterSection.maxEnrollment"
+                                    :disabled="enrollForm.processing || !enrollForm.student_id || activeRoster.length >= rosterSection.maxEnrollment"
                                 >
-                                    <UserPlusIcon class="w-4 h-4" /> Enroll
+                                    <UserPlusIcon class="w-4 h-4" /> Assign
                                 </button>
                             </form>
 
                             <!-- Current roster -->
                             <div class="flex-1 overflow-y-auto p-6 space-y-2">
-                                <p v-if="enrolledRoster.length === 0" class="text-sm text-content-muted">No students enrolled yet.</p>
+                                <p v-if="activeRoster.length === 0" class="text-sm text-content-muted">No students assigned yet.</p>
                                 <div
-                                    v-for="student in enrolledRoster"
+                                    v-for="student in activeRoster"
                                     :key="student.id"
                                     class="flex items-center justify-between gap-3 rounded-control border border-line bg-surface p-3"
                                 >
                                     <div class="min-w-0">
-                                        <p class="font-medium text-content truncate">{{ student.name }}</p>
+                                        <div class="flex items-center gap-2">
+                                            <p class="font-medium text-content truncate">{{ student.name }}</p>
+                                            <Badge :variant="student.status === 'enrolled' ? 'success' : 'warning'">
+                                                {{ student.status === 'enrolled' ? 'Registered' : 'Awaiting registration' }}
+                                            </Badge>
+                                        </div>
                                         <p v-if="student.studentId" class="text-xs text-content-muted">{{ student.studentId }}</p>
                                     </div>
-                                    <button type="button" @click="dropStudent(student)" aria-label="Drop student" class="ui-btn-danger p-2">
+                                    <button type="button" @click="dropStudent(student)" aria-label="Remove student" class="ui-btn-danger p-2">
                                         <UserMinusIcon class="w-4 h-4" />
                                     </button>
                                 </div>
