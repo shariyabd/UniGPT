@@ -34,29 +34,38 @@ class StudentDashboardController extends Controller
     public function index(): Response
     {
         $user = $this->user();
-        $courses = $this->courses->studentCourses($user);
-        $courseIds = $courses->pluck('id');
+        // The dashboard shows the student's *current-term* courses; past-term
+        // enrollments remain available via Transcript, Roadmap and Materials.
+        $currentCourses = $this->courses->studentCourses($user)
+            ->where('isCurrent', true)
+            ->values();
         $deadlines = $this->upcomingDeadlines($user);
 
-        $materialsTotal = \App\Models\CourseMaterial::whereIn('course_id', $courseIds)
+        // Material stats count only the student's own sections, so they reflect
+        // the resources actually shared with them (not every section's total).
+        $currentSectionIds = $user->enrolledSections()
+            ->wherePivotNotIn('status', ['dropped', 'completed'])
+            ->pluck('sections.id');
+
+        $materialsTotal = \App\Models\CourseMaterial::whereIn('section_id', $currentSectionIds)
             ->where('is_published', true)
             ->count();
         $materialsViewed = $user->completedMaterials()
             ->where('is_published', true)
-            ->whereIn('course_id', $courseIds)
+            ->whereIn('section_id', $currentSectionIds)
             ->count();
 
         return Inertia::render('Student/Dashboard', [
             'student' => $this->studentProfile($user),
             'stats' => [
-                ['label' => 'Courses', 'value' => (string) $courses->count(), 'change' => null, 'trend' => 'neutral', 'icon' => 'AcademicCapIcon', 'color' => 'blue'],
+                ['label' => 'Courses', 'value' => (string) $currentCourses->count(), 'change' => null, 'trend' => 'neutral', 'icon' => 'AcademicCapIcon', 'color' => 'blue'],
                 ['label' => 'CGPA', 'value' => (string) $this->cgpa($user), 'change' => null, 'trend' => 'neutral', 'icon' => 'ChartBarIcon', 'color' => 'green'],
                 ['label' => 'Saved Answers', 'value' => (string) $user->savedAnswers()->count(), 'change' => null, 'trend' => 'neutral', 'icon' => 'BookmarkIcon', 'color' => 'purple'],
                 ['label' => 'Chat Sessions', 'value' => (string) $user->chatSessions()->count(), 'change' => null, 'trend' => 'neutral', 'icon' => 'ChatBubbleLeftRightIcon', 'color' => 'orange'],
             ],
             'recentChats' => $this->recentChats($user),
             'upcomingDeadlines' => $deadlines,
-            'courses' => $courses,
+            'courses' => $currentCourses,
             'quickActions' => $this->quickActions(),
             'attendanceRate' => $this->attendanceRate($user),
             'studyStreak' => $this->studyStreak($user),
@@ -191,10 +200,10 @@ class StudentDashboardController extends Controller
     {
         $user = $this->user();
 
-        // Only enrolled students may download a course's materials.
+        // Only students enrolled in the material's section may download it.
         abort_unless(
             $material->file_path !== null
-                && $user->enrolledCourses()->whereKey($material->course_id)->exists(),
+                && $user->enrolledSectionIds()->contains($material->section_id),
             404,
         );
 
@@ -214,7 +223,7 @@ class StudentDashboardController extends Controller
         $user = $this->user();
 
         abort_unless(
-            $user->enrolledCourses()->whereKey($material->course_id)->exists(),
+            $user->enrolledSectionIds()->contains($material->section_id),
             403,
         );
 
@@ -323,9 +332,7 @@ class StudentDashboardController extends Controller
      */
     private function upcomingDeadlines(User $user): array
     {
-        $courseIds = $user->enrolledCourses()->pluck('courses.id');
-
-        return Assignment::whereIn('course_id', $courseIds)
+        return Assignment::whereIn('section_id', $user->enrolledSectionIds())
             ->whereNotNull('due_at')
             ->where('due_at', '>=', now())
             ->with('course')
@@ -350,21 +357,26 @@ class StudentDashboardController extends Controller
     private function buildRoadmap(User $user): array
     {
         $courses = $user->enrolledCourses()->with('faculty')->get();
-        $courseIds = $courses->pluck('id');
+
+        // Each enrolment points to the section the student attends; show that
+        // section's instructor and only that section's assignments.
+        $sections = \App\Models\Section::with('faculty')
+            ->findMany($courses->pluck('pivot.section_id')->filter()->unique())
+            ->keyBy('id');
 
         // Assignment deadlines per course, with this student's submission state.
         $submittedAssignmentIds = \App\Models\AssignmentSubmission::where('user_id', $user->id)
             ->pluck('assignment_id')
             ->all();
 
-        $assignmentsByCourse = Assignment::whereIn('course_id', $courseIds)
+        $assignmentsByCourse = Assignment::whereIn('section_id', $sections->keys())
             ->whereNotNull('due_at')
             ->orderBy('due_at')
             ->get()
             ->groupBy('course_id');
 
         $bysemester = $courses->groupBy('semester')
-            ->map(function ($group, $semester) use ($assignmentsByCourse, $submittedAssignmentIds) {
+            ->map(function ($group, $semester) use ($assignmentsByCourse, $submittedAssignmentIds, $sections) {
                 return [
                     'semester' => $semester,
                     'title' => "Semester {$semester}",
@@ -374,7 +386,7 @@ class StudentDashboardController extends Controller
                         'id' => $c->id,
                         'title' => $c->name,
                         'code' => $c->code,
-                        'instructor' => $c->faculty?->name,
+                        'instructor' => $sections->get($c->pivot->section_id)?->faculty?->name ?? $c->faculty?->name,
                         'status' => $c->pivot->status === 'completed' ? 'completed' : 'in-progress',
                         'progress' => (int) $c->pivot->progress,
                         'grade' => $c->pivot->grade,

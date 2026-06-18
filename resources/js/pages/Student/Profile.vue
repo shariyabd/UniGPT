@@ -72,7 +72,7 @@ const avatarUrl = () =>
                             </div>
                             <div class="flex items-center gap-3 text-sm">
                                 <AcademicCapIcon class="w-5 h-5 text-primary flex-shrink-0" />
-                                <span class="text-content-muted">{{ user.semester || 'N/A' }}</span>
+                                <span class="text-content-muted">{{ user.semester ? `Semester ${user.semester}` : 'N/A' }}</span>
                             </div>
                         </div>
                     </Card>

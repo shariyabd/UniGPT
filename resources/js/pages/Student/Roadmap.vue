@@ -529,14 +529,14 @@ const getAIRecommendations = () => {
                                                     <Badge :variant="getStatusVariant(assignment.status)">
                                                         {{ assignment.status }}
                                                     </Badge>
-                                                    <button
-                                                        @click="viewAssignment"
+                                                    <Link
+                                                        :href="route('assignments.show', assignment.id)"
                                                         class="p-1.5 text-content-muted hover:text-primary hover:bg-primary-soft rounded-control transition-colors"
-                                                        aria-label="View on calendar"
-                                                        title="View on calendar"
+                                                        aria-label="Open assignment"
+                                                        title="Open assignment"
                                                     >
                                                         <EyeIcon class="w-4 h-4" />
-                                                    </button>
+                                                    </Link>
                                                 </div>
                                             </div>
                                         </div>

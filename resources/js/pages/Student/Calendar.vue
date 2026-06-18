@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue';
-import { Head, useForm, router } from '@inertiajs/vue3';
+import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import { useToast } from 'vue-toastification';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
@@ -18,6 +18,7 @@ import {
     ClockIcon,
     PlusIcon,
     TrashIcon,
+    ArrowTopRightOnSquareIcon,
 } from '@heroicons/vue/24/outline';
 import { CheckCircleIcon as CheckCircleSolid } from '@heroicons/vue/24/solid';
 
@@ -372,6 +373,15 @@ const removeTask = async (event) => {
                                     >
                                         <TrashIcon class="w-4 h-4" />
                                     </button>
+                                    <Link
+                                        v-else-if="ev.type === 'assignment' && ev.assignmentId"
+                                        :href="route('assignments.show', ev.assignmentId)"
+                                        aria-label="Open assignment"
+                                        title="Open assignment"
+                                        class="ui-btn-ghost p-1.5 flex-shrink-0 text-content-faint hover:text-primary"
+                                    >
+                                        <ArrowTopRightOnSquareIcon class="w-4 h-4" />
+                                    </Link>
                                 </div>
                             </div>
                         </Card>

@@ -19,11 +19,13 @@ class CalendarService
      */
     public function build(User $student): array
     {
-        $courseIds = $student->enrolledCourses()->pluck('courses.id');
+        // Calendar events come from the student's enrolled sections, so deadlines
+        // and exams reflect only their own section's instructor.
+        $sectionIds = $student->enrolledSectionIds();
 
         $events = collect()
-            ->merge($this->assignmentEvents($courseIds))
-            ->merge($this->examEvents($courseIds))
+            ->merge($this->assignmentEvents($sectionIds))
+            ->merge($this->examEvents($sectionIds))
             ->merge($this->taskEvents($student))
             ->sortBy('date')
             ->values();
@@ -35,21 +37,22 @@ class CalendarService
     }
 
     /**
-     * @param  Collection<int, int>  $courseIds
+     * @param  Collection<int, int>  $sectionIds
      * @return Collection<int, array<string, mixed>>
      */
-    private function assignmentEvents(Collection $courseIds): Collection
+    private function assignmentEvents(Collection $sectionIds): Collection
     {
-        if ($courseIds->isEmpty()) {
+        if ($sectionIds->isEmpty()) {
             return collect();
         }
 
-        return Assignment::whereIn('course_id', $courseIds)
+        return Assignment::whereIn('section_id', $sectionIds)
             ->whereNotNull('due_at')
             ->with('course:id,code')
             ->get()
             ->map(fn (Assignment $a) => [
                 'id' => 'assignment-'.$a->id,
+                'assignmentId' => $a->id,
                 'type' => 'assignment',
                 'title' => $a->title,
                 'date' => $a->due_at->toDateString(),
@@ -59,16 +62,16 @@ class CalendarService
     }
 
     /**
-     * @param  Collection<int, int>  $courseIds
+     * @param  Collection<int, int>  $sectionIds
      * @return Collection<int, array<string, mixed>>
      */
-    private function examEvents(Collection $courseIds): Collection
+    private function examEvents(Collection $sectionIds): Collection
     {
-        if ($courseIds->isEmpty()) {
+        if ($sectionIds->isEmpty()) {
             return collect();
         }
 
-        return Exam::whereIn('course_id', $courseIds)
+        return Exam::whereIn('section_id', $sectionIds)
             ->with('course:id,code')
             ->get()
             ->map(fn (Exam $e) => [

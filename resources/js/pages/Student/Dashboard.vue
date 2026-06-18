@@ -367,10 +367,11 @@ const getDeadlineColor = (daysLeft) => {
                             </template>
 
                             <div v-if="upcomingDeadlines.length" class="space-y-4">
-                                <div
+                                <Link
                                     v-for="deadline in upcomingDeadlines"
                                     :key="deadline.id"
-                                    :class="`rounded-control border-l-4 p-4 transition-shadow duration-200 hover:shadow-card ${getDeadlineColor(deadline.daysLeft)}`"
+                                    :href="route('assignments.show', deadline.id)"
+                                    :class="`block rounded-control border-l-4 p-4 transition-shadow duration-200 hover:shadow-card ${getDeadlineColor(deadline.daysLeft)}`"
                                 >
                                     <div class="mb-2 flex items-start justify-between gap-2">
                                         <h3 class="text-sm font-semibold text-content">
@@ -388,7 +389,7 @@ const getDeadlineColor = (daysLeft) => {
                                             {{ deadline.daysLeft }} days left
                                         </span>
                                     </div>
-                                </div>
+                                </Link>
                             </div>
                             <p v-else class="py-6 text-center text-sm text-content-muted">
                                 No upcoming deadlines. You're all caught up!
