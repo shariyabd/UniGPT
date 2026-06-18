@@ -14,6 +14,13 @@ class TeachingAssistantService
     public function __construct(private readonly AIProviderInterface $provider) {}
 
     /**
+     * @var array<int, string>
+     */
+    private const QUESTION_TYPES = [
+        'multiple-choice', 'true-false', 'short-answer', 'essay', 'fill-in-blank', 'matching',
+    ];
+
+    /**
      * @param  array<string, mixed>  $params
      * @return array<string, mixed>
      */
@@ -22,30 +29,79 @@ class TeachingAssistantService
         $topic = trim((string) ($params['topic'] ?? 'General Knowledge'));
         $count = max(1, min(20, (int) ($params['questionCount'] ?? 5)));
         $difficulty = (string) ($params['difficulty'] ?? 'medium');
+        $bloom = (string) ($params['bloomLevel'] ?? 'apply');
+        $explain = (bool) ($params['includeExplanations'] ?? true);
 
-        $prompt = "Generate a {$difficulty} quiz of {$count} multiple-choice questions on \"{$topic}\". "
-            .'Respond ONLY with JSON: {"questions":[{"question","options":["a","b","c","d"],"answer":"a","explanation"}]}';
+        $types = array_values(array_intersect(
+            array_map('strval', (array) ($params['questionTypes'] ?? [])),
+            self::QUESTION_TYPES,
+        ));
+        if ($types === []) {
+            $types = ['multiple-choice'];
+        }
+
+        $typeList = implode(', ', $types);
+        $prompt = "Generate a {$difficulty} quiz of {$count} questions on \"{$topic}\", targeting Bloom's level \"{$bloom}\". "
+            ."Use ONLY these question types, mixed across the questions: {$typeList}. "
+            .'Every question MUST include a "type" field equal to one of those values. '
+            .'For "multiple-choice" include "options" (4 strings) and "answer" equal to the correct option text. '
+            .'For "true-false" set "answer" to true or false. '
+            .'For "short-answer", "essay", "fill-in-blank" and "matching" set "answer" to the expected/sample answer text. '
+            .($explain ? 'Include a short "explanation" for every question. ' : '')
+            .'Respond ONLY with JSON: {"questions":[{"type","question","options","answer","explanation"}]}';
 
         $parsed = $this->tryJson($this->provider->chat([
             ['role' => 'system', 'content' => 'You are an expert exam author.'],
             ['role' => 'user', 'content' => $prompt],
         ])->content);
 
-        $questions = $parsed['questions'] ?? $this->synthesizeQuestions($topic, $count);
+        $questions = $parsed['questions'] ?? $this->synthesizeQuestions($topic, $count, $types);
 
         return [
             'title' => ucfirst($difficulty)." Quiz: {$topic}",
             'topic' => $topic,
             'difficulty' => $difficulty,
-            'questions' => collect($questions)->take($count)->values()->map(fn ($q, $i) => [
-                'id' => $i + 1,
-                'question' => $q['question'] ?? "Question about {$topic}",
-                'options' => $q['options'] ?? ['Option A', 'Option B', 'Option C', 'Option D'],
-                'answer' => $q['answer'] ?? ($q['options'][0] ?? 'Option A'),
-                'explanation' => $q['explanation'] ?? 'Refer to the course materials for details.',
-                'points' => 1,
-            ])->all(),
+            'questionTypes' => $types,
+            'questions' => collect($questions)->take($count)->values()->map(function ($q, $i) use ($topic, $types, $explain) {
+                $type = $this->normalizeQuestionType($q['type'] ?? null, $q, $types, $i);
+                $hasOptions = ! empty($q['options']) && is_array($q['options']);
+
+                return [
+                    'id' => $i + 1,
+                    'type' => $type,
+                    'question' => $q['question'] ?? "Question about {$topic}",
+                    'options' => $type === 'multiple-choice'
+                        ? ($hasOptions ? $q['options'] : ['Option A', 'Option B', 'Option C', 'Option D'])
+                        : ($q['options'] ?? []),
+                    'answer' => $q['answer'] ?? ($type === 'true-false' ? true : ($q['options'][0] ?? 'Sample answer')),
+                    'explanation' => $explain ? ($q['explanation'] ?? "Refer to the course materials on {$topic}.") : null,
+                    'points' => $q['points'] ?? 1,
+                ];
+            })->all(),
         ];
+    }
+
+    /**
+     * Resolve a question's type from the model output, falling back to the
+     * requested set so the UI always renders a sensible widget.
+     *
+     * @param  array<string, mixed>  $question
+     * @param  array<int, string>  $requested
+     */
+    private function normalizeQuestionType(?string $type, array $question, array $requested, int $index): string
+    {
+        $type = $type ? strtolower(trim($type)) : null;
+        if ($type !== null && in_array($type, self::QUESTION_TYPES, true)) {
+            return $type;
+        }
+        if (! empty($question['options'])) {
+            return 'multiple-choice';
+        }
+        if (isset($question['answer']) && is_bool($question['answer'])) {
+            return 'true-false';
+        }
+
+        return $requested[$index % count($requested)] ?? 'multiple-choice';
     }
 
     /**
@@ -185,22 +241,63 @@ class TeachingAssistantService
     }
 
     /**
+     * Deterministic fallback when no LLM is configured — produces a question for
+     * each requested type so every pattern renders end to end.
+     *
+     * @param  array<int, string>  $types
      * @return array<int, array<string, mixed>>
      */
-    private function synthesizeQuestions(string $topic, int $count): array
+    private function synthesizeQuestions(string $topic, int $count, array $types = ['multiple-choice']): array
     {
-        $templates = [
-            'Which of the following best describes %s?',
-            'What is a key principle of %s?',
-            'In the context of %s, which statement is correct?',
-            'Which technique is most associated with %s?',
-            'What is a common application of %s?',
-        ];
+        $types = $types === [] ? ['multiple-choice'] : $types;
 
         $questions = [];
         for ($i = 0; $i < $count; $i++) {
-            $questions[] = [
-                'question' => sprintf($templates[$i % count($templates)], $topic),
+            $questions[] = $this->synthesizeQuestion($topic, $types[$i % count($types)]);
+        }
+
+        return $questions;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function synthesizeQuestion(string $topic, string $type): array
+    {
+        return match ($type) {
+            'true-false' => [
+                'type' => 'true-false',
+                'question' => "True or False: {$topic} is a core concept covered in this course.",
+                'answer' => true,
+                'explanation' => "This reflects the fundamentals of {$topic}.",
+            ],
+            'short-answer' => [
+                'type' => 'short-answer',
+                'question' => "In one or two sentences, define {$topic}.",
+                'answer' => "A concise definition of {$topic} and its purpose.",
+                'explanation' => "Look for the key idea behind {$topic}.",
+            ],
+            'essay' => [
+                'type' => 'essay',
+                'question' => "Discuss the importance of {$topic} and give an example of its application.",
+                'answer' => "A structured response covering the definition, importance, and an example of {$topic}.",
+                'explanation' => 'Reward depth of analysis and relevant examples.',
+            ],
+            'fill-in-blank' => [
+                'type' => 'fill-in-blank',
+                'question' => "Fill in the blank: ____ is a key principle of {$topic}.",
+                'answer' => "A correct principle of {$topic}",
+                'explanation' => "Any accurate principle of {$topic} is acceptable.",
+            ],
+            'matching' => [
+                'type' => 'matching',
+                'question' => "Match each term to its description in the context of {$topic}.",
+                'answer' => "Pair each {$topic} term with its correct description.",
+                'explanation' => 'Verify each pairing against the course notes.',
+            ],
+            default => [
+                'type' => 'multiple-choice',
+                'question' => "Which of the following best describes {$topic}?",
                 'options' => [
                     "A correct concept of {$topic}",
                     'A plausible but incorrect statement',
@@ -209,9 +306,7 @@ class TeachingAssistantService
                 ],
                 'answer' => "A correct concept of {$topic}",
                 'explanation' => "This relates to the fundamentals of {$topic} covered in lectures.",
-            ];
-        }
-
-        return $questions;
+            ],
+        };
     }
 }

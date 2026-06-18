@@ -6,28 +6,33 @@ use App\Domain\User\Models\User;
 use App\Enums\AttendanceStatus;
 use App\Models\AttendanceRecord;
 use App\Models\Course;
+use App\Models\Section;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
 /**
  * Attendance: faculty roster marking and student attendance monitoring.
+ *
+ * Faculty operations are scoped to a Section — the offering a faculty member
+ * actually teaches — so one instructor never marks or sees another section's
+ * roster, even within the same course.
  */
 class AttendanceService
 {
     /**
-     * Roster for a course on a given date, each student paired with their
+     * Roster for a section on a given date, each student paired with their
      * existing status that day (defaults to 'present' when unmarked).
      *
      * @return array<string, mixed>
      */
-    public function rosterForDate(Course $course, string $date): array
+    public function rosterForDate(Section $section, string $date): array
     {
-        $existing = $course->attendanceRecords()
+        $existing = $section->attendanceRecords()
             ->whereDate('date', $date)
             ->get()
             ->keyBy('user_id');
 
-        $roster = $course->students()->orderBy('name')->get()->map(fn (User $student) => [
+        $roster = $section->students()->orderBy('name')->get()->map(fn (User $student) => [
             'id' => $student->id,
             'name' => $student->name,
             'studentId' => $student->student_id,
@@ -40,31 +45,32 @@ class AttendanceService
             'date' => $date,
             'roster' => $roster,
             'statuses' => AttendanceStatus::values(),
-            'summary' => $this->courseSummary($course),
+            'summary' => $this->sectionSummary($section),
         ];
     }
 
     /**
-     * Upsert attendance for a set of students on a given date.
+     * Upsert attendance for a set of students in a section on a given date.
      *
      * @param  array<int, array{user_id: int, status: string, notes?: string|null}>  $entries
      */
-    public function mark(Course $course, string $date, array $entries, User $faculty): void
+    public function mark(Section $section, string $date, array $entries, User $faculty): void
     {
-        $enrolledIds = $course->students()->pluck('users.id');
+        $enrolledIds = $section->students()->pluck('users.id');
 
         foreach ($entries as $entry) {
             if (! $enrolledIds->contains($entry['user_id'])) {
-                continue; // ignore students not enrolled in this course
+                continue; // ignore students not enrolled in this section
             }
 
             AttendanceRecord::updateOrCreate(
                 [
-                    'course_id' => $course->id,
+                    'course_id' => $section->course_id,
                     'user_id' => $entry['user_id'],
                     'date' => $date,
                 ],
                 [
+                    'section_id' => $section->id,
                     'status' => $entry['status'],
                     'notes' => $entry['notes'] ?? null,
                     'marked_by' => $faculty->id,
@@ -109,13 +115,39 @@ class AttendanceService
     }
 
     /**
-     * Aggregate attendance stats for a course (faculty view).
+     * Aggregate attendance stats for a single section (faculty view).
      *
      * @return array<string, mixed>
      */
-    public function courseSummary(Course $course): array
+    public function sectionSummary(Section $section): array
     {
-        $records = $course->attendanceRecords()->get();
+        return $this->summarize($section->attendanceRecords()->get());
+    }
+
+    /**
+     * Aggregate attendance stats across a set of sections — used by analytics to
+     * scope a course report to the faculty member's own section(s).
+     *
+     * @param  Collection<int, int>  $sectionIds
+     * @return array<string, mixed>
+     */
+    public function summaryForSections(Collection $sectionIds): array
+    {
+        if ($sectionIds->isEmpty()) {
+            return ['sessions' => 0, 'records' => 0, 'rate' => null];
+        }
+
+        return $this->summarize(
+            AttendanceRecord::whereIn('section_id', $sectionIds)->get()
+        );
+    }
+
+    /**
+     * @param  Collection<int, AttendanceRecord>  $records
+     * @return array<string, mixed>
+     */
+    private function summarize(Collection $records): array
+    {
         $sessions = $records->pluck('date')->map(fn (Carbon $d) => $d->toDateString())->unique();
         $total = $records->count();
         $attended = $records->filter(fn (AttendanceRecord $r) => $r->status->countsAsPresent())->count();

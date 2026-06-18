@@ -11,6 +11,7 @@ import {
     BookOpenIcon,
     UserGroupIcon,
     DocumentTextIcon,
+    ClipboardDocumentListIcon,
     SparklesIcon,
     ChartBarIcon,
     ClockIcon,
@@ -54,10 +55,26 @@ const greeting = computed(() => {
 });
 
 // Static navigation shortcuts (UI config, not data) pointing at real routes.
+// `query` is appended to the route (Ziggy) so a shortcut can deep-link into the
+// AI assistant's quiz/assignment generator.
 const quickActions = [
     {
+        title: 'Generate Quiz',
+        description: 'Create a quiz with AI',
+        icon: ClipboardDocumentListIcon,
+        route: 'faculty.ai-assistant',
+        query: { tool: 'quiz' },
+    },
+    {
+        title: 'Generate Assignment',
+        description: 'Create an assignment with AI',
+        icon: DocumentTextIcon,
+        route: 'faculty.ai-assistant',
+        query: { tool: 'assignment' },
+    },
+    {
         title: 'AI Teaching Assistant',
-        description: 'Generate quizzes and assignments',
+        description: 'Chat, plan and get teaching ideas',
         icon: SparklesIcon,
         route: 'faculty.ai-assistant',
     },
@@ -74,6 +91,8 @@ const quickActions = [
         route: 'faculty.courses',
     },
 ];
+
+const actionHref = (action) => (action.query ? route(action.route, action.query) : route(action.route));
 
 const facultySubtitle = computed(() => {
     const parts = [];
@@ -113,16 +132,6 @@ const facultySubtitle = computed(() => {
                             </p>
                         </div>
                     </div>
-                    <div class="flex flex-wrap gap-3">
-                        <Link
-                            v-if="can('create_course')"
-                            :href="route('faculty.courses.create')"
-                            class="ui-btn-primary"
-                        >
-                            <PlusIcon class="w-4 h-4" />
-                            New Course
-                        </Link>
-                    </div>
                 </div>
 
                 <!-- KPI cards (pastel, filled) -->
@@ -144,17 +153,6 @@ const facultySubtitle = computed(() => {
                     <!-- Active Courses -->
                     <div class="lg:col-span-2 space-y-6">
                         <Card title="Active Courses" :icon="BookOpenIcon">
-                            <template #actions>
-                                <Link
-                                    v-if="can('create_course')"
-                                    :href="route('faculty.courses.create')"
-                                    class="ui-btn-secondary"
-                                >
-                                    <PlusIcon class="w-4 h-4" />
-                                    New Course
-                                </Link>
-                            </template>
-
                             <EmptyState
                                 v-if="activeCourses.length === 0"
                                 title="No active courses"
@@ -206,8 +204,8 @@ const facultySubtitle = computed(() => {
                             <div class="space-y-3">
                                 <Link
                                     v-for="action in quickActions"
-                                    :key="action.route"
-                                    :href="route(action.route)"
+                                    :key="action.title"
+                                    :href="actionHref(action)"
                                     class="group flex items-center gap-4 rounded-card border border-line bg-surface p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card"
                                 >
                                     <div class="ui-icon-tile bg-primary-soft text-primary">

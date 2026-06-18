@@ -21,6 +21,13 @@ class ExamRequest extends FormRequest
     {
         return [
             'course_id' => ['required', 'integer', 'exists:courses,id'],
+            // Optional: a specific section of the course. When omitted, the exam
+            // is scheduled for every section of the course.
+            'section_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('sections', 'id')->where('course_id', $this->input('course_id')),
+            ],
             'title' => ['required', 'string', 'max:150'],
             'type' => ['required', Rule::in(ExamType::values())],
             'exam_date' => ['required', 'date'],

@@ -37,6 +37,7 @@ const selectedType = ref('all');
 
 const form = useForm({
     course_id: '',
+    section_id: '',
     title: '',
     type: 'midterm',
     exam_date: '',
@@ -48,6 +49,18 @@ const form = useForm({
 });
 
 const isEditing = computed(() => editingId.value !== null);
+
+// Sections of the course currently selected in the form — drives the section
+// picker. An empty section means "all sections of the course".
+const availableSections = computed(() => {
+    const course = props.courses.find((c) => c.id === form.course_id);
+    return course?.sections ?? [];
+});
+
+// Changing the course invalidates any previously chosen section.
+const onCourseChange = () => {
+    form.section_id = '';
+};
 
 const filteredExams = computed(() => {
     let filtered = props.exams;
@@ -94,6 +107,7 @@ const openEdit = (exam) => {
     editingId.value = exam.id;
     form.clearErrors();
     form.course_id = exam.course.id;
+    form.section_id = exam.sectionId ?? '';
     form.title = exam.title;
     form.type = exam.type;
     form.exam_date = exam.date;
@@ -229,6 +243,7 @@ const remove = async (exam) => {
                                     <div class="min-w-0">
                                         <div class="flex items-center flex-wrap gap-2">
                                             <span class="text-xs font-semibold text-primary">{{ exam.course.code }}</span>
+                                            <Badge v-if="exam.section" variant="slate">Section {{ exam.section }}</Badge>
                                             <Badge variant="violet">{{ exam.typeLabel }}</Badge>
                                         </div>
                                         <p class="font-semibold text-content mt-0.5 truncate">{{ exam.title }}</p>
@@ -304,11 +319,25 @@ const remove = async (exam) => {
                             <div class="flex-1 space-y-4 overflow-y-auto p-6">
                                 <div>
                                     <label class="ui-label">Course *</label>
-                                    <select v-model="form.course_id" class="ui-input">
+                                    <select v-model="form.course_id" class="ui-input" @change="onCourseChange">
                                         <option value="" disabled>— Select —</option>
                                         <option v-for="course in courses" :key="course.id" :value="course.id">{{ course.code }} — {{ course.name }}</option>
                                     </select>
                                     <p v-if="form.errors.course_id" class="text-xs text-danger-fg mt-1">{{ form.errors.course_id }}</p>
+                                </div>
+
+                                <div>
+                                    <label class="ui-label">Section</label>
+                                    <select v-model="form.section_id" class="ui-input" :disabled="!form.course_id">
+                                        <option value="">All sections</option>
+                                        <option v-for="section in availableSections" :key="section.id" :value="section.id">
+                                            Section {{ section.label }}
+                                        </option>
+                                    </select>
+                                    <p class="text-xs text-content-muted mt-1">
+                                        Leave as “All sections” to schedule this exam for every section of the course.
+                                    </p>
+                                    <p v-if="form.errors.section_id" class="text-xs text-danger-fg mt-1">{{ form.errors.section_id }}</p>
                                 </div>
 
                                 <div>

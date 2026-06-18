@@ -18,25 +18,38 @@ class GradingService
      *
      * @return array<string, mixed>
      */
-    public function overview(User $faculty, ?int $courseId = null): array
+    public function overview(User $faculty, ?int $courseId = null, ?int $sectionId = null): array
     {
-        $courses = $faculty->teachingCourses()->orderBy('code')->get();
+        // Grading is scoped to ONE section the faculty teaches, so only that
+        // section's assignments, submissions and roster appear. A faculty who
+        // teaches several sections of a course switches between them.
+        $sections = $faculty->teachingSections()->with('course')->get();
+        $courses = $sections->pluck('course')->filter()->unique('id')->sortBy('code')->values();
         $course = $courseId ? $courses->firstWhere('id', $courseId) : $courses->first();
 
         if (! $course) {
-            return ['courseData' => null, 'courses' => $this->courseOptions($courses), 'assignments' => [], 'submissions' => []];
+            return ['courseData' => null, 'courses' => $this->courseOptions($courses), 'sections' => [], 'activeSectionId' => null, 'assignments' => [], 'submissions' => []];
         }
 
-        $course->load(['assignments.submissions.student']);
+        $courseSections = $sections->where('course_id', $course->id)->sortBy('id')->values();
+        $active = $courseSections->firstWhere('id', $sectionId) ?? $courseSections->first();
+        $scopeIds = collect([$active?->id])->filter();
+
+        $course->load([
+            'assignments' => fn ($q) => $q->whereIn('section_id', $scopeIds),
+            'assignments.submissions.student',
+        ]);
 
         return [
             'courseData' => [
                 'id' => $course->id,
                 'code' => $course->code,
                 'name' => $course->name,
-                'students' => $course->students()->count(),
+                'students' => $course->students()->wherePivotIn('section_id', $scopeIds)->count(),
             ],
             'courses' => $this->courseOptions($courses),
+            'sections' => $courseSections->map(fn ($s) => ['id' => $s->id, 'label' => $s->label])->values()->all(),
+            'activeSectionId' => $active?->id,
             'assignments' => $course->assignments->map(fn (Assignment $a) => $this->presentAssignment($a))->values(),
             'submissions' => $course->assignments->flatMap(
                 fn (Assignment $a) => $a->submissions->map(fn ($s) => $this->presentSubmission($s, $a))
@@ -125,6 +138,11 @@ class GradingService
                 'avatar' => 'https://ui-avatars.com/api/?name='.urlencode($student?->name ?? 'S').'&background=6366f1&color=fff',
             ],
             'submittedAt' => $submission->submitted_at?->toIso8601String(),
+            'content' => $submission->content,
+            'fileName' => $submission->original_filename,
+            'fileUrl' => $submission->file_path !== null
+                ? route('faculty.submissions.download', $submission->id)
+                : null,
             'status' => $submission->status,
             'isLate' => $submission->status === 'late',
             'grade' => $submission->grade !== null ? (float) $submission->grade : null,

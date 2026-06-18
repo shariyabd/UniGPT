@@ -22,6 +22,10 @@ class GenerateQuizRequest extends FormRequest
             'course' => ['nullable', 'string'],
             'difficulty' => ['nullable', 'in:easy,medium,hard'],
             'questionCount' => ['nullable', 'integer', 'min:1', 'max:20'],
+            'questionTypes' => ['nullable', 'array'],
+            'questionTypes.*' => ['string', 'in:multiple-choice,true-false,short-answer,essay,fill-in-blank,matching'],
+            'bloomLevel' => ['nullable', 'string', 'in:remember,understand,apply,analyze,evaluate,create'],
+            'includeExplanations' => ['nullable', 'boolean'],
         ];
     }
 }

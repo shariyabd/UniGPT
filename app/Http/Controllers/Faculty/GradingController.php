@@ -27,7 +27,13 @@ class GradingController extends Controller
 
     public function index(?string $courseId = null): Response
     {
-        $overview = $this->grading->overview(request()->user(), $courseId ? (int) $courseId : null);
+        $sectionId = request()->integer('section') ?: null;
+
+        $overview = $this->grading->overview(
+            request()->user(),
+            $courseId ? (int) $courseId : null,
+            $sectionId,
+        );
 
         return Inertia::render('Faculty/Grading', array_merge($overview, [
             'courseId' => $courseId ? (int) $courseId : null,
@@ -66,6 +72,22 @@ class GradingController extends Controller
         }
 
         return back()->with('success', 'Grade saved.');
+    }
+
+    /**
+     * Download a student's submitted file. Only the owning faculty (or an admin)
+     * may retrieve it.
+     */
+    public function downloadSubmission(AssignmentSubmission $submission): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        Gate::authorize('manage', $submission->assignment->course);
+
+        abort_if($submission->file_path === null, 404);
+
+        return \Illuminate\Support\Facades\Storage::disk('local')->download(
+            $submission->file_path,
+            $submission->original_filename ?? "submission-{$submission->id}",
+        );
     }
 
     /**

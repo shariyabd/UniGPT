@@ -24,18 +24,30 @@ class ExamController extends Controller
     {
         return Inertia::render('Admin/Exams', [
             'exams' => $this->exams->adminList(),
-            'courses' => Course::orderBy('code')->get(['id', 'code', 'name']),
+            'courses' => Course::with('sections:id,course_id,label')
+                ->orderBy('code')
+                ->get(['id', 'code', 'name']),
             'types' => ExamType::options(),
         ]);
     }
 
     public function store(ExamRequest $request): RedirectResponse
     {
-        $exam = $this->exams->create($request->validated(), $request->user());
+        $exams = $this->exams->create($request->validated(), $request->user());
+        $first = $exams->first();
+        $count = $exams->count();
 
-        $this->activity->log('exam.created', "Scheduled {$exam->title}", $exam, [], $request->user());
+        $this->activity->log(
+            'exam.created',
+            "Scheduled {$first?->title}".($count > 1 ? " for {$count} sections" : ''),
+            $first,
+            [],
+            $request->user(),
+        );
 
-        return back()->with('success', 'Exam scheduled.');
+        return back()->with('success', $count > 1
+            ? "Exam scheduled for {$count} sections."
+            : 'Exam scheduled.');
     }
 
     public function update(ExamRequest $request, Exam $exam): RedirectResponse

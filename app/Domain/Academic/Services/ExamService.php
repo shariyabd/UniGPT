@@ -5,7 +5,10 @@ namespace App\Domain\Academic\Services;
 use App\Domain\Notification\Services\NotificationService;
 use App\Domain\User\Models\User;
 use App\Enums\NotificationType;
+use App\Models\Course;
 use App\Models\Exam;
+use App\Models\Section;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -25,7 +28,7 @@ class ExamService
      */
     public function adminList(): Collection
     {
-        return Exam::with('course')
+        return Exam::with(['course', 'section'])
             ->orderByDesc('exam_date')
             ->get()
             ->map(fn (Exam $exam) => $this->present($exam));
@@ -38,43 +41,62 @@ class ExamService
      */
     public function forStudent(User $student): array
     {
-        $courseIds = $student->enrolledCourses()->pluck('courses.id');
-
-        return $this->splitByDate($this->examsForCourses($courseIds));
+        return $this->splitByDate($this->examsForSections($student->enrolledSectionIds()));
     }
 
     /**
-     * Exams for the courses a faculty member teaches.
+     * Exams for the sections a faculty member teaches.
      *
      * @return array<string, mixed>
      */
     public function forFaculty(User $faculty): array
     {
-        $courseIds = $faculty->teachingCourses()->pluck('id');
-
-        return $this->splitByDate($this->examsForCourses($courseIds));
+        return $this->splitByDate($this->examsForSections($faculty->teachingSectionIds()));
     }
 
     /**
+     * Schedule an exam. With a section_id the exam is created for that one
+     * section; without it the exam is scheduled for every section of the course
+     * (one row each), so every section's students are reached. Each created exam
+     * notifies its own section's enrolled students.
+     *
      * @param  array<string, mixed>  $data
+     * @return Collection<int, Exam>
      */
-    public function create(array $data, User $author): Exam
+    public function create(array $data, User $author): Collection
     {
-        $exam = Exam::create([...$data, 'created_by' => $author->id]);
+        $course = Course::with('sections')->find($data['course_id']);
+        $base = Arr::except($data, ['section_id']);
 
-        $course = $exam->course;
-        if ($course) {
-            $this->notifications->notifyMany(
-                users: $course->students()->get(),
-                type: NotificationType::EXAM,
-                title: "{$exam->type->getLabel()} scheduled — {$course->code}",
-                message: "\"{$exam->title}\" on {$exam->exam_date->toFormattedDateString()}.",
-                link: route('exams'),
-                data: ['exam_id' => $exam->id, 'course_id' => $course->id],
-            );
+        $sections = match (true) {
+            ! empty($data['section_id']) => $course?->sections->where('id', $data['section_id'])->values() ?? collect(),
+            default => $course?->sections ?? collect(),
+        };
+
+        // No section configured for the course — fall back to a single section-less
+        // exam so the course still gets one (legacy safety net).
+        if ($sections->isEmpty()) {
+            return collect([Exam::create([...$base, 'created_by' => $author->id])]);
         }
 
-        return $exam;
+        return $sections->map(function (Section $section) use ($base, $course, $author) {
+            $exam = Exam::create([
+                ...$base,
+                'section_id' => $section->id,
+                'created_by' => $author->id,
+            ]);
+
+            $this->notifications->notifyMany(
+                users: $section->students()->wherePivot('status', 'enrolled')->get(),
+                type: NotificationType::EXAM,
+                title: "{$exam->type->getLabel()} scheduled — {$course->code}",
+                message: "\"{$exam->title}\" (Section {$section->label}) on {$exam->exam_date->toFormattedDateString()}.",
+                link: route('exams'),
+                data: ['exam_id' => $exam->id, 'course_id' => $course->id, 'section_id' => $section->id],
+            );
+
+            return $exam;
+        })->values();
     }
 
     /**
@@ -82,6 +104,12 @@ class ExamService
      */
     public function update(Exam $exam, array $data): Exam
     {
+        // An exam row always belongs to one section; never null it out on edit
+        // when the form leaves the section as "all sections".
+        if (empty($data['section_id'])) {
+            unset($data['section_id']);
+        }
+
         $exam->update($data);
 
         return $exam->fresh();
@@ -93,17 +121,17 @@ class ExamService
     }
 
     /**
-     * @param  \Illuminate\Support\Collection<int, int>  $courseIds
+     * @param  \Illuminate\Support\Collection<int, int>  $sectionIds
      * @return Collection<int, Exam>
      */
-    private function examsForCourses(Collection $courseIds): Collection
+    private function examsForSections(Collection $sectionIds): Collection
     {
-        if ($courseIds->isEmpty()) {
+        if ($sectionIds->isEmpty()) {
             return collect();
         }
 
         return Exam::with('course')
-            ->whereIn('course_id', $courseIds)
+            ->whereIn('section_id', $sectionIds)
             ->orderBy('exam_date')
             ->get();
     }
@@ -151,6 +179,8 @@ class ExamService
                 'code' => $exam->course?->code,
                 'name' => $exam->course?->name,
             ],
+            'sectionId' => $exam->section_id,
+            'section' => $exam->section?->label,
         ];
     }
 

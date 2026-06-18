@@ -1,248 +1,221 @@
 <script setup>
-import { ref, computed, nextTick, onMounted } from 'vue';
+import { ref, computed, nextTick, onMounted, watch } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import axios from 'axios';
-import AppLayout from '@/Layouts/AppLayout.vue';
-import PageHeader from '@/components/ui/PageHeader.vue';
-import Card from '@/components/ui/Card.vue';
-import Badge from '@/components/ui/Badge.vue';
+import { useToast } from 'vue-toastification';
 import EmptyState from '@/components/ui/EmptyState.vue';
+import ConfirmDialog from '@/components/ui/ConfirmDialog.vue';
+import { useConfirm } from '@/composables/useConfirm';
+import { useTheme } from '@/composables/useTheme';
 import {
-    ChatBubbleLeftRightIcon,
     SparklesIcon,
-    AcademicCapIcon,
-    DocumentTextIcon,
-    ClipboardDocumentListIcon,
-    ArrowPathIcon,
-    ArrowDownTrayIcon,
-    CheckIcon,
-    PencilIcon,
-    TrashIcon,
-    EyeIcon,
-    StarIcon,
-    ArrowUpTrayIcon,
-    CheckCircleIcon,
-    BookOpenIcon,
-    ClockIcon,
-    UserIcon,
-    InformationCircleIcon,
-    LightBulbIcon,
-    BeakerIcon,
     PaperAirplaneIcon,
-    ListBulletIcon,
-    CheckCircleIcon as CheckCircleSolidIcon,
+    PlusIcon,
+    Bars3Icon,
+    XMarkIcon,
+    ArrowLeftIcon,
+    MagnifyingGlassIcon,
+    ChatBubbleLeftRightIcon,
+    EllipsisHorizontalIcon,
     PencilSquareIcon,
-    DocumentIcon,
-    LanguageIcon,
-    LinkIcon
+    ArchiveBoxIcon,
+    TrashIcon,
+    InboxIcon,
+    LightBulbIcon,
+    ClipboardDocumentCheckIcon,
+    AcademicCapIcon,
+    ClipboardDocumentListIcon,
+    DocumentTextIcon,
+    BeakerIcon,
+    CheckIcon,
+    ArrowDownTrayIcon,
+    ArrowPathIcon,
+    MapPinIcon,
 } from '@heroicons/vue/24/outline';
+import { MapPinIcon as MapPinSolidIcon } from '@heroicons/vue/24/solid';
 
-// Component state
-const activeTab = ref('chat');
-const isTyping = ref(false);
-const isGenerating = ref(false);
-const currentMessage = ref('');
-const messagesContainer = ref(null);
-const showAllSections = ref(false);
-
-// Server-provided props
 const props = defineProps({
-    facultyContext: {
-        type: Object,
-        default: () => ({})
-    }
+    sessions: { type: Array, default: () => [] },
+    facultyContext: { type: Object, default: () => ({}) },
 });
 
-// Faculty context — the template renders each course as a string (select value
-// and sidebar label) and `courseTopics` is keyed by course name, so map the
-// server course objects ({ id, code, name }) down to their display names.
+const toast = useToast();
+const { confirm } = useConfirm();
+// This page renders without the global AppLayout, so initialise the theme here.
+const { initTheme } = useTheme();
+
+// ---------------------------------------------------------------------------
+// Faculty context
+// ---------------------------------------------------------------------------
 const facultyContext = computed(() => ({
-    name: props.facultyContext.name ?? '',
+    name: props.facultyContext.name ?? 'Professor',
     department: props.facultyContext.department ?? '',
     courses: (props.facultyContext.courses ?? []).map((course) =>
-        typeof course === 'string' ? course : course.name
-    )
+        typeof course === 'string' ? { id: null, code: course, name: course } : course
+    ),
 }));
 
-// Chat messages
-const messages = ref([
-    {
-        id: 1,
-        role: 'assistant',
-        content: `Hello **${facultyContext.value.name || 'Professor'}**! 👋
+const courseIdByName = computed(() =>
+    Object.fromEntries(facultyContext.value.courses.map((c) => [c.name, c.id]))
+);
 
-I'm your **AI Teaching Assistant**, specialized in helping faculty create engaging educational content and improve teaching effectiveness.
+// ---------------------------------------------------------------------------
+// Layout state — chat is the main focus; both side panels collapse.
+// ---------------------------------------------------------------------------
+const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1280;
+const showSidebar = ref(viewportWidth >= 1024);
+const showToolsPanel = ref(viewportWidth >= 1280);
 
-**What I can help you with:**
-• **Quiz Generation:** Create comprehensive quizzes with multiple question types
-• **Assignment Design:** Develop detailed assignments with rubrics and guidelines
-• **Teaching Strategies:** Suggest pedagogical approaches for complex topics
-• **Content Creation:** Generate lecture materials, examples, and activities
-• **Assessment Tools:** Design evaluation criteria and grading rubrics
+// ---------------------------------------------------------------------------
+// Chat state
+// ---------------------------------------------------------------------------
+const messageInput = ref('');
+const isTyping = ref(false);
+const messagesContainer = ref(null);
+const searchQuery = ref('');
+const selectedChatHistory = ref(null);
+const currentSessionId = ref(null);
 
-**Quick Start:**
-• Switch to the **Quiz Generator** tab to create instant quizzes
-• Use **Assignment Creator** for comprehensive project design
-• Ask me specific questions about teaching methodologies
+const buildWelcomeContent = () => `Hello **${facultyContext.value.name}**! 👋
 
-How can I assist with your teaching today?`,
-        timestamp: new Date().toISOString(),
-        suggestions: [
-            'Generate a quiz for Database Normalization',
-            'Create an assignment for Machine Learning project',
-            'Help me explain complex algorithms',
-            'Design interactive learning activities'
-        ]
-    }
-]);
+I'm your **AI Teaching Assistant**. Ask me anything about teaching — explaining tough concepts, designing activities, rubrics, lesson planning, or student engagement.
 
-// Quiz form data
-const quizForm = ref({
-    topic: '',
-    course: '',
-    difficulty: 'intermediate',
-    questionCount: 10,
-    questionTypes: ['multiple-choice', 'true-false'],
-    timeLimit: 30,
-    includeExplanations: true,
-    bloomLevel: 'application'
-});
+Use the **Teaching Tools** panel to generate ready-to-publish **quizzes** and **assignments** for your courses.`;
 
-// Assignment form data
-const assignmentForm = ref({
-    title: '',
-    course: '',
-    type: 'Project',
-    topics: [],
-    difficulty: 'intermediate',
-    duration: '14', // days
-    points: '100',
-    allowGroup: false,
-    includeRubric: true,
-    includeResources: true
-});
-
-// Generated content
-const generatedContent = ref(null);
-
-// Form options
-const difficultyOptions = [
-    { value: 'beginner', label: 'Beginner', description: 'Basic concepts and fundamentals' },
-    { value: 'intermediate', label: 'Intermediate', description: 'Applied knowledge and problem-solving' },
-    { value: 'advanced', label: 'Advanced', description: 'Complex analysis and synthesis' }
-];
-
-const questionTypeOptions = [
-    { value: 'multiple-choice', label: 'Multiple Choice', icon: ListBulletIcon },
-    { value: 'true-false', label: 'True/False', icon: CheckCircleSolidIcon },
-    { value: 'short-answer', label: 'Short Answer', icon: PencilSquareIcon },
-    { value: 'essay', label: 'Essay', icon: DocumentIcon },
-    { value: 'fill-in-blank', label: 'Fill in the Blank', icon: LanguageIcon },
-    { value: 'matching', label: 'Matching', icon: LinkIcon }
-];
-
-const bloomLevels = [
-    { value: 'remember', label: 'Remember', description: 'Recall facts and basic concepts' },
-    { value: 'understand', label: 'Understand', description: 'Explain ideas and concepts' },
-    { value: 'apply', label: 'Apply', description: 'Use information in new situations' },
-    { value: 'analyze', label: 'Analyze', description: 'Draw connections among ideas' },
-    { value: 'evaluate', label: 'Evaluate', description: 'Justify decisions or judgments' },
-    { value: 'create', label: 'Create', description: 'Produce new or original work' }
-];
-
-const assignmentTypes = [
-    { value: 'Project', label: 'Project Assignment', description: 'Comprehensive project work' },
-    { value: 'Research', label: 'Research Paper', description: 'Academic research and writing' },
-    { value: 'Lab', label: 'Laboratory Exercise', description: 'Hands-on practical work' },
-    { value: 'Case Study', label: 'Case Study Analysis', description: 'Real-world scenario analysis' },
-    { value: 'Presentation', label: 'Presentation Assignment', description: 'Oral presentation and slides' }
-];
-
-// Available topics by course
-const courseTopics = {
-    'Database Systems': [
-        'Relational Model', 'SQL Queries', 'Normalization', 'Indexing', 'Transactions',
-        'Concurrency Control', 'Recovery Systems', 'NoSQL Databases', 'Query Optimization'
-    ],
-    'Machine Learning': [
-        'Supervised Learning', 'Unsupervised Learning', 'Neural Networks', 'Deep Learning',
-        'Feature Selection', 'Model Evaluation', 'Classification', 'Regression', 'Clustering'
-    ],
-    'Software Engineering': [
-        'SDLC Models', 'Requirements Engineering', 'System Design', 'Testing Strategies',
-        'Agile Methodologies', 'Version Control', 'Code Review', 'DevOps', 'Software Architecture'
-    ]
+const buildWelcomeFollowUps = () => {
+    const first = facultyContext.value.courses[0];
+    return [
+        first ? `Suggest active-learning activities for ${first.name}` : 'Suggest active-learning activities for my course',
+        'How do I write a clear grading rubric?',
+        'Give me strategies to engage quiet students',
+        'Explain a complex topic in simple terms',
+    ];
 };
 
-// Computed properties
-const availableTopics = computed(() => {
-    const course = quizForm.value.course || assignmentForm.value.course;
-    return courseTopics[course] || [];
+const makeWelcome = () => ({
+    id: 'welcome',
+    role: 'assistant',
+    content: buildWelcomeContent(),
+    timestamp: new Date().toISOString(),
+    followUpSuggestions: buildWelcomeFollowUps(),
 });
 
-const isQuizFormValid = computed(() => {
-    return quizForm.value.topic && quizForm.value.course && quizForm.value.questionCount > 0;
+const messages = ref([makeWelcome()]);
+const welcomeMessage = ref(null);
+
+// ---------------------------------------------------------------------------
+// Chat history (sidebar)
+// ---------------------------------------------------------------------------
+const chatHistory = ref(props.sessions.map((s) => ({
+    id: s.id,
+    title: s.title,
+    timestamp: s.timestamp,
+    messageCount: s.messageCount,
+    pinned: s.pinned ?? false,
+})));
+
+const filteredChatHistory = computed(() => {
+    if (!searchQuery.value) return chatHistory.value;
+    const query = searchQuery.value.toLowerCase();
+    return chatHistory.value.filter((chat) => (chat.title || '').toLowerCase().includes(query));
 });
 
-const isAssignmentFormValid = computed(() => {
-    return assignmentForm.value.title &&
-           assignmentForm.value.course &&
-           assignmentForm.value.topics.length > 0;
-});
+const pinnedChats = computed(() => filteredChatHistory.value.filter((c) => c.pinned));
+const regularChats = computed(() => filteredChatHistory.value.filter((c) => !c.pinned));
+const orderedChats = computed(() => [...pinnedChats.value, ...regularChats.value]);
 
-// Utility functions
-const formatTime = (timestamp) => {
-    return new Date(timestamp).toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit'
-    });
+// ---------------------------------------------------------------------------
+// Utilities
+// ---------------------------------------------------------------------------
+const formatTime = (timestamp) => new Date(timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+const formatRelativeTime = (timestamp) => {
+    if (!timestamp) return '';
+    const now = new Date();
+    const date = new Date(timestamp);
+    const diffInMinutes = Math.floor((now - date) / (1000 * 60));
+    if (diffInMinutes < 1) return 'Just now';
+    if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24) return `${diffInHours}h ago`;
+    return `${Math.floor(diffInHours / 24)}d ago`;
 };
+
+const parseMessageContent = (content) => (content || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-content">$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em class="italic">$1</em>')
+    .replace(/•\s/g, '<span class="text-primary font-bold">•</span> ')
+    .replace(/\n/g, '<br>');
 
 const scrollToBottom = () => {
     nextTick(() => {
-        if (messagesContainer.value) {
-            messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight;
-        }
+        if (messagesContainer.value) messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight;
     });
 };
 
+const autoResize = (event) => {
+    const el = event.target;
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 140) + 'px';
+};
+
+const copyMessage = (content) => {
+    navigator.clipboard.writeText(content);
+    toast.success('Copied to clipboard');
+};
+
+// ---------------------------------------------------------------------------
 // Chat actions
-const sendMessage = async () => {
-    if (!currentMessage.value.trim() || isTyping.value) return;
+// ---------------------------------------------------------------------------
+const normalizeMessage = (msg) => ({
+    id: msg.id,
+    role: msg.role,
+    content: msg.content,
+    timestamp: msg.timestamp,
+    followUpSuggestions: msg.followUpSuggestions ?? [],
+});
 
-    const userMessage = {
-        id: Date.now(),
-        role: 'user',
-        content: currentMessage.value.trim(),
-        timestamp: new Date().toISOString()
+const upsertSession = (session) => {
+    const entry = {
+        id: session.id,
+        title: session.title,
+        timestamp: session.timestamp,
+        messageCount: session.messageCount,
+        pinned: session.pinned ?? false,
     };
+    const idx = chatHistory.value.findIndex((c) => c.id === session.id);
+    if (idx === -1) chatHistory.value.unshift(entry);
+    else chatHistory.value[idx] = { ...chatHistory.value[idx], ...entry, pinned: chatHistory.value[idx].pinned };
+};
 
-    messages.value.push(userMessage);
-    const userInput = currentMessage.value.trim();
-    currentMessage.value = '';
+const sendMessage = async () => {
+    if (!messageInput.value.trim() || isTyping.value) return;
 
+    const text = messageInput.value.trim();
+    messages.value.push({ id: 'u' + Date.now(), role: 'user', content: text, timestamp: new Date().toISOString() });
+    messageInput.value = '';
     isTyping.value = true;
     scrollToBottom();
 
     try {
         const { data } = await axios.post(route('faculty.ai-assistant.chat'), {
-            message: userInput
+            message: text,
+            session_id: currentSessionId.value,
         });
-        const reply = data.reply ?? {};
-
+        currentSessionId.value = data.session.id;
+        selectedChatHistory.value = data.session.id;
+        upsertSession(data.session);
+        messages.value.push(normalizeMessage(data.assistantMessage));
+    } catch (e) {
         messages.value.push({
-            id: Date.now() + 1,
+            id: 'e' + Date.now(),
             role: 'assistant',
-            content: reply.content ?? '',
+            content: 'Sorry, something went wrong while generating a response. Please try again.',
             timestamp: new Date().toISOString(),
-            suggestions: reply.follow_ups ?? []
-        });
-    } catch (error) {
-        messages.value.push({
-            id: Date.now() + 1,
-            role: 'assistant',
-            content: 'Sorry, I could not process that request. Please try again.',
-            timestamp: new Date().toISOString()
+            followUpSuggestions: [],
         });
     } finally {
         isTyping.value = false;
@@ -250,1351 +223,1045 @@ const sendMessage = async () => {
     }
 };
 
-// Maps an API quiz question ({ id, question, options[], answer, explanation,
-// points }) into the field names the template renders: it needs `type` and
-// `correctAnswer` (MC = option index, true/false = boolean).
+const askFollowUp = (question) => {
+    messageInput.value = question;
+    sendMessage();
+};
+
+const selectChatHistory = async (chatId) => {
+    selectedChatHistory.value = chatId;
+    currentSessionId.value = chatId;
+    if (viewportWidth < 1024) showSidebar.value = false;
+    try {
+        const { data } = await axios.get(route('faculty.ai-assistant.session', chatId));
+        messages.value = data.messages.map(normalizeMessage);
+    } catch (e) {
+        toast.error('Could not open that conversation.');
+    }
+    scrollToBottom();
+};
+
+const newChat = () => {
+    messages.value = welcomeMessage.value ? [welcomeMessage.value] : [makeWelcome()];
+    selectedChatHistory.value = null;
+    currentSessionId.value = null;
+    nextTick(() => document.getElementById('message-input')?.focus());
+};
+
+// ---------------------------------------------------------------------------
+// Per-session menu (pin / rename / archive / delete)
+// ---------------------------------------------------------------------------
+const openMenuChat = ref(null);
+const menuPos = ref({ top: 0, left: 0 });
+
+const toggleMenu = (chat, event) => {
+    if (openMenuChat.value?.id === chat.id) { closeMenu(); return; }
+    const rect = event.currentTarget.getBoundingClientRect();
+    menuPos.value = { top: rect.bottom + 4, left: Math.max(8, rect.right - 176) };
+    openMenuChat.value = chat;
+};
+const closeMenu = () => { openMenuChat.value = null; };
+
+const togglePin = async (chat) => {
+    const previous = chat.pinned;
+    chat.pinned = !chat.pinned;
+    closeMenu();
+    try {
+        await axios.patch(route('faculty.ai-assistant.session.pin', chat.id));
+    } catch (e) {
+        chat.pinned = previous;
+        toast.error('Could not update pin.');
+    }
+};
+
+const renamingId = ref(null);
+const renameText = ref('');
+
+const startRename = (chat) => {
+    closeMenu();
+    renamingId.value = chat.id;
+    renameText.value = chat.title;
+    nextTick(() => {
+        const input = document.getElementById('rename-' + chat.id);
+        if (input) { input.focus(); input.select(); }
+    });
+};
+const cancelRename = () => { renamingId.value = null; renameText.value = ''; };
+const submitRename = async (chat) => {
+    const title = renameText.value.trim();
+    if (!title || title === chat.title) { cancelRename(); return; }
+    const previous = chat.title;
+    chat.title = title;
+    renamingId.value = null;
+    try {
+        await axios.patch(route('faculty.ai-assistant.session.rename', chat.id), { title });
+    } catch (e) {
+        chat.title = previous;
+        toast.error('Could not rename the conversation.');
+    }
+};
+
+const archiveChat = async (chat) => {
+    closeMenu();
+    try {
+        await axios.patch(route('faculty.ai-assistant.session.archive', chat.id));
+        chatHistory.value = chatHistory.value.filter((c) => c.id !== chat.id);
+        if (currentSessionId.value === chat.id) newChat();
+        toast.success('Conversation archived.');
+    } catch (e) {
+        toast.error('Could not archive the conversation.');
+    }
+};
+
+const deleteChat = async (chat) => {
+    closeMenu();
+    const ok = await confirm({
+        title: 'Delete conversation',
+        message: `“${chat.title}” will be permanently deleted. This cannot be undone.`,
+        confirmLabel: 'Delete',
+        variant: 'danger',
+    });
+    if (!ok) return;
+    try {
+        await axios.delete(route('faculty.ai-assistant.session.destroy', chat.id));
+        chatHistory.value = chatHistory.value.filter((c) => c.id !== chat.id);
+        if (currentSessionId.value === chat.id) newChat();
+        toast.success('Conversation deleted.');
+    } catch (e) {
+        toast.error('Could not delete the conversation.');
+    }
+};
+
+// ===========================================================================
+// Teaching tools — Quiz & Assignment generators
+// ===========================================================================
+const activeTool = ref('quiz');
+const isGenerating = ref(false);
+const generatedContent = ref(null);
+const showPreview = ref(false);
+const isPublishing = ref(false);
+const newTopic = ref('');
+
+const difficultyOptions = [
+    { value: 'easy', label: 'Easy' },
+    { value: 'medium', label: 'Medium' },
+    { value: 'hard', label: 'Hard' },
+];
+
+const questionTypeOptions = [
+    { value: 'multiple-choice', label: 'Multiple Choice' },
+    { value: 'true-false', label: 'True / False' },
+    { value: 'short-answer', label: 'Short Answer' },
+    { value: 'essay', label: 'Essay' },
+    { value: 'fill-in-blank', label: 'Fill in the Blank' },
+    { value: 'matching', label: 'Matching' },
+];
+
+const bloomLevels = [
+    { value: 'remember', label: 'Remember' },
+    { value: 'understand', label: 'Understand' },
+    { value: 'apply', label: 'Apply' },
+    { value: 'analyze', label: 'Analyze' },
+    { value: 'evaluate', label: 'Evaluate' },
+    { value: 'create', label: 'Create' },
+];
+
+const questionTypeLabel = (value) => questionTypeOptions.find((t) => t.value === value)?.label ?? value;
+
+const assignmentTypes = [
+    { value: 'Project', label: 'Project' },
+    { value: 'Research', label: 'Research Paper' },
+    { value: 'Lab', label: 'Lab Exercise' },
+    { value: 'Case Study', label: 'Case Study' },
+    { value: 'Presentation', label: 'Presentation' },
+];
+
+const quizForm = ref({
+    topic: '', course: '', difficulty: 'medium', questionCount: 10, timeLimit: 30,
+    questionTypes: ['multiple-choice', 'true-false'], bloomLevel: 'apply', includeExplanations: true,
+});
+const assignmentForm = ref({
+    title: '', course: '', type: 'Project', topics: [], difficulty: 'medium', duration: '14', points: '100',
+    allowGroup: false, includeRubric: true, includeResources: true,
+});
+
+const isQuizFormValid = computed(() =>
+    quizForm.value.topic && quizForm.value.course && quizForm.value.questionCount > 0 && quizForm.value.questionTypes.length > 0
+);
+const isAssignmentFormValid = computed(() => assignmentForm.value.title && assignmentForm.value.course && assignmentForm.value.topics.length > 0);
+
+const addTopicFromInput = () => {
+    const topic = newTopic.value.trim();
+    if (topic && !assignmentForm.value.topics.includes(topic)) assignmentForm.value.topics.push(topic);
+    newTopic.value = '';
+};
+const removeTopic = (topic) => {
+    const i = assignmentForm.value.topics.indexOf(topic);
+    if (i > -1) assignmentForm.value.topics.splice(i, 1);
+};
+
+const KNOWN_QUESTION_TYPES = ['multiple-choice', 'true-false', 'short-answer', 'essay', 'fill-in-blank', 'matching'];
+
 const mapQuizQuestion = (question, index) => {
     const hasOptions = Array.isArray(question.options) && question.options.length > 0;
-    let correctAnswer;
+    let type = (question.type || '').toLowerCase();
+    if (!KNOWN_QUESTION_TYPES.includes(type)) {
+        type = hasOptions ? 'multiple-choice' : (typeof question.answer === 'boolean' ? 'true-false' : 'short-answer');
+    }
 
-    if (hasOptions) {
-        correctAnswer = question.options.findIndex((option) => option === question.answer);
-        if (correctAnswer === -1) {
-            correctAnswer = typeof question.answer === 'number' ? question.answer : 0;
-        }
-    } else {
-        correctAnswer = question.answer === true
-            || String(question.answer).toLowerCase() === 'true';
+    let correctAnswer = null;
+    if (type === 'multiple-choice') {
+        correctAnswer = (question.options ?? []).findIndex((o) => o === question.answer);
+        if (correctAnswer === -1) correctAnswer = typeof question.answer === 'number' ? question.answer : 0;
+    } else if (type === 'true-false') {
+        correctAnswer = question.answer === true || String(question.answer).toLowerCase() === 'true';
     }
 
     return {
         id: question.id ?? index + 1,
-        type: hasOptions ? 'multiple-choice' : 'true-false',
+        type,
         question: question.question,
         options: question.options ?? [],
         correctAnswer,
+        // Expected/sample answer text for open-ended types.
+        answerText: ['multiple-choice', 'true-false'].includes(type) ? null : String(question.answer ?? ''),
         explanation: question.explanation ?? null,
-        points: question.points ?? 1
+        points: question.points ?? 1,
     };
 };
 
-// Quiz generation
 const generateQuiz = async () => {
-    if (!isQuizFormValid.value) return;
-
+    if (!isQuizFormValid.value || isGenerating.value) return;
     isGenerating.value = true;
-
     try {
         const { data } = await axios.post(route('faculty.ai-assistant.quiz'), {
             topic: quizForm.value.topic,
             course: quizForm.value.course,
             difficulty: quizForm.value.difficulty,
-            questionCount: quizForm.value.questionCount
+            questionCount: quizForm.value.questionCount,
+            questionTypes: quizForm.value.questionTypes,
+            bloomLevel: quizForm.value.bloomLevel,
+            includeExplanations: quizForm.value.includeExplanations,
         });
         const quiz = data.quiz ?? {};
         const questions = (quiz.questions ?? []).map(mapQuizQuestion);
-
         generatedContent.value = {
             type: 'quiz',
-            title: quiz.title ?? `${quizForm.value.topic} Quiz - ${quizForm.value.course}`,
+            title: quiz.title ?? `${quizForm.value.topic} Quiz`,
             course: quizForm.value.course,
-            topic: quiz.topic ?? quizForm.value.topic,
             difficulty: quiz.difficulty ?? quizForm.value.difficulty,
             totalQuestions: questions.length,
             timeLimit: quizForm.value.timeLimit,
-            instructions: `This quiz covers ${quiz.topic ?? quizForm.value.topic} concepts for ${quizForm.value.course}. You have ${quizForm.value.timeLimit} minutes to complete ${questions.length} questions.`,
-            questions
+            instructions: `This quiz covers ${quiz.topic ?? quizForm.value.topic} for ${quizForm.value.course}. ${questions.length} questions, ${quizForm.value.timeLimit} minutes.`,
+            questions,
         };
-
-        activeTab.value = 'preview';
+        showPreview.value = true;
+    } catch (error) {
+        toast.error(error?.response?.data?.message || 'Could not generate the quiz. Please try again.');
     } finally {
         isGenerating.value = false;
     }
 };
 
-// Maps an API assignment task into a template "section". Tasks may be plain
-// strings or objects; the template section needs title/description/points/
-// requirements/deliverables.
 const mapAssignmentTask = (task, index, sectionPoints) => {
     if (typeof task === 'string') {
-        return {
-            title: `Task ${index + 1}`,
-            description: task,
-            points: sectionPoints,
-            requirements: [task],
-            deliverables: []
-        };
+        return { title: `Task ${index + 1}`, description: task, points: sectionPoints, requirements: [task] };
     }
-
     return {
         title: task.title ?? `Task ${index + 1}`,
         description: task.description ?? '',
         points: task.points ?? sectionPoints,
         requirements: task.requirements ?? (task.description ? [task.description] : []),
-        deliverables: task.deliverables ?? []
     };
 };
 
-// Maps an API rubric entry ({ criterion, points }) to the template's rubric
-// item ({ category, description, weight }) — weight is the criterion's share
-// of the total rubric points expressed as a percentage.
 const mapRubric = (rubric) => {
-    const totalPoints = (rubric ?? []).reduce((sum, item) => sum + (item.points ?? 0), 0);
-
+    const total = (rubric ?? []).reduce((sum, item) => sum + (item.points ?? 0), 0);
     return (rubric ?? []).map((item) => ({
         category: item.criterion,
         description: `Worth ${item.points} points`,
-        weight: totalPoints > 0 ? Math.round(((item.points ?? 0) / totalPoints) * 100) : 0
+        weight: total > 0 ? Math.round(((item.points ?? 0) / total) * 100) : 0,
     }));
 };
 
-// Assignment generation
 const generateAssignment = async () => {
-    if (!isAssignmentFormValid.value) return;
-
+    if (!isAssignmentFormValid.value || isGenerating.value) return;
     isGenerating.value = true;
-
     try {
         const { data } = await axios.post(route('faculty.ai-assistant.assignment'), {
             title: assignmentForm.value.title,
             topics: assignmentForm.value.topics,
-            points: parseInt(assignmentForm.value.points)
+            points: parseInt(assignmentForm.value.points),
         });
         const assignment = data.assignment ?? {};
         const totalPoints = assignment.points ?? parseInt(assignmentForm.value.points);
         const tasks = assignment.tasks ?? [];
         const perTaskPoints = tasks.length > 0 ? Math.round(totalPoints / tasks.length) : totalPoints;
-
         generatedContent.value = {
             type: 'assignment',
-            title: assignment.title ?? `${assignmentForm.value.title} - ${assignmentForm.value.course}`,
-            description: assignment.description
-                ?? `A comprehensive ${assignmentForm.value.type.toLowerCase()} focusing on ${assignmentForm.value.topics.join(', ')}.`,
+            title: assignment.title ?? `${assignmentForm.value.title}`,
+            description: assignment.description ?? `A ${assignmentForm.value.type.toLowerCase()} covering ${assignmentForm.value.topics.join(', ')}.`,
             course: assignmentForm.value.course,
-            type: assignmentForm.value.type,
-            topics: assignmentForm.value.topics,
+            category: assignmentForm.value.type,
             duration: assignmentForm.value.duration,
             totalPoints,
-            dueDate: new Date(Date.now() + parseInt(assignmentForm.value.duration) * 24 * 60 * 60 * 1000).toLocaleDateString(),
             groupWork: assignmentForm.value.allowGroup,
+            dueDate: new Date(Date.now() + parseInt(assignmentForm.value.duration) * 86400000).toLocaleDateString(),
             sections: tasks.map((task, index) => mapAssignmentTask(task, index, perTaskPoints)),
             rubric: assignmentForm.value.includeRubric ? mapRubric(assignment.rubric) : null,
-            submissionGuidelines: [
-                {
-                    type: 'Format',
-                    detail: 'Submit as a ZIP file containing all source code and documentation'
-                },
-                {
-                    type: 'Naming',
-                    detail: 'Name your file as: StudentID_AssignmentName.zip'
-                },
-                {
-                    type: 'Platform',
-                    detail: 'Upload through the course management system'
-                },
-                {
-                    type: 'Late Policy',
-                    detail: '10% deduction per day after due date'
-                }
-            ],
-            resources: assignmentForm.value.includeResources ? [
-                {
-                    title: 'Official Documentation',
-                    description: 'Language/framework official documentation',
-                    type: 'Documentation',
-                    url: '#'
-                },
-                {
-                    title: 'Best Practices Guide',
-                    description: 'Industry best practices for clean code',
-                    type: 'Guide',
-                    url: '#'
-                },
-                {
-                    title: 'Tutorial Videos',
-                    description: 'Step-by-step implementation tutorials',
-                    type: 'Video',
-                    url: '#'
-                },
-                {
-                    title: 'Sample Projects',
-                    description: 'Reference implementations and examples',
-                    type: 'Examples',
-                    url: '#'
-                }
-            ] : null
+            resources: assignmentForm.value.includeResources ? (assignment.resources ?? null) : null,
         };
-
-        activeTab.value = 'preview';
+        showPreview.value = true;
+    } catch (error) {
+        toast.error(error?.response?.data?.message || 'Could not generate the assignment. Please try again.');
     } finally {
         isGenerating.value = false;
     }
 };
 
-// Action functions
-const editQuiz = () => {
-    activeTab.value = 'quiz';
-};
-
-const editAssignment = () => {
-    activeTab.value = 'assignment';
-};
-
+// Re-run generation with the current form values (the modal stays open and
+// swaps in the fresh result).
 const regenerateContent = () => {
-    if (generatedContent.value.type === 'quiz') {
-        generateQuiz();
-    } else {
-        generateAssignment();
-    }
+    if (!generatedContent.value || isGenerating.value) return;
+    if (generatedContent.value.type === 'quiz') generateQuiz();
+    else generateAssignment();
 };
 
-const exportGenerated = () => {
-    const type = generatedContent.value.type;
-    alert(`Exporting ${type} as PDF...`);
+// Close the preview and return to the matching tool form to tweak inputs.
+const editGenerated = () => {
+    if (!generatedContent.value) return;
+    activeTool.value = generatedContent.value.type === 'quiz' ? 'quiz' : 'assignment';
+    showPreview.value = false;
+    showToolsPanel.value = true;
 };
 
-const publishContent = () => {
-    const type = generatedContent.value.type;
-    alert(`Publishing ${type} to course...`);
-};
-
-const deleteQuestion = (questionId) => {
-    if (confirm('Are you sure you want to delete this question?')) {
-        generatedContent.value.questions = generatedContent.value.questions.filter(q => q.id !== questionId);
-    }
-};
-
-const addTopic = (topic) => {
-    if (!assignmentForm.value.topics.includes(topic)) {
-        assignmentForm.value.topics.push(topic);
-    }
-};
-
-const removeTopic = (topic) => {
-    const index = assignmentForm.value.topics.indexOf(topic);
-    if (index > -1) {
-        assignmentForm.value.topics.splice(index, 1);
-    }
+const deleteQuestion = (id) => {
+    if (!generatedContent.value || generatedContent.value.type !== 'quiz') return;
+    generatedContent.value.questions = generatedContent.value.questions.filter((q) => q.id !== id);
+    generatedContent.value.totalQuestions = generatedContent.value.questions.length;
 };
 
 const clearForms = () => {
-    quizForm.value = {
-        topic: '',
-        course: '',
-        difficulty: 'intermediate',
-        questionCount: 10,
-        questionTypes: ['multiple-choice', 'true-false'],
-        timeLimit: 30,
-        includeExplanations: true,
-        bloomLevel: 'application'
-    };
-
-    assignmentForm.value = {
-        title: '',
-        course: '',
-        type: 'Project',
-        topics: [],
-        difficulty: 'intermediate',
-        duration: '14',
-        points: '100',
-        allowGroup: false,
-        includeRubric: true,
-        includeResources: true
-    };
-
+    quizForm.value = { topic: '', course: '', difficulty: 'medium', questionCount: 10, timeLimit: 30, questionTypes: ['multiple-choice', 'true-false'], bloomLevel: 'apply', includeExplanations: true };
+    assignmentForm.value = { title: '', course: '', type: 'Project', topics: [], difficulty: 'medium', duration: '14', points: '100', allowGroup: false, includeRubric: true, includeResources: true };
     generatedContent.value = null;
+    showPreview.value = false;
 };
 
-// Tab definitions for pill navigation
-const tabs = computed(() => {
-    const base = [
-        { value: 'chat', label: 'AI Chat Assistant', icon: ChatBubbleLeftRightIcon },
-        { value: 'quiz', label: 'Quiz Generator', icon: ClipboardDocumentListIcon },
-        { value: 'assignment', label: 'Assignment Creator', icon: DocumentTextIcon }
-    ];
+// --- Export (browser print → PDF) ---
+const escapeHtml = (value) => String(value ?? '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-    if (generatedContent.value) {
-        base.push({ value: 'preview', label: 'Preview', icon: EyeIcon });
+const buildPrintHtml = (content) => {
+    const rows = [];
+    if (content.type === 'quiz') {
+        rows.push(`<p><em>${escapeHtml(content.instructions)}</em></p>`);
+        content.questions.forEach((q, i) => {
+            rows.push(`<div class="q"><strong>Q${i + 1} (${q.points} pt).</strong> ${escapeHtml(q.question)} <em style="color:#888">[${escapeHtml(q.type)}]</em>`);
+            if (q.type === 'multiple-choice') {
+                rows.push('<ol type="A">' + q.options.map((o, idx) => `<li${idx === q.correctAnswer ? ' class="correct"' : ''}>${escapeHtml(o)}</li>`).join('') + '</ol>');
+            } else if (q.type === 'true-false') {
+                rows.push(`<p>Answer: <strong>${q.correctAnswer ? 'True' : 'False'}</strong></p>`);
+            } else {
+                rows.push(`<p>Expected answer: <strong>${escapeHtml(q.answerText)}</strong></p>`);
+            }
+            if (q.explanation) rows.push(`<p class="exp">Explanation: ${escapeHtml(q.explanation)}</p>`);
+            rows.push('</div>');
+        });
+    } else {
+        rows.push(`<p>${escapeHtml(content.description)}</p><p><strong>Due:</strong> ${escapeHtml(content.dueDate)} · <strong>Points:</strong> ${content.totalPoints}</p>`);
+        (content.sections ?? []).forEach((s) => {
+            rows.push(`<div class="q"><strong>${escapeHtml(s.title)}</strong> (${s.points} pts)<p>${escapeHtml(s.description)}</p>`);
+            if (s.requirements?.length) rows.push('<ul>' + s.requirements.map((r) => `<li>${escapeHtml(r)}</li>`).join('') + '</ul>');
+            rows.push('</div>');
+        });
+        if (content.rubric?.length) {
+            rows.push('<h3>Grading Rubric</h3><ul>' + content.rubric.map((c) => `<li>${escapeHtml(c.category)} — ${c.weight}%</li>`).join('') + '</ul>');
+        }
     }
+    return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(content.title)}</title>
+        <style>body{font:14px/1.5 system-ui,sans-serif;max-width:760px;margin:32px auto;padding:0 16px;color:#111}
+        h1{font-size:22px}.q{margin:16px 0;padding:12px;border:1px solid #ddd;border-radius:8px}
+        .correct{font-weight:700}.exp{color:#555;font-size:13px}ol,ul{margin:6px 0}</style></head>
+        <body><h1>${escapeHtml(content.title)}</h1><p>${escapeHtml(content.course)}</p>${rows.join('')}</body></html>`;
+};
 
-    return base;
-});
+const exportGenerated = () => {
+    const content = generatedContent.value;
+    if (!content) return;
+    const win = window.open('', '_blank');
+    if (!win) { toast.error('Allow pop-ups to export the document.'); return; }
+    win.document.write(buildPrintHtml(content));
+    win.document.close();
+    win.focus();
+    win.print();
+};
 
+// --- Publish (persist as a real Assignment on the course) ---
+const quizToText = (content) => {
+    const lines = [content.instructions, ''];
+    content.questions.forEach((q, i) => {
+        lines.push(`Q${i + 1} (${q.points} pt) [${q.type}]. ${q.question}`);
+        if (q.type === 'multiple-choice') {
+            q.options.forEach((o, idx) => lines.push(`  ${String.fromCharCode(65 + idx)}. ${o}${idx === q.correctAnswer ? '  ✓' : ''}`));
+        } else if (q.type === 'true-false') {
+            lines.push(`  Answer: ${q.correctAnswer ? 'True' : 'False'}`);
+        } else {
+            lines.push(`  Expected answer: ${q.answerText}`);
+        }
+        if (q.explanation) lines.push(`  Explanation: ${q.explanation}`);
+        lines.push('');
+    });
+    return lines.join('\n');
+};
+
+const rubricForPublish = (content) => {
+    if (!content.rubric?.length) return null;
+    return content.rubric.map((c) => ({ criterion: c.category, points: Math.round((c.weight / 100) * content.totalPoints) }));
+};
+
+const publishContent = async () => {
+    const content = generatedContent.value;
+    if (!content) return;
+    const courseId = courseIdByName.value[content.course];
+    if (!courseId) { toast.error('Select one of your courses before publishing.'); return; }
+
+    isPublishing.value = true;
+    try {
+        const payload = content.type === 'quiz'
+            ? {
+                course_id: courseId, title: content.title, type: 'quiz',
+                description: quizToText(content),
+                total_points: content.questions.reduce((sum, q) => sum + (q.points || 1), 0),
+                due_at: null, rubric: null,
+            }
+            : {
+                course_id: courseId, title: content.title,
+                type: (assignmentForm.value.type || 'project').toLowerCase(),
+                description: content.description, total_points: content.totalPoints,
+                due_at: new Date(Date.now() + (parseInt(assignmentForm.value.duration) || 14) * 86400000).toISOString(),
+                rubric: rubricForPublish(content),
+            };
+        const { data } = await axios.post(route('faculty.ai-assistant.publish'), payload);
+        toast.success(data.message ?? 'Published to the course.');
+        showPreview.value = false;
+    } catch (e) {
+        toast.error('Could not publish. Please try again.');
+    } finally {
+        isPublishing.value = false;
+    }
+};
+
+// ---------------------------------------------------------------------------
 // Lifecycle
+// ---------------------------------------------------------------------------
 onMounted(() => {
+    initTheme();
+    welcomeMessage.value = messages.value[0];
     scrollToBottom();
+
+    // Deep link from other pages: /faculty/ai-assistant?tool=quiz|assignment opens
+    // the Teaching Tools panel on the requested generator. An optional ?course=
+    // pre-selects the course in that generator.
+    if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        const tool = params.get('tool');
+        if (tool === 'quiz' || tool === 'assignment') {
+            activeTool.value = tool;
+            showToolsPanel.value = true;
+            const course = params.get('course');
+            if (course) {
+                if (tool === 'quiz') quizForm.value.course = course;
+                else assignmentForm.value.course = course;
+            }
+        } else {
+            nextTick(() => document.getElementById('message-input')?.focus());
+        }
+    }
 });
+
+watch(() => messages.value.length, scrollToBottom);
 </script>
 
 <template>
     <div>
-        <Head title="Faculty AI Teaching Assistant" />
+        <Head title="AI Teaching Assistant" />
 
-        <AppLayout>
-            <div class="page-container py-8 space-y-6 sm:space-y-8">
-                <!-- Page Header -->
-                <PageHeader
-                    title="AI Teaching Assistant"
-                    subtitle="Generate quizzes, assignments, and get teaching insights powered by AI"
-                    eyebrow="Faculty"
-                    :icon="SparklesIcon"
-                >
-                    <template #actions>
-                        <div class="hidden sm:flex flex-col items-end leading-tight mr-1">
-                            <span class="text-sm font-semibold text-content">{{ facultyContext.name }}</span>
-                            <span class="text-xs text-content-muted">{{ facultyContext.department }}</span>
-                        </div>
-                        <Link href="/faculty/dashboard" class="ui-btn-secondary">
-                            Dashboard
-                        </Link>
-                    </template>
-                </PageHeader>
+        <!-- Full-screen, focused chat workspace (no global nav) -->
+        <div class="flex h-dvh flex-col overflow-hidden bg-bg text-content">
+            <!-- Top bar -->
+            <header class="flex h-14 flex-shrink-0 items-center gap-1.5 border-b border-line bg-surface px-3 sm:gap-2 sm:px-4">
+                <button @click="showSidebar = !showSidebar" class="ui-btn-ghost h-9 w-9 p-0" :title="showSidebar ? 'Hide history' : 'Show history'" aria-label="Toggle history">
+                    <Bars3Icon class="h-5 w-5" />
+                </button>
 
-                <!-- Tab Navigation (pill toggles) -->
-                <div class="flex flex-wrap gap-2 rounded-card border border-line bg-surface p-1.5 shadow-card">
-                    <button
-                        v-for="tab in tabs"
-                        :key="tab.value"
-                        @click="activeTab = tab.value"
-                        :class="[
-                            'flex items-center gap-2 rounded-control px-4 py-2.5 text-sm font-medium transition-colors',
-                            activeTab === tab.value
-                                ? 'bg-primary text-white shadow-sm'
-                                : 'text-content-muted hover:text-content hover:bg-bg'
-                        ]"
-                    >
-                        <component :is="tab.icon" class="w-5 h-5" />
-                        {{ tab.label }}
-                    </button>
-                </div>
+                <Link :href="route('faculty.dashboard')" class="ui-btn-ghost h-9 px-2" title="Back to dashboard">
+                    <ArrowLeftIcon class="h-5 w-5" />
+                    <span class="hidden sm:inline">Back</span>
+                </Link>
 
-                <!-- Chat Assistant Tab -->
-                <div v-if="activeTab === 'chat'" class="space-y-8">
-                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        <!-- Chat Interface -->
-                        <div class="lg:col-span-2">
-                            <Card padding="p-0" class="h-[600px] flex flex-col overflow-hidden">
-                                <!-- Chat Header -->
-                                <div class="p-5 sm:p-6 border-b border-line">
-                                    <h2 class="text-lg font-bold text-content flex items-center gap-2">
-                                        <SparklesIcon class="w-6 h-6 text-primary" />
-                                        AI Teaching Assistant
-                                    </h2>
-                                    <p class="text-sm text-content-muted mt-1">
-                                        Ask questions about teaching strategies, content creation, and student engagement
-                                    </p>
-                                </div>
-
-                                <!-- Messages -->
-                                <div
-                                    ref="messagesContainer"
-                                    class="flex-1 overflow-y-auto p-5 sm:p-6 space-y-4"
-                                >
-                                    <div v-for="message in messages" :key="message.id" class="space-y-4">
-                                        <!-- User Message -->
-                                        <div v-if="message.role === 'user'" class="flex justify-end">
-                                            <div class="max-w-[80%] bg-primary text-white rounded-card rounded-br-md px-5 py-3.5 shadow-sm">
-                                                <p class="text-sm leading-relaxed">{{ message.content }}</p>
-                                                <div class="text-xs text-white/80 mt-2">{{ formatTime(message.timestamp) }}</div>
-                                            </div>
-                                        </div>
-
-                                        <!-- AI Assistant Message -->
-                                        <div v-else class="flex justify-start">
-                                            <div class="max-w-[90%] w-full bg-surface rounded-card rounded-bl-md border border-line overflow-hidden">
-                                                <!-- AI Header -->
-                                                <div class="p-4 bg-primary-soft border-b border-line">
-                                                    <div class="flex items-center gap-3">
-                                                        <div class="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-                                                            <SparklesIcon class="w-4 h-4 text-white" />
-                                                        </div>
-                                                        <div>
-                                                            <p class="font-semibold text-primary text-sm">AI Teaching Assistant</p>
-                                                            <p class="text-xs text-primary">{{ formatTime(message.timestamp) }}</p>
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                <!-- Message Content -->
-                                                <div class="p-5 sm:p-6">
-                                                    <div
-                                                        class="prose prose-sm max-w-none text-content-muted"
-                                                        v-html="message.content.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/•\s/g, '<span class=&quot;text-primary font-bold&quot;>•</span> ')"
-                                                    ></div>
-
-                                                    <!-- Follow-up Suggestions -->
-                                                    <div v-if="message.suggestions && message.suggestions.length > 0" class="mt-6">
-                                                        <p class="text-sm font-semibold text-content mb-3">Try asking:</p>
-                                                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                                            <button
-                                                                v-for="suggestion in message.suggestions"
-                                                                :key="suggestion"
-                                                                @click="currentMessage = suggestion; sendMessage()"
-                                                                class="text-left px-4 py-3 bg-primary-soft text-primary text-sm rounded-control hover:bg-primary-soft/70 transition-colors border border-line"
-                                                            >
-                                                                {{ suggestion }}
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Typing Indicator -->
-                                    <div v-if="isTyping" class="flex justify-start">
-                                        <div class="bg-surface border border-line rounded-card rounded-bl-md px-5 py-3.5">
-                                            <div class="flex items-center gap-3">
-                                                <div class="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-                                                    <SparklesIcon class="w-4 h-4 text-white" />
-                                                </div>
-                                                <div class="flex space-x-1">
-                                                    <div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 0ms"></div>
-                                                    <div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 150ms"></div>
-                                                    <div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 300ms"></div>
-                                                </div>
-                                                <span class="text-sm text-content-muted">AI is thinking...</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Message Input -->
-                                <div class="p-5 sm:p-6 border-t border-line">
-                                    <form @submit.prevent="sendMessage" class="flex gap-3">
-                                        <textarea
-                                            v-model="currentMessage"
-                                            :disabled="isTyping"
-                                            placeholder="Ask about teaching strategies, content creation, or student engagement..."
-                                            rows="1"
-                                            class="ui-input flex-1 resize-none"
-                                            @keydown.enter.exact.prevent="sendMessage"
-                                        ></textarea>
-                                        <button
-                                            type="submit"
-                                            :disabled="!currentMessage.trim() || isTyping"
-                                            class="ui-btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-                                            aria-label="Send message"
-                                        >
-                                            <span v-if="isTyping">...</span>
-                                            <PaperAirplaneIcon v-else class="w-5 h-5" />
-                                        </button>
-                                    </form>
-                                </div>
-                            </Card>
-                        </div>
-
-                        <!-- Quick Actions Sidebar -->
-                        <div class="space-y-6">
-                            <!-- Faculty Quick Stats -->
-                            <Card title="Your Courses" :icon="AcademicCapIcon">
-                                <div class="space-y-3">
-                                    <div
-                                        v-for="course in facultyContext.courses"
-                                        :key="course"
-                                        class="flex items-center justify-between p-3 bg-bg rounded-control border border-line"
-                                    >
-                                        <span class="text-sm font-medium text-content">{{ course }}</span>
-                                        <AcademicCapIcon class="w-4 h-4 text-primary" />
-                                    </div>
-                                </div>
-                            </Card>
-
-                            <!-- Quick Actions -->
-                            <Card title="Quick Actions" :icon="BeakerIcon">
-                                <div class="space-y-3">
-                                    <button
-                                        @click="activeTab = 'quiz'"
-                                        class="w-full flex items-center gap-3 p-3 bg-primary-soft text-primary rounded-control hover:bg-primary-soft/70 transition-colors"
-                                    >
-                                        <ClipboardDocumentListIcon class="w-5 h-5" />
-                                        Generate Quiz
-                                    </button>
-                                    <button
-                                        @click="activeTab = 'assignment'"
-                                        class="w-full flex items-center gap-3 p-3 bg-primary-soft text-primary rounded-control hover:bg-primary-soft/70 transition-colors"
-                                    >
-                                        <DocumentTextIcon class="w-5 h-5" />
-                                        Create Assignment
-                                    </button>
-                                    <button
-                                        @click="clearForms"
-                                        class="w-full flex items-center gap-3 p-3 bg-neutral-bg text-neutral-fg rounded-control hover:bg-bg transition-colors"
-                                    >
-                                        <TrashIcon class="w-5 h-5" />
-                                        Clear All Forms
-                                    </button>
-                                </div>
-                            </Card>
-
-                            <!-- Teaching Tips -->
-                            <Card>
-                                <h3 class="text-base font-bold text-content mb-3 flex items-center gap-2">
-                                    <LightBulbIcon class="w-5 h-5 text-warning-fg" />
-                                    Teaching Tip
-                                </h3>
-                                <p class="text-sm text-content-muted mb-3">
-                                    Use the Bloom's taxonomy levels when creating questions to ensure comprehensive assessment of student understanding.
-                                </p>
-                                <div class="flex flex-wrap gap-2">
-                                    <Badge variant="warning">Remember</Badge>
-                                    <Badge variant="warning">Apply</Badge>
-                                    <Badge variant="warning">Analyze</Badge>
-                                </div>
-                            </Card>
-                        </div>
+                <div class="ml-1 flex min-w-0 items-center gap-2.5">
+                    <div class="ui-icon-tile h-9 w-9 flex-shrink-0 bg-primary text-white">
+                        <SparklesIcon class="h-5 w-5" />
+                    </div>
+                    <div class="hidden min-w-0 sm:block">
+                        <p class="truncate text-sm font-bold leading-tight text-content">AI Teaching Assistant</p>
+                        <p class="truncate text-xs text-content-faint">
+                            {{ facultyContext.name }}<span v-if="facultyContext.department"> • {{ facultyContext.department }}</span>
+                        </p>
                     </div>
                 </div>
 
-                <!-- Quiz Generator Tab -->
-                <div v-if="activeTab === 'quiz'" class="space-y-8">
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <!-- Quiz Form -->
-                        <Card title="Quiz Generator" :icon="ClipboardDocumentListIcon">
-                            <div class="space-y-6">
-                                <!-- Course and Topic -->
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                        <label class="ui-label">Course</label>
-                                        <select
-                                            v-model="quizForm.course"
-                                            class="ui-input"
-                                        >
-                                            <option value="">Select Course</option>
-                                            <option v-for="course in facultyContext.courses" :key="course" :value="course">
-                                                {{ course }}
-                                            </option>
-                                        </select>
+                <div class="ml-auto flex items-center gap-1.5 sm:gap-2">
+                    <button
+                        @click="showToolsPanel = !showToolsPanel"
+                        :class="['ui-btn-ghost h-9 px-2', showToolsPanel ? 'text-primary' : '']"
+                        title="Toggle teaching tools"
+                        aria-label="Toggle teaching tools"
+                    >
+                        <BeakerIcon class="h-5 w-5" />
+                        <span class="hidden lg:inline">Tools</span>
+                    </button>
+                    <button @click="newChat" class="ui-btn-primary h-9">
+                        <PlusIcon class="h-4 w-4" />
+                        <span class="hidden sm:inline">New Chat</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Body: history · chat · tools -->
+            <div class="relative flex min-h-0 flex-1 overflow-hidden">
+
+                <!-- Mobile scrim for history -->
+                <Transition enter-active-class="transition-opacity duration-200" enter-from-class="opacity-0" leave-active-class="transition-opacity duration-200" leave-to-class="opacity-0">
+                    <div v-if="showSidebar" class="absolute inset-0 z-20 bg-content/30 backdrop-blur-sm lg:hidden" @click="showSidebar = false"></div>
+                </Transition>
+
+                <!-- Left Sidebar - Chat History -->
+                <aside
+                    class="absolute inset-y-0 left-0 z-30 flex flex-col overflow-hidden border-r border-line bg-surface transition-all duration-300 ease-in-out lg:static lg:z-auto"
+                    :class="showSidebar ? 'w-72 translate-x-0' : 'w-72 -translate-x-full lg:w-0 lg:translate-x-0 lg:border-r-0'"
+                >
+                    <div class="flex h-full w-72 flex-shrink-0 flex-col">
+                        <div class="border-b border-line p-4">
+                            <div class="mb-3 flex items-center justify-between">
+                                <h2 class="flex items-center gap-2 text-sm font-semibold text-content">
+                                    <ChatBubbleLeftRightIcon class="h-4 w-4 text-content-muted" />
+                                    History
+                                </h2>
+                                <button @click="newChat" class="ui-btn-ghost h-8 px-2" aria-label="New chat">
+                                    <PlusIcon class="h-4 w-4" />
+                                    <span class="hidden xl:inline">New</span>
+                                </button>
+                            </div>
+                            <div class="relative">
+                                <MagnifyingGlassIcon class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-content-faint" />
+                                <input v-model="searchQuery" type="text" placeholder="Search conversations..." class="ui-input pl-9" aria-label="Search conversations" />
+                            </div>
+                        </div>
+
+                        <div class="flex-1 overflow-y-auto p-2 space-y-0.5">
+                            <p v-if="pinnedChats.length" class="px-2 pb-0.5 pt-1 text-[11px] font-semibold uppercase tracking-wide text-content-faint">Pinned</p>
+
+                            <template v-for="(chat, idx) in orderedChats" :key="chat.id">
+                                <div v-if="pinnedChats.length && idx === pinnedChats.length" class="my-1.5 flex items-center gap-2 px-2">
+                                    <span class="h-px flex-1 bg-line"></span>
+                                    <span class="text-[11px] font-semibold uppercase tracking-wide text-content-faint">Chats</span>
+                                    <span class="h-px flex-1 bg-line"></span>
+                                </div>
+
+                                <div
+                                    @click="renamingId === chat.id ? null : selectChatHistory(chat.id)"
+                                    :class="[
+                                        'group relative flex items-center gap-1 rounded-control px-2.5 py-1.5 transition-colors duration-150',
+                                        renamingId === chat.id ? '' : 'cursor-pointer',
+                                        (selectedChatHistory === chat.id || (openMenuChat && openMenuChat.id === chat.id)) ? 'bg-primary-soft' : 'hover:bg-primary-soft'
+                                    ]"
+                                >
+                                    <div class="min-w-0 flex-1">
+                                        <input
+                                            v-if="renamingId === chat.id"
+                                            :id="'rename-' + chat.id"
+                                            v-model="renameText"
+                                            type="text"
+                                            class="w-full rounded-control border border-primary bg-surface px-1.5 py-0.5 text-sm text-content focus:outline-none"
+                                            @click.stop
+                                            @keydown.enter.prevent="submitRename(chat)"
+                                            @keydown.esc.prevent="cancelRename"
+                                            @blur="submitRename(chat)"
+                                        />
+                                        <template v-else>
+                                            <p :class="['truncate text-sm font-medium', selectedChatHistory === chat.id ? 'text-primary' : 'text-content']">{{ chat.title }}</p>
+                                            <div class="mt-0.5 flex items-center gap-1.5 text-[11px] text-content-faint">
+                                                <span>{{ formatRelativeTime(chat.timestamp) }}</span>
+                                                <span>•</span>
+                                                <span>{{ chat.messageCount }} msgs</span>
+                                            </div>
+                                        </template>
                                     </div>
-                                    <div>
-                                        <label class="ui-label">Topic</label>
-                                        <select
-                                            v-model="quizForm.topic"
-                                            :disabled="!quizForm.course"
-                                            class="ui-input disabled:opacity-50"
+
+                                    <div v-if="renamingId !== chat.id" class="flex flex-shrink-0 items-center gap-0.5">
+                                        <button
+                                            @click.stop="togglePin(chat)"
+                                            :class="['rounded-control p-1 transition-all', chat.pinned ? 'text-primary' : 'text-content-faint opacity-0 hover:text-primary focus:opacity-100 group-hover:opacity-100']"
+                                            :title="chat.pinned ? 'Unpin' : 'Pin'"
                                         >
-                                            <option value="">Select Topic</option>
-                                            <option v-for="topic in availableTopics" :key="topic" :value="topic">
-                                                {{ topic }}
-                                            </option>
-                                        </select>
+                                            <component :is="chat.pinned ? MapPinSolidIcon : MapPinIcon" class="h-4 w-4" />
+                                        </button>
+                                        <button
+                                            @click.stop="toggleMenu(chat, $event)"
+                                            :class="['rounded-control p-1 text-content-faint transition-all hover:text-content focus:opacity-100', (openMenuChat && openMenuChat.id === chat.id) ? 'opacity-100 text-content' : 'opacity-0 group-hover:opacity-100']"
+                                            title="More options"
+                                        >
+                                            <EllipsisHorizontalIcon class="h-4 w-4" />
+                                        </button>
+                                    </div>
+                                </div>
+                            </template>
+
+                            <div v-if="filteredChatHistory.length === 0" class="pt-6">
+                                <EmptyState title="No conversations" description="Start a new chat to see it here." :icon="InboxIcon" />
+                            </div>
+                        </div>
+
+                        <div class="flex-shrink-0 border-t border-line p-2">
+                            <Link :href="route('faculty.ai-assistant.archived')" class="flex items-center gap-2 rounded-control px-2.5 py-2 text-sm font-medium text-content-muted transition-colors hover:bg-primary-soft hover:text-primary">
+                                <ArchiveBoxIcon class="h-4 w-4" />
+                                Archived chats
+                            </Link>
+                        </div>
+                    </div>
+                </aside>
+
+                <!-- Main Chat Area -->
+                <main class="flex min-w-0 flex-1 flex-col bg-bg">
+                    <div ref="messagesContainer" class="flex-1 overflow-y-auto" style="scroll-behavior: smooth;">
+                        <div class="mx-auto w-full max-w-3xl space-y-6 px-4 py-6 sm:px-6">
+                            <div v-for="message in messages" :key="message.id" class="space-y-4">
+                                <!-- User -->
+                                <div v-if="message.role === 'user'" class="flex justify-end">
+                                    <div class="max-w-[80%] bg-primary text-white rounded-2xl rounded-br-md px-5 py-3.5 shadow-card">
+                                        <p class="text-sm leading-relaxed whitespace-pre-wrap">{{ message.content }}</p>
+                                        <div class="mt-2 text-right text-xs text-white/70">{{ formatTime(message.timestamp) }}</div>
                                     </div>
                                 </div>
 
-                                <!-- Quiz Settings -->
-                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <!-- Assistant -->
+                                <div v-else class="flex justify-start">
+                                    <div class="w-full ui-card p-0 overflow-hidden">
+                                        <div class="flex items-center justify-between gap-3 p-4 border-b border-line">
+                                            <div class="flex items-center gap-3 min-w-0">
+                                                <div class="ui-icon-tile bg-primary-soft text-primary flex-shrink-0">
+                                                    <SparklesIcon class="w-5 h-5" />
+                                                </div>
+                                                <div class="min-w-0">
+                                                    <p class="font-semibold text-content text-sm flex items-center gap-2">
+                                                        AI Teaching Assistant
+                                                        <span class="ui-badge bg-neutral-bg text-neutral-fg">AI</span>
+                                                    </p>
+                                                    <p class="text-xs text-content-faint">{{ formatTime(message.timestamp) }}</p>
+                                                </div>
+                                            </div>
+                                            <button @click="copyMessage(message.content)" class="p-1.5 rounded-control text-content-faint hover:text-content hover:bg-neutral-bg transition-colors" title="Copy message" aria-label="Copy message">
+                                                <ClipboardDocumentCheckIcon class="w-4 h-4" />
+                                            </button>
+                                        </div>
+
+                                        <div class="p-5">
+                                            <div class="prose prose-sm max-w-none">
+                                                <div v-html="parseMessageContent(message.content)" class="text-content-muted leading-relaxed"></div>
+                                            </div>
+
+                                            <div v-if="message.followUpSuggestions && message.followUpSuggestions.length > 0" class="mt-5">
+                                                <p class="text-sm font-semibold text-content mb-3 flex items-center gap-2">
+                                                    <LightBulbIcon class="w-4 h-4 text-primary" />
+                                                    Try asking
+                                                </p>
+                                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                    <button
+                                                        v-for="suggestion in message.followUpSuggestions"
+                                                        :key="suggestion"
+                                                        @click="askFollowUp(suggestion)"
+                                                        class="text-left px-4 py-2.5 bg-neutral-bg text-content text-sm rounded-control hover:bg-primary-soft hover:text-primary transition-all duration-200 font-medium"
+                                                    >
+                                                        {{ suggestion }}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Typing indicator -->
+                            <div v-if="isTyping" class="flex justify-start">
+                                <div class="ui-card px-5 py-3.5">
+                                    <div class="flex items-center gap-3">
+                                        <div class="ui-icon-tile h-8 w-8 bg-primary-soft text-primary flex-shrink-0">
+                                            <SparklesIcon class="w-4 h-4" />
+                                        </div>
+                                        <div class="flex space-x-1">
+                                            <div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 0ms"></div>
+                                            <div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 150ms"></div>
+                                            <div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 300ms"></div>
+                                        </div>
+                                        <span class="text-sm text-content-muted font-medium">Thinking…</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Composer -->
+                    <div class="flex-shrink-0 border-t border-line bg-surface">
+                        <div class="mx-auto w-full max-w-3xl px-4 py-3 sm:px-6 sm:py-4">
+                            <form @submit.prevent="sendMessage" class="space-y-2">
+                                <div class="flex items-end gap-2.5">
+                                    <textarea
+                                        id="message-input"
+                                        v-model="messageInput"
+                                        :disabled="isTyping"
+                                        placeholder="Ask about teaching strategies, content, rubrics, or student engagement…"
+                                        rows="1"
+                                        class="ui-input flex-1 resize-none"
+                                        @keydown.enter.exact.prevent="sendMessage"
+                                        @input="autoResize"
+                                    ></textarea>
+                                    <button type="submit" :disabled="!messageInput.trim() || isTyping" class="ui-btn-primary h-11 w-11 p-0 flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed" aria-label="Send message">
+                                        <PaperAirplaneIcon class="w-5 h-5" />
+                                    </button>
+                                </div>
+                                <p class="text-xs text-content-faint">
+                                    <kbd class="px-1 py-0.5 bg-neutral-bg rounded">Enter</kbd> to send · <kbd class="px-1 py-0.5 bg-neutral-bg rounded">Shift+Enter</kbd> for a new line
+                                </p>
+                            </form>
+                        </div>
+                    </div>
+                </main>
+
+                <!-- Scrim for tools (below xl) -->
+                <Transition enter-active-class="transition-opacity duration-200" enter-from-class="opacity-0" leave-active-class="transition-opacity duration-200" leave-to-class="opacity-0">
+                    <div v-if="showToolsPanel" class="absolute inset-0 z-20 bg-content/30 backdrop-blur-sm xl:hidden" @click="showToolsPanel = false"></div>
+                </Transition>
+
+                <!-- Right Panel - Teaching Tools -->
+                <aside
+                    class="absolute inset-y-0 right-0 z-30 flex flex-col overflow-hidden border-l border-line bg-surface transition-all duration-300 ease-in-out xl:static xl:z-auto"
+                    :class="showToolsPanel ? 'w-80 translate-x-0' : 'w-80 translate-x-full xl:w-0 xl:translate-x-0 xl:border-l-0'"
+                >
+                    <div class="flex h-full w-80 flex-shrink-0 flex-col">
+                        <div class="flex items-center justify-between p-4 border-b border-line">
+                            <h3 class="text-sm font-semibold text-content flex items-center gap-2">
+                                <BeakerIcon class="w-4 h-4 text-content-muted" />
+                                Teaching Tools
+                            </h3>
+                            <button @click="showToolsPanel = false" class="ui-btn-ghost h-8 w-8 p-0" aria-label="Close tools panel">
+                                <XMarkIcon class="h-5 w-5" />
+                            </button>
+                        </div>
+
+                        <!-- Tool switch -->
+                        <div class="flex gap-1 p-2 border-b border-line">
+                            <button
+                                @click="activeTool = 'quiz'"
+                                :class="['flex-1 flex items-center justify-center gap-1.5 rounded-control px-3 py-2 text-sm font-medium transition-colors', activeTool === 'quiz' ? 'bg-primary text-white' : 'text-content-muted hover:bg-neutral-bg']"
+                            >
+                                <ClipboardDocumentListIcon class="w-4 h-4" /> Quiz
+                            </button>
+                            <button
+                                @click="activeTool = 'assignment'"
+                                :class="['flex-1 flex items-center justify-center gap-1.5 rounded-control px-3 py-2 text-sm font-medium transition-colors', activeTool === 'assignment' ? 'bg-primary text-white' : 'text-content-muted hover:bg-neutral-bg']"
+                            >
+                                <DocumentTextIcon class="w-4 h-4" /> Assignment
+                            </button>
+                        </div>
+
+                        <div class="flex-1 overflow-y-auto p-4 space-y-4">
+                            <!-- Quiz Generator -->
+                            <div v-if="activeTool === 'quiz'" class="space-y-3">
+                                <div>
+                                    <label class="ui-label">Course</label>
+                                    <select v-model="quizForm.course" class="ui-input">
+                                        <option value="">Select course</option>
+                                        <option v-for="course in facultyContext.courses" :key="course.id || course.name" :value="course.name">{{ course.code }} — {{ course.name }}</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="ui-label">Topic</label>
+                                    <input v-model="quizForm.topic" type="text" :disabled="!quizForm.course" placeholder="e.g. Normalization" class="ui-input disabled:opacity-50" />
+                                </div>
+                                <div class="grid grid-cols-2 gap-3">
                                     <div>
                                         <label class="ui-label">Difficulty</label>
-                                        <select
-                                            v-model="quizForm.difficulty"
-                                            class="ui-input"
-                                        >
-                                            <option v-for="level in difficultyOptions" :key="level.value" :value="level.value">
-                                                {{ level.label }}
-                                            </option>
+                                        <select v-model="quizForm.difficulty" class="ui-input">
+                                            <option v-for="d in difficultyOptions" :key="d.value" :value="d.value">{{ d.label }}</option>
                                         </select>
                                     </div>
                                     <div>
                                         <label class="ui-label">Questions</label>
-                                        <input
-                                            v-model.number="quizForm.questionCount"
-                                            type="number"
-                                            min="1"
-                                            max="50"
-                                            class="ui-input"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label class="ui-label">Time Limit (min)</label>
-                                        <input
-                                            v-model.number="quizForm.timeLimit"
-                                            type="number"
-                                            min="5"
-                                            max="180"
-                                            class="ui-input"
-                                        />
+                                        <input v-model.number="quizForm.questionCount" type="number" min="1" max="20" class="ui-input" />
                                     </div>
                                 </div>
-
-                                <!-- Question Types -->
                                 <div>
-                                    <label class="ui-label">Question Types</label>
-                                    <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                    <label class="ui-label">Time limit (min)</label>
+                                    <input v-model.number="quizForm.timeLimit" type="number" min="5" max="180" class="ui-input" />
+                                </div>
+                                <div>
+                                    <label class="ui-label">Question types</label>
+                                    <div class="grid grid-cols-2 gap-1.5">
                                         <label
-                                            v-for="type in questionTypeOptions"
-                                            :key="type.value"
-                                            class="flex items-center p-3 border border-line rounded-control cursor-pointer hover:bg-bg transition-colors"
+                                            v-for="qt in questionTypeOptions"
+                                            :key="qt.value"
+                                            class="flex items-center gap-2 rounded-control border border-line px-2.5 py-1.5 text-xs cursor-pointer hover:bg-neutral-bg"
+                                            :class="quizForm.questionTypes.includes(qt.value) ? 'bg-primary-soft border-primary text-primary' : 'text-content-muted'"
                                         >
-                                            <input
-                                                v-model="quizForm.questionTypes"
-                                                type="checkbox"
-                                                :value="type.value"
-                                                class="rounded border-line text-primary focus:ring-primary"
-                                            />
-                                            <component :is="type.icon" class="ml-2 w-4 h-4 text-primary" />
-                                            <span class="ml-2 text-sm text-content">{{ type.label }}</span>
+                                            <input v-model="quizForm.questionTypes" type="checkbox" :value="qt.value" class="rounded border-line text-primary focus:ring-primary" />
+                                            {{ qt.label }}
                                         </label>
                                     </div>
+                                    <p v-if="quizForm.questionTypes.length === 0" class="mt-1 text-xs text-danger-fg">Select at least one question type.</p>
                                 </div>
-
-                                <!-- Bloom's Taxonomy Level -->
                                 <div>
-                                    <label class="ui-label">Bloom's Taxonomy Level</label>
-                                    <select
-                                        v-model="quizForm.bloomLevel"
-                                        class="ui-input"
-                                    >
-                                        <option v-for="level in bloomLevels" :key="level.value" :value="level.value">
-                                            {{ level.label }} - {{ level.description }}
-                                        </option>
+                                    <label class="ui-label">Bloom's level</label>
+                                    <select v-model="quizForm.bloomLevel" class="ui-input">
+                                        <option v-for="b in bloomLevels" :key="b.value" :value="b.value">{{ b.label }}</option>
                                     </select>
                                 </div>
-
-                                <!-- Additional Options -->
-                                <div class="space-y-3">
-                                    <label class="flex items-center">
-                                        <input
-                                            v-model="quizForm.includeExplanations"
-                                            type="checkbox"
-                                            class="rounded border-line text-primary focus:ring-primary"
-                                        />
-                                        <span class="ml-3 text-sm text-content">Include answer explanations</span>
-                                    </label>
-                                </div>
-
-                                <!-- Generate Button -->
-                                <button
-                                    @click="generateQuiz"
-                                    :disabled="!isQuizFormValid || isGenerating"
-                                    class="ui-btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    <SparklesIcon class="w-5 h-5" />
-                                    <span v-if="isGenerating">Generating Quiz...</span>
-                                    <span v-else>Generate Quiz</span>
+                                <label class="flex items-center gap-2 text-sm text-content">
+                                    <input v-model="quizForm.includeExplanations" type="checkbox" class="rounded border-line text-primary focus:ring-primary" />
+                                    Include answer explanations
+                                </label>
+                                <button @click="generateQuiz" :disabled="!isQuizFormValid || isGenerating" class="ui-btn-primary w-full disabled:opacity-50">
+                                    <SparklesIcon class="w-4 h-4" />
+                                    {{ isGenerating ? 'Generating…' : 'Generate Quiz' }}
                                 </button>
                             </div>
-                        </Card>
 
-                        <!-- Quiz Preview -->
-                        <Card>
-                            <EmptyState
-                                v-if="!generatedContent || generatedContent.type !== 'quiz'"
-                                title="Quiz Preview"
-                                description="Fill out the form and generate a quiz to see the preview here"
-                                :icon="ClipboardDocumentListIcon"
-                            />
-
-                            <div v-else>
-                                <div class="flex items-center justify-between mb-6">
-                                    <h3 class="text-lg font-bold text-content">Quiz Preview</h3>
-                                    <div class="flex gap-2">
-                                        <button
-                                            @click="editQuiz"
-                                            class="p-2 text-content-muted hover:text-primary hover:bg-primary-soft rounded-control transition-colors"
-                                            aria-label="Edit quiz"
-                                        >
-                                            <PencilIcon class="w-4 h-4" />
-                                        </button>
-                                        <button
-                                            @click="regenerateContent"
-                                            class="p-2 text-content-muted hover:text-primary hover:bg-primary-soft rounded-control transition-colors"
-                                            aria-label="Regenerate quiz"
-                                        >
-                                            <ArrowPathIcon class="w-4 h-4" />
-                                        </button>
-                                    </div>
+                            <!-- Assignment Creator -->
+                            <div v-else class="space-y-3">
+                                <div>
+                                    <label class="ui-label">Title</label>
+                                    <input v-model="assignmentForm.title" type="text" placeholder="e.g. Database Design Project" class="ui-input" />
                                 </div>
-
-                                <!-- Quiz Info -->
-                                <div class="bg-bg border border-line rounded-control p-4 mb-6">
-                                    <h4 class="font-semibold text-content mb-2">{{ generatedContent.title }}</h4>
-                                    <div class="grid grid-cols-2 gap-4 text-sm text-content-muted">
-                                        <div>Questions: {{ generatedContent.totalQuestions }}</div>
-                                        <div>Time: {{ generatedContent.timeLimit }} minutes</div>
-                                        <div>Difficulty: {{ generatedContent.difficulty }}</div>
-                                        <div>Course: {{ generatedContent.course }}</div>
-                                    </div>
+                                <div>
+                                    <label class="ui-label">Course</label>
+                                    <select v-model="assignmentForm.course" class="ui-input">
+                                        <option value="">Select course</option>
+                                        <option v-for="course in facultyContext.courses" :key="course.id || course.name" :value="course.name">{{ course.code }} — {{ course.name }}</option>
+                                    </select>
                                 </div>
-
-                                <!-- Sample Questions -->
-                                <div class="space-y-4 max-h-96 overflow-y-auto">
-                                    <div
-                                        v-for="question in generatedContent.questions.slice(0, 3)"
-                                        :key="question.id"
-                                        class="border border-line rounded-control p-4"
-                                    >
-                                        <div class="flex items-start justify-between mb-3">
-                                            <span class="text-sm font-medium text-content">Question {{ question.id }}</span>
-                                            <span class="text-xs text-content-muted">{{ question.points }} points</span>
+                                <div>
+                                    <label class="ui-label">Type</label>
+                                    <select v-model="assignmentForm.type" class="ui-input">
+                                        <option v-for="t in assignmentTypes" :key="t.value" :value="t.value">{{ t.label }}</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="ui-label">Topics</label>
+                                    <div v-if="assignmentForm.course">
+                                        <div class="flex gap-2">
+                                            <input v-model="newTopic" type="text" placeholder="Add a topic…" class="ui-input flex-1" @keydown.enter.prevent="addTopicFromInput" />
+                                            <button type="button" @click="addTopicFromInput" :disabled="!newTopic.trim()" class="ui-btn-secondary disabled:opacity-50">Add</button>
                                         </div>
-                                        <p class="text-content mb-3">{{ question.question }}</p>
+                                        <div v-if="assignmentForm.topics.length" class="mt-2 flex flex-wrap gap-1.5">
+                                            <button v-for="topic in assignmentForm.topics" :key="topic" type="button" @click="removeTopic(topic)" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-pill bg-primary-soft text-primary text-xs font-medium hover:bg-primary-soft/70">
+                                                {{ topic }} <span aria-hidden="true">×</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <p v-else class="text-xs text-content-muted">Select a course first, then add topics.</p>
+                                </div>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="ui-label">Duration (days)</label>
+                                        <input v-model="assignmentForm.duration" type="number" min="1" max="90" class="ui-input" />
+                                    </div>
+                                    <div>
+                                        <label class="ui-label">Points</label>
+                                        <input v-model="assignmentForm.points" type="number" min="10" max="500" class="ui-input" />
+                                    </div>
+                                </div>
+                                <div class="space-y-2">
+                                    <label class="flex items-center gap-2 text-sm text-content">
+                                        <input v-model="assignmentForm.allowGroup" type="checkbox" class="rounded border-line text-primary focus:ring-primary" />
+                                        Allow group work
+                                    </label>
+                                    <label class="flex items-center gap-2 text-sm text-content">
+                                        <input v-model="assignmentForm.includeRubric" type="checkbox" class="rounded border-line text-primary focus:ring-primary" />
+                                        Include grading rubric
+                                    </label>
+                                    <label class="flex items-center gap-2 text-sm text-content">
+                                        <input v-model="assignmentForm.includeResources" type="checkbox" class="rounded border-line text-primary focus:ring-primary" />
+                                        Include recommended resources
+                                    </label>
+                                </div>
+                                <button @click="generateAssignment" :disabled="!isAssignmentFormValid || isGenerating" class="ui-btn-primary w-full disabled:opacity-50">
+                                    <SparklesIcon class="w-4 h-4" />
+                                    {{ isGenerating ? 'Generating…' : 'Generate Assignment' }}
+                                </button>
+                            </div>
 
-                                        <div v-if="question.type === 'multiple-choice'" class="space-y-2">
-                                            <div
-                                                v-for="(option, index) in question.options"
-                                                :key="index"
-                                                :class="`p-2 rounded-control border ${
-                                                    index === question.correctAnswer
-                                                        ? 'border-success-fg/30 bg-success-bg text-success-fg'
-                                                        : 'border-line'
-                                                }`"
-                                            >
-                                                <span class="text-sm">{{ option }}</span>
-                                                <CheckIcon v-if="index === question.correctAnswer" class="inline-block ml-2 w-4 h-4 text-success-fg" />
+                            <button v-if="generatedContent" @click="showPreview = true" class="ui-btn-secondary w-full">
+                                View last generated {{ generatedContent.type }}
+                            </button>
+
+                            <!-- Your courses -->
+                            <div class="mt-2 p-4 bg-primary-soft rounded-control">
+                                <h4 class="font-semibold text-primary text-sm mb-3 flex items-center gap-2">
+                                    <AcademicCapIcon class="w-4 h-4" /> Your Courses
+                                </h4>
+                                <div v-if="facultyContext.courses.length" class="space-y-2">
+                                    <div v-for="course in facultyContext.courses" :key="course.id || course.name" class="flex items-center gap-2 text-sm text-content bg-surface px-3 py-2 rounded-control">
+                                        <span class="w-2 h-2 bg-primary rounded-full flex-shrink-0"></span>
+                                        <span class="truncate"><span class="font-semibold">{{ course.code }}</span> <span class="text-content-muted">{{ course.name }}</span></span>
+                                    </div>
+                                </div>
+                                <p v-else class="text-sm text-content-muted">You are not teaching any courses yet.</p>
+                            </div>
+                        </div>
+                    </div>
+                </aside>
+
+                <!-- Floating tab to reopen tools panel -->
+                <Transition enter-active-class="transition duration-200" enter-from-class="opacity-0 translate-x-2" leave-active-class="transition duration-150" leave-to-class="opacity-0 translate-x-2">
+                    <button
+                        v-if="!showToolsPanel"
+                        @click="showToolsPanel = true"
+                        class="absolute right-0 top-1/2 z-20 flex -translate-y-1/2 items-center justify-center rounded-l-control border border-r-0 border-line bg-surface px-2 py-4 text-content-muted shadow-card transition-colors hover:bg-primary-soft hover:text-primary"
+                        title="Show teaching tools"
+                        aria-label="Show teaching tools"
+                    >
+                        <BeakerIcon class="h-5 w-5" />
+                    </button>
+                </Transition>
+            </div>
+
+            <!-- Per-session context menu -->
+            <Teleport to="body">
+                <div v-if="openMenuChat">
+                    <div class="fixed inset-0 z-40" @click="closeMenu" @contextmenu.prevent="closeMenu"></div>
+                    <div class="fixed z-50 w-44 overflow-hidden rounded-card border border-line bg-surface py-1 shadow-card-hover" :style="{ top: menuPos.top + 'px', left: menuPos.left + 'px' }">
+                        <button @click="startRename(openMenuChat)" class="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-content-muted transition-colors hover:bg-primary-soft hover:text-primary">
+                            <PencilSquareIcon class="h-4 w-4" /> Rename
+                        </button>
+                        <button @click="togglePin(openMenuChat)" class="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-content-muted transition-colors hover:bg-primary-soft hover:text-primary">
+                            <component :is="openMenuChat.pinned ? MapPinSolidIcon : MapPinIcon" class="h-4 w-4" />
+                            {{ openMenuChat.pinned ? 'Unpin chat' : 'Pin chat' }}
+                        </button>
+                        <button @click="archiveChat(openMenuChat)" class="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-content-muted transition-colors hover:bg-primary-soft hover:text-primary">
+                            <ArchiveBoxIcon class="h-4 w-4" /> Archive
+                        </button>
+                        <div class="my-1 border-t border-line"></div>
+                        <button @click="deleteChat(openMenuChat)" class="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-danger-fg transition-colors hover:bg-danger-bg">
+                            <TrashIcon class="h-4 w-4" /> Delete
+                        </button>
+                    </div>
+                </div>
+            </Teleport>
+
+            <!-- Generated content preview modal -->
+            <Teleport to="body">
+                <div v-if="showPreview && generatedContent" class="fixed inset-0 z-50 overflow-y-auto">
+                    <div class="flex min-h-full items-center justify-center p-4">
+                        <div class="fixed inset-0 bg-black/60 backdrop-blur-sm" @click="showPreview = false"></div>
+                        <div class="relative w-full max-w-3xl bg-surface rounded-card border border-line shadow-card max-h-[90vh] overflow-y-auto">
+                            <div class="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-line bg-surface p-5">
+                                <div class="min-w-0">
+                                    <h3 class="text-lg font-bold text-content truncate">{{ generatedContent.title }}</h3>
+                                    <p class="text-xs text-content-muted">
+                                        {{ generatedContent.course }} ·
+                                        <span v-if="generatedContent.type === 'quiz'">{{ generatedContent.totalQuestions }} questions · {{ generatedContent.timeLimit }} min</span>
+                                        <span v-else>{{ generatedContent.totalPoints }} points · due {{ generatedContent.dueDate }}</span>
+                                    </p>
+                                </div>
+                                <div class="flex flex-shrink-0 items-center gap-2">
+                                    <button @click="editGenerated" class="ui-btn-ghost" title="Edit inputs"><PencilSquareIcon class="w-4 h-4" /> <span class="hidden sm:inline">Edit</span></button>
+                                    <button @click="regenerateContent" :disabled="isGenerating" class="ui-btn-ghost disabled:opacity-50" title="Regenerate">
+                                        <ArrowPathIcon class="w-4 h-4" :class="isGenerating ? 'animate-spin' : ''" /> <span class="hidden sm:inline">{{ isGenerating ? 'Regenerating…' : 'Regenerate' }}</span>
+                                    </button>
+                                    <button @click="exportGenerated" class="ui-btn-secondary"><ArrowDownTrayIcon class="w-4 h-4" /> <span class="hidden sm:inline">Export PDF</span></button>
+                                    <button @click="publishContent" :disabled="isPublishing" class="ui-btn-primary disabled:opacity-50">
+                                        <CheckIcon class="w-4 h-4" /> {{ isPublishing ? 'Publishing…' : 'Publish' }}
+                                    </button>
+                                    <button @click="showPreview = false" class="ui-btn-ghost h-9 w-9 p-0" aria-label="Close preview"><XMarkIcon class="w-5 h-5" /></button>
+                                </div>
+                            </div>
+
+                            <div class="p-5 space-y-4">
+                                <!-- Quiz -->
+                                <template v-if="generatedContent.type === 'quiz'">
+                                    <div class="bg-primary-soft rounded-control p-4 text-sm text-primary">{{ generatedContent.instructions }}</div>
+                                    <div v-if="generatedContent.questions.length === 0" class="text-sm text-content-muted">All questions removed. Regenerate to create more.</div>
+                                    <div v-for="question in generatedContent.questions" :key="question.id" class="border border-line rounded-card p-4">
+                                        <div class="flex items-start justify-between gap-2 mb-2">
+                                            <div class="flex items-center gap-2">
+                                                <span class="text-sm font-semibold text-content">Question {{ question.id }}</span>
+                                                <span class="ui-badge bg-neutral-bg text-neutral-fg capitalize">{{ questionTypeLabel(question.type) }}</span>
+                                            </div>
+                                            <div class="flex items-center gap-2">
+                                                <span class="text-xs text-content-muted">{{ question.points }} pt</span>
+                                                <button @click="deleteQuestion(question.id)" class="rounded-control p-1 text-content-faint hover:text-danger-fg" title="Delete question" aria-label="Delete question">
+                                                    <TrashIcon class="w-4 h-4" />
+                                                </button>
                                             </div>
                                         </div>
-
-                                        <div v-if="question.explanation" class="mt-3 p-3 bg-primary-soft rounded-control text-sm text-primary">
+                                        <p class="text-content mb-3">{{ question.question }}</p>
+                                        <div v-if="question.type === 'multiple-choice'" class="space-y-2">
+                                            <div v-for="(option, idx) in question.options" :key="idx" :class="['flex items-center gap-2 p-2 rounded-control border text-sm', idx === question.correctAnswer ? 'border-success-fg/30 bg-success-bg text-success-fg' : 'border-line']">
+                                                <span class="font-semibold">{{ String.fromCharCode(65 + idx) }}.</span>
+                                                <span>{{ option }}</span>
+                                                <CheckIcon v-if="idx === question.correctAnswer" class="w-4 h-4 ml-auto text-success-fg" />
+                                            </div>
+                                        </div>
+                                        <div v-else-if="question.type === 'true-false'" class="text-sm text-content">Answer: <strong>{{ question.correctAnswer ? 'True' : 'False' }}</strong></div>
+                                        <div v-else class="text-sm rounded-control border border-line bg-neutral-bg p-3">
+                                            <span class="text-content-muted">Expected answer:</span> <span class="text-content">{{ question.answerText || '—' }}</span>
+                                        </div>
+                                        <div v-if="question.explanation" class="mt-3 p-3 bg-neutral-bg rounded-control text-sm text-content-muted">
                                             <strong>Explanation:</strong> {{ question.explanation }}
                                         </div>
                                     </div>
-                                </div>
+                                </template>
 
-                                <p v-if="generatedContent.questions.length > 3" class="text-center text-sm text-content-muted mt-4">
-                                    +{{ generatedContent.questions.length - 3 }} more questions in full preview
-                                </p>
-                            </div>
-                        </Card>
-                    </div>
-                </div>
-
-                <!-- Assignment Creator Tab -->
-                <div v-if="activeTab === 'assignment'" class="space-y-8">
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <!-- Assignment Form -->
-                        <Card title="Assignment Creator" :icon="DocumentTextIcon">
-                            <div class="space-y-6">
-                                <!-- Basic Info -->
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                        <label class="ui-label">Assignment Title</label>
-                                        <input
-                                            v-model="assignmentForm.title"
-                                            type="text"
-                                            placeholder="e.g., Database Design Project"
-                                            class="ui-input"
-                                        />
+                                <!-- Assignment -->
+                                <template v-else>
+                                    <p class="text-content-muted">{{ generatedContent.description }}</p>
+                                    <div class="flex flex-wrap gap-2 text-xs">
+                                        <span class="ui-badge bg-neutral-bg text-neutral-fg">{{ generatedContent.category }}</span>
+                                        <span class="ui-badge bg-neutral-bg text-neutral-fg">{{ generatedContent.duration }} days</span>
+                                        <span class="ui-badge bg-neutral-bg text-neutral-fg">{{ generatedContent.groupWork ? 'Group work' : 'Individual' }}</span>
                                     </div>
-                                    <div>
-                                        <label class="ui-label">Course</label>
-                                        <select
-                                            v-model="assignmentForm.course"
-                                            class="ui-input"
-                                        >
-                                            <option value="">Select Course</option>
-                                            <option v-for="course in facultyContext.courses" :key="course" :value="course">
-                                                {{ course }}
-                                            </option>
-                                        </select>
-                                    </div>
-                                </div>
-
-                                <!-- Assignment Type and Difficulty -->
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                        <label class="ui-label">Assignment Type</label>
-                                        <select
-                                            v-model="assignmentForm.type"
-                                            class="ui-input"
-                                        >
-                                            <option v-for="type in assignmentTypes" :key="type.value" :value="type.value">
-                                                {{ type.label }}
-                                            </option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label class="ui-label">Difficulty Level</label>
-                                        <select
-                                            v-model="assignmentForm.difficulty"
-                                            class="ui-input"
-                                        >
-                                            <option v-for="level in difficultyOptions" :key="level.value" :value="level.value">
-                                                {{ level.label }}
-                                            </option>
-                                        </select>
-                                    </div>
-                                </div>
-
-                                <!-- Topics Selection -->
-                                <div>
-                                    <label class="ui-label">Topics to Cover</label>
-                                    <div v-if="assignmentForm.course" class="space-y-3">
-                                        <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
-                                            <button
-                                                v-for="topic in availableTopics"
-                                                :key="topic"
-                                                @click="assignmentForm.topics.includes(topic) ? removeTopic(topic) : addTopic(topic)"
-                                                :class="`flex items-center justify-center gap-1 p-2 text-sm rounded-control border transition-colors ${
-                                                    assignmentForm.topics.includes(topic)
-                                                        ? 'bg-primary-soft text-primary border-primary'
-                                                        : 'bg-bg text-content-muted border-line hover:bg-neutral-bg'
-                                                }`"
-                                            >
-                                                {{ topic }}
-                                                <CheckIcon v-if="assignmentForm.topics.includes(topic)" class="w-3.5 h-3.5" />
-                                            </button>
+                                    <div v-for="section in generatedContent.sections" :key="section.title" class="border border-line rounded-card p-4">
+                                        <div class="flex items-center justify-between mb-1">
+                                            <h4 class="font-semibold text-content">{{ section.title }}</h4>
+                                            <span class="text-xs text-content-muted">{{ section.points }} pts</span>
                                         </div>
-                                        <div v-if="assignmentForm.topics.length > 0" class="flex flex-wrap items-center gap-2">
-                                            <span class="text-sm text-content-muted">Selected:</span>
-                                            <Badge
-                                                v-for="topic in assignmentForm.topics"
-                                                :key="topic"
-                                                variant="success"
-                                            >
-                                                {{ topic }}
-                                            </Badge>
-                                        </div>
+                                        <p class="text-sm text-content-muted mb-2">{{ section.description }}</p>
+                                        <ul v-if="section.requirements && section.requirements.length" class="text-xs text-content-muted space-y-1">
+                                            <li v-for="req in section.requirements" :key="req" class="flex items-start gap-2"><span class="text-primary mt-0.5">•</span> {{ req }}</li>
+                                        </ul>
                                     </div>
-                                    <p v-else class="text-sm text-content-muted">Select a course first to see available topics</p>
-                                </div>
-
-                                <!-- Duration and Points -->
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                        <label class="ui-label">Duration (days)</label>
-                                        <input
-                                            v-model="assignmentForm.duration"
-                                            type="number"
-                                            min="1"
-                                            max="90"
-                                            class="ui-input"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label class="ui-label">Total Points</label>
-                                        <input
-                                            v-model="assignmentForm.points"
-                                            type="number"
-                                            min="10"
-                                            max="500"
-                                            class="ui-input"
-                                        />
-                                    </div>
-                                </div>
-
-                                <!-- Additional Options -->
-                                <div class="space-y-3">
-                                    <label class="flex items-center">
-                                        <input
-                                            v-model="assignmentForm.allowGroup"
-                                            type="checkbox"
-                                            class="rounded border-line text-primary focus:ring-primary"
-                                        />
-                                        <span class="ml-3 text-sm text-content">Allow group work</span>
-                                    </label>
-                                    <label class="flex items-center">
-                                        <input
-                                            v-model="assignmentForm.includeRubric"
-                                            type="checkbox"
-                                            class="rounded border-line text-primary focus:ring-primary"
-                                        />
-                                        <span class="ml-3 text-sm text-content">Include grading rubric</span>
-                                    </label>
-                                    <label class="flex items-center">
-                                        <input
-                                            v-model="assignmentForm.includeResources"
-                                            type="checkbox"
-                                            class="rounded border-line text-primary focus:ring-primary"
-                                        />
-                                        <span class="ml-3 text-sm text-content">Include recommended resources</span>
-                                    </label>
-                                </div>
-
-                                <!-- Generate Button -->
-                                <button
-                                    @click="generateAssignment"
-                                    :disabled="!isAssignmentFormValid || isGenerating"
-                                    class="ui-btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    <SparklesIcon class="w-5 h-5" />
-                                    <span v-if="isGenerating">Creating Assignment...</span>
-                                    <span v-else>Generate Assignment</span>
-                                </button>
-                            </div>
-                        </Card>
-
-                        <!-- Assignment Preview -->
-                        <Card>
-                            <EmptyState
-                                v-if="!generatedContent || generatedContent.type !== 'assignment'"
-                                title="Assignment Preview"
-                                description="Create an assignment to see the structured preview here"
-                                :icon="DocumentTextIcon"
-                            />
-
-                            <div v-else>
-                                <div class="flex items-center justify-between mb-6">
-                                    <h3 class="text-lg font-bold text-content">Assignment Preview</h3>
-                                    <div class="flex gap-2">
-                                        <button
-                                            @click="editAssignment"
-                                            class="p-2 text-content-muted hover:text-primary hover:bg-primary-soft rounded-control transition-colors"
-                                            aria-label="Edit assignment"
-                                        >
-                                            <PencilIcon class="w-4 h-4" />
-                                        </button>
-                                        <button
-                                            @click="regenerateContent"
-                                            class="p-2 text-content-muted hover:text-primary hover:bg-primary-soft rounded-control transition-colors"
-                                            aria-label="Regenerate assignment"
-                                        >
-                                            <ArrowPathIcon class="w-4 h-4" />
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <!-- Assignment Overview -->
-                                <div class="bg-bg border border-line rounded-control p-4 mb-6">
-                                    <h4 class="font-semibold text-content mb-2">{{ generatedContent.title }}</h4>
-                                    <p class="text-sm text-content-muted mb-3">{{ generatedContent.description }}</p>
-                                    <div class="grid grid-cols-2 gap-4 text-sm text-content">
-                                        <div><strong>Due:</strong> {{ generatedContent.dueDate }}</div>
-                                        <div><strong>Points:</strong> {{ generatedContent.totalPoints }}</div>
-                                        <div><strong>Duration:</strong> {{ generatedContent.duration }} days</div>
-                                        <div><strong>Group Work:</strong> {{ generatedContent.groupWork ? 'Allowed' : 'Individual' }}</div>
-                                    </div>
-                                </div>
-
-                                <!-- Assignment Sections Preview -->
-                                <div class="space-y-4 max-h-96 overflow-y-auto">
-                                    <div
-                                        v-for="section in generatedContent.sections.slice(0, 2)"
-                                        :key="section.title"
-                                        class="border border-line rounded-control p-4"
-                                    >
-                                        <div class="flex items-center justify-between mb-2">
-                                            <h5 class="font-semibold text-content">{{ section.title }}</h5>
-                                            <span class="text-sm text-content-muted">{{ section.points }} points</span>
-                                        </div>
-                                        <p class="text-sm text-content-muted mb-3">{{ section.description }}</p>
-
-                                        <div class="space-y-2">
-                                            <div class="text-xs text-content font-medium">Requirements:</div>
-                                            <ul class="text-xs text-content-muted space-y-1">
-                                                <li v-for="req in section.requirements.slice(0, 2)" :key="req" class="flex items-start gap-2">
-                                                    <span class="text-primary mt-0.5">•</span>
-                                                    {{ req }}
-                                                </li>
-                                            </ul>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <p v-if="generatedContent.sections.length > 2" class="text-center text-sm text-content-muted mt-4">
-                                    +{{ generatedContent.sections.length - 2 }} more sections in full preview
-                                </p>
-                            </div>
-                        </Card>
-                    </div>
-                </div>
-
-                <!-- Full Preview Tab -->
-                <div v-if="activeTab === 'preview' && generatedContent" class="space-y-8">
-                    <Card>
-                        <!-- Preview Header -->
-                        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-8">
-                            <div>
-                                <h2 class="text-2xl font-bold text-content mb-2">
-                                    {{ generatedContent.title }}
-                                </h2>
-                                <div class="flex flex-wrap items-center gap-4 text-sm text-content-muted">
-                                    <span class="flex items-center gap-1">
-                                        <ClockIcon class="w-4 h-4" />
-                                        {{ generatedContent.type === 'quiz' ? `${generatedContent.timeLimit} minutes` : `${generatedContent.duration} days` }}
-                                    </span>
-                                    <span class="flex items-center gap-1">
-                                        <UserIcon class="w-4 h-4" />
-                                        {{ generatedContent.course }}
-                                    </span>
-                                    <span v-if="generatedContent.type === 'quiz'" class="flex items-center gap-1">
-                                        <DocumentTextIcon class="w-4 h-4" />
-                                        {{ generatedContent.totalQuestions }} questions
-                                    </span>
-                                    <span v-else class="flex items-center gap-1">
-                                        <StarIcon class="w-4 h-4" />
-                                        {{ generatedContent.totalPoints }} points
-                                    </span>
-                                </div>
-                            </div>
-
-                            <!-- Action Buttons -->
-                            <div class="flex flex-wrap items-center gap-3">
-                                <button
-                                    @click="generatedContent.type === 'quiz' ? editQuiz() : editAssignment()"
-                                    class="ui-btn-secondary"
-                                >
-                                    <PencilIcon class="w-4 h-4" />
-                                    Edit
-                                </button>
-                                <button
-                                    @click="regenerateContent"
-                                    class="ui-btn-ghost"
-                                >
-                                    <ArrowPathIcon class="w-4 h-4" />
-                                    Regenerate
-                                </button>
-                                <button
-                                    @click="exportGenerated"
-                                    class="ui-btn-secondary"
-                                >
-                                    <ArrowDownTrayIcon class="w-4 h-4" />
-                                    Export PDF
-                                </button>
-                                <button
-                                    @click="publishContent"
-                                    class="ui-btn-primary"
-                                >
-                                    <CheckIcon class="w-4 h-4" />
-                                    Publish
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Quiz Preview Content -->
-                        <div v-if="generatedContent.type === 'quiz'">
-                            <!-- Quiz Instructions -->
-                            <div class="bg-primary-soft border border-line rounded-card p-6 mb-8">
-                                <h3 class="text-lg font-semibold text-primary mb-3 flex items-center gap-2">
-                                    <InformationCircleIcon class="w-5 h-5" />
-                                    Instructions
-                                </h3>
-                                <p class="text-content-muted">{{ generatedContent.instructions }}</p>
-                            </div>
-
-                            <!-- All Questions -->
-                            <div class="space-y-6">
-                                <h3 class="text-xl font-bold text-content">Questions</h3>
-                                <div
-                                    v-for="question in generatedContent.questions"
-                                    :key="question.id"
-                                    class="border border-line rounded-card p-6"
-                                >
-                                    <div class="flex items-start justify-between mb-4">
-                                        <div class="flex items-center gap-3">
-                                            <span class="w-8 h-8 bg-primary-soft text-primary rounded-full flex items-center justify-center text-sm font-bold">
-                                                {{ question.id }}
-                                            </span>
-                                            <div>
-                                                <span class="text-sm text-content-muted uppercase">{{ question.type.replace('-', ' ') }}</span>
-                                                <div class="text-sm text-content-muted">{{ question.points }} points</div>
+                                    <div v-if="generatedContent.rubric && generatedContent.rubric.length" class="bg-warning-bg rounded-card p-4">
+                                        <h4 class="font-semibold text-content mb-2">Grading Rubric</h4>
+                                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                            <div v-for="c in generatedContent.rubric" :key="c.category" class="bg-surface rounded-control p-3 border border-line">
+                                                <p class="font-medium text-content text-sm">{{ c.category }}</p>
+                                                <p class="text-xs text-warning-fg font-medium">{{ c.weight }}% of grade</p>
                                             </div>
                                         </div>
-                                        <button
-                                            @click="deleteQuestion(question.id)"
-                                            class="p-1 text-content-faint hover:text-danger-fg rounded-control"
-                                            aria-label="Delete question"
-                                        >
-                                            <TrashIcon class="w-4 h-4" />
-                                        </button>
                                     </div>
+                                </template>
 
-                                    <p class="text-lg text-content mb-4">{{ question.question }}</p>
-
-                                    <!-- Multiple Choice Options -->
-                                    <div v-if="question.type === 'multiple-choice'" class="space-y-3 mb-4">
-                                        <div
-                                            v-for="(option, index) in question.options"
-                                            :key="index"
-                                            :class="`flex items-center gap-3 p-3 rounded-control border transition-colors ${
-                                                index === question.correctAnswer
-                                                    ? 'border-success-fg/30 bg-success-bg'
-                                                    : 'border-line bg-bg'
-                                            }`"
-                                        >
-                                            <span :class="`w-6 h-6 rounded-full border-2 flex items-center justify-center text-sm font-bold ${
-                                                index === question.correctAnswer
-                                                    ? 'border-success-fg bg-success-fg text-white'
-                                                    : 'border-line'
-                                            }`">
-                                                {{ String.fromCharCode(65 + index) }}
-                                            </span>
-                                            <span :class="index === question.correctAnswer ? 'text-success-fg font-medium' : 'text-content'">
-                                                {{ option }}
-                                            </span>
-                                            <CheckIcon v-if="index === question.correctAnswer" class="w-5 h-5 text-success-fg ml-auto" />
-                                        </div>
-                                    </div>
-
-                                    <!-- True/False Options -->
-                                    <div v-if="question.type === 'true-false'" class="flex gap-4 mb-4">
-                                        <div :class="`flex items-center gap-2 p-3 rounded-control border ${
-                                            question.correctAnswer === true
-                                                ? 'border-success-fg/30 bg-success-bg'
-                                                : 'border-line'
-                                        }`">
-                                            <span class="font-medium text-content">True</span>
-                                            <CheckIcon v-if="question.correctAnswer === true" class="w-4 h-4 text-success-fg" />
-                                        </div>
-                                        <div :class="`flex items-center gap-2 p-3 rounded-control border ${
-                                            question.correctAnswer === false
-                                                ? 'border-success-fg/30 bg-success-bg'
-                                                : 'border-line'
-                                        }`">
-                                            <span class="font-medium text-content">False</span>
-                                            <CheckIcon v-if="question.correctAnswer === false" class="w-4 h-4 text-success-fg" />
-                                        </div>
-                                    </div>
-
-                                    <!-- Explanation -->
-                                    <div v-if="question.explanation" class="bg-primary-soft border border-line rounded-control p-4">
-                                        <h5 class="font-semibold text-primary mb-2">Explanation</h5>
-                                        <p class="text-content-muted text-sm">{{ question.explanation }}</p>
-                                    </div>
+                                <div class="flex justify-end pt-2">
+                                    <button @click="clearForms" class="ui-btn-ghost"><TrashIcon class="w-4 h-4" /> Clear</button>
                                 </div>
                             </div>
                         </div>
-
-                        <!-- Assignment Preview Content -->
-                        <div v-if="generatedContent.type === 'assignment'">
-                            <!-- Assignment Overview -->
-                            <div class="bg-primary-soft border border-line rounded-card p-6 mb-8">
-                                <h3 class="text-lg font-semibold text-primary mb-3">Assignment Overview</h3>
-                                <p class="text-content-muted mb-4">{{ generatedContent.description }}</p>
-                                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                                    <div class="bg-surface p-3 rounded-control border border-line">
-                                        <div class="font-semibold text-content">Due Date</div>
-                                        <div class="text-content-muted">{{ generatedContent.dueDate }}</div>
-                                    </div>
-                                    <div class="bg-surface p-3 rounded-control border border-line">
-                                        <div class="font-semibold text-content">Total Points</div>
-                                        <div class="text-content-muted">{{ generatedContent.totalPoints }}</div>
-                                    </div>
-                                    <div class="bg-surface p-3 rounded-control border border-line">
-                                        <div class="font-semibold text-content">Duration</div>
-                                        <div class="text-content-muted">{{ generatedContent.duration }} days</div>
-                                    </div>
-                                    <div class="bg-surface p-3 rounded-control border border-line">
-                                        <div class="font-semibold text-content">Work Type</div>
-                                        <div class="text-content-muted">{{ generatedContent.groupWork ? 'Group' : 'Individual' }}</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Assignment Sections -->
-                            <div class="space-y-3">
-                                <div
-                                    v-for="section in generatedContent.sections.slice(0, 3)"
-                                    :key="section.title"
-                                    class="bg-surface rounded-control p-4 border border-line"
-                                >
-                                    <div class="flex items-center justify-between mb-2">
-                                        <h4 class="font-semibold text-content">{{ section.title }}</h4>
-                                        <span class="text-xs text-content-muted">{{ section.points }} points</span>
-                                    </div>
-                                    <p class="text-sm text-content-muted mb-3">{{ section.description }}</p>
-
-                                    <!-- Section Requirements -->
-                                    <div v-if="section.requirements && section.requirements.length > 0" class="space-y-2">
-                                        <p class="text-xs font-medium text-content">Requirements:</p>
-                                        <ul class="text-xs text-content-muted space-y-1">
-                                            <li v-for="req in section.requirements" :key="req" class="flex items-start gap-2">
-                                                <span class="text-primary mt-0.5">•</span>
-                                                {{ req }}
-                                            </li>
-                                        </ul>
-                                    </div>
-
-                                    <!-- Deliverables -->
-                                    <div v-if="section.deliverables && section.deliverables.length > 0" class="mt-3 space-y-2">
-                                        <p class="text-xs font-medium text-content">Deliverables:</p>
-                                        <div class="flex flex-wrap gap-1">
-                                            <span
-                                                v-for="deliverable in section.deliverables"
-                                                :key="deliverable"
-                                                class="px-2 py-1 bg-success-bg text-success-fg rounded-pill text-xs"
-                                            >
-                                                {{ deliverable }}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Show More/Less Button for Sections -->
-                            <button
-                                v-if="generatedContent.sections.length > 3"
-                                @click="showAllSections = !showAllSections"
-                                class="w-full py-2 text-sm text-primary hover:bg-primary-soft rounded-control transition-colors mt-3"
-                            >
-                                {{ showAllSections ? 'Show Less' : `Show ${generatedContent.sections.length - 3} More Sections` }}
-                            </button>
-
-                            <!-- Additional Sections (when expanded) -->
-                            <div v-if="showAllSections && generatedContent.sections.length > 3" class="space-y-3 mt-3">
-                                <div
-                                    v-for="section in generatedContent.sections.slice(3)"
-                                    :key="section.title"
-                                    class="bg-surface rounded-control p-4 border border-line"
-                                >
-                                    <div class="flex items-center justify-between mb-2">
-                                        <h4 class="font-semibold text-content">{{ section.title }}</h4>
-                                        <span class="text-xs text-content-muted">{{ section.points }} points</span>
-                                    </div>
-                                    <p class="text-sm text-content-muted mb-3">{{ section.description }}</p>
-
-                                    <!-- Requirements -->
-                                    <div v-if="section.requirements && section.requirements.length > 0" class="space-y-2">
-                                        <p class="text-xs font-medium text-content">Requirements:</p>
-                                        <ul class="text-xs text-content-muted space-y-1">
-                                            <li v-for="req in section.requirements" :key="req" class="flex items-start gap-2">
-                                                <span class="text-primary mt-0.5">•</span>
-                                                {{ req }}
-                                            </li>
-                                        </ul>
-                                    </div>
-
-                                    <!-- Deliverables -->
-                                    <div v-if="section.deliverables && section.deliverables.length > 0" class="mt-3 space-y-2">
-                                        <p class="text-xs font-medium text-content">Deliverables:</p>
-                                        <div class="flex flex-wrap gap-1">
-                                            <span
-                                                v-for="deliverable in section.deliverables"
-                                                :key="deliverable"
-                                                class="px-2 py-1 bg-success-bg text-success-fg rounded-pill text-xs"
-                                            >
-                                                {{ deliverable }}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Grading Rubric -->
-                            <div v-if="generatedContent.rubric" class="mt-6 bg-warning-bg border border-line rounded-card p-4">
-                                <h4 class="font-semibold text-content mb-3 flex items-center gap-2">
-                                    <StarIcon class="w-4 h-4 text-warning-fg" />
-                                    Grading Rubric
-                                </h4>
-                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                                    <div
-                                        v-for="criteria in generatedContent.rubric"
-                                        :key="criteria.category"
-                                        class="bg-surface rounded-control p-3 border border-line"
-                                    >
-                                        <h5 class="font-medium text-content text-sm mb-1">{{ criteria.category }}</h5>
-                                        <p class="text-xs text-content-muted mb-2">{{ criteria.description }}</p>
-                                        <div class="text-xs font-medium text-warning-fg">{{ criteria.weight }}% of grade</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Submission Guidelines -->
-                            <div v-if="generatedContent.submissionGuidelines" class="mt-6 bg-primary-soft border border-line rounded-card p-4">
-                                <h4 class="font-semibold text-content mb-3 flex items-center gap-2">
-                                    <ArrowUpTrayIcon class="w-4 h-4 text-primary" />
-                                    Submission Guidelines
-                                </h4>
-                                <div class="space-y-2">
-                                    <div v-for="guideline in generatedContent.submissionGuidelines" :key="guideline.type" class="flex items-start gap-2">
-                                        <CheckCircleIcon class="w-4 h-4 text-success-fg mt-0.5 flex-shrink-0" />
-                                        <div>
-                                            <span class="font-medium text-content text-sm">{{ guideline.type }}:</span>
-                                            <span class="text-sm text-content-muted ml-1">{{ guideline.detail }}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Recommended Resources -->
-                            <div v-if="generatedContent.resources && generatedContent.resources.length > 0" class="mt-6 bg-primary-soft border border-line rounded-card p-4">
-                                <h4 class="font-semibold text-content mb-3 flex items-center gap-2">
-                                    <BookOpenIcon class="w-4 h-4 text-primary" />
-                                    Recommended Resources
-                                </h4>
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                    <div
-                                        v-for="resource in generatedContent.resources"
-                                        :key="resource.title"
-                                        class="bg-surface rounded-control p-3 border border-line"
-                                    >
-                                        <h5 class="font-medium text-content text-sm mb-1">{{ resource.title }}</h5>
-                                        <p class="text-xs text-content-muted mb-2">{{ resource.description }}</p>
-                                        <div class="flex items-center justify-between">
-                                            <span class="text-xs text-primary font-medium">{{ resource.type }}</span>
-                                            <button
-                                                v-if="resource.url"
-                                                @click="window.open(resource.url, '_blank')"
-                                                class="text-xs text-primary hover:underline"
-                                            >
-                                                View →
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Action Buttons -->
-                            <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-6 mt-6 border-t border-line">
-                                <div class="flex flex-wrap items-center gap-3">
-                                    <button
-                                        @click="editAssignment"
-                                        class="ui-btn-secondary"
-                                    >
-                                        <PencilIcon class="w-4 h-4" />
-                                        Edit Assignment
-                                    </button>
-                                    <button
-                                        @click="regenerateContent"
-                                        class="ui-btn-ghost"
-                                    >
-                                        <ArrowPathIcon class="w-4 h-4" />
-                                        Regenerate
-                                    </button>
-                                </div>
-
-                                <div class="flex flex-wrap items-center gap-3">
-                                    <button
-                                        @click="exportGenerated"
-                                        class="ui-btn-secondary"
-                                    >
-                                        <ArrowDownTrayIcon class="w-4 h-4" />
-                                        Export PDF
-                                    </button>
-                                    <button
-                                        @click="publishContent"
-                                        class="ui-btn-primary"
-                                    >
-                                        <CheckIcon class="w-4 h-4" />
-                                        Publish Assignment
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </Card>
+                    </div>
                 </div>
-            </div>
-        </AppLayout>
+            </Teleport>
+
+            <ConfirmDialog />
+        </div>
     </div>
 </template>
-
-<style scoped>
-/* Custom scrollbar for messages container */
-.overflow-y-auto::-webkit-scrollbar {
-    width: 6px;
-}
-
-.overflow-y-auto::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.overflow-y-auto::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 3px;
-}
-
-/* Typing indicator bounce */
-@keyframes bounce {
-    0%, 80%, 100% {
-        transform: scale(0);
-        opacity: 0.5;
-    }
-    40% {
-        transform: scale(1);
-        opacity: 1;
-    }
-}
-
-.animate-bounce {
-    animation: bounce 1.4s ease-in-out infinite both;
-}
-</style>

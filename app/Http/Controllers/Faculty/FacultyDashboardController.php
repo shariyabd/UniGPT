@@ -54,7 +54,7 @@ class FacultyDashboardController extends Controller
     private function pendingGradingCount(User $faculty): int
     {
         return AssignmentSubmission::whereNull('grade')
-            ->whereHas('assignment.course', fn (Builder $q) => $q->where('faculty_id', $faculty->id))
+            ->whereHas('assignment', fn (Builder $q) => $q->whereIn('section_id', $faculty->teachingSectionIds()))
             ->count();
     }
 

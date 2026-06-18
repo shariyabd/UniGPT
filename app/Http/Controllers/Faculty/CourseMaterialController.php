@@ -30,21 +30,23 @@ class CourseMaterialController extends Controller
         $material = $this->management->addMaterial(
             $course,
             $request->user(),
-            $request->safe()->except('file'),
+            $request->safe()->except(['file', 'section_id']),
             $request->file('file'),
+            $this->targetSection($course, $request),
         );
 
         $this->activity->log('material.created', "Added material to {$course->code}", $material, [], $request->user());
 
-        // Notify enrolled students when a material is published (not for drafts).
+        // Notify the students in this material's section (not every section of
+        // the course) when it is published — drafts notify no one.
         if ($material->is_published) {
             $this->notifications->notifyMany(
-                users: $course->students()->get(),
+                users: $this->sectionStudents($material),
                 type: NotificationType::MATERIAL,
                 title: "New material in {$course->code}",
                 message: "\"{$material->title}\" is now available.",
                 link: route('materials'),
-                data: ['course_id' => $course->id, 'material_id' => $material->id],
+                data: ['course_id' => $course->id, 'section_id' => $material->section_id, 'material_id' => $material->id],
             );
         }
 
@@ -61,6 +63,18 @@ class CourseMaterialController extends Controller
             $request->safe()->except('file'),
             $request->file('file'),
         );
+
+        // Notify this section's students when a published material changes.
+        if ($material->fresh()->is_published) {
+            $this->notifications->notifyMany(
+                users: $this->sectionStudents($material),
+                type: NotificationType::MATERIAL,
+                title: "Material updated in {$course->code}",
+                message: "\"{$material->title}\" was updated.",
+                link: route('materials'),
+                data: ['course_id' => $course->id, 'section_id' => $material->section_id, 'material_id' => $material->id],
+            );
+        }
 
         return back()->with('success', 'Material updated.');
     }
@@ -93,5 +107,42 @@ class CourseMaterialController extends Controller
     private function ensureBelongsTo(Course $course, CourseMaterial $material): void
     {
         abort_unless($material->course_id === $course->id, 404);
+    }
+
+    /**
+     * The section to attach a new material to: the requested section when the
+     * faculty teaches it for this course, otherwise their default section. This
+     * lets a faculty who teaches several sections of one course target the
+     * correct one, while never allowing another section to be addressed.
+     */
+    private function targetSection(Course $course, \Illuminate\Http\Request $request): ?\App\Models\Section
+    {
+        $sectionId = $request->integer('section_id') ?: null;
+
+        if ($sectionId !== null) {
+            $section = $course->sections()
+                ->where('id', $sectionId)
+                ->where('faculty_id', $request->user()->id)
+                ->first();
+
+            if ($section !== null) {
+                return $section;
+            }
+        }
+
+        return $course->sectionFor($request->user());
+    }
+
+    /**
+     * The actively-enrolled students of the material's section — the precise
+     * recipients for a material notification.
+     *
+     * @return \Illuminate\Support\Collection<int, \App\Domain\User\Models\User>
+     */
+    private function sectionStudents(CourseMaterial $material): \Illuminate\Support\Collection
+    {
+        return $material->section
+            ? $material->section->students()->wherePivot('status', 'enrolled')->get()
+            : collect();
     }
 }

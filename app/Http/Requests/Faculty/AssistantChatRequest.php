@@ -19,6 +19,7 @@ class AssistantChatRequest extends FormRequest
     {
         return [
             'message' => ['required', 'string', 'max:4000'],
+            'session_id' => ['nullable', 'integer'],
         ];
     }
 }

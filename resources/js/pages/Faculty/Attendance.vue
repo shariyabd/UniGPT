@@ -37,11 +37,20 @@ const props = defineProps({
         type: Object,
         default: () => ({ sessions: 0, records: 0, rate: null }),
     },
+    sections: {
+        type: Array,
+        default: () => [],
+    },
+    activeSectionId: {
+        type: [Number, null],
+        default: null,
+    },
 });
 
 // Local, editable copy of the roster (status per student).
 const entries = ref(props.roster.map((student) => ({ ...student })));
 const selectedDate = ref(props.date);
+const selectedSection = ref(props.activeSectionId);
 
 // Reloading on a new date re-renders the page with fresh roster props.
 watch(entries, () => {}, { deep: true });
@@ -49,7 +58,16 @@ watch(entries, () => {}, { deep: true });
 const reloadForDate = () => {
     router.get(
         route('faculty.courses.attendance', props.course.id),
-        { date: selectedDate.value },
+        { date: selectedDate.value, section: selectedSection.value },
+        { preserveState: false, preserveScroll: true },
+    );
+};
+
+// Switching section reloads the roster for that section.
+const changeSection = () => {
+    router.get(
+        route('faculty.courses.attendance', props.course.id),
+        { date: selectedDate.value, section: selectedSection.value },
         { preserveState: false, preserveScroll: true },
     );
 };
@@ -89,10 +107,11 @@ const statusClasses = (status, active) => {
     return map[status] ?? '';
 };
 
-const form = useForm({ date: props.date, entries: [] });
+const form = useForm({ date: props.date, section: props.activeSectionId, entries: [] });
 
 const submit = () => {
     form.date = selectedDate.value;
+    form.section = selectedSection.value;
     form.entries = entries.value.map((e) => ({
         user_id: e.id,
         status: e.status,
@@ -158,17 +177,39 @@ const submit = () => {
                 <!-- Session controls -->
                 <Card title="Session" :icon="CalendarDaysIcon">
                     <div class="flex flex-wrap items-end gap-4 justify-between">
-                        <div>
-                            <label for="session-date" class="ui-label">
-                                Session date
-                            </label>
-                            <input
-                                id="session-date"
-                                v-model="selectedDate"
-                                type="date"
-                                class="ui-input max-w-xs"
-                                @change="reloadForDate"
-                            />
+                        <div class="flex flex-wrap items-end gap-4">
+                            <div>
+                                <label for="session-date" class="ui-label">
+                                    Session date
+                                </label>
+                                <input
+                                    id="session-date"
+                                    v-model="selectedDate"
+                                    type="date"
+                                    class="ui-input max-w-xs"
+                                    @change="reloadForDate"
+                                />
+                            </div>
+
+                            <div v-if="sections.length > 1">
+                                <label for="session-section" class="ui-label">
+                                    Section
+                                </label>
+                                <select
+                                    id="session-section"
+                                    v-model="selectedSection"
+                                    class="ui-input max-w-[10rem]"
+                                    @change="changeSection"
+                                >
+                                    <option
+                                        v-for="section in sections"
+                                        :key="section.id"
+                                        :value="section.id"
+                                    >
+                                        Section {{ section.label }}
+                                    </option>
+                                </select>
+                            </div>
                         </div>
 
                         <div class="flex flex-wrap items-center gap-2">

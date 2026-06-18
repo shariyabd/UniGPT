@@ -5,6 +5,7 @@ namespace App\Domain\Analytics\Services;
 use App\Domain\Academic\Services\AttendanceService;
 use App\Domain\User\Models\User;
 use App\Models\AssignmentSubmission;
+use App\Models\AttendanceRecord;
 use App\Models\Course;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -32,7 +33,12 @@ class FacultyAnalyticsService
      */
     public function build(User $faculty, ?int $courseId = null): array
     {
-        $courses = $faculty->teachingCourses()->orderBy('code')->get();
+        // Analytics are scoped to the sections this faculty teaches, so every
+        // figure (roster, grades, attendance, submissions) reflects only their
+        // own section(s) — never another instructor's section of the course.
+        $sections = $faculty->teachingSections()->with('course')->get();
+        $courses = $sections->pluck('course')->filter()->unique('id')->sortBy('code')->values();
+        $sectionIdsByCourse = $sections->groupBy('course_id')->map(fn (Collection $g) => $g->pluck('id'));
         $selected = $courseId ? $courses->firstWhere('id', $courseId) : $courses->first();
 
         return [
@@ -41,9 +47,11 @@ class FacultyAnalyticsService
                 'code' => $c->code,
                 'name' => $c->name,
             ])->values(),
-            'overview' => $this->overview($faculty, $courses),
+            'overview' => $this->overview($faculty, $courses, $sectionIdsByCourse),
             'selectedCourseId' => $selected?->id,
-            'report' => $selected ? $this->courseReport($selected) : null,
+            'report' => $selected
+                ? $this->courseReport($selected, $sectionIdsByCourse->get($selected->id, collect()))
+                : null,
         ];
     }
 
@@ -51,16 +59,18 @@ class FacultyAnalyticsService
      * Cross-course summary for the faculty member.
      *
      * @param  Collection<int, Course>  $courses
+     * @param  Collection<int, Collection<int, int>>  $sectionIdsByCourse
      * @return array<string, mixed>
      */
-    private function overview(User $faculty, Collection $courses): array
+    private function overview(User $faculty, Collection $courses, Collection $sectionIdsByCourse): array
     {
         $totalStudents = 0;
         $attendanceRates = collect();
 
         foreach ($courses as $course) {
-            $totalStudents += $course->students()->count();
-            $rate = $this->attendance->courseSummary($course)['rate'];
+            $sectionIds = $sectionIdsByCourse->get($course->id, collect());
+            $totalStudents += $course->students()->wherePivotIn('section_id', $sectionIds)->count();
+            $rate = $this->attendance->summaryForSections($sectionIds)['rate'];
             if ($rate !== null) {
                 $attendanceRates->push($rate);
             }
@@ -75,16 +85,17 @@ class FacultyAnalyticsService
     }
 
     /**
-     * Detailed academic report for a single course.
+     * Detailed academic report for a single course, scoped to the faculty's sections.
      *
+     * @param  Collection<int, int>  $sectionIds
      * @return array<string, mixed>
      */
-    private function courseReport(Course $course): array
+    private function courseReport(Course $course, Collection $sectionIds): array
     {
-        $students = $course->students()->get();
+        $students = $course->students()->wherePivotIn('section_id', $sectionIds)->get();
         $gradeDistribution = $this->gradeDistribution($students);
-        $submissionStats = $this->submissionStats($course);
-        $attendanceSummary = $this->attendance->courseSummary($course);
+        $submissionStats = $this->submissionStats($sectionIds);
+        $attendanceSummary = $this->attendance->summaryForSections($sectionIds);
 
         return [
             'course' => [
@@ -102,7 +113,7 @@ class FacultyAnalyticsService
                 'pending' => $submissionStats['pending'],
                 'completionRate' => $submissionStats['completionRate'],
             ],
-            'atRisk' => $this->atRiskStudents($course, $students),
+            'atRisk' => $this->atRiskStudents($sectionIds, $students),
         ];
     }
 
@@ -130,11 +141,12 @@ class FacultyAnalyticsService
     }
 
     /**
+     * @param  Collection<int, int>  $sectionIds
      * @return array<string, mixed>
      */
-    private function submissionStats(Course $course): array
+    private function submissionStats(Collection $sectionIds): array
     {
-        $submissions = AssignmentSubmission::whereHas('assignment', fn (Builder $q) => $q->where('course_id', $course->id))
+        $submissions = AssignmentSubmission::whereHas('assignment', fn (Builder $q) => $q->whereIn('section_id', $sectionIds))
             ->with('assignment:id,total_points')
             ->get();
 
@@ -162,12 +174,13 @@ class FacultyAnalyticsService
     /**
      * Students flagged for low attendance or a poor grade.
      *
+     * @param  Collection<int, int>  $sectionIds
      * @param  Collection<int, User>  $students
      * @return array<int, array<string, mixed>>
      */
-    private function atRiskStudents(Course $course, Collection $students): array
+    private function atRiskStudents(Collection $sectionIds, Collection $students): array
     {
-        $records = $course->attendanceRecords()->get()->groupBy('user_id');
+        $records = AttendanceRecord::whereIn('section_id', $sectionIds)->get()->groupBy('user_id');
 
         return $students
             ->map(function (User $student) use ($records) {
@@ -202,7 +215,7 @@ class FacultyAnalyticsService
     private function pendingGradingCount(User $faculty): int
     {
         return AssignmentSubmission::whereNull('grade')
-            ->whereHas('assignment.course', fn (Builder $q) => $q->where('faculty_id', $faculty->id))
+            ->whereHas('assignment', fn (Builder $q) => $q->whereIn('section_id', $faculty->teachingSectionIds()))
             ->count();
     }
 }

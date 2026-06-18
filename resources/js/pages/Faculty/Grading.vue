@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import axios from 'axios';
 import { useToast } from 'vue-toastification';
@@ -35,17 +35,35 @@ const isGrading = ref(false);
 const props = defineProps({
     courseData: { type: Object, default: null },
     courses: { type: Array, default: () => [] },
+    sections: { type: Array, default: () => [] },
+    activeSectionId: { type: [Number, null], default: null },
     assignments: { type: Array, default: () => [] },
     submissions: { type: Array, default: () => [] },
     courseId: { type: Number, default: null },
 });
 
+// A faculty teaching several sections of a course grades one section at a time.
+const selectedSection = ref(props.activeSectionId);
+
+const changeSection = () => {
+    if (!props.courseData?.id) return;
+    router.get(
+        route('faculty.course.grading', props.courseData.id),
+        { section: selectedSection.value },
+        { preserveState: false, preserveScroll: true },
+    );
+};
+
 const courseData = computed(() => props.courseData ?? { code: '—', name: 'No course assigned', students: 0 });
 
 // Local working copies seeded from the server props. A successful grade triggers
-// a fresh Inertia visit, so these re-initialise with the updated server data.
+// an Inertia reload that updates the props (without remounting this component),
+// so we re-sync the local copies whenever the props change.
 const assignments = ref([...props.assignments]);
 const submissions = ref([...props.submissions]);
+
+watch(() => props.assignments, (value) => { assignments.value = [...value]; });
+watch(() => props.submissions, (value) => { submissions.value = [...value]; });
 
 // Filter and sort options
 const statusOptions = [
@@ -223,15 +241,21 @@ const submitGrade = () => {
 
     isGrading.value = true;
 
-    router.patch(route('faculty.submissions.grade', selectedSubmission.value.id), {
+    router.post(route('faculty.submissions.grade', selectedSubmission.value.id), {
         grade: parseFloat(currentGrade.value),
         feedback: currentFeedback.value || null,
     }, {
         preserveScroll: true,
         // A fresh visit re-seeds assignments/submissions from the server.
+        onSuccess: () => {
+            toast.success('Grade saved.');
+            closeGradingPanel();
+        },
+        onError: (errors) => {
+            toast.error(Object.values(errors)[0] || 'Could not save the grade.');
+        },
         onFinish: () => {
             isGrading.value = false;
-            closeGradingPanel();
         },
     });
 };
@@ -272,18 +296,33 @@ if (assignments.value.length > 0) {
                 <!-- Assignment Selection & Stats -->
                 <Card>
                     <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
-                        <!-- Assignment Selector -->
-                        <div class="flex-1">
-                            <label class="ui-label">Select Assignment to Grade</label>
-                            <select
-                                v-model="selectedAssignment"
-                                @change="selectAssignment(selectedAssignment)"
-                                class="ui-input max-w-md"
-                            >
-                                <option v-for="assignment in assignments" :key="assignment.id" :value="assignment.id">
-                                    {{ assignment.title }} ({{ assignment.submissions.pending }} pending)
-                                </option>
-                            </select>
+                        <!-- Assignment + Section Selectors -->
+                        <div class="flex flex-1 flex-wrap items-end gap-4">
+                            <div class="flex-1 min-w-[14rem]">
+                                <label class="ui-label">Select Assignment to Grade</label>
+                                <select
+                                    v-model="selectedAssignment"
+                                    @change="selectAssignment(selectedAssignment)"
+                                    class="ui-input max-w-md"
+                                >
+                                    <option v-for="assignment in assignments" :key="assignment.id" :value="assignment.id">
+                                        {{ assignment.title }} ({{ assignment.submissions.pending }} pending)
+                                    </option>
+                                </select>
+                            </div>
+
+                            <div v-if="sections.length > 1">
+                                <label class="ui-label">Section</label>
+                                <select
+                                    v-model="selectedSection"
+                                    class="ui-input max-w-[9rem]"
+                                    @change="changeSection"
+                                >
+                                    <option v-for="s in sections" :key="s.id" :value="s.id">
+                                        Section {{ s.label }}
+                                    </option>
+                                </select>
+                            </div>
                         </div>
 
                         <!-- Assignment Stats -->
@@ -530,6 +569,27 @@ if (assignments.value.length > 0) {
                                                 </span>
                                             </div>
                                         </div>
+                                    </div>
+
+                                    <!-- Submitted Work -->
+                                    <div class="mt-6">
+                                        <label class="ui-label">Submitted Work</label>
+                                        <div
+                                            v-if="selectedSubmission?.content"
+                                            class="mt-1 max-h-64 overflow-y-auto whitespace-pre-wrap rounded-card border border-line bg-bg p-4 text-sm text-content"
+                                        >{{ selectedSubmission.content }}</div>
+                                        <a
+                                            v-if="selectedSubmission?.fileUrl"
+                                            :href="selectedSubmission.fileUrl"
+                                            class="ui-btn-secondary mt-3 inline-flex"
+                                        >
+                                            <ArrowDownTrayIcon class="h-4 w-4" />
+                                            {{ selectedSubmission.fileName || 'Download attachment' }}
+                                        </a>
+                                        <p
+                                            v-if="!selectedSubmission?.content && !selectedSubmission?.fileUrl"
+                                            class="mt-1 text-sm text-content-muted"
+                                        >No written response or attachment was submitted.</p>
                                     </div>
 
                                 </div>

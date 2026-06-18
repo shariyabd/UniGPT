@@ -18,6 +18,9 @@ class StoreMaterialRequest extends FormRequest
     public function rules(): array
     {
         return [
+            // Optional: the section to attach the material to. When omitted, the
+            // faculty's section of the course is used.
+            'section_id' => ['nullable', 'integer', 'exists:sections,id'],
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:2000'],
             'type' => ['required', Rule::in(['lecture', 'slides', 'reading', 'assignment', 'video'])],
