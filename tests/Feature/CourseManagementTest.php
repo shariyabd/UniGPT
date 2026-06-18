@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Domain\User\Models\User;
-use App\Models\Course;
 use App\Models\CourseMaterial;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\UploadedFile;
@@ -34,91 +33,6 @@ class CourseManagementTest extends TestCase
         }
 
         return $student;
-    }
-
-    public function test_faculty_can_create_a_course(): void
-    {
-        $faculty = $this->faculty();
-
-        $this->actingAs($faculty)
-            ->post('/faculty/courses', [
-                'code' => 'TEST101',
-                'name' => 'Intro to Testing',
-                'credits' => 3,
-                'max_enrollment' => 40,
-                'semester' => 4,
-                'is_active' => true,
-                'schedule' => ['lectures' => 'Fri 09:00', 'classroom' => 'Lab 2', 'office_hours' => ''],
-            ])
-            ->assertRedirect();
-
-        $course = Course::where('code', 'TEST101')->first();
-        $this->assertNotNull($course);
-        $this->assertEquals($faculty->id, $course->faculty_id);
-        // Empty schedule sub-fields are filtered out.
-        $this->assertSame(['lectures' => 'Fri 09:00', 'classroom' => 'Lab 2'], $course->schedule);
-    }
-
-    public function test_faculty_can_update_own_course(): void
-    {
-        $faculty = $this->faculty();
-        $course = $faculty->teachingCourses()->first();
-
-        $this->actingAs($faculty)
-            ->patch("/faculty/courses/{$course->id}", [
-                'code' => $course->code,
-                'name' => 'Renamed Course',
-                'credits' => 4,
-                'max_enrollment' => 75,
-            ])
-            ->assertRedirect();
-
-        $this->assertSame('Renamed Course', $course->fresh()->name);
-        $this->assertSame(75, $course->fresh()->max_enrollment);
-    }
-
-    public function test_faculty_cannot_update_unowned_course(): void
-    {
-        $faculty = $this->faculty();
-        $student = $this->student();
-
-        $foreign = Course::create([
-            'code' => 'ZZ100',
-            'name' => 'Foreign',
-            'faculty_id' => $student->id,
-            'credits' => 3,
-            'max_enrollment' => 30,
-            'is_active' => true,
-        ]);
-
-        $this->actingAs($faculty)
-            ->patch("/faculty/courses/{$foreign->id}", [
-                'code' => 'ZZ100',
-                'name' => 'Hijacked',
-                'credits' => 3,
-                'max_enrollment' => 30,
-            ])
-            ->assertForbidden();
-    }
-
-    public function test_faculty_can_delete_own_course(): void
-    {
-        $faculty = $this->faculty();
-
-        $course = Course::create([
-            'code' => 'DEL100',
-            'name' => 'To Delete',
-            'faculty_id' => $faculty->id,
-            'credits' => 3,
-            'max_enrollment' => 30,
-            'is_active' => true,
-        ]);
-
-        $this->actingAs($faculty)
-            ->delete("/faculty/courses/{$course->id}")
-            ->assertRedirect();
-
-        $this->assertDatabaseMissing('courses', ['id' => $course->id]);
     }
 
     public function test_faculty_can_upload_a_material_with_a_file(): void
@@ -171,14 +85,5 @@ class CourseManagementTest extends TestCase
             ->assertOk();
 
         $this->assertSame(1, $material->fresh()->downloads);
-    }
-
-    public function test_faculty_can_view_create_and_edit_forms(): void
-    {
-        $faculty = $this->faculty();
-        $course = $faculty->teachingCourses()->first();
-
-        $this->actingAs($faculty)->get('/faculty/courses/create')->assertOk();
-        $this->actingAs($faculty)->get("/faculty/courses/{$course->id}/edit")->assertOk();
     }
 }

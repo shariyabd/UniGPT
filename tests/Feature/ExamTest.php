@@ -50,10 +50,12 @@ class ExamTest extends TestCase
     {
         $admin = $this->admin();
         $student = $this->student();
-        $course = $student->enrolledCourses()->first();
+        // Schedule on a course the student is *currently* enrolled in — an exam
+        // notification targets the active section roster, not finished courses.
+        $course = $student->enrolledCourses()->wherePivot('status', 'enrolled')->first();
 
         if (! $course) {
-            $this->markTestSkipped('Demo student has no enrolments.');
+            $this->markTestSkipped('Demo student has no active enrolments.');
         }
 
         $this->actingAs($admin)

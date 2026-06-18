@@ -85,6 +85,56 @@ class FacultyRoleTest extends TestCase
         $this->assertSame('graded', $submission->fresh()->status);
     }
 
+    public function test_faculty_can_publish_generated_content_to_a_course(): void
+    {
+        $faculty = $this->faculty();
+        $course = $faculty->teachingCourses()->first();
+
+        if (! $course) {
+            $this->markTestSkipped('Demo faculty has no teaching course.');
+        }
+
+        $this->actingAs($faculty)
+            ->postJson('/faculty/ai-assistant/publish', [
+                'course_id' => $course->id,
+                'title' => 'Published Quiz: Trees',
+                'type' => 'quiz',
+                'description' => 'Q1. ...',
+                'total_points' => 10,
+            ])
+            ->assertOk()
+            ->assertJson(['ok' => true]);
+
+        $this->assertDatabaseHas('assignments', [
+            'course_id' => $course->id,
+            'title' => 'Published Quiz: Trees',
+            'type' => 'quiz',
+            'status' => 'published',
+            'created_by' => $faculty->id,
+        ]);
+    }
+
+    public function test_faculty_cannot_publish_to_unowned_course(): void
+    {
+        $faculty = $this->faculty();
+
+        $foreignCourse = \App\Models\Course::where('faculty_id', '!=', $faculty->id)->first();
+
+        if (! $foreignCourse) {
+            $this->markTestSkipped('No course owned by another faculty to test against.');
+        }
+
+        $this->actingAs($faculty)
+            ->postJson('/faculty/ai-assistant/publish', [
+                'course_id' => $foreignCourse->id,
+                'title' => 'Should not persist',
+                'type' => 'project',
+            ])
+            ->assertForbidden();
+
+        $this->assertDatabaseMissing('assignments', ['title' => 'Should not persist']);
+    }
+
     public function test_faculty_cannot_access_admin_routes(): void
     {
         $this->actingAs($this->faculty())->get('/admin/dashboard')->assertRedirect();
