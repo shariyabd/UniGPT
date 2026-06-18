@@ -10,6 +10,9 @@ import {
     BookOpenIcon,
     CalendarDaysIcon,
     MegaphoneIcon,
+    DocumentTextIcon,
+    InboxArrowDownIcon,
+    UserPlusIcon,
     TrashIcon,
     CheckIcon,
 } from '@heroicons/vue/24/outline';
@@ -24,6 +27,9 @@ const iconMap = {
     BookOpenIcon,
     CalendarDaysIcon,
     MegaphoneIcon,
+    DocumentTextIcon,
+    InboxArrowDownIcon,
+    UserPlusIcon,
     BellIcon,
 };
 

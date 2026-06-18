@@ -1,13 +1,38 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, onMounted, onUnmounted, watch } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
+import axios from 'axios';
 import { BellIcon } from '@heroicons/vue/24/outline';
 
 const page = usePage();
 const open = ref(false);
 
-const unread = computed(() => page.props.notifications?.unread ?? 0);
-const items = computed(() => page.props.notifications?.items ?? []);
+// Local state, seeded from the shared Inertia prop and kept fresh by a poll.
+const unread = ref(page.props.notifications?.unread ?? 0);
+const items = ref(page.props.notifications?.items ?? []);
+
+// Re-sync whenever an Inertia navigation refreshes the shared notification prop.
+watch(() => page.props.notifications, (value) => {
+    if (value) {
+        unread.value = value.unread ?? 0;
+        items.value = value.items ?? [];
+    }
+});
+
+// Lightweight periodic refresh (no full page reload).
+let pollTimer = null;
+const poll = async () => {
+    try {
+        const { data } = await axios.get(route('notifications.poll'));
+        unread.value = data.unread ?? 0;
+        items.value = data.items ?? [];
+    } catch (e) {
+        // Ignore transient network errors; the next tick retries.
+    }
+};
+
+onMounted(() => { pollTimer = window.setInterval(poll, 75000); });
+onUnmounted(() => { if (pollTimer) window.clearInterval(pollTimer); });
 
 const toggle = () => {
     open.value = !open.value;

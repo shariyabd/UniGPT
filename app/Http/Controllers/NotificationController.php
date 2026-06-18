@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Domain\Notification\Services\NotificationService;
 use App\Models\Notification;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -29,6 +30,25 @@ class NotificationController extends Controller
         return Inertia::render('Notifications/Index', [
             'notifications' => $items,
             'unreadCount' => $this->notifications->unreadCountFor($user),
+        ]);
+    }
+
+    /**
+     * Lightweight JSON poll for the navbar bell — unread count + recent items.
+     * Used for periodic refresh without a full Inertia page reload.
+     */
+    public function poll(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if (($user->preferences['notifications'] ?? true) === false) {
+            return response()->json(['unread' => 0, 'items' => [], 'muted' => true]);
+        }
+
+        return response()->json([
+            'unread' => $this->notifications->unreadCountFor($user),
+            'items' => $this->notifications->recentFor($user)->all(),
+            'muted' => false,
         ]);
     }
 
