@@ -3,17 +3,21 @@
 use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\AnalyticsController;
 use App\Http\Controllers\Admin\AnnouncementController;
+use App\Http\Controllers\Admin\CourseController as AdminCourseController;
 use App\Http\Controllers\Admin\DepartmentController as AdminDepartmentController;
 use App\Http\Controllers\Admin\DocumentController as AdminDocumentController;
 use App\Http\Controllers\Admin\ExamController as AdminExamController;
 use App\Http\Controllers\Admin\MonitorController;
 use App\Http\Controllers\Admin\RoleController;
+use App\Http\Controllers\Admin\SectionController as AdminSectionController;
 use App\Http\Controllers\Admin\SettingsController;
+use App\Http\Controllers\Admin\TermController as AdminTermController;
 use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\Auth\AuthenticationController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Faculty\AIAssistantController as FacultyAIAssistantController;
 use App\Http\Controllers\Faculty\AnalyticsController as FacultyAnalyticsController;
+use App\Http\Controllers\Faculty\AssignmentController as FacultyAssignmentController;
 use App\Http\Controllers\Faculty\AttendanceController as FacultyAttendanceController;
 use App\Http\Controllers\Faculty\CourseController as FacultyCourseController;
 use App\Http\Controllers\Faculty\CourseMaterialController as FacultyCourseMaterialController;
@@ -21,8 +25,10 @@ use App\Http\Controllers\Faculty\FacultyDashboardController;
 use App\Http\Controllers\Faculty\GradingController as FacultyGradingController;
 use App\Http\Controllers\LegalController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\Student\AssignmentController as StudentAssignmentController;
 use App\Http\Controllers\Student\ChatController;
 use App\Http\Controllers\Student\NoteController;
+use App\Http\Controllers\Student\RegistrationController as StudentRegistrationController;
 use App\Http\Controllers\Student\SavedAnswerController;
 use App\Http\Controllers\Student\StudentDashboardController;
 use App\Http\Controllers\Student\TaskController;
@@ -52,6 +58,7 @@ Route::post('/logout', [AuthenticationController::class, 'destroy'])
 Route::middleware(['auth'])->group(function () {
     // In-app notifications — available to every authenticated role.
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::get('/notifications/poll', [NotificationController::class, 'poll'])->name('notifications.poll');
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
     Route::post('/notifications/{notification}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
     Route::delete('/notifications/{notification}', [NotificationController::class, 'destroy'])->name('notifications.destroy');
@@ -87,6 +94,16 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/exams', [StudentDashboardController::class, 'exams'])->middleware('permission:view_exams')->name('exams');
         Route::get('/calendar', [StudentDashboardController::class, 'calendar'])->name('calendar');
 
+        // Assignments + submissions — `{assignment}` is numeric so order is safe
+        // Course self-registration (offered sections for the student's semester)
+        Route::get('/register', [StudentRegistrationController::class, 'index'])->middleware('permission:enroll_course')->name('register');
+        Route::post('/register', [StudentRegistrationController::class, 'store'])->middleware('permission:enroll_course')->name('register.store');
+        Route::delete('/register/{section}', [StudentRegistrationController::class, 'destroy'])->middleware('permission:enroll_course')->name('register.drop');
+
+        Route::get('/assignments', [StudentAssignmentController::class, 'index'])->middleware('permission:view_assignments')->name('assignments');
+        Route::get('/assignments/{assignment}', [StudentAssignmentController::class, 'show'])->middleware('permission:view_assignments')->name('assignments.show');
+        Route::post('/assignments/{assignment}/submit', [StudentAssignmentController::class, 'store'])->middleware('permission:submit_assignment')->name('assignments.submit');
+
         // Personal productivity (self-service; scoped to the owner) — Notes
         Route::get('/notes', [NoteController::class, 'index'])->name('notes');
         Route::post('/notes', [NoteController::class, 'store'])->name('notes.store');
@@ -110,14 +127,10 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware('role:faculty')->prefix('faculty')->name('faculty.')->group(function () {
         Route::get('/dashboard', [FacultyDashboardController::class, 'index'])->name('dashboard');
 
-        // Courses (CRUD) — `create` must precede the `{course}` wildcard
+        // Courses — faculty view the courses/sections they teach (catalog +
+        // section management is admin-owned).
         Route::get('/courses', [FacultyCourseController::class, 'index'])->middleware('permission:view_courses')->name('courses');
-        Route::get('/courses/create', [FacultyCourseController::class, 'create'])->middleware('permission:create_course')->name('courses.create');
-        Route::post('/courses', [FacultyCourseController::class, 'store'])->middleware('permission:create_course')->name('courses.store');
         Route::get('/courses/{course}', [FacultyCourseController::class, 'show'])->middleware('permission:view_courses')->name('courses.show');
-        Route::get('/courses/{course}/edit', [FacultyCourseController::class, 'edit'])->middleware('permission:update_course')->name('courses.edit');
-        Route::patch('/courses/{course}', [FacultyCourseController::class, 'update'])->middleware('permission:update_course')->name('courses.update');
-        Route::delete('/courses/{course}', [FacultyCourseController::class, 'destroy'])->middleware('permission:delete_course')->name('courses.destroy');
 
         // Course materials (faculty manage + upload)
         Route::post('/courses/{course}/materials', [FacultyCourseMaterialController::class, 'store'])->middleware('permission:manage_materials')->name('courses.materials.store');
@@ -125,11 +138,19 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('/courses/{course}/materials/{material}', [FacultyCourseMaterialController::class, 'destroy'])->middleware('permission:manage_materials')->name('courses.materials.destroy');
         Route::get('/courses/{course}/materials/{material}/download', [FacultyCourseMaterialController::class, 'download'])->middleware('permission:view_courses')->name('courses.materials.download');
 
-        // AI teaching assistant
+        // AI teaching assistant — full ChatGPT-style chat workspace + generators
         Route::get('/ai-assistant', [FacultyAIAssistantController::class, 'index'])->middleware('permission:use_ai_chat')->name('ai-assistant');
+        Route::get('/ai-assistant/archived', [FacultyAIAssistantController::class, 'archived'])->middleware('permission:view_chat_history')->name('ai-assistant.archived');
         Route::post('/ai-assistant/chat', [FacultyAIAssistantController::class, 'chat'])->middleware('permission:use_ai_chat')->name('ai-assistant.chat');
+        Route::get('/ai-assistant/sessions/{session}', [FacultyAIAssistantController::class, 'show'])->middleware('permission:view_chat_history')->name('ai-assistant.session');
+        Route::patch('/ai-assistant/sessions/{session}', [FacultyAIAssistantController::class, 'rename'])->middleware('permission:use_ai_chat')->name('ai-assistant.session.rename');
+        Route::patch('/ai-assistant/sessions/{session}/pin', [FacultyAIAssistantController::class, 'togglePin'])->middleware('permission:view_chat_history')->name('ai-assistant.session.pin');
+        Route::patch('/ai-assistant/sessions/{session}/archive', [FacultyAIAssistantController::class, 'archive'])->middleware('permission:use_ai_chat')->name('ai-assistant.session.archive');
+        Route::patch('/ai-assistant/sessions/{session}/unarchive', [FacultyAIAssistantController::class, 'unarchive'])->middleware('permission:use_ai_chat')->name('ai-assistant.session.unarchive');
+        Route::delete('/ai-assistant/sessions/{session}', [FacultyAIAssistantController::class, 'destroySession'])->middleware('permission:delete_chat')->name('ai-assistant.session.destroy');
         Route::post('/ai-assistant/quiz', [FacultyAIAssistantController::class, 'generateQuiz'])->middleware('permission:use_ai_chat')->name('ai-assistant.quiz');
         Route::post('/ai-assistant/assignment', [FacultyAIAssistantController::class, 'generateAssignment'])->middleware('permission:create_assignment')->name('ai-assistant.assignment');
+        Route::post('/ai-assistant/publish', [FacultyAIAssistantController::class, 'publish'])->middleware('permission:create_assignment')->name('ai-assistant.publish');
 
         // Attendance
         Route::get('/courses/{course}/attendance', [FacultyAttendanceController::class, 'index'])->middleware('permission:mark_attendance')->name('courses.attendance');
@@ -142,9 +163,15 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/analytics', [FacultyAnalyticsController::class, 'index'])->middleware('permission:view_department_analytics')->name('analytics');
         Route::get('/courses/{course}/analytics', [FacultyAnalyticsController::class, 'index'])->middleware('permission:view_department_analytics')->name('courses.analytics');
 
+        // Assignment / quiz management (view/edit/status/delete published items)
+        Route::patch('/assignments/{assignment}', [FacultyAssignmentController::class, 'update'])->middleware('permission:create_assignment')->name('assignments.update');
+        Route::patch('/assignments/{assignment}/status', [FacultyAssignmentController::class, 'toggleStatus'])->middleware('permission:create_assignment')->name('assignments.status');
+        Route::delete('/assignments/{assignment}', [FacultyAssignmentController::class, 'destroy'])->middleware('permission:create_assignment')->name('assignments.destroy');
+
         // Grading
         Route::get('/grading', [FacultyGradingController::class, 'index'])->middleware('permission:grade_assignment')->name('grading');
         Route::get('/courses/{course}/grading', [FacultyGradingController::class, 'index'])->middleware('permission:grade_assignment')->name('course.grading');
+        Route::get('/submissions/{submission}/download', [FacultyGradingController::class, 'downloadSubmission'])->middleware('permission:grade_assignment')->name('submissions.download');
         Route::post('/submissions/{submission}/grade', [FacultyGradingController::class, 'grade'])->middleware('permission:grade_assignment')->name('submissions.grade');
         Route::post('/submissions/{submission}/feedback', [FacultyGradingController::class, 'suggestFeedback'])->middleware('permission:grade_assignment')->name('submissions.feedback');
     });
@@ -179,6 +206,26 @@ Route::middleware(['auth'])->group(function () {
         // Role-permission matrix editor
         Route::get('/roles', [RoleController::class, 'index'])->middleware('permission:manage_permissions')->name('roles');
         Route::patch('/roles/{role}/permissions', [RoleController::class, 'updatePermissions'])->middleware('permission:manage_permissions')->name('roles.permissions');
+
+        // Course catalog + sections (offerings). The catalog is admin-owned;
+        // faculty are assigned to sections here.
+        Route::get('/courses', [AdminCourseController::class, 'index'])->middleware('permission:view_courses')->name('courses');
+        Route::post('/courses', [AdminCourseController::class, 'store'])->middleware('permission:create_course')->name('courses.store');
+        Route::patch('/courses/{course}', [AdminCourseController::class, 'update'])->middleware('permission:update_course')->name('courses.update');
+        Route::delete('/courses/{course}', [AdminCourseController::class, 'destroy'])->middleware('permission:delete_course')->name('courses.destroy');
+        Route::post('/courses/{course}/sections', [AdminSectionController::class, 'store'])->middleware('permission:manage_sections')->name('sections.store');
+        Route::patch('/sections/{section}', [AdminSectionController::class, 'update'])->middleware('permission:manage_sections')->name('sections.update');
+        Route::delete('/sections/{section}', [AdminSectionController::class, 'destroy'])->middleware('permission:manage_sections')->name('sections.destroy');
+        Route::post('/sections/{section}/enrollments', [AdminSectionController::class, 'enroll'])->middleware('permission:manage_sections')->name('sections.enroll');
+        Route::delete('/sections/{section}/enrollments/{user}', [AdminSectionController::class, 'drop'])->middleware('permission:manage_sections')->name('sections.drop');
+
+        // Academic terms + end-of-term rollover
+        Route::get('/terms', [AdminTermController::class, 'index'])->middleware('permission:manage_terms')->name('terms');
+        Route::post('/terms', [AdminTermController::class, 'store'])->middleware('permission:manage_terms')->name('terms.store');
+        Route::patch('/terms/{term}/current', [AdminTermController::class, 'setCurrent'])->middleware('permission:manage_terms')->name('terms.current');
+        Route::patch('/terms/{term}/registration', [AdminTermController::class, 'toggleRegistration'])->middleware('permission:manage_terms')->name('terms.registration');
+        Route::post('/terms/{term}/close', [AdminTermController::class, 'close'])->middleware('permission:manage_terms')->name('terms.close');
+        Route::delete('/terms/{term}', [AdminTermController::class, 'destroy'])->middleware('permission:manage_terms')->name('terms.destroy');
 
         // Department management
         Route::get('/departments', [AdminDepartmentController::class, 'index'])->middleware('permission:manage_departments')->name('departments');

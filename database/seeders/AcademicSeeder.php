@@ -7,6 +7,8 @@ use App\Models\Assignment;
 use App\Models\Course;
 use App\Models\CourseMaterial;
 use App\Models\Exam;
+use App\Models\Section;
+use App\Models\Term;
 use Illuminate\Database\Seeder;
 
 class AcademicSeeder extends Seeder
@@ -26,11 +28,17 @@ class AcademicSeeder extends Seeder
 
         $departmentId = $faculty->department_id ?? $student->department_id;
 
+        [$priorTerm, $currentTerm] = $this->seedTerms();
+
         $blueprint = [
             ['code' => 'CS301', 'name' => 'Data Structures & Algorithms', 'semester' => 5, 'credits' => 4],
             ['code' => 'CS305', 'name' => 'Machine Learning Fundamentals', 'semester' => 5, 'credits' => 3],
             ['code' => 'CS310', 'name' => 'Database Systems', 'semester' => 5, 'credits' => 3],
             ['code' => 'CS320', 'name' => 'Operating Systems', 'semester' => 6, 'credits' => 4],
+            // Semester-5 offerings the demo student is NOT auto-enrolled in, so the
+            // self-registration page has open courses to choose from.
+            ['code' => 'CS330', 'name' => 'Computer Networks', 'semester' => 5, 'credits' => 3],
+            ['code' => 'CS340', 'name' => 'Software Engineering', 'semester' => 5, 'credits' => 3],
         ];
 
         foreach ($blueprint as $i => $data) {
@@ -52,6 +60,10 @@ class AcademicSeeder extends Seeder
                 ],
             );
 
+            // Every course is taught through a section (offering); child records
+            // attach to it. Create it before seeding materials/assignments/exams.
+            $section = $this->sectionFor($course, $currentTerm->id, $faculty->id);
+
             // Enroll the demo student in the first three courses.
             if ($i < 3) {
                 $course->students()->syncWithoutDetaching([
@@ -60,6 +72,8 @@ class AcademicSeeder extends Seeder
                         'status' => 'enrolled',
                         'grade' => ['A', 'B+', 'A-'][$i] ?? null,
                         'progress' => [72, 58, 65][$i] ?? 50,
+                        'term_id' => $currentTerm->id,
+                        'section_id' => $section->id,
                         'enrolled_at' => now(),
                     ],
                 ]);
@@ -74,7 +88,105 @@ class AcademicSeeder extends Seeder
             }
         }
 
+        // Demonstrate multi-section + faculty assignment: a second section (B) of
+        // CS301 this term, taught by a different faculty member.
+        $jones = User::where('email', 'prof.jones@university.edu')->first();
+        if (($cs301 = Course::where('code', 'CS301')->first()) && $jones) {
+            $this->sectionFor($cs301, $currentTerm->id, $jones->id, 'B');
+        }
+
+        // A completed prior term so current/past separation, the transcript and
+        // CGPA history have real data to show.
+        $this->seedHistory($student, $faculty->id, $departmentId, $priorTerm->id);
+
         $this->command->info('   ✓ Academic data seeded ('.count($blueprint).' courses)');
+    }
+
+    /**
+     * Create the prior and current academic terms.
+     *
+     * @return array{0: Term, 1: Term}
+     */
+    private function seedTerms(): array
+    {
+        $prior = Term::firstOrCreate(
+            ['slug' => 'spring-2026'],
+            ['name' => 'Spring 2026', 'start_date' => '2026-01-15', 'end_date' => '2026-05-15', 'is_current' => false],
+        );
+
+        $current = Term::firstOrCreate(
+            ['slug' => 'summer-2026'],
+            ['name' => 'Summer 2026', 'start_date' => '2026-06-01', 'end_date' => '2026-08-31', 'is_current' => true, 'is_registration_open' => true],
+        );
+
+        return [$prior, $current];
+    }
+
+    /**
+     * Find or create a section (offering) for a course in a given term.
+     */
+    private function sectionFor(Course $course, ?int $termId, ?int $facultyId, string $label = 'A'): Section
+    {
+        return Section::firstOrCreate(
+            ['course_id' => $course->id, 'term_id' => $termId, 'label' => $label],
+            [
+                'faculty_id' => $facultyId,
+                'schedule' => $course->schedule,
+                'max_enrollment' => $course->max_enrollment ?? 60,
+                'is_active' => $course->is_active ?? true,
+            ],
+        );
+    }
+
+    /**
+     * Seed a completed earlier semester (prior term) for the demo student so the
+     * portal shows a real academic history with graded, retained courses.
+     */
+    private function seedHistory(User $student, int $facultyId, ?int $departmentId, int $priorTermId): void
+    {
+        $history = [
+            ['code' => 'CS201', 'name' => 'Discrete Mathematics', 'credits' => 3, 'grade' => 'A-'],
+            ['code' => 'CS210', 'name' => 'Computer Architecture', 'credits' => 3, 'grade' => 'B+'],
+            ['code' => 'CS220', 'name' => 'Object-Oriented Programming', 'credits' => 4, 'grade' => 'A'],
+        ];
+
+        foreach ($history as $i => $data) {
+            $course = Course::firstOrCreate(
+                ['code' => $data['code']],
+                [
+                    'name' => $data['name'],
+                    'description' => "An in-depth course on {$data['name']}.",
+                    'department_id' => $departmentId,
+                    'faculty_id' => $facultyId,
+                    'semester' => 4,
+                    'credits' => $data['credits'],
+                    'schedule' => [
+                        'lectures' => 'Tue/Thu 09:00–10:30',
+                        'classroom' => 'Room '.(201 + $i),
+                        'office_hours' => 'Wed 14:00–16:00',
+                    ],
+                    'max_enrollment' => 60,
+                    'is_active' => false,
+                ],
+            );
+
+            $section = $this->sectionFor($course, $priorTermId, $facultyId);
+
+            $course->students()->syncWithoutDetaching([
+                $student->id => [
+                    'role' => 'student',
+                    'status' => 'completed',
+                    'grade' => $data['grade'],
+                    'progress' => 100,
+                    'term_id' => $priorTermId,
+                    'section_id' => $section->id,
+                    'enrolled_at' => now()->subMonths(5),
+                ],
+            ]);
+
+            // Past materials remain available to the student (read-only retention).
+            $this->seedMaterials($course, $facultyId);
+        }
     }
 
     private function seedAttendance(Course $course, int $facultyId, int $studentId): void

@@ -103,11 +103,11 @@ class RBACSeeder extends Seeder
         }
         $this->command->info('   ✓ Student permissions assigned ('.count($studentPermissions).')');
 
+        // Faculty no longer create/edit/delete catalog courses — that is an admin
+        // responsibility (the central catalog). Faculty are assigned to sections
+        // and manage their teaching: materials, assignments, grading, attendance.
         $facultyPermissions = array_merge($studentPermissions, [
             PermissionEnum::UPLOAD_DOCUMENT,
-            PermissionEnum::CREATE_COURSE,
-            PermissionEnum::UPDATE_COURSE,
-            PermissionEnum::DELETE_COURSE,
             PermissionEnum::MANAGE_MATERIALS,
             PermissionEnum::CREATE_ASSIGNMENT,
             PermissionEnum::GRADE_ASSIGNMENT,
@@ -173,7 +173,7 @@ class RBACSeeder extends Seeder
                 'email' => 'student@university.edu',
                 'password' => Hash::make('demo123'),
                 'department_id' => $departmentIds[array_rand($departmentIds)],
-                'semester' => '5th Semester',
+                'semester' => 5,
                 'student_id' => 'CS2024001',
                 'role' => UserRole::STUDENT,
             ],
@@ -184,6 +184,15 @@ class RBACSeeder extends Seeder
                 'department_id' => $departmentIds[array_rand($departmentIds)],
                 'employee_id' => 'FAC001',
                 'bio' => 'Professor of Computer Science with 15+ years of experience in AI and Machine Learning.',
+                'role' => UserRole::FACULTY,
+            ],
+            [
+                'name' => 'Prof. Emily Jones',
+                'email' => 'prof.jones@university.edu',
+                'password' => Hash::make('demo123'),
+                'department_id' => $departmentIds[array_rand($departmentIds)],
+                'employee_id' => 'FAC002',
+                'bio' => 'Assistant Professor specialising in Data Structures and Software Engineering.',
                 'role' => UserRole::FACULTY,
             ],
             [
