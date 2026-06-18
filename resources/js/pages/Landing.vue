@@ -11,6 +11,7 @@ import WorkflowSection from '@/components/landing/WorkflowSection.vue';
 import WhySection from '@/components/landing/WhySection.vue';
 import StatsSection from '@/components/landing/StatsSection.vue';
 import TechStackSection from '@/components/landing/TechStackSection.vue';
+import UpcomingSection from '@/components/landing/UpcomingSection.vue';
 import CreatorSection from '@/components/landing/CreatorSection.vue';
 import FaqSection from '@/components/landing/FaqSection.vue';
 import CtaSection from '@/components/landing/CtaSection.vue';
@@ -39,6 +40,7 @@ import LandingFooter from '@/components/landing/LandingFooter.vue';
             <WhySection />
             <StatsSection />
             <TechStackSection />
+            <UpcomingSection />
             <CreatorSection />
             <FaqSection />
             <CtaSection />

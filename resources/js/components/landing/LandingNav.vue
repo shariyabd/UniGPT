@@ -13,6 +13,7 @@ const links = [
     { label: 'Roles', href: '#roles' },
     { label: 'AI Engine', href: '#ai-engine' },
     { label: 'Workflow', href: '#workflow' },
+    { label: 'Roadmap', href: '#roadmap' },
     { label: 'FAQ', href: '#faq' },
 ];
 
