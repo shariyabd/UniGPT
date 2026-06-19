@@ -1,0 +1,131 @@
+# Seeder Refactor — Analysis & Plan
+
+> Phase 1 deliverable for the seeder overhaul. Produced after reading every
+> migration, model, relationship and the full Feature test suite.
+
+## Key finding — the existing seeders are load-bearing fixtures, not dummy data
+
+`RBACSeeder`, `AcademicSeeder` and `KnowledgeBaseSeeder` are **not** disposable.
+The 25-test Feature suite (`tests/Feature/*`) runs with `DatabaseTransactions`
+against the already-seeded dev database and asserts on a precise contract:
+
+- The four demo accounts (`student@`, `prof.smith@`, `prof.jones@`,
+  `admin@university.edu`, all password `demo123`).
+- The demo student is enrolled in `CS301/CS305/CS310`, has `CS330` as a *pending*
+  admin placement, and `CS340` as an unassigned open offering
+  (`SelfRegistrationTest`).
+- `CS301` has **exactly** sections `['A','B']`, taught by two *distinct* faculty
+  (`SectionStructureTest`, `SectionIsolationTest`, `MultiSectionTest`).
+- A completed prior term gives the transcript/CGPA real history (`TranscriptTest`).
+- The knowledge base has indexed documents with chunks + embeddings
+  (`AdminRoleTest`).
+
+**Decision:** preserve these three seeders verbatim (they are the demo/test
+baseline) and *layer* realistic, production-scale population on top with new
+modular seeders. This satisfies the prompt's intent (a believable university
+dataset, modular seeder architecture, scalable volume) while honouring the
+prompt's own final constraint #4 (non-breaking) and CLAUDE.md's Legacy
+Preservation rule.
+
+## Hard invariants every new seeder must respect (proven by tests)
+
+1. **Every course has ≥1 section.** (`SectionStructureTest::test_every_course_has_at_least_one_section`)
+2. **Every academic row carries a `section_id`** — `course_user`,
+   `course_materials`, `assignments`, `attendance_records`, `exams`. No row may
+   have a `course_id` but a null `section_id`.
+   (`SectionStructureTest::test_academic_records_are_attached_to_a_section`)
+3. **Exactly one `terms.is_current = true`**, and at least one *other* term must
+   exist (rollover/"set current" tests need a second + a "next" term).
+4. **Do not add a third section to `CS301`** (label set must stay `['A','B']`).
+   → New `SectionSeeder` only creates sections for courses that have none, so the
+   demo courses are never touched.
+5. `course_user` is unique on `(course_id, user_id)` — a student enrolls in any
+   one course at most once.
+6. `attendance_records` unique on `(course_id, user_id, date)`.
+7. `users.email`, `student_id`, `employee_id` are unique. Bulk IDs are namespaced
+   away from the demo IDs (`FAC001/002`, `ADM001`, `CS2024001`).
+
+## Schema reality vs. the prompt (trust code over docs)
+
+| Prompt term | Actual schema |
+|---|---|
+| `semesters` table | none — `semester` is an **integer curriculum level (1–9)** on `courses` and `users` |
+| `enrollments`, `semester_registrations`, `section_assignments` | the single `course_user` pivot (with `section_id`, `term_id`, `status`) |
+| Faculty "designation" / profile table | no column — folded into `users.bio` |
+| `academic_tasks` | the `tasks` table (personal to-dos: `Lab Report`, `Presentation`, …) |
+
+There is therefore **no `SemesterSeeder`**; "semester registration" = inserting a
+`course_user` row bound to the current term + a section.
+
+## Relevant tables & ownership
+
+```
+roles, permissions, permission_role, role_user        ← RBACSeeder (kept)
+departments                                            ← RBACSeeder (kept)
+users (4 demo)                                          ← RBACSeeder (kept)
+terms                                                   ← TermSeeder (new, authoritative)
+courses                                                 ← CourseSeeder (new) + AcademicSeeder (demo)
+users (bulk faculty / admins / students)               ← FacultySeeder / AdminSeeder / StudentSeeder (new)
+sections                                                ← SectionSeeder (new) + AcademicSeeder (demo)
+course_user                                             ← EnrollmentSeeder (new) + AcademicSeeder (demo)
+course_materials, exams, attendance_records            ← CourseMaterial/Exam/Attendance seeders (new) + demo
+notes, tasks                                            ← Note/Task seeders (new)
+documents, document_chunks, embeddings                 ← KnowledgeBaseSeeder (kept)
+```
+
+User-driven data is intentionally **not** seeded: chat sessions/messages, saved
+answers, assignment submissions (beyond the single demo one), document approvals.
+
+## Dependency graph / insert order (`DatabaseSeeder`)
+
+```
+1.  RBACSeeder          roles → permissions → role-perm map → departments → demo users
+2.  TermSeeder          spring-2026 (past), summer-2026 (CURRENT, reg open), fall-2026 (future)
+3.  AcademicSeeder      demo student rich fixture (finds terms via firstOrCreate)
+4.  CourseSeeder        CSE exact curriculum + curated catalogs per department
+5.  FacultySeeder       ~80 faculty across departments (+ designations in bio)
+6.  AdminSeeder         ~10 admins
+7.  StudentSeeder       ~500 students, weighted across departments & semesters
+8.  SectionSeeder       sections sized to student demand; guarantees ≥1 per course
+9.  EnrollmentSeeder    enroll each student into their dept+semester current-term sections
+10. CourseMaterialSeeder / ExamSeeder / AttendanceSeeder  per section (all section_id-safe)
+11. NoteSeeder / TaskSeeder                               per bulk student
+12. KnowledgeBaseSeeder RAG documents (kept)
+```
+
+Child records never precede parents: terms → courses → faculty → sections →
+students → enrollments → attendance/materials/exams → notes/tasks.
+
+## Volume (config/seeder.php, env-overridable)
+
+| Constant | Default |
+|---|---|
+| `students` | 500 |
+| `faculty` | 80 |
+| `admins` | 10 |
+| `section_capacity` | 45 |
+| `attendance_sessions` | 6 |
+| `materials_per_section` | 3 |
+| `exams_per_section` | 3 |
+| `notes_per_student` | 2 |
+| `tasks_per_student` | 3 |
+| `max_courses_per_student` | 6 |
+
+Set e.g. `SEED_STUDENTS=2000` to scale up without code changes.
+
+## Risks & mitigations
+
+- **Section_id invariant** → all bulk inserts set `section_id` explicitly; the
+  `BelongsToSection` boot hook is a backstop, not relied on.
+- **Capacity overflow** when a department+semester bucket is large → `SectionSeeder`
+  creates `ceil(bucket / capacity)` sections per course; `EnrollmentSeeder`
+  fills section by section.
+- **Code collisions** → bulk catalog codes are department-prefixed and avoid the
+  CSE curriculum's `MATH/PHY` prefixes (Mathematics dept uses `MAT`, Physics
+  `PHYS`) and the demo's `CS3xx`.
+- **Bcrypt cost** at 590 users → one shared hash is computed once and reused for
+  all bulk accounts (mirrors `UserFactory`).
+- **Performance** → high-volume tables (course_user, attendance, materials,
+  exams) use chunked query-builder inserts; low-volume use Eloquent for casts.
+- **Re-run safety** → each bulk seeder no-ops if its data already exists.
+```

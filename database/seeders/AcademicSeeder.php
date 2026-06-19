@@ -7,7 +7,9 @@ use App\Models\Assignment;
 use App\Models\Course;
 use App\Models\CourseMaterial;
 use App\Models\Exam;
+use App\Models\Note;
 use App\Models\Section;
+use App\Models\Task;
 use App\Models\Term;
 use Illuminate\Database\Seeder;
 
@@ -115,7 +117,64 @@ class AcademicSeeder extends Seeder
         // CGPA history have real data to show.
         $this->seedHistory($student, $faculty->id, $departmentId, $priorTerm->id);
 
+        // Personal notes and to-do tasks so the demo student's Productivity and
+        // Calendar pages are populated (bulk seeders skip the demo accounts).
+        $this->seedDemoProductivity($student);
+
         $this->command->info('   ✓ Academic data seeded ('.count($blueprint).' courses)');
+    }
+
+    /**
+     * Seed study notes and academic to-do tasks for the demo student, tied to
+     * their currently-enrolled courses.
+     */
+    private function seedDemoProductivity(User $student): void
+    {
+        $courses = $student->enrolledCourses()
+            ->wherePivot('status', 'enrolled')
+            ->get(['courses.id', 'code']);
+
+        if ($courses->isEmpty()) {
+            return;
+        }
+
+        $notes = [
+            ['title' => 'Lecture Key Takeaways', 'content' => 'Summary of the main concepts and formulas from this week to revise before the exam.', 'is_pinned' => true],
+            ['title' => 'Questions for Office Hours', 'content' => 'Points to clarify with the instructor: derivations, edge cases, and assignment scope.', 'is_pinned' => false],
+            ['title' => 'Revision Checklist', 'content' => 'Topics to revise — definitions, worked examples, and past-paper practice problems.', 'is_pinned' => false],
+        ];
+
+        foreach ($notes as $i => $note) {
+            Note::firstOrCreate(
+                ['user_id' => $student->id, 'title' => $note['title']],
+                [
+                    'course_id' => $courses[$i % $courses->count()]->id,
+                    'content' => $note['content'],
+                    'is_pinned' => $note['is_pinned'],
+                ],
+            );
+        }
+
+        $tasks = [
+            ['title' => 'Submit Lab Report', 'priority' => 'high', 'days' => 3, 'done' => false],
+            ['title' => 'Prepare Class Presentation', 'priority' => 'medium', 'days' => 7, 'done' => false],
+            ['title' => 'Complete Reading Assignment', 'priority' => 'low', 'days' => -2, 'done' => true],
+            ['title' => 'Group Project Meeting', 'priority' => 'medium', 'days' => 5, 'done' => false],
+        ];
+
+        foreach ($tasks as $i => $task) {
+            Task::firstOrCreate(
+                ['user_id' => $student->id, 'title' => $task['title']],
+                [
+                    'course_id' => $courses[$i % $courses->count()]->id,
+                    'description' => $task['title'].' — coursework item to track this semester.',
+                    'due_date' => now()->addDays($task['days'])->toDateString(),
+                    'priority' => $task['priority'],
+                    'is_completed' => $task['done'],
+                    'completed_at' => $task['done'] ? now()->subDay() : null,
+                ],
+            );
+        }
     }
 
     /**
