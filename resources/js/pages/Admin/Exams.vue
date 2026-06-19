@@ -1,11 +1,12 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { Head, useForm, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
 import Card from '@/components/ui/Card.vue';
 import Badge from '@/components/ui/Badge.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
+import Pagination from '@/components/ui/Pagination.vue';
 import { useConfirm } from '@/composables/useConfirm';
 import {
     PencilSquareIcon,
@@ -20,20 +21,45 @@ import {
 } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
-    exams: { type: Array, default: () => [] },
+    exams: { type: Object, default: () => ({ data: [] }) },
     courses: { type: Array, default: () => [] },
     types: { type: Array, default: () => [] },
+    filters: { type: Object, default: () => ({}) },
 });
+
+const examItems = computed(() => props.exams.data ?? []);
 
 const { confirm } = useConfirm();
 
 const showModal = ref(false);
 const editingId = ref(null);
 
-// Filters
-const searchQuery = ref('');
-const selectedCourse = ref('all');
-const selectedType = ref('all');
+// Filters are applied SERVER-SIDE (across all pages), seeded from the URL so a
+// shared/bookmarked filtered link restores its state.
+const searchQuery = ref(props.filters.search ?? '');
+const selectedCourse = ref(props.filters.course_id ? Number(props.filters.course_id) : 'all');
+const selectedType = ref(props.filters.type ?? 'all');
+
+// Push the current filter state to the server (resets to page 1). Search is
+// debounced; the dropdowns fire immediately.
+const applyFilters = () => {
+    router.get(
+        route('admin.exams'),
+        {
+            search: searchQuery.value || undefined,
+            course_id: selectedCourse.value !== 'all' ? selectedCourse.value : undefined,
+            type: selectedType.value !== 'all' ? selectedType.value : undefined,
+        },
+        { preserveState: true, preserveScroll: true, replace: true },
+    );
+};
+
+let searchTimer = null;
+watch(searchQuery, () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(applyFilters, 300);
+});
+watch([selectedCourse, selectedType], applyFilters);
 
 const form = useForm({
     course_id: '',
@@ -62,38 +88,19 @@ const onCourseChange = () => {
     form.section_id = '';
 };
 
-const filteredExams = computed(() => {
-    let filtered = props.exams;
-
-    if (selectedCourse.value !== 'all') {
-        filtered = filtered.filter((exam) => exam.course.id === selectedCourse.value);
-    }
-
-    if (selectedType.value !== 'all') {
-        filtered = filtered.filter((exam) => exam.type === selectedType.value);
-    }
-
-    if (searchQuery.value) {
-        const query = searchQuery.value.toLowerCase();
-        filtered = filtered.filter((exam) =>
-            exam.title.toLowerCase().includes(query) ||
-            (exam.course.code ?? '').toLowerCase().includes(query) ||
-            (exam.course.name ?? '').toLowerCase().includes(query) ||
-            (exam.location ?? '').toLowerCase().includes(query)
-        );
-    }
-
-    return filtered;
-});
-
 const hasActiveFilters = computed(() =>
     searchQuery.value !== '' || selectedCourse.value !== 'all' || selectedType.value !== 'all'
 );
+
+// Total exams matched by the active filters, across all pages.
+const totalExams = computed(() => props.exams.meta?.total ?? props.exams.total ?? examItems.value.length);
 
 const clearFilters = () => {
     searchQuery.value = '';
     selectedCourse.value = 'all';
     selectedType.value = 'all';
+    // The dropdown watcher fires applyFilters; nudge in case nothing changed.
+    applyFilters();
 };
 
 const openCreate = () => {
@@ -169,8 +176,8 @@ const remove = async (exam) => {
                     </template>
                 </PageHeader>
 
-                <!-- Empty state (no exams at all) -->
-                <Card v-if="exams.length === 0" padding="p-0">
+                <!-- Empty state (no exams at all, and no filters narrowing them out) -->
+                <Card v-if="totalExams === 0 && !hasActiveFilters" padding="p-0">
                     <EmptyState
                         title="No exams scheduled yet"
                         description="Schedule your first exam. Enrolled students will be notified automatically."
@@ -225,14 +232,14 @@ const remove = async (exam) => {
                     </Card>
 
                     <p class="text-sm text-content-muted">
-                        Showing {{ filteredExams.length }} of {{ exams.length }} exam{{ exams.length === 1 ? '' : 's' }}
+                        {{ totalExams }} exam{{ totalExams === 1 ? '' : 's' }} match{{ totalExams === 1 ? 'es' : '' }} your filters
                     </p>
 
                     <!-- List -->
                     <Card padding="p-0">
-                        <ul v-if="filteredExams.length > 0" class="divide-y divide-line">
+                        <ul v-if="examItems.length > 0" class="divide-y divide-line">
                             <li
-                                v-for="exam in filteredExams"
+                                v-for="exam in examItems"
                                 :key="exam.id"
                                 class="p-4 sm:p-5 flex items-start justify-between gap-4 hover:bg-bg transition-colors"
                             >
@@ -297,6 +304,8 @@ const remove = async (exam) => {
                             </button>
                         </EmptyState>
                     </Card>
+
+                    <Pagination :paginator="exams" label="exams" />
                 </template>
             </div>
 

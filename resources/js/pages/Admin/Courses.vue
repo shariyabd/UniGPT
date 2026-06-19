@@ -1,11 +1,12 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { Head, useForm, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
 import Card from '@/components/ui/Card.vue';
 import Badge from '@/components/ui/Badge.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
+import Pagination from '@/components/ui/Pagination.vue';
 import { useConfirm } from '@/composables/useConfirm';
 import {
     AcademicCapIcon,
@@ -22,35 +23,58 @@ import {
 } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
-    courses: { type: Array, default: () => [] },
+    courses: { type: Object, default: () => ({ data: [] }) },
     departments: { type: Array, default: () => [] },
     faculty: { type: Array, default: () => [] },
     students: { type: Array, default: () => [] },
     terms: { type: Array, default: () => [] },
+    semesterOptions: { type: Array, default: () => [] },
+    filters: { type: Object, default: () => ({}) },
 });
+
+const courseItems = computed(() => props.courses.data ?? []);
 
 const { confirm, notify } = useConfirm();
 
-/* ---- Search + filters ---- */
-const search = ref('');
-const departmentFilter = ref(null);
-const semesterFilter = ref(null);
+/* ---- Search + filters (applied SERVER-SIDE across all pages) ---- */
+const search = ref(props.filters.search ?? '');
+const departmentFilter = ref(props.filters.department_id ? Number(props.filters.department_id) : null);
+const semesterFilter = ref(props.filters.semester ? Number(props.filters.semester) : null);
 
-const semesterOptions = computed(() =>
-    [...new Set(props.courses.map((c) => c.semester).filter((s) => s != null))].sort((a, b) => a - b),
+// Semester options come from the whole catalog (server), not just this page.
+const semesterOptions = computed(() => props.semesterOptions ?? []);
+
+const hasActiveFilters = computed(() =>
+    search.value !== '' || departmentFilter.value !== null || semesterFilter.value !== null
 );
 
-const filteredCourses = computed(() => {
-    const q = search.value.trim().toLowerCase();
-    return props.courses.filter((course) => {
-        const matchesText = !q
-            || course.code.toLowerCase().includes(q)
-            || course.name.toLowerCase().includes(q);
-        const matchesDept = departmentFilter.value === null || course.departmentId === departmentFilter.value;
-        const matchesSem = semesterFilter.value === null || course.semester === semesterFilter.value;
-        return matchesText && matchesDept && matchesSem;
-    });
+const totalCourses = computed(() => props.courses.meta?.total ?? props.courses.total ?? courseItems.value.length);
+
+const applyFilters = () => {
+    router.get(
+        route('admin.courses'),
+        {
+            search: search.value || undefined,
+            department_id: departmentFilter.value ?? undefined,
+            semester: semesterFilter.value ?? undefined,
+        },
+        { preserveState: true, preserveScroll: true, replace: true },
+    );
+};
+
+let searchTimer = null;
+watch(search, () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(applyFilters, 300);
 });
+watch([departmentFilter, semesterFilter], applyFilters);
+
+const clearFilters = () => {
+    search.value = '';
+    departmentFilter.value = null;
+    semesterFilter.value = null;
+    applyFilters();
+};
 
 const expanded = ref(null);
 const toggleExpand = (id) => { expanded.value = expanded.value === id ? null : id; };
@@ -208,7 +232,7 @@ const enrollForm = useForm({ student_id: null });
 
 // Derive the live section from props so the modal reflects enroll/drop reloads.
 const rosterSection = computed(() => {
-    for (const course of props.courses) {
+    for (const course of courseItems.value) {
         const section = (course.sections || []).find((s) => s.id === rosterSectionId.value);
         if (section) return { ...section, courseCode: course.code, courseName: course.name };
     }
@@ -276,7 +300,7 @@ const dropStudent = async (student) => {
                 </PageHeader>
 
                 <EmptyState
-                    v-if="courses.length === 0"
+                    v-if="totalCourses === 0 && !hasActiveFilters"
                     title="No courses yet"
                     description="Create your first catalog course, then add sections and assign faculty."
                     :icon="AcademicCapIcon"
@@ -301,18 +325,30 @@ const dropStudent = async (student) => {
                             <option :value="null">All semesters</option>
                             <option v-for="s in semesterOptions" :key="s" :value="s">Semester {{ s }}</option>
                         </select>
+                        <button
+                            v-if="hasActiveFilters"
+                            type="button"
+                            @click="clearFilters"
+                            class="ui-btn-ghost text-primary"
+                        >
+                            <XMarkIcon class="w-4 h-4" /> Clear
+                        </button>
                     </div>
 
-                    <p class="text-sm text-content-muted">Showing {{ filteredCourses.length }} of {{ courses.length }} course(s)</p>
+                    <p class="text-sm text-content-muted">{{ totalCourses }} course{{ totalCourses === 1 ? '' : 's' }} match{{ totalCourses === 1 ? 'es' : '' }} your filters</p>
 
                     <EmptyState
-                        v-if="filteredCourses.length === 0"
+                        v-if="courseItems.length === 0"
                         title="No matching courses"
                         description="Try a different search term or clear the filters."
                         :icon="MagnifyingGlassIcon"
-                    />
+                    >
+                        <button type="button" @click="clearFilters" class="ui-btn-secondary">
+                            <XMarkIcon class="w-4 h-4" /> Clear filters
+                        </button>
+                    </EmptyState>
 
-                    <Card v-for="course in filteredCourses" :key="course.id" padding="p-0">
+                    <Card v-for="course in courseItems" :key="course.id" padding="p-0">
                         <!-- Course row -->
                         <div class="flex items-start justify-between gap-3 p-4 sm:p-5">
                             <button type="button" class="flex items-start gap-3 min-w-0 text-left" @click="toggleExpand(course.id)">
@@ -382,6 +418,8 @@ const dropStudent = async (student) => {
                             </div>
                         </div>
                     </Card>
+
+                    <Pagination :paginator="courses" label="courses" />
                 </div>
             </div>
 

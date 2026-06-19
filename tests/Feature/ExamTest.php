@@ -145,4 +145,31 @@ class ExamTest extends TestCase
             ->get('/admin/exams')
             ->assertRedirect();
     }
+
+    public function test_admin_exam_course_filter_matches_across_all_pages(): void
+    {
+        $admin = $this->admin();
+
+        // Pick a course that actually has exams so the filter has something to match.
+        $exam = Exam::query()->whereNotNull('course_id')->first();
+
+        if (! $exam) {
+            $this->markTestSkipped('No exams seeded.');
+        }
+
+        $courseId = $exam->course_id;
+        $expected = Exam::where('course_id', $courseId)->count();
+
+        $props = $this->actingAs($admin)
+            ->get('/admin/exams?course_id='.$courseId)
+            ->viewData('page')['props'];
+
+        // Server filters across the whole dataset, then paginates the result —
+        // so the count reflects every match, not just rows on the first page.
+        $this->assertSame((string) $courseId, (string) $props['filters']['course_id']);
+        $this->assertSame($expected, $props['exams']['total']);
+        foreach ($props['exams']['data'] as $row) {
+            $this->assertSame($courseId, $row['course']['id']);
+        }
+    }
 }
