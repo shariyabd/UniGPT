@@ -18,6 +18,7 @@ import {
     SparklesIcon,
     ClipboardDocumentCheckIcon,
     ArrowLeftIcon,
+    ArrowDownTrayIcon,
 } from '@heroicons/vue/24/outline';
 
 // Component state
@@ -29,6 +30,7 @@ const sortBy = ref('submitted_date');
 const searchQuery = ref('');
 const currentGrade = ref('');
 const currentFeedback = ref('');
+const currentRubricScores = ref({});
 const isGrading = ref(false);
 
 // Real data from the backend (GradingController@index → GradingService::overview)
@@ -198,6 +200,8 @@ const openGradingPanel = (submission) => {
     selectedSubmission.value = submission;
     currentGrade.value = submission.grade || '';
     currentFeedback.value = submission.feedback || '';
+    // Seed rubric inputs from any previously-saved per-criterion scores.
+    currentRubricScores.value = { ...(submission.rubricScores || {}) };
     showGradingPanel.value = true;
 };
 
@@ -206,6 +210,19 @@ const closeGradingPanel = () => {
     selectedSubmission.value = null;
     currentGrade.value = '';
     currentFeedback.value = '';
+    currentRubricScores.value = {};
+};
+
+// Running total of the rubric inputs; lets faculty apply it as the grade.
+const rubricTotal = computed(() =>
+    Object.values(currentRubricScores.value).reduce(
+        (sum, value) => sum + (parseFloat(value) || 0),
+        0,
+    ),
+);
+
+const applyRubricTotal = () => {
+    currentGrade.value = rubricTotal.value;
 };
 
 const toast = useToast();
@@ -241,9 +258,14 @@ const submitGrade = () => {
 
     isGrading.value = true;
 
+    const rubricScores = Object.keys(currentRubricScores.value).length
+        ? currentRubricScores.value
+        : null;
+
     router.post(route('faculty.submissions.grade', selectedSubmission.value.id), {
         grade: parseFloat(currentGrade.value),
         feedback: currentFeedback.value || null,
+        rubric_scores: rubricScores,
     }, {
         preserveScroll: true,
         // A fresh visit re-seeds assignments/submissions from the server.
@@ -661,6 +683,7 @@ if (assignments.value.length > 0) {
                                                 </div>
                                                 <p class="text-xs text-content-muted mb-2">{{ criterion.description }}</p>
                                                 <input
+                                                    v-model.number="currentRubricScores[criterion.name]"
                                                     type="number"
                                                     :max="criterion.points"
                                                     min="0"
@@ -669,6 +692,17 @@ if (assignments.value.length > 0) {
                                                     :placeholder="`0 - ${criterion.points}`"
                                                 />
                                             </div>
+                                        </div>
+                                        <div class="mt-3 flex items-center justify-between rounded-control border border-line bg-bg px-3 py-2">
+                                            <span class="text-sm font-medium text-content">Rubric total: {{ rubricTotal }}</span>
+                                            <button
+                                                type="button"
+                                                @click="applyRubricTotal"
+                                                class="ui-btn-secondary !py-1.5 !px-3 text-xs"
+                                            >
+                                                <ArrowDownTrayIcon class="h-4 w-4" />
+                                                Apply as grade
+                                            </button>
                                         </div>
                                     </div>
 
