@@ -157,12 +157,32 @@ class DocumentService
      *
      * @param  array<string, mixed>  $filters
      */
-    public function library(array $filters = [], int $perPage = 12): LengthAwarePaginator
+    public function library(array $filters = [], int $perPage = 12, ?User $user = null): LengthAwarePaginator
     {
-        return $this->applyFilters(Document::with(['uploader', 'department']), $filters)
+        $query = Document::with(['uploader', 'department']);
+
+        if ($user) {
+            $query->withExists([
+                'bookmarkedBy as is_bookmarked' => fn (Builder $bookmarks) => $bookmarks->whereKey($user->id),
+            ]);
+        }
+
+        return $this->applyFilters($query, $filters)
             ->latest()
             ->paginate($perPage)
             ->withQueryString();
+    }
+
+    /**
+     * Toggle the current user's bookmark on a document.
+     *
+     * @return bool The bookmark state after toggling (true = bookmarked).
+     */
+    public function toggleBookmark(User $user, Document $document): bool
+    {
+        $changes = $user->bookmarkedDocuments()->toggle($document->id);
+
+        return ! empty($changes['attached']);
     }
 
     /**

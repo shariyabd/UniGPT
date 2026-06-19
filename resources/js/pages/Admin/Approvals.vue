@@ -6,6 +6,7 @@ import PageHeader from '@/components/ui/PageHeader.vue';
 import Card from '@/components/ui/Card.vue';
 import Badge from '@/components/ui/Badge.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
+import Pagination from '@/components/ui/Pagination.vue';
 import {
     DocumentTextIcon,
     ClockIcon,
@@ -27,7 +28,7 @@ import {
 } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
-    pendingDocuments: { type: Array, default: () => [] },
+    pendingDocuments: { type: Object, default: () => ({ data: [] }) },
     stats: { type: Object, default: () => ({}) },
 });
 
@@ -41,8 +42,8 @@ const commentMode = ref('comment'); // 'comment' | 'changes'
 const newComment = ref('');
 const expandedItems = ref(new Set());
 
-// Pending queue supplied by the server.
-const pendingDocuments = computed(() => props.pendingDocuments);
+// Pending queue supplied by the server (current page of the paginator).
+const pendingDocuments = computed(() => props.pendingDocuments.data ?? []);
 
 // Filter options
 const statusOptions = computed(() => [
@@ -495,6 +496,8 @@ const downloadDocument = (doc) => {
                             Clear Filters
                         </button>
                     </EmptyState>
+
+                    <Pagination :paginator="props.pendingDocuments" label="documents" />
                 </div>
             </div>
 

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Domain\Chat\Document\Services\DocumentService;
+use App\Http\Controllers\Concerns\PaginatesCollections;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreDocumentRequest;
 use App\Http\Resources\DocumentResource;
@@ -16,6 +17,8 @@ use Inertia\Response;
 
 class DocumentController extends Controller
 {
+    use PaginatesCollections;
+
     public function __construct(private readonly DocumentService $documents) {}
 
     public function upload(): Response
@@ -46,7 +49,9 @@ class DocumentController extends Controller
         $filters = $request->only(['category', 'department_id', 'file_type', 'search', 'status']);
 
         return Inertia::render('Admin/DocumentLibrary', [
-            'documents' => DocumentResource::collection($this->documents->library($filters)),
+            'documents' => DocumentResource::collection(
+                $this->documents->library($filters, 25, $request->user())
+            ),
             'filters' => $filters,
             'categories' => $this->categories(),
             'departments' => Department::orderBy('name')->get(['id', 'name']),
@@ -56,8 +61,10 @@ class DocumentController extends Controller
 
     public function approvals(): Response
     {
-        $pending = $this->documents->reviewQueue()->map(
-            fn (Document $document) => $this->presentForApproval($document)
+        $pending = $this->paginateCollection(
+            $this->documents->reviewQueue()->map(
+                fn (Document $document) => $this->presentForApproval($document)
+            )
         );
 
         return Inertia::render('Admin/Approvals', [
@@ -183,6 +190,13 @@ class DocumentController extends Controller
         $this->documents->delete($document);
 
         return back()->with('success', 'Document deleted.');
+    }
+
+    public function toggleBookmark(Request $request, Document $document): RedirectResponse
+    {
+        $bookmarked = $this->documents->toggleBookmark($request->user(), $document);
+
+        return back(303)->with('success', $bookmarked ? 'Added to bookmarks.' : 'Removed from bookmarks.');
     }
 
     /**

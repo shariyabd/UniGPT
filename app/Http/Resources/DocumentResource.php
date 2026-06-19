@@ -36,6 +36,7 @@ class DocumentResource extends JsonResource
             'tags' => $this->tags ?? [],
             'downloads' => $this->downloads,
             'views' => $this->views,
+            'isBookmarked' => (bool) ($this->is_bookmarked ?? false),
             'uploadedBy' => $this->whenLoaded('uploader', fn () => $this->uploader?->name),
             'uploadedAt' => $this->created_at?->toDateString(),
             'approvedAt' => $this->approved_at?->toDateString(),

@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -76,6 +77,14 @@ class Document extends Model
     public function approvals(): HasMany
     {
         return $this->hasMany(DocumentApproval::class);
+    }
+
+    /**
+     * Users who have bookmarked this document.
+     */
+    public function bookmarkedBy(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'document_bookmarks')->withTimestamps();
     }
 
     public function scopeApproved(Builder $query): Builder

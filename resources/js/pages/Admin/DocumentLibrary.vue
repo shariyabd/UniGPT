@@ -73,7 +73,7 @@ const documents = ref((props.documents?.data ?? []).map((d) => ({
     tags: d.tags ?? [],
     downloadUrl: d.downloadUrl,
     previewUrl: d.previewUrl,
-    isBookmarked: false,
+    isBookmarked: d.isBookmarked ?? false,
     rating: null,
 })));
 
@@ -226,9 +226,20 @@ const getStatusBadge = (status) => {
 // Actions
 const toggleBookmark = (docId) => {
     const doc = documents.value.find(d => d.id === docId);
-    if (doc) {
-        doc.isBookmarked = !doc.isBookmarked;
-    }
+    if (!doc) return;
+
+    // Optimistic flip, persisted server-side; roll back if the request fails.
+    const previous = doc.isBookmarked;
+    doc.isBookmarked = !previous;
+
+    router.post(route('admin.documents.bookmark', docId), {}, {
+        preserveScroll: true,
+        preserveState: true,
+        onError: () => {
+            doc.isBookmarked = previous;
+            toast.error('Could not update bookmark.');
+        },
+    });
 };
 
 const downloadDocument = (doc) => {

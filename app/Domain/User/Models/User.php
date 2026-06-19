@@ -79,6 +79,15 @@ class User extends Authenticatable
     }
 
     /**
+     * Documents this user has bookmarked in the knowledge-base library.
+     */
+    public function bookmarkedDocuments(): BelongsToMany
+    {
+        return $this->belongsToMany(\App\Models\Document::class, 'document_bookmarks')
+            ->withTimestamps();
+    }
+
+    /**
      * Sections (offerings) this user is enrolled in as a student.
      *
      * The section — not the course — is the unit a student actually attends, so
