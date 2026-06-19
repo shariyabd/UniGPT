@@ -8,6 +8,7 @@ import PageHeader from '@/components/ui/PageHeader.vue';
 import Card from '@/components/ui/Card.vue';
 import Badge from '@/components/ui/Badge.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
+import Pagination from '@/components/ui/Pagination.vue';
 import {
     UsersIcon,
     MagnifyingGlassIcon,
@@ -513,6 +514,8 @@ const bulkUpdateRole = (role) => {
                                 Clear Filters
                             </button>
                         </EmptyState>
+
+                        <Pagination :paginator="props.users" label="users" />
                     </Card>
                 </div>
             </div>

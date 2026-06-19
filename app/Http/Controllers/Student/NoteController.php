@@ -20,8 +20,9 @@ class NoteController extends Controller
             ->with('course:id,code')
             ->orderByDesc('is_pinned')
             ->latest('updated_at')
-            ->get()
-            ->map(fn (Note $note) => $this->present($note));
+            ->paginate(25)
+            ->withQueryString()
+            ->through(fn (Note $note) => $this->present($note));
 
         return Inertia::render('Student/Notes', [
             'notes' => $notes,

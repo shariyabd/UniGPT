@@ -6,6 +6,7 @@ import PageHeader from '@/components/ui/PageHeader.vue';
 import Card from '@/components/ui/Card.vue';
 import Badge from '@/components/ui/Badge.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
+import Pagination from '@/components/ui/Pagination.vue';
 import {
     DocumentTextIcon,
     ClipboardDocumentListIcon,
@@ -16,8 +17,10 @@ import {
 } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
-    assignments: { type: Array, default: () => [] },
+    assignments: { type: Object, default: () => ({ data: [] }) },
 });
+
+const assignmentItems = computed(() => props.assignments.data ?? []);
 
 // Map the student's per-assignment state to a label + badge variant.
 const statusMeta = (item) => {
@@ -37,17 +40,17 @@ const filters = [
 const activeFilter = ref('all');
 
 const filtered = computed(() => {
-    if (activeFilter.value === 'all') return props.assignments;
+    if (activeFilter.value === 'all') return assignmentItems.value;
     if (activeFilter.value === 'pending') {
-        return props.assignments.filter((a) => a.status === 'pending');
+        return assignmentItems.value.filter((a) => a.status === 'pending');
     }
     if (activeFilter.value === 'submitted') {
-        return props.assignments.filter((a) => a.status === 'submitted' || a.status === 'late');
+        return assignmentItems.value.filter((a) => a.status === 'submitted' || a.status === 'late');
     }
-    return props.assignments.filter((a) => a.status === 'graded');
+    return assignmentItems.value.filter((a) => a.status === 'graded');
 });
 
-const pendingCount = computed(() => props.assignments.filter((a) => a.status === 'pending').length);
+const pendingCount = computed(() => assignmentItems.value.filter((a) => a.status === 'pending').length);
 
 const formatDate = (iso) =>
     iso ? new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'No due date';
@@ -131,6 +134,8 @@ const formatDate = (iso) =>
                         </li>
                     </ul>
                 </Card>
+
+                <Pagination :paginator="assignments" label="assignments" />
             </div>
         </AppLayout>
     </div>

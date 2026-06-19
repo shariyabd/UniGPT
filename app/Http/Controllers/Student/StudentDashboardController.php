@@ -83,7 +83,7 @@ class StudentDashboardController extends Controller
         $filters = $request->only(['category', 'search']);
 
         return Inertia::render('Student/Documents', [
-            'documents' => DocumentResource::collection($this->documents->libraryFor($user, $filters)),
+            'documents' => DocumentResource::collection($this->documents->libraryFor($user, $filters, 25)),
             'filters' => $filters,
             'categories' => Document::approved()->visibleTo($user)
                 ->select('category')->distinct()->pluck('category'),

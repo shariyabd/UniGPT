@@ -1,17 +1,20 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { Head, useForm, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
 import Card from '@/components/ui/Card.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
+import Pagination from '@/components/ui/Pagination.vue';
 import { PencilIcon, TrashIcon, PlusIcon, BookmarkIcon } from '@heroicons/vue/24/outline';
 import { BookmarkIcon as BookmarkSolid } from '@heroicons/vue/24/solid';
 
 const props = defineProps({
-    notes: { type: Array, default: () => [] },
+    notes: { type: Object, default: () => ({ data: [] }) },
     courses: { type: Array, default: () => [] },
 });
+
+const noteItems = computed(() => props.notes.data ?? []);
 
 const editingId = ref(null);
 
@@ -144,7 +147,7 @@ const togglePin = (note) => {
 
                     <!-- List -->
                     <div class="lg:col-span-2">
-                        <Card v-if="notes.length === 0" padding="p-0">
+                        <Card v-if="noteItems.length === 0" padding="p-0">
                             <EmptyState
                                 title="No notes yet"
                                 description="Jot something down using the editor to start your collection."
@@ -154,7 +157,7 @@ const togglePin = (note) => {
 
                         <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div
-                                v-for="note in notes"
+                                v-for="note in noteItems"
                                 :key="note.id"
                                 class="group ui-card flex flex-col p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg"
                             >
@@ -203,6 +206,8 @@ const togglePin = (note) => {
                                 </div>
                             </div>
                         </div>
+
+                        <Pagination :paginator="notes" label="notes" />
                     </div>
                 </div>
             </div>

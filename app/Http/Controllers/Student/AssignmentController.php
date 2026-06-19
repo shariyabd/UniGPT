@@ -8,6 +8,7 @@ use App\Domain\Academic\Services\SubmissionService;
 use App\Domain\Notification\Services\NotificationService;
 use App\Domain\User\Models\User;
 use App\Enums\NotificationType;
+use App\Http\Controllers\Concerns\PaginatesCollections;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Student\SubmitAssignmentRequest;
 use App\Models\Assignment;
@@ -18,6 +19,8 @@ use Inertia\Response;
 
 class AssignmentController extends Controller
 {
+    use PaginatesCollections;
+
     public function __construct(
         private readonly SubmissionService $submissions,
         private readonly NotificationService $notifications,
@@ -27,7 +30,7 @@ class AssignmentController extends Controller
     public function index(): Response
     {
         return Inertia::render('Student/Assignments', [
-            'assignments' => $this->submissions->listFor(request()->user()),
+            'assignments' => $this->paginateCollection($this->submissions->listFor(request()->user())),
         ]);
     }
 

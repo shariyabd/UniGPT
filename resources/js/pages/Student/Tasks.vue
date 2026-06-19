@@ -6,14 +6,17 @@ import PageHeader from '@/components/ui/PageHeader.vue';
 import Card from '@/components/ui/Card.vue';
 import Badge from '@/components/ui/Badge.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
+import Pagination from '@/components/ui/Pagination.vue';
 import { PencilSquareIcon, TrashIcon, PlusIcon, CheckCircleIcon, FlagIcon } from '@heroicons/vue/24/outline';
 import { CheckCircleIcon as CheckCircleSolid } from '@heroicons/vue/24/solid';
 
 const props = defineProps({
-    tasks: { type: Array, default: () => [] },
+    tasks: { type: Object, default: () => ({ data: [] }) },
     courses: { type: Array, default: () => [] },
     priorities: { type: Array, default: () => [] },
 });
+
+const taskItems = computed(() => props.tasks.data ?? []);
 
 const editingId = ref(null);
 
@@ -26,8 +29,8 @@ const form = useForm({
     is_completed: false,
 });
 
-const pending = computed(() => props.tasks.filter((t) => !t.isCompleted));
-const done = computed(() => props.tasks.filter((t) => t.isCompleted));
+const pending = computed(() => taskItems.value.filter((t) => !t.isCompleted));
+const done = computed(() => taskItems.value.filter((t) => t.isCompleted));
 
 const priorityVariant = (priority) => ({
     high: 'danger',
@@ -258,6 +261,8 @@ const remove = (task) => {
                                 </div>
                             </Card>
                         </section>
+
+                        <Pagination :paginator="tasks" label="tasks" />
                     </div>
                 </div>
             </div>

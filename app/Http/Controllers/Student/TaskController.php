@@ -21,8 +21,9 @@ class TaskController extends Controller
             ->with('course:id,code')
             ->orderBy('is_completed')
             ->orderByRaw('due_date is null, due_date asc')
-            ->get()
-            ->map(fn (Task $task) => $this->present($task));
+            ->paginate(25)
+            ->withQueryString()
+            ->through(fn (Task $task) => $this->present($task));
 
         return Inertia::render('Student/Tasks', [
             'tasks' => $tasks,

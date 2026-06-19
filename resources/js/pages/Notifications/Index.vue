@@ -1,9 +1,11 @@
 <script setup>
+import { computed } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
 import Card from '@/components/ui/Card.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
+import Pagination from '@/components/ui/Pagination.vue';
 import {
     BellIcon,
     AcademicCapIcon,
@@ -18,9 +20,11 @@ import {
 } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
-    notifications: { type: Array, default: () => [] },
+    notifications: { type: Object, default: () => ({ data: [] }) },
     unreadCount: { type: Number, default: 0 },
 });
+
+const notificationItems = computed(() => props.notifications.data ?? []);
 
 const iconMap = {
     AcademicCapIcon,
@@ -91,7 +95,7 @@ const remove = (item) => {
                     </template>
                 </PageHeader>
 
-                <Card v-if="notifications.length === 0" padding="p-0">
+                <Card v-if="notificationItems.length === 0" padding="p-0">
                     <EmptyState
                         title="You're all caught up"
                         description="You have no notifications right now. New updates will show up here."
@@ -102,7 +106,7 @@ const remove = (item) => {
                 <Card v-else padding="p-0">
                     <ul class="divide-y divide-line">
                         <li
-                            v-for="item in notifications"
+                            v-for="item in notificationItems"
                             :key="item.id"
                             class="group relative flex items-start gap-4 px-4 py-4 transition-colors sm:px-5"
                             :class="!item.read
@@ -166,6 +170,8 @@ const remove = (item) => {
                         </li>
                     </ul>
                 </Card>
+
+                <Pagination :paginator="notifications" label="notifications" />
             </div>
         </AppLayout>
     </div>

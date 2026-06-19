@@ -22,10 +22,9 @@ class NotificationController extends Controller
 
         $items = Notification::where('user_id', $user->id)
             ->latest()
-            ->limit(100)
-            ->get()
-            ->map(fn (Notification $n) => $this->notifications->present($n))
-            ->values();
+            ->paginate(25)
+            ->withQueryString()
+            ->through(fn (Notification $n) => $this->notifications->present($n));
 
         return Inertia::render('Notifications/Index', [
             'notifications' => $items,

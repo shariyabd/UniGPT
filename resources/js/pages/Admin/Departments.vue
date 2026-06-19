@@ -6,6 +6,7 @@ import PageHeader from '@/components/ui/PageHeader.vue';
 import Card from '@/components/ui/Card.vue';
 import Badge from '@/components/ui/Badge.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
+import Pagination from '@/components/ui/Pagination.vue';
 import { useConfirm } from '@/composables/useConfirm';
 import {
     BuildingOffice2Icon,
@@ -18,8 +19,10 @@ import {
 } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
-    departments: { type: Array, default: () => [] },
+    departments: { type: Object, default: () => ({ data: [] }) },
 });
+
+const departmentItems = computed(() => props.departments.data ?? []);
 
 const { confirm, notify } = useConfirm();
 
@@ -112,7 +115,7 @@ const remove = async (dept) => {
 
                 <!-- Empty state -->
                 <EmptyState
-                    v-if="departments.length === 0"
+                    v-if="departmentItems.length === 0"
                     title="No departments yet"
                     description="Create your first academic department to organise users and courses."
                     :icon="BuildingOffice2Icon"
@@ -126,12 +129,12 @@ const remove = async (dept) => {
                 <!-- List -->
                 <template v-else>
                     <p class="text-sm text-content-muted">
-                        {{ departments.length }} department{{ departments.length === 1 ? '' : 's' }}
+                        {{ departmentItems.length }} department{{ departmentItems.length === 1 ? '' : 's' }} on this page
                     </p>
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
                         <Card
-                            v-for="dept in departments"
+                            v-for="dept in departmentItems"
                             :key="dept.id"
                             hover
                             class="flex flex-col"
@@ -188,6 +191,8 @@ const remove = async (dept) => {
                             </div>
                         </Card>
                     </div>
+
+                    <Pagination :paginator="departments" label="departments" />
                 </template>
             </div>
 

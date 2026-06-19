@@ -28,7 +28,7 @@ class UserManagementController extends Controller
 
     public function index(): Response
     {
-        $paginated = $this->users->getPaginatedUsers(20);
+        $paginated = $this->users->getPaginatedUsers(25)->withQueryString();
         $paginated->setCollection(
             $paginated->getCollection()->map(fn (User $u) => $this->present($u))
         );

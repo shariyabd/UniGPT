@@ -21,8 +21,9 @@ class DepartmentController extends Controller
     {
         $departments = Department::withCount(['users', 'courses'])
             ->orderBy('name')
-            ->get()
-            ->map(fn (Department $d) => [
+            ->paginate(25)
+            ->withQueryString()
+            ->through(fn (Department $d) => [
                 'id' => $d->id,
                 'name' => $d->name,
                 'code' => $d->code,
