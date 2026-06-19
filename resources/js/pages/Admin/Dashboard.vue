@@ -1,6 +1,6 @@
 <script setup>
-import { ref, computed } from 'vue';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { computed } from 'vue';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { usePermissions } from '@/composables/usePermissions';
 import PageHeader from '@/components/ui/PageHeader.vue';
@@ -34,10 +34,14 @@ const props = defineProps({
     statistics: { type: Object, default: () => ({}) },
     pendingDocuments: { type: Object, default: () => ({ data: [] }) },
     recentActivities: { type: Array, default: () => [] },
-    systemHealth: { type: Object, default: () => ({}) }
+    systemHealth: { type: Object, default: () => ({}) },
+    studentInsights: { type: Object, default: () => ({}) }
 });
 
 const { can } = usePermissions();
+
+// Real authenticated admin (shared by HandleInertiaRequests), not a placeholder.
+const authUser = computed(() => usePage().props.auth?.user ?? {});
 
 // Map string icon identifiers from the server to Heroicon components
 const iconMap = {
@@ -98,21 +102,23 @@ const recentActivities = computed(() =>
     }))
 );
 
-// Quick actions for admin
-const quickActions = ref([
+// Quick actions for admin — badges reflect real counts from the backend.
+const numberFormat = (value) => new Intl.NumberFormat().format(value ?? 0);
+
+const quickActions = computed(() => [
     {
         title: 'User Management',
         description: 'Manage users, roles, and permissions',
         icon: UsersIcon,
         action: 'admin.users',
-        badge: '1,247 Users'
+        badge: `${numberFormat(props.statistics.total_users)} Users`
     },
     {
         title: 'Document Library',
         description: 'Manage document uploads and approvals',
         icon: DocumentIcon,
         action: 'admin.documents',
-        badge: '3,456 Docs'
+        badge: `${numberFormat(props.systemHealth.documents_indexed)} Docs`
     },
     {
         title: 'System Analytics',
@@ -126,35 +132,13 @@ const quickActions = ref([
         description: 'Configure AI models and settings',
         icon: BeakerIcon,
         action: 'admin.settings',
-        badge: 'GPT-4'
+        badge: props.systemHealth.ai_provider ?? 'AI'
     }
 ]);
 
-// System health metrics - YOUR ORIGINAL DATA STRUCTURE
-const systemHealth = ref({
-    cpu: 45,
-    memory: 62,
-    storage: 38,
-    network: 91,
-    database: 88
-});
-
-// Student insights - YOUR ORIGINAL DATA
-const studentInsights = ref({
-    activeStudents: 1247,
-    averagePerformance: 85.2,
-    improvementRate: 12.5,
-    satisfactionScore: 4.6
-});
-
-// Admin info
-const adminInfo = ref({
-    name: 'System Administrator',
-    email: 'admin@university.edu',
-    department: 'IT Administration',
-    employeeId: 'ADM001',
-    avatar: 'https://ui-avatars.com/api/?name=System+Administrator&background=8b5cf6&color=fff'
-});
+// Real student-body insights from the backend (totalStudents, enrolledThisTerm,
+// attendanceRate, totalFaculty, currentTerm).
+const studentInsights = computed(() => props.studentInsights ?? {});
 
 // Computed properties
 const greeting = computed(() => {
@@ -168,12 +152,13 @@ const pendingCount = computed(() => {
     return pendingDocuments.value.filter(doc => doc.status === 'pending').length;
 });
 
-const urgentCount = computed(() => {
-    return pendingDocuments.value.filter(doc => doc.urgent && doc.status === 'pending').length;
-});
+// Attendance rate doubles as the "overall progress" figure on the insights card.
+const attendanceRate = computed(() => studentInsights.value.attendanceRate ?? 0);
 
-const overallStudentPerformance = computed(() => {
-    return studentInsights.value.averagePerformance;
+const headerSubtitle = computed(() => {
+    const name = authUser.value.name ?? 'Administrator';
+    const department = authUser.value.department;
+    return department ? `${greeting.value}, ${name} • ${department}` : `${greeting.value}, ${name}`;
 });
 
 // Methods
@@ -195,12 +180,6 @@ const rejectDocument = (docId) => {
     router.post(route('admin.documents.reject', docId), {}, {
         preserveScroll: true
     });
-};
-
-const getHealthColor = (percentage) => {
-    if (percentage >= 80) return 'bg-success-fg';
-    if (percentage >= 60) return 'bg-warning-fg';
-    return 'bg-danger-fg';
 };
 
 const getActivityIcon = (type) => {
@@ -233,7 +212,7 @@ const getActivityColor = (status) => {
                 <!-- Page Header -->
                 <PageHeader
                     title="Admin Dashboard"
-                    :subtitle="`${greeting}, Administrator • ${adminInfo.employeeId} • ${adminInfo.department}`"
+                    :subtitle="headerSubtitle"
                     eyebrow="Full System Access"
                     :icon="HomeIcon"
                 >
@@ -263,11 +242,11 @@ const getActivityColor = (status) => {
                         </div>
                         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
                             <div class="rounded-control border border-line bg-bg px-3 py-2 text-center">
-                                <div class="text-lg font-bold text-content">1,247</div>
+                                <div class="text-lg font-bold text-content">{{ numberFormat(statistics.total_users) }}</div>
                                 <div class="text-[11px] text-content-muted">Total Users</div>
                             </div>
                             <div class="rounded-control border border-line bg-bg px-3 py-2 text-center">
-                                <div class="text-lg font-bold text-content">89</div>
+                                <div class="text-lg font-bold text-content">{{ numberFormat(statistics.online_users) }}</div>
                                 <div class="text-[11px] text-content-muted">Active Now</div>
                             </div>
                             <div class="rounded-control border border-line bg-bg px-3 py-2 text-center">
@@ -275,8 +254,8 @@ const getActivityColor = (status) => {
                                 <div class="text-[11px] text-content-muted">Pending</div>
                             </div>
                             <div class="rounded-control border border-line bg-bg px-3 py-2 text-center">
-                                <div class="text-lg font-bold text-content">99.8%</div>
-                                <div class="text-[11px] text-content-muted">Uptime</div>
+                                <div class="text-lg font-bold text-content">{{ numberFormat(statistics.new_registrations_this_week) }}</div>
+                                <div class="text-[11px] text-content-muted">New This Week</div>
                             </div>
                         </div>
                     </div>
@@ -335,20 +314,36 @@ const getActivityColor = (status) => {
                         <!-- System Health Monitor -->
                         <Card title="System Health" :icon="ServerIcon">
                             <template #actions>
-                                <Badge variant="success" dot>All Systems Operational</Badge>
+                                <Badge :variant="systemHealth.database_status === 'healthy' ? 'success' : 'danger'" dot>
+                                    {{ systemHealth.database_status === 'healthy' ? 'All Systems Operational' : 'Attention Needed' }}
+                                </Badge>
                             </template>
-                            <div class="space-y-4">
-                                <div v-for="(value, metric) in systemHealth" :key="metric">
-                                    <div class="flex items-center justify-between mb-2">
-                                        <span class="text-sm font-medium text-content capitalize">{{ metric }}</span>
-                                        <span class="text-sm text-content-muted">{{ value }}%</span>
-                                    </div>
-                                    <div class="w-full bg-neutral-bg rounded-full h-2">
-                                        <div
-                                            :class="`h-2 rounded-full transition-all duration-500 ${getHealthColor(value)}`"
-                                            :style="`width: ${value}%`"
-                                        ></div>
-                                    </div>
+                            <div class="space-y-3">
+                                <div class="flex items-center justify-between rounded-control border border-line bg-bg px-4 py-3">
+                                    <span class="flex items-center gap-2 text-sm font-medium text-content">
+                                        <CircleStackIcon class="h-5 w-5 text-content-faint" /> Database
+                                    </span>
+                                    <Badge :variant="systemHealth.database_status === 'healthy' ? 'success' : 'danger'" class="capitalize">
+                                        {{ systemHealth.database_status ?? 'unknown' }}
+                                    </Badge>
+                                </div>
+                                <div class="flex items-center justify-between rounded-control border border-line bg-bg px-4 py-3">
+                                    <span class="flex items-center gap-2 text-sm font-medium text-content">
+                                        <CpuChipIcon class="h-5 w-5 text-content-faint" /> AI Provider
+                                    </span>
+                                    <span class="text-sm font-semibold text-content">{{ systemHealth.ai_provider ?? '—' }}</span>
+                                </div>
+                                <div class="flex items-center justify-between rounded-control border border-line bg-bg px-4 py-3">
+                                    <span class="flex items-center gap-2 text-sm font-medium text-content">
+                                        <DocumentIcon class="h-5 w-5 text-content-faint" /> Documents Indexed
+                                    </span>
+                                    <span class="text-sm font-semibold text-content">{{ numberFormat(systemHealth.documents_indexed) }}</span>
+                                </div>
+                                <div class="flex items-center justify-between rounded-control border border-line bg-bg px-4 py-3">
+                                    <span class="flex items-center gap-2 text-sm font-medium text-content">
+                                        <ClockIcon class="h-5 w-5 text-content-faint" /> Documents Pending
+                                    </span>
+                                    <span class="text-sm font-semibold text-content">{{ numberFormat(systemHealth.documents_pending) }}</span>
                                 </div>
                             </div>
                         </Card>
@@ -434,41 +429,41 @@ const getActivityColor = (status) => {
                                         <ChartPieIcon class="w-5 h-5 text-content-faint" />
                                         Student Insights
                                     </h3>
-                                    <span class="ui-status-success">
-                                        {{ overallStudentPerformance }}% avg
+                                    <span v-if="studentInsights.currentTerm" class="ui-status-success">
+                                        {{ studentInsights.currentTerm }}
                                     </span>
                                 </div>
 
                                 <!-- Performance Metrics -->
                                 <div class="grid grid-cols-2 gap-3 mb-4">
                                     <div class="rounded-control border border-line bg-bg p-3 text-center">
-                                        <div class="text-lg font-bold text-content">{{ studentInsights.activeStudents }}</div>
-                                        <div class="text-xs text-content-muted">Active Students</div>
+                                        <div class="text-lg font-bold text-content">{{ numberFormat(studentInsights.totalStudents) }}</div>
+                                        <div class="text-xs text-content-muted">Total Students</div>
                                     </div>
                                     <div class="rounded-control border border-line bg-bg p-3 text-center">
-                                        <div class="text-lg font-bold text-content">{{ studentInsights.averagePerformance }}%</div>
-                                        <div class="text-xs text-content-muted">Avg Performance</div>
+                                        <div class="text-lg font-bold text-content">{{ numberFormat(studentInsights.enrolledThisTerm) }}</div>
+                                        <div class="text-xs text-content-muted">Enrolled (term)</div>
                                     </div>
                                     <div class="rounded-control border border-line bg-bg p-3 text-center">
-                                        <div class="text-lg font-bold text-content">+{{ studentInsights.improvementRate }}%</div>
-                                        <div class="text-xs text-content-muted">Improvement</div>
+                                        <div class="text-lg font-bold text-content">{{ attendanceRate }}%</div>
+                                        <div class="text-xs text-content-muted">Attendance Rate</div>
                                     </div>
                                     <div class="rounded-control border border-line bg-bg p-3 text-center">
-                                        <div class="text-lg font-bold text-content">{{ studentInsights.satisfactionScore }}/5</div>
-                                        <div class="text-xs text-content-muted">Satisfaction</div>
+                                        <div class="text-lg font-bold text-content">{{ numberFormat(studentInsights.totalFaculty) }}</div>
+                                        <div class="text-xs text-content-muted">Faculty</div>
                                     </div>
                                 </div>
 
                                 <!-- Progress Bar -->
                                 <div class="mb-4">
                                     <div class="flex justify-between text-sm text-content-muted mb-2">
-                                        <span>Overall Progress</span>
-                                        <span>{{ overallStudentPerformance }}%</span>
+                                        <span>Attendance Rate</span>
+                                        <span>{{ attendanceRate }}%</span>
                                     </div>
                                     <div class="w-full bg-neutral-bg rounded-full h-2">
                                         <div
                                             class="bg-primary h-2 rounded-full transition-all duration-500"
-                                            :style="`width: ${overallStudentPerformance}%`"
+                                            :style="`width: ${attendanceRate}%`"
                                         ></div>
                                     </div>
                                 </div>

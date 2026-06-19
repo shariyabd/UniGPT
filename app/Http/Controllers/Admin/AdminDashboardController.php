@@ -3,11 +3,15 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Domain\Chat\Document\Services\DocumentService;
+use App\Domain\User\Models\User;
 use App\Domain\User\Services\UserManagementService;
+use App\Enums\AttendanceStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\DocumentResource;
 use App\Models\ActivityLog;
+use App\Models\AttendanceRecord;
 use App\Models\Document;
+use App\Models\Term;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -36,7 +40,42 @@ class AdminDashboardController extends Controller
             ),
             'recentActivities' => $this->recentActivities(),
             'systemHealth' => $this->systemHealth($docStats),
+            'studentInsights' => $this->studentInsights($stats),
         ]);
+    }
+
+    /**
+     * Real, queryable student-body metrics for the dashboard insights card.
+     *
+     * @param  array<string, int>  $stats
+     * @return array<string, mixed>
+     */
+    private function studentInsights(array $stats): array
+    {
+        $currentTerm = Term::currentTerm();
+
+        $enrolledThisTerm = $currentTerm
+            ? User::whereHas(
+                'enrolledCourses',
+                fn ($query) => $query->where('course_user.term_id', $currentTerm->id)
+            )->count()
+            : 0;
+
+        $totalAttendance = AttendanceRecord::count();
+        $attended = $totalAttendance > 0
+            ? AttendanceRecord::where('status', '!=', AttendanceStatus::ABSENT->value)->count()
+            : 0;
+        $attendanceRate = $totalAttendance > 0
+            ? round($attended / $totalAttendance * 100, 1)
+            : 0.0;
+
+        return [
+            'totalStudents' => $stats['total_students'],
+            'enrolledThisTerm' => $enrolledThisTerm,
+            'attendanceRate' => $attendanceRate,
+            'totalFaculty' => $stats['total_faculty'],
+            'currentTerm' => $currentTerm?->name,
+        ];
     }
 
     /**
