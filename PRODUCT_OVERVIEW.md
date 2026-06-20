@@ -98,7 +98,7 @@ prep, research — keep responses on-task.
 | **Document knowledge base** | Upload, review and approve. Approved docs are chunked, embedded and made searchable automatically. |
 | **Role-based dashboards** | Students, faculty and admins each get a tailored home with the tools and data that matter to them. |
 | **Teaching automation** | Generate quizzes, assignments and rubrics, and draft grading feedback with an AI teaching assistant. |
-| **Timed quizzes & class tests** | Faculty set up online quizzes/class tests with rules, a duration timer, questions and marks; students take them in-panel with a live countdown and get auto-graded results the moment they submit. |
+| **Timed quizzes & class tests** | Faculty set up online quizzes/class tests with rules, a duration timer, questions and marks — writing questions by hand or **generating them with AI**, then editing. Students take them in-panel (fullscreen, anti-cheat) with a live countdown and get auto-graded results the moment they submit. |
 | **Attendance & analytics** | Mark attendance in seconds; track rates, grades, GPA and engagement across every course. |
 | **Granular RBAC** | Roles map to fine-grained permissions with time-limited grants — every action is gated and logged. |
 | **Announcements & alerts** | Broadcast to any audience and notify the right people on exams, grades and new materials. |
@@ -128,7 +128,7 @@ planner that keeps the term on track.
 Faculty manage courses end to end while the AI teaching assistant drafts assessments and
 feedback in seconds.
 - AI teaching assistant: quizzes, assignments & rubrics
-- Build timed quizzes & class tests with auto-grading
+- Build timed quizzes & class tests (AI-generated or manual questions) with auto-grading
 - Manage taught sections & publish course materials
 - One-click attendance with live class stats
 - Grading workspace with AI-drafted feedback

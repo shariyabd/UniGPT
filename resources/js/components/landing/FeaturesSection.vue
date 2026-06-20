@@ -66,7 +66,7 @@ import {
                 <div v-reveal="60" class="reveal ui-card ui-card-hover p-6 md:col-span-2">
                     <span class="ui-icon-tile bg-accent-sky-soft text-accent-sky-fg"><PencilSquareIcon class="h-5 w-5" /></span>
                     <h3 class="mt-4 font-semibold text-content">Timed quizzes & class tests</h3>
-                    <p class="mt-1.5 text-sm text-content-muted">Faculty set up timed online quizzes and class tests; students take them in-panel with a live countdown and get auto-graded results the moment they submit.</p>
+                    <p class="mt-1.5 text-sm text-content-muted">Faculty build timed online quizzes and class tests in minutes — write questions by hand or generate them with AI, then edit. Students take them in-panel with a live countdown and get auto-graded results the moment they submit.</p>
                 </div>
 
                 <div v-reveal="60" class="reveal ui-card ui-card-hover p-6">

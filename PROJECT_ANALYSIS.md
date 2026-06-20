@@ -134,10 +134,13 @@ retrievable in chat. Visibility is scoped; downloads are logged. Documents soft-
 - **Grades & transcript:** grades live on `course_user.grade`; `TranscriptService`
   computes per-term GPA and credit-weighted CGPA on a 4.0 scale (no extra schema).
 - **Quizzes / class tests:** faculty author a timed quiz on a section (instructions,
-  duration, questions + options, marks, optional availability window). A student starts an
-  **attempt**, the countdown runs server-side, and on submit/timeout the attempt is
-  **auto-graded** for supported question types — the score, summary and feedback return
-  instantly. Publishing a quiz notifies the roster.
+  duration, MCQ / True-False questions + options, marks, optional availability window).
+  Questions can be **written manually or generated with AI** (`ClassTestService::generateQuestions`,
+  built on `TeachingAssistantService`) and edited before publishing. A student starts an
+  **attempt** (the countdown is anchored to their start, enforced server-side), takes it in
+  fullscreen with anti-cheat (warn once, then disqualify), and on submit/timeout the attempt
+  is **auto-graded** — the score and answer review return instantly; a disqualified attempt
+  scores 0. Publishing a quiz notifies the roster.
 - **Notifications** are per-recipient rows; auto-fired on graded submission, published
   material, scheduled exam, published assignment, published quiz, and enrollment
   assignment; admins can **broadcast** announcements.
@@ -287,21 +290,22 @@ transcript, attendance, exams, calendar; keep personal notes/tasks; edit profile
 **Cannot:** upload/approve documents, manage users, configure AI, or see analytics beyond
 their own.
 **Key permissions:** `use_ai_chat`, `view_chat_history`, `view_courses`, `enroll_course`,
-`view_assignments`, `submit_assignment`, `view_attendance`, `view_exams`, `view_documents`,
-`download_document`, `view_own_analytics`.
+`view_assignments`, `submit_assignment`, `take_class_test`, `view_attendance`, `view_exams`,
+`view_documents`, `download_document`, `view_own_analytics`.
 
 ### 6.B Faculty
 **Can:** view/manage the **sections they teach**; upload/manage course materials; use the
 **AI teaching assistant** (RAG chat + quiz/assignment generators + publish); **author and
-run timed quizzes/class tests** (rules, duration, questions, marks, optional availability
-window — auto-graded); grade submissions with rubrics + AI-drafted feedback; mark
+run timed quizzes/class tests** (rules, duration, MCQ / True-False questions written by hand
+or **AI-generated**, marks, optional availability window — fullscreen proctoring + auto-graded);
+grade submissions with rubrics + AI-drafted feedback; mark
 attendance; read exam timetable; view
 per-course **learning analytics** (grade distribution, attendance rate, submission
 completion, at-risk flags).
 **Cannot:** manage users, configure the AI provider, own the catalog/terms/sections
 (admin-owned), or administer the system. Department-scoped.
 **Key permissions:** all student perms **+** `manage_materials`, `create_assignment`,
-`grade_assignment`, `mark_attendance`, `view_department_analytics`.
+`grade_assignment`, `manage_class_tests`, `mark_attendance`, `view_department_analytics`.
 > The catalog, sections, and term/registration are **admin-owned**; faculty are *assigned*
 > to sections and manage teaching artifacts within them.
 
