@@ -36,11 +36,14 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => fn () => $this->resolveAuthUser($request),
             ],
-            'flash' => [
-                'message' => fn () => $request->session()->get('message'),
-                'error' => fn () => $request->session()->get('error'),
-                'success' => fn () => $request->session()->get('success'),
-            ],
+            'flash' => fn () => array_filter([
+                // Legacy `status` (logout / password reset) surfaces as a success
+                // toast; legacy `message` surfaces as info — nothing is silently lost.
+                'success' => $request->session()->get('success') ?? $request->session()->get('status'),
+                'error' => $request->session()->get('error'),
+                'warning' => $request->session()->get('warning'),
+                'info' => $request->session()->get('info') ?? $request->session()->get('message'),
+            ]),
             'notifications' => fn () => $this->resolveNotifications($request),
             'ziggy' => fn () => [
                 ...(new Ziggy)->toArray(),

@@ -1,7 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
-import FlashMessages from '@/components/FlashMessages.vue';
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue';
 import NotificationBell from '@/components/NotificationBell.vue';
 import { usePermissions } from '@/composables/usePermissions';
@@ -305,7 +304,6 @@ if (typeof window !== 'undefined') {
                 </div>
             </header>
 
-            <FlashMessages />
             <ConfirmDialog />
             <main class="min-h-[calc(100dvh-64px)] animate-fade-in">
                 <slot />

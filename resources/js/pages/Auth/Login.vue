@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue';
-import { Head, Link, useForm, router,usePage } from '@inertiajs/vue3';
+import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
 import {
     UserIcon,
@@ -24,7 +24,6 @@ import {
 import { useTheme } from '@/composables/useTheme';
 
 const toast = useToast();
-const page = usePage();
 const { isDark, initTheme, toggleTheme } = useTheme();
 onMounted(() => initTheme());
 const isLogin = ref(true);
@@ -194,23 +193,16 @@ const selectRole = (role) => {
 
 const handleSubmit = () => {
     if (isLoading.value) return;
-    console.log(4364);
+
     const form = isLogin.value ? loginForm : signupForm;
     const routeName = isLogin.value ? 'login.store' : 'register';
 
+    // On success the server redirects to the dashboard; no toast is fired here so
+    // a "redirecting…" message can't linger on the already-loaded destination page.
     form.post(route(routeName), {
         onStart: () => isLoading.value = true,
         onFinish: () => isLoading.value = false,
-           onSuccess: (page) => {
-            const action = isLogin.value ? 'signed in' : 'registered';
-            toast.success(` Successfully ${action}! Redirecting to your dashboard...`, {
-                timeout: 3000,
-            });
-        },
-          onError: (errors) => {
-            console.error('Form validation errors:', errors);
-            handleFormErrors(errors);
-        }
+        onError: (errors) => handleFormErrors(errors),
     });
 };
 
@@ -233,9 +225,6 @@ const handleDemoLogin = (role) => {
     // so the guest was bounced straight back to the login page.)
     isLoading.value = true;
     router.post(route('demo.login'), { role }, {
-        onSuccess: () => {
-            toast.success('Signed in to the demo account. Redirecting…', { timeout: 3000 });
-        },
         onError: (errors) => handleFormErrors(errors),
         onFinish: () => { isLoading.value = false; },
     });
@@ -268,31 +257,7 @@ const formatField = (field) => {
         .replace(/\b\w/g, c => c.toUpperCase());
 };
 
-watch(() => page.props.flash, (flash) => {
-    if (flash?.success) {
-        toast.success(flash.success, {
-            timeout: 5000,
-        });
-    }
-
-    if (flash?.error) {
-        toast.error(flash.error, {
-            timeout: 7000,
-        });
-    }
-
-    if (flash?.warning) {
-        toast.warning(flash.warning, {
-            timeout: 6000,
-        });
-    }
-
-    if (flash?.info) {
-        toast.info(flash.info, {
-            timeout: 5000,
-        });
-    }
-}, { deep: true, immediate: true });
+// Flash messages (incl. logout status) are handled by the centralized pipeline in app.js.
 
 // Static feature bullets for the branded panel (display-only)
 const brandFeatures = [

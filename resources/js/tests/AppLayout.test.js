@@ -21,7 +21,6 @@ function mountAs(user) {
             },
             stubs: {
                 NavLink: { template: '<a class="navlink"><slot /></a>' },
-                FlashMessages: true,
             },
         },
     });
