@@ -96,6 +96,7 @@ class RBACSeeder extends Seeder
             PermissionEnum::VIEW_OWN_ANALYTICS,
             PermissionEnum::VIEW_ATTENDANCE,
             PermissionEnum::VIEW_EXAMS,
+            PermissionEnum::TAKE_CLASS_TEST,
         ];
 
         foreach ($studentPermissions as $permission) {
@@ -113,6 +114,7 @@ class RBACSeeder extends Seeder
             PermissionEnum::GRADE_ASSIGNMENT,
             PermissionEnum::MARK_ATTENDANCE,
             PermissionEnum::VIEW_DEPARTMENT_ANALYTICS,
+            PermissionEnum::MANAGE_CLASS_TESTS,
         ]);
 
         foreach ($facultyPermissions as $permission) {

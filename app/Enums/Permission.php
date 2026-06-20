@@ -44,6 +44,10 @@ enum Permission: string
     case VIEW_EXAMS = 'view_exams';
     case MANAGE_EXAMS = 'manage_exams';
 
+    // Class Tests / Quizzes (interactive, auto-graded)
+    case MANAGE_CLASS_TESTS = 'manage_class_tests';
+    case TAKE_CLASS_TEST = 'take_class_test';
+
     // Chat & AI
     case USE_AI_CHAT = 'use_ai_chat';
     case VIEW_CHAT_HISTORY = 'view_chat_history';
@@ -91,7 +95,8 @@ enum Permission: string
 
             self::VIEW_ATTENDANCE, self::MARK_ATTENDANCE => 'Attendance',
 
-            self::VIEW_EXAMS, self::MANAGE_EXAMS => 'Exams',
+            self::VIEW_EXAMS, self::MANAGE_EXAMS,
+            self::MANAGE_CLASS_TESTS, self::TAKE_CLASS_TEST => 'Exams',
 
             self::USE_AI_CHAT, self::VIEW_CHAT_HISTORY, self::DELETE_CHAT,
             self::CONFIGURE_AI => 'AI & Chat',

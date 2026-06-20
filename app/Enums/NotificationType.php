@@ -10,6 +10,7 @@ enum NotificationType: string
     case SUBMISSION = 'submission';
     case ENROLLMENT = 'enrollment';
     case EXAM = 'exam';
+    case CLASS_TEST = 'class_test';
     case ANNOUNCEMENT = 'announcement';
     case SYSTEM = 'system';
 
@@ -30,6 +31,7 @@ enum NotificationType: string
             self::SUBMISSION => 'InboxArrowDownIcon',
             self::ENROLLMENT => 'UserPlusIcon',
             self::EXAM => 'CalendarDaysIcon',
+            self::CLASS_TEST => 'PencilSquareIcon',
             self::ANNOUNCEMENT => 'MegaphoneIcon',
             self::SYSTEM => 'BellIcon',
         };
