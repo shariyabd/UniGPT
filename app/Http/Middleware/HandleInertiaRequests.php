@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Domain\Notification\Services\NotificationService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Inertia\Middleware;
 use Tighten\Ziggy\Ziggy;
 
@@ -36,14 +37,7 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => fn () => $this->resolveAuthUser($request),
             ],
-            'flash' => fn () => array_filter([
-                // Legacy `status` (logout / password reset) surfaces as a success
-                // toast; legacy `message` surfaces as info — nothing is silently lost.
-                'success' => $request->session()->get('success') ?? $request->session()->get('status'),
-                'error' => $request->session()->get('error'),
-                'warning' => $request->session()->get('warning'),
-                'info' => $request->session()->get('info') ?? $request->session()->get('message'),
-            ]),
+            'flash' => fn () => $this->resolveFlash($request),
             'notifications' => fn () => $this->resolveNotifications($request),
             'ziggy' => fn () => [
                 ...(new Ziggy)->toArray(),
@@ -57,6 +51,51 @@ class HandleInertiaRequests extends Middleware
      *
      * @return array<string, mixed>|null
      */
+    /**
+     * Normalised one-shot flash payload consumed by the centralized toast pipeline.
+     *
+     * This is the SINGLE source of action feedback (add/update/delete/etc.) for the
+     * whole app, so it must never surface twice. Two guarantees enforce that:
+     *
+     *  1. `pull()` (not `get()`) reads AND removes each key, so the flash is consumed
+     *     the instant it is read. It can never be re-read on a later navigation,
+     *     partial reload, or concurrent request (e.g. the notification poll) — which
+     *     is the classic reason a "saved"/"deleted" toast reappears on the next page.
+     *  2. A unique `id` is stamped on every flash response, and the client shows each
+     *     id exactly once. So even if Inertia re-emits the same props (a `success`
+     *     event plus the initial-page read, an HMR-stacked listener, or a re-render),
+     *     the toast still fires a single time.
+     *
+     * @return array<string, string>
+     */
+    protected function resolveFlash(Request $request): array
+    {
+        $session = $request->session();
+
+        // Pull every key unconditionally (no `??` short-circuit) so no alias is left
+        // behind in the session to resurface later. Legacy `status` (logout / password
+        // reset) maps to success; legacy `message` maps to info.
+        $success = $session->pull('success');
+        $status = $session->pull('status');
+        $error = $session->pull('error');
+        $warning = $session->pull('warning');
+        $info = $session->pull('info');
+        $message = $session->pull('message');
+
+        $messages = array_filter([
+            'success' => $success ?? $status,
+            'error' => $error,
+            'warning' => $warning,
+            'info' => $info ?? $message,
+        ]);
+
+        if ($messages === []) {
+            return [];
+        }
+
+        return ['id' => (string) Str::uuid(), ...$messages];
+    }
+
     /**
      * Shared notification payload (unread badge + recent dropdown) for the navbar bell.
      *
