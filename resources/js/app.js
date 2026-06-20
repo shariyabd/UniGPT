@@ -12,7 +12,7 @@ import { reveal } from '@/composables/useReveal';
 const appName = import.meta.env.VITE_APP_NAME || 'UniGPT';
 const toastOptions = {
     position: POSITION.TOP_RIGHT,
-    timeout: 5000,
+    timeout: 3000,
     closeOnClick: true,
     pauseOnFocusLoss: true,
     pauseOnHover: true,
@@ -23,7 +23,10 @@ const toastOptions = {
     closeButton: "button",
     icon: true,
     rtl: false,
-    transition: "Vue-Toastification__bounce",
+    // Plain fade in/out. The default "bounce" leave animation springs the toast
+    // back before it vanishes, which reads as the toast re-appearing and closing a
+    // second time — bad UX. A fade closes cleanly: shown once, gone once.
+    transition: "Vue-Toastification__fade",
     maxToasts: 3,
     newestOnTop: true,
     // Suppress only exact duplicates (same type AND same text). Distinct
@@ -37,10 +40,18 @@ const toastOptions = {
 };
 
 // Single, centralized flash → toast pipeline. The backend shares a normalized
-// `flash` object ({ success, error, warning, info }); this is the ONLY place that
-// turns it into toasts, so no page or layout should fire flash toasts itself.
+// `flash` object ({ id, success, error, warning, info }); this is the ONLY place
+// that turns it into toasts, so no page or layout should fire flash toasts itself.
+//
+// Each flash response carries a unique `id`. We track shown ids in a Set and skip
+// any id we've already displayed, so a single action shows its toast exactly once
+// even if Inertia re-emits the same props (success event + initial-page read, or a
+// re-render firing the handler again). This check is synchronous, so it wins the
+// race that vue-toastification's async content de-dupe could otherwise lose.
+const shownFlashIds = new Set();
 const showFlash = (flash) => {
-    if (!flash) return;
+    if (!flash || !flash.id || shownFlashIds.has(flash.id)) return;
+    shownFlashIds.add(flash.id);
     const toast = useToast();
     if (flash.error)   toast.error(flash.error);
     if (flash.warning) toast.warning(flash.warning);
