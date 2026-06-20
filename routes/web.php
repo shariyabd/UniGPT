@@ -19,6 +19,7 @@ use App\Http\Controllers\Faculty\AIAssistantController as FacultyAIAssistantCont
 use App\Http\Controllers\Faculty\AnalyticsController as FacultyAnalyticsController;
 use App\Http\Controllers\Faculty\AssignmentController as FacultyAssignmentController;
 use App\Http\Controllers\Faculty\AttendanceController as FacultyAttendanceController;
+use App\Http\Controllers\Faculty\ClassTestController as FacultyClassTestController;
 use App\Http\Controllers\Faculty\CourseController as FacultyCourseController;
 use App\Http\Controllers\Faculty\CourseMaterialController as FacultyCourseMaterialController;
 use App\Http\Controllers\Faculty\FacultyDashboardController;
@@ -27,6 +28,7 @@ use App\Http\Controllers\LegalController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Student\AssignmentController as StudentAssignmentController;
 use App\Http\Controllers\Student\ChatController;
+use App\Http\Controllers\Student\ClassTestController as StudentClassTestController;
 use App\Http\Controllers\Student\NoteController;
 use App\Http\Controllers\Student\RegistrationController as StudentRegistrationController;
 use App\Http\Controllers\Student\SavedAnswerController;
@@ -104,6 +106,17 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/assignments/{assignment}', [StudentAssignmentController::class, 'show'])->middleware('permission:view_assignments')->name('assignments.show');
         Route::post('/assignments/{assignment}/submit', [StudentAssignmentController::class, 'store'])->middleware('permission:submit_assignment')->name('assignments.submit');
 
+        // Class tests / quizzes (proctored, auto-graded, instant results)
+        Route::middleware('permission:take_class_test')->group(function () {
+            Route::get('/class-tests', [StudentClassTestController::class, 'index'])->name('class-tests');
+            Route::get('/class-tests/{classTest}', [StudentClassTestController::class, 'show'])->name('class-tests.show');
+            Route::post('/class-tests/{classTest}/start', [StudentClassTestController::class, 'start'])->name('class-tests.start');
+            Route::get('/class-tests/{classTest}/take', [StudentClassTestController::class, 'take'])->name('class-tests.take');
+            Route::post('/class-tests/{classTest}/violation', [StudentClassTestController::class, 'violation'])->name('class-tests.violation');
+            Route::post('/class-tests/{classTest}/submit', [StudentClassTestController::class, 'submit'])->name('class-tests.submit');
+            Route::get('/class-tests/{classTest}/result', [StudentClassTestController::class, 'result'])->name('class-tests.result');
+        });
+
         // Personal productivity (self-service; scoped to the owner) — Notes
         Route::get('/notes', [NoteController::class, 'index'])->name('notes');
         Route::post('/notes', [NoteController::class, 'store'])->name('notes.store');
@@ -158,6 +171,19 @@ Route::middleware(['auth'])->group(function () {
 
         // Exam timetable (read-only view of the faculty's course exams)
         Route::get('/exams', [FacultyDashboardController::class, 'exams'])->middleware('permission:view_exams')->name('exams');
+
+        // Class tests / quizzes — faculty author, publish and view results
+        Route::middleware('permission:manage_class_tests')->group(function () {
+            Route::get('/class-tests', [FacultyClassTestController::class, 'index'])->name('class-tests');
+            Route::get('/class-tests/create', [FacultyClassTestController::class, 'create'])->name('class-tests.create');
+            Route::post('/class-tests/generate', [FacultyClassTestController::class, 'generate'])->name('class-tests.generate');
+            Route::post('/class-tests', [FacultyClassTestController::class, 'store'])->name('class-tests.store');
+            Route::get('/class-tests/{classTest}/edit', [FacultyClassTestController::class, 'edit'])->name('class-tests.edit');
+            Route::patch('/class-tests/{classTest}', [FacultyClassTestController::class, 'update'])->name('class-tests.update');
+            Route::patch('/class-tests/{classTest}/status', [FacultyClassTestController::class, 'toggleStatus'])->name('class-tests.status');
+            Route::delete('/class-tests/{classTest}', [FacultyClassTestController::class, 'destroy'])->name('class-tests.destroy');
+            Route::get('/class-tests/{classTest}/results', [FacultyClassTestController::class, 'results'])->name('class-tests.results');
+        });
 
         // Learning analytics & academic reporting
         Route::get('/analytics', [FacultyAnalyticsController::class, 'index'])->middleware('permission:view_department_analytics')->name('analytics');
