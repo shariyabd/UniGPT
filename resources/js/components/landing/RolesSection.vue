@@ -19,6 +19,7 @@ const tabs = [
             'AI chat with citations, confidence & saved answers',
             'Personal dashboard: courses, CGPA & deadlines',
             'One-click registration for assigned course sections',
+            'Timed quizzes & class tests with instant auto-graded results',
             'Attendance, transcript & GPA tracking',
             'Course roadmap, materials & document library',
             'Exam schedule, calendar, notes & tasks',
@@ -38,6 +39,7 @@ const tabs = [
         blurb: 'Faculty manage courses end to end while the AI teaching assistant drafts assessments and feedback in seconds.',
         features: [
             'AI teaching assistant: quizzes, assignments & rubrics',
+            'Build timed quizzes & class tests with auto-grading',
             'Manage taught sections & publish course materials',
             'One-click attendance with live class stats',
             'Grading workspace with AI-drafted feedback',

@@ -133,9 +133,14 @@ retrievable in chat. Visibility is scoped; downloads are logged. Documents soft-
   EXCUSED both `countsAsPresent()`. Students see a per-course rate.
 - **Grades & transcript:** grades live on `course_user.grade`; `TranscriptService`
   computes per-term GPA and credit-weighted CGPA on a 4.0 scale (no extra schema).
+- **Quizzes / class tests:** faculty author a timed quiz on a section (instructions,
+  duration, questions + options, marks, optional availability window). A student starts an
+  **attempt**, the countdown runs server-side, and on submit/timeout the attempt is
+  **auto-graded** for supported question types — the score, summary and feedback return
+  instantly. Publishing a quiz notifies the roster.
 - **Notifications** are per-recipient rows; auto-fired on graded submission, published
-  material, scheduled exam, published assignment, and enrollment assignment; admins can
-  **broadcast** announcements.
+  material, scheduled exam, published assignment, published quiz, and enrollment
+  assignment; admins can **broadcast** announcements.
 - **Calendar** (`CalendarService`) merges assignment deadlines + exams + personal tasks.
 - **Notes/Tasks** are personal and **owner-scoped** (a user only ever sees their own).
 - **Auditing:** `ActivityLogger` writes to `activity_logs` for key actions.
@@ -276,7 +281,8 @@ view **transcript** (term GPA + CGPA) and **exams/calendar**; manage personal
 ### 6.A Student
 **Can:** chat with the RAG tutor (6 modes, cited + confidence); save/organize answers;
 follow a roadmap from real enrollments; register for **admin-assigned** sections; view
-materials & approved documents (download logged); submit assignments; view grades,
+materials & approved documents (download logged); submit assignments; **take timed
+quizzes/class tests** (countdown timer, auto-graded with an instant result); view grades,
 transcript, attendance, exams, calendar; keep personal notes/tasks; edit profile/settings.
 **Cannot:** upload/approve documents, manage users, configure AI, or see analytics beyond
 their own.
@@ -286,8 +292,10 @@ their own.
 
 ### 6.B Faculty
 **Can:** view/manage the **sections they teach**; upload/manage course materials; use the
-**AI teaching assistant** (RAG chat + quiz/assignment generators + publish); grade
-submissions with rubrics + AI-drafted feedback; mark attendance; read exam timetable; view
+**AI teaching assistant** (RAG chat + quiz/assignment generators + publish); **author and
+run timed quizzes/class tests** (rules, duration, questions, marks, optional availability
+window — auto-graded); grade submissions with rubrics + AI-drafted feedback; mark
+attendance; read exam timetable; view
 per-course **learning analytics** (grade distribution, attendance rate, submission
 completion, at-risk flags).
 **Cannot:** manage users, configure the AI provider, own the catalog/terms/sections

@@ -35,10 +35,12 @@ UniGPT gives a university a single, governed AI layer over its own academic cont
 - **Students** chat with an AI tutor that answers from *approved* university documents
   with **citations + a confidence score**, follow a course roadmap, track attendance,
   grades, exams, and a calendar, register for admin-assigned course sections, submit
-  assignments, and keep personal notes/tasks/saved answers.
+  assignments, take **timed quizzes/class tests** with instant auto-graded results, and
+  keep personal notes/tasks/saved answers.
 - **Faculty** manage the sections they teach, upload materials, grade submissions
   (with AI-drafted feedback), generate quizzes/assignments with an AI teaching
-  assistant, and view learning analytics.
+  assistant, run **timed online quizzes/class tests** with auto-grading, and view
+  learning analytics.
 - **Administrators** govern users and the RBAC matrix, own the course catalog,
   sections, terms and departments, curate the document knowledge base (upload →
   approve → embed), configure the AI provider, broadcast announcements, and monitor
@@ -142,7 +144,7 @@ php artisan optimize:clear
 |---|---|---|---|
 | AI chat | RAG tutor (6 modes), saved answers | AI teaching assistant (quiz/assignment gen, feedback) | Configures the AI provider |
 | Courses | Register for **admin-assigned** sections; view materials | Manage taught sections; upload materials | Owns catalog, sections, terms, departments |
-| Assessment | Submit assignments, view grades/transcript | Grade submissions, mark attendance | — |
+| Assessment | Submit assignments, take timed quizzes/tests, view grades/transcript | Grade submissions, run timed quizzes/tests, mark attendance | — |
 | Visibility | Own roadmap, attendance, exams, calendar | Per-course learning analytics | Platform analytics, system monitor, audit log |
 | Knowledge base | Read/download approved docs | Upload course materials | Upload + approve/reject documents (→ RAG) |
 | Governance | — | Department-scoped | User & RBAC management, announcements |

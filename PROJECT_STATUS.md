@@ -53,6 +53,7 @@ current MVP.
 | **Registration (assign → confirm)** | ✅ | `RegistrationController`, `EnrollmentService::assignedFor/enroll` |
 | Course materials (persisted completion, gated download) | ✅ | `CourseService::studentMaterials` |
 | Assignments + submissions | ✅ | `Student/AssignmentController`, `SubmissionService` |
+| Timed quizzes / class tests (take + auto-grade + instant result) | ✅ | `Student/QuizController`, `QuizAttemptService` |
 | Attendance · Transcript · Exams · Calendar | ✅ | Attendance/Transcript/Exam/Calendar services |
 | Notes · Tasks (owner-scoped) | ✅ | `NoteController`, `TaskController` |
 | Notifications (bell + index) | ✅ | `NotificationService`, `NotificationController` |
@@ -63,6 +64,7 @@ current MVP.
 | Dashboard / taught sections / course detail | ✅ | `FacultyDashboardController`, `CourseService::courseDetail` |
 | Material management (upload/download) | ✅ | `CourseMaterialController` |
 | AI teaching assistant (chat + quiz/assignment gen + publish) | ✅ | `AIAssistantController`, `TeachingAssistantService` |
+| Timed quizzes / class tests (author, timer, marks, auto-grade) | ✅ | `Faculty/QuizController`, `QuizService` |
 | Grading (rubric) + **AI-drafted feedback** | ✅ | `GradingController`, `GradingService` |
 | Attendance management | ✅ | `Faculty/AttendanceController` |
 | Learning analytics & at-risk flagging | ✅ | `FacultyAnalyticsService` |
@@ -85,6 +87,15 @@ current MVP.
 ---
 
 ## Recently shipped
+
+### Timed quizzes / class tests (online exam system)
+Faculty author timed quizzes/class tests on a section — title, instructions/rules,
+duration (countdown timer), questions + answer options, marks, and an optional
+availability window. Students see the rules and duration on a pre-start screen, click
+**Start Exam** to begin the timer, and answer within the allotted time. On submit (or when
+time expires) the system **auto-grades** supported question types and returns an instant
+score, performance summary and feedback. Publishing a quiz notifies the section roster via
+the existing `NotificationService`.
 
 ### Admin-assigned → student-confirmed registration (P2.6)
 The enrollment model was redesigned: **students no longer self-pick** courses. The admin

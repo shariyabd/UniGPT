@@ -98,6 +98,7 @@ prep, research — keep responses on-task.
 | **Document knowledge base** | Upload, review and approve. Approved docs are chunked, embedded and made searchable automatically. |
 | **Role-based dashboards** | Students, faculty and admins each get a tailored home with the tools and data that matter to them. |
 | **Teaching automation** | Generate quizzes, assignments and rubrics, and draft grading feedback with an AI teaching assistant. |
+| **Timed quizzes & class tests** | Faculty set up online quizzes/class tests with rules, a duration timer, questions and marks; students take them in-panel with a live countdown and get auto-graded results the moment they submit. |
 | **Attendance & analytics** | Mark attendance in seconds; track rates, grades, GPA and engagement across every course. |
 | **Granular RBAC** | Roles map to fine-grained permissions with time-limited grants — every action is gated and logged. |
 | **Announcements & alerts** | Broadcast to any audience and notify the right people on exams, grades and new materials. |
@@ -117,6 +118,7 @@ planner that keeps the term on track.
 - AI chat with citations, confidence & saved answers
 - Personal dashboard: courses, CGPA & deadlines
 - One-click registration for assigned course sections
+- Timed quizzes & class tests with instant auto-graded results
 - Attendance, transcript & GPA tracking
 - Course roadmap, materials & document library
 - Exam schedule, calendar, notes & tasks
@@ -126,6 +128,7 @@ planner that keeps the term on track.
 Faculty manage courses end to end while the AI teaching assistant drafts assessments and
 feedback in seconds.
 - AI teaching assistant: quizzes, assignments & rubrics
+- Build timed quizzes & class tests with auto-grading
 - Manage taught sections & publish course materials
 - One-click attendance with live class stats
 - Grading workspace with AI-drafted feedback
@@ -209,7 +212,7 @@ How modules, services and roles connect — the platform is one loop, not isolat
 
 - **Admin → Faculty & Student:** account governance, document approval, AI configuration,
   and ownership of the catalog, sections and terms; admins assign students to sections.
-- **Faculty → Student:** course materials, published quizzes/assignments, and grades + feedback.
+- **Faculty → Student:** course materials, published quizzes/assignments and timed class tests, and grades + feedback (quizzes are auto-graded back to the student instantly).
 - **Student → Faculty:** submissions and learning activity feed grading and analytics.
 - **System events → Notifications:** grades posted, materials/assignments/exams published,
   enrollment assigned, and admin announcements reach the right people automatically.

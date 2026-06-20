@@ -10,6 +10,7 @@ import {
     BellAlertIcon,
     ClipboardDocumentCheckIcon,
     CalendarDaysIcon,
+    PencilSquareIcon,
 } from '@heroicons/vue/24/outline';
 </script>
 
@@ -62,6 +63,12 @@ import {
                     <p class="mt-1.5 text-sm text-content-muted">Generate quizzes, assignments and rubrics, and draft grading feedback with an AI teaching assistant.</p>
                 </div>
 
+                <div v-reveal="60" class="reveal ui-card ui-card-hover p-6 md:col-span-2">
+                    <span class="ui-icon-tile bg-accent-sky-soft text-accent-sky-fg"><PencilSquareIcon class="h-5 w-5" /></span>
+                    <h3 class="mt-4 font-semibold text-content">Timed quizzes & class tests</h3>
+                    <p class="mt-1.5 text-sm text-content-muted">Faculty set up timed online quizzes and class tests; students take them in-panel with a live countdown and get auto-graded results the moment they submit.</p>
+                </div>
+
                 <div v-reveal="60" class="reveal ui-card ui-card-hover p-6">
                     <span class="ui-icon-tile bg-accent-lilac-soft text-accent-lilac-fg"><ChartPieIcon class="h-5 w-5" /></span>
                     <h3 class="mt-4 font-semibold text-content">Attendance & analytics</h3>
@@ -86,7 +93,7 @@ import {
                     <p class="mt-1.5 text-sm text-content-muted">Admins assign students to course sections; students confirm in one click — seats, terms and rosters stay consistent.</p>
                 </div>
 
-                <div v-reveal="120" class="reveal ui-card ui-card-hover p-6">
+                <div v-reveal="120" class="reveal ui-card ui-card-hover p-6 md:col-span-2">
                     <span class="ui-icon-tile bg-accent-yellow-soft text-accent-yellow-fg"><CalendarDaysIcon class="h-5 w-5" /></span>
                     <h3 class="mt-4 font-semibold text-content">Exams, transcripts & calendar</h3>
                     <p class="mt-1.5 text-sm text-content-muted">Schedule exams, auto-build transcripts with GPA & CGPA, and merge every deadline into one calendar.</p>
