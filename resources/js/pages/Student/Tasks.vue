@@ -7,6 +7,7 @@ import Card from '@/components/ui/Card.vue';
 import Badge from '@/components/ui/Badge.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import Pagination from '@/components/ui/Pagination.vue';
+import { useConfirm } from '@/composables/useConfirm';
 import { PencilSquareIcon, TrashIcon, PlusIcon, CheckCircleIcon, FlagIcon } from '@heroicons/vue/24/outline';
 import { CheckCircleIcon as CheckCircleSolid } from '@heroicons/vue/24/solid';
 
@@ -15,6 +16,8 @@ const props = defineProps({
     courses: { type: Array, default: () => [] },
     priorities: { type: Array, default: () => [] },
 });
+
+const { confirm } = useConfirm();
 
 const taskItems = computed(() => props.tasks.data ?? []);
 
@@ -67,8 +70,14 @@ const toggle = (task) => {
     router.patch(route('tasks.toggle', task.id), {}, { preserveScroll: true });
 };
 
-const remove = (task) => {
-    if (confirm('Delete this task?')) {
+const remove = async (task) => {
+    const ok = await confirm({
+        title: 'Delete task',
+        message: 'Delete this task?',
+        confirmLabel: 'Delete',
+        variant: 'danger',
+    });
+    if (ok) {
         router.delete(route('tasks.destroy', task.id), { preserveScroll: true });
     }
 };

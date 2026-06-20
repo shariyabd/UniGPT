@@ -8,6 +8,7 @@ import PageHeader from '@/components/ui/PageHeader.vue';
 import Card from '@/components/ui/Card.vue';
 import Badge from '@/components/ui/Badge.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
+import { useConfirm } from '@/composables/useConfirm';
 
 const props = defineProps({
     savedAnswers: { type: Array, default: () => [] },
@@ -16,6 +17,7 @@ const props = defineProps({
 });
 
 const toast = useToast();
+const { confirm } = useConfirm();
 
 const slugify = (s) => (s || 'general').toString().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 import {
@@ -281,8 +283,14 @@ const toggleStar = (itemId) => {
     });
 };
 
-const deleteItem = (itemId) => {
-    if (!confirm('Are you sure you want to remove this saved answer?')) return;
+const deleteItem = async (itemId) => {
+    const ok = await confirm({
+        title: 'Remove saved answer',
+        message: 'Are you sure you want to remove this saved answer?',
+        confirmLabel: 'Remove',
+        variant: 'danger',
+    });
+    if (!ok) return;
     router.delete(route('saved.destroy', itemId), {
         preserveScroll: true,
         onSuccess: () => {
@@ -293,8 +301,14 @@ const deleteItem = (itemId) => {
     });
 };
 
-const bulkDelete = () => {
-    if (!confirm(`Are you sure you want to remove ${selectedItems.value.size} saved answers?`)) return;
+const bulkDelete = async () => {
+    const ok = await confirm({
+        title: 'Remove saved answers',
+        message: `Are you sure you want to remove ${selectedItems.value.size} saved answers?`,
+        confirmLabel: 'Remove',
+        variant: 'danger',
+    });
+    if (!ok) return;
     const ids = [...selectedItems.value];
     ids.forEach((itemId) => {
         router.delete(route('saved.destroy', itemId), { preserveScroll: true, preserveState: true });

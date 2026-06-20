@@ -211,6 +211,9 @@
 <script setup>
 import { ref, nextTick, onMounted } from 'vue';
 import CitationsModal from './CitationsModal.vue';
+import { useConfirm } from '@/composables/useConfirm';
+
+const { confirm } = useConfirm();
 
 const chatModes = [
   { id: 'simple', label: '📝 Simple' },
@@ -330,8 +333,14 @@ const sendMessage = (text) => {
   handleSend();
 };
 
-const clearChat = () => {
-  if (confirm('Are you sure you want to clear the chat history?')) {
+const clearChat = async () => {
+  const ok = await confirm({
+    title: 'Clear chat history',
+    message: 'Are you sure you want to clear the chat history?',
+    confirmLabel: 'Clear',
+    variant: 'danger',
+  });
+  if (ok) {
     messages.value = messages.value.slice(0, 1); // Keep welcome message
   }
 };

@@ -6,6 +6,7 @@ import PageHeader from '@/components/ui/PageHeader.vue';
 import Card from '@/components/ui/Card.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import Pagination from '@/components/ui/Pagination.vue';
+import { useConfirm } from '@/composables/useConfirm';
 import { PencilIcon, TrashIcon, PlusIcon, BookmarkIcon } from '@heroicons/vue/24/outline';
 import { BookmarkIcon as BookmarkSolid } from '@heroicons/vue/24/solid';
 
@@ -13,6 +14,8 @@ const props = defineProps({
     notes: { type: Object, default: () => ({ data: [] }) },
     courses: { type: Array, default: () => [] },
 });
+
+const { confirm } = useConfirm();
 
 const noteItems = computed(() => props.notes.data ?? []);
 
@@ -48,8 +51,14 @@ const submit = () => {
     }
 };
 
-const remove = (note) => {
-    if (confirm('Delete this note?')) {
+const remove = async (note) => {
+    const ok = await confirm({
+        title: 'Delete note',
+        message: 'Delete this note?',
+        confirmLabel: 'Delete',
+        variant: 'danger',
+    });
+    if (ok) {
         router.delete(route('notes.destroy', note.id), { preserveScroll: true });
     }
 };

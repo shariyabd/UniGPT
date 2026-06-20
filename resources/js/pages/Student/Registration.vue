@@ -7,6 +7,7 @@ import PageHeader from '@/components/ui/PageHeader.vue';
 import Card from '@/components/ui/Card.vue';
 import Badge from '@/components/ui/Badge.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
+import { useConfirm } from '@/composables/useConfirm';
 import {
     PlusCircleIcon,
     AcademicCapIcon,
@@ -27,6 +28,7 @@ const props = defineProps({
 });
 
 const toast = useToast();
+const { confirm } = useConfirm();
 
 const registeredCredits = computed(() => props.registered.reduce((n, c) => n + (c.credits || 0), 0));
 
@@ -41,8 +43,14 @@ const register = (section) => {
     });
 };
 
-const drop = (course) => {
-    if (!confirm(`Drop ${course.code} — ${course.name}?`)) return;
+const drop = async (course) => {
+    const ok = await confirm({
+        title: 'Drop course',
+        message: `Drop ${course.code} — ${course.name}?`,
+        confirmLabel: 'Drop',
+        variant: 'danger',
+    });
+    if (!ok) return;
     router.delete(route('register.drop', course.sectionId), {
         preserveScroll: true,
         onSuccess: () => toast.success(`Dropped ${course.code}.`),
