@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
 import Card from '@/components/ui/Card.vue';
@@ -18,6 +18,8 @@ import {
 
 const props = defineProps({
     assignments: { type: Object, default: () => ({ data: [] }) },
+    filters: { type: Object, default: () => ({ filter: 'all' }) },
+    pendingCount: { type: Number, default: 0 },
 });
 
 const assignmentItems = computed(() => props.assignments.data ?? []);
@@ -37,20 +39,23 @@ const filters = [
     { value: 'submitted', label: 'Submitted' },
     { value: 'graded', label: 'Graded' },
 ];
-const activeFilter = ref('all');
+const activeFilter = ref(props.filters?.filter ?? 'all');
 
-const filtered = computed(() => {
-    if (activeFilter.value === 'all') return assignmentItems.value;
-    if (activeFilter.value === 'pending') {
-        return assignmentItems.value.filter((a) => a.status === 'pending');
-    }
-    if (activeFilter.value === 'submitted') {
-        return assignmentItems.value.filter((a) => a.status === 'submitted' || a.status === 'late');
-    }
-    return assignmentItems.value.filter((a) => a.status === 'graded');
-});
+// Filtering happens SERVER-SIDE so the tabs work across every page; the current
+// page is already the filtered set.
+const filtered = computed(() => assignmentItems.value);
 
-const pendingCount = computed(() => assignmentItems.value.filter((a) => a.status === 'pending').length);
+const applyFilter = (value) => {
+    activeFilter.value = value;
+    router.get(
+        route('assignments'),
+        { filter: value !== 'all' ? value : undefined },
+        { preserveState: true, preserveScroll: true, replace: true },
+    );
+};
+
+// Global pending count from the server (not just the current page).
+const pendingCount = computed(() => props.pendingCount);
 
 const formatDate = (iso) =>
     iso ? new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'No due date';
@@ -82,7 +87,7 @@ const formatDate = (iso) =>
                         :class="activeFilter === filter.value
                             ? 'border-primary bg-primary text-white'
                             : 'border-line bg-surface text-content-muted hover:bg-bg'"
-                        @click="activeFilter = filter.value"
+                        @click="applyFilter(filter.value)"
                     >
                         {{ filter.label }}
                     </button>

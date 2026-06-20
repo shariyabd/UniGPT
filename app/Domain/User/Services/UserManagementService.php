@@ -31,11 +31,13 @@ class UserManagementService
     }
 
     /**
-     * Get users with pagination
+     * Get users with pagination, optionally filtered by role, status and search.
+     *
+     * @param  array<string, string|null>  $filters
      */
-    public function getPaginatedUsers(int $perPage = 20): LengthAwarePaginator
+    public function getPaginatedUsers(int $perPage = 20, array $filters = []): LengthAwarePaginator
     {
-        return $this->userRepository->getPaginatedWithRoles($perPage);
+        return $this->userRepository->getPaginatedWithRoles($perPage, $filters);
     }
 
     /**

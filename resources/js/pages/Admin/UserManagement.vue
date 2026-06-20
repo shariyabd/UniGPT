@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { usePermissions } from '@/composables/usePermissions';
@@ -28,9 +28,6 @@ const { can } = usePermissions();
 const { confirm } = useConfirm();
 
 const selectedTab = ref('users');
-const selectedRole = ref('all');
-const selectedStatus = ref('all');
-const searchQuery = ref('');
 const selectedUsers = ref(new Set());
 const showUserModal = ref(false);
 const editingUser = ref(null);
@@ -42,7 +39,8 @@ const props = defineProps({
     users: { type: Object, default: () => ({ data: [] }) },
     roles: { type: Array, default: () => [] },
     departments: { type: Array, default: () => [] },
-    stats: { type: Object, default: () => ({}) }
+    stats: { type: Object, default: () => ({}) },
+    filters: { type: Object, default: () => ({}) }
 });
 
 // Users (mapped from the Laravel paginator's data into the template's field names)
@@ -64,6 +62,37 @@ const users = computed(() =>
     }))
 );
 
+// Filters are applied SERVER-SIDE so they work across all paginated pages.
+const selectedRole = ref(props.filters.role ?? 'all');
+const selectedStatus = ref(props.filters.status ?? 'all');
+const searchQuery = ref(props.filters.search ?? '');
+
+const applyFilters = () => {
+    router.get(
+        route('admin.users'),
+        {
+            role: selectedRole.value !== 'all' ? selectedRole.value : undefined,
+            status: selectedStatus.value !== 'all' ? selectedStatus.value : undefined,
+            search: searchQuery.value || undefined,
+        },
+        { preserveState: true, preserveScroll: true, replace: true },
+    );
+};
+
+let searchTimer = null;
+watch(searchQuery, () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(applyFilters, 300);
+});
+watch([selectedRole, selectedStatus], applyFilters);
+
+const clearFilters = () => {
+    selectedRole.value = 'all';
+    selectedStatus.value = 'all';
+    searchQuery.value = '';
+    applyFilters();
+};
+
 // Filter options
 const roleOptions = [
     { value: 'all', label: 'All Roles' },
@@ -75,36 +104,12 @@ const roleOptions = [
 const statusOptions = [
     { value: 'all', label: 'All Status' },
     { value: 'active', label: 'Active Users' },
-    { value: 'inactive', label: 'Inactive Users' },
-    { value: 'pending', label: 'Pending Approval' }
+    { value: 'inactive', label: 'Inactive Users' }
 ];
 
-// Computed properties
-const filteredUsers = computed(() => {
-    let filtered = users.value;
-
-    // Filter by role
-    if (selectedRole.value !== 'all') {
-        filtered = filtered.filter(user => user.role === selectedRole.value);
-    }
-
-    // Filter by status
-    if (selectedStatus.value !== 'all') {
-        filtered = filtered.filter(user => user.status === selectedStatus.value);
-    }
-
-    // Filter by search query
-    if (searchQuery.value) {
-        const query = searchQuery.value.toLowerCase();
-        filtered = filtered.filter(user =>
-            user.name.toLowerCase().includes(query) ||
-            user.email.toLowerCase().includes(query) ||
-            user.department.toLowerCase().includes(query)
-        );
-    }
-
-    return filtered;
-});
+// The current page is already filtered server-side; expose it under the name
+// the template uses for the list, select-all and empty-state.
+const filteredUsers = computed(() => users.value);
 
 const userStats = computed(() => ({
     total: props.stats?.total_users ?? users.value.length,
@@ -508,7 +513,7 @@ const bulkUpdateRole = (role) => {
                             :icon="UsersIcon"
                         >
                             <button
-                                @click="searchQuery = ''; selectedRole = 'all'; selectedStatus = 'all'"
+                                @click="clearFilters"
                                 class="ui-btn-secondary"
                             >
                                 Clear Filters
@@ -521,6 +526,7 @@ const bulkUpdateRole = (role) => {
             </div>
 
             <!-- User Modal -->
+            <Teleport to="body">
             <div v-if="showUserModal" class="fixed inset-0 z-50 overflow-y-auto">
                 <div class="flex min-h-full items-center justify-center p-4">
                     <div class="fixed inset-0 bg-content/60 backdrop-blur-sm" @click="showUserModal = false"></div>
@@ -659,6 +665,7 @@ const bulkUpdateRole = (role) => {
                     </div>
                 </div>
             </div>
+            </Teleport>
         </AppLayout>
     </div>
 </template>

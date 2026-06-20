@@ -29,7 +29,10 @@ interface UserRepositoryInterface
 
     public function countOnlineUsers(): int;
 
-    public function getPaginatedWithRoles(int $perPage): LengthAwarePaginator;
+    /**
+     * @param  array<string, string|null>  $filters  role, status, search
+     */
+    public function getPaginatedWithRoles(int $perPage, array $filters = []): LengthAwarePaginator;
 
     public function findByDepartment(string $department): Collection;
 

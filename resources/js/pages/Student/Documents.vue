@@ -1,6 +1,6 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue';
-import { Head, Link, usePage } from '@inertiajs/vue3';
+import { ref, computed, watch, onMounted } from 'vue';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
 import Card from '@/components/ui/Card.vue';
@@ -36,9 +36,17 @@ const props = defineProps({
     },
     filters: {
         type: Object,
-        default: () => ({ category: '', search: '' })
+        default: () => ({ category: '', search: '', department_id: null, file_type: '' })
     },
     categories: {
+        type: Array,
+        default: () => []
+    },
+    departments: {
+        type: Array,
+        default: () => []
+    },
+    fileTypes: {
         type: Array,
         default: () => []
     }
@@ -46,15 +54,44 @@ const props = defineProps({
 
 const page = usePage();
 
-// Component state
+// Component state — filters are applied SERVER-SIDE so they work across every
+// paginated page (not just the current one).
 const searchQuery = ref(props.filters?.search || '');
 const selectedCategory = ref(props.filters?.category || 'all');
-const selectedDepartment = ref('all');
-const selectedType = ref('all');
+const selectedDepartment = ref(props.filters?.department_id ?? 'all');
+const selectedType = ref(props.filters?.file_type || 'all');
 const sortBy = ref('date_desc');
 const viewMode = ref('grid');
 const showFilters = ref(false);
 const selectedDocuments = ref(new Set());
+
+const applyFilters = () => {
+    router.get(
+        route('documents'),
+        {
+            category: selectedCategory.value !== 'all' ? selectedCategory.value : undefined,
+            department_id: selectedDepartment.value !== 'all' ? selectedDepartment.value : undefined,
+            file_type: selectedType.value !== 'all' ? selectedType.value : undefined,
+            search: searchQuery.value || undefined,
+        },
+        { preserveState: true, preserveScroll: true, replace: true },
+    );
+};
+
+let searchTimer = null;
+watch(searchQuery, () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(applyFilters, 300);
+});
+watch([selectedCategory, selectedDepartment, selectedType], applyFilters);
+
+const clearFilters = () => {
+    selectedCategory.value = 'all';
+    selectedDepartment.value = 'all';
+    selectedType.value = 'all';
+    searchQuery.value = '';
+    applyFilters();
+};
 
 // Student context (derived from authenticated user)
 const studentContext = computed(() => {
@@ -135,34 +172,10 @@ const documents = computed(() => {
     }));
 });
 
-// Computed properties
+// The current page is already filtered server-side; here we only sort the
+// visible page for display.
 const filteredDocuments = computed(() => {
     let filtered = [...documents.value];
-
-    // Search filter
-    if (searchQuery.value) {
-        const query = searchQuery.value.toLowerCase();
-        filtered = filtered.filter(doc =>
-            doc.title.toLowerCase().includes(query) ||
-            doc.description.toLowerCase().includes(query) ||
-            doc.tags.some(tag => tag.toLowerCase().includes(query))
-        );
-    }
-
-    // Category filter
-    if (selectedCategory.value !== 'all') {
-        filtered = filtered.filter(doc => doc.category === selectedCategory.value);
-    }
-
-    // Department filter
-    if (selectedDepartment.value !== 'all') {
-        filtered = filtered.filter(doc => doc.department === selectedDepartment.value);
-    }
-
-    // Type filter
-    if (selectedType.value !== 'all') {
-        filtered = filtered.filter(doc => doc.type === selectedType.value);
-    }
 
     // Sorting
     switch (sortBy.value) {
@@ -310,9 +323,7 @@ const askAIAboutDocument = (document) => {
                                     class="ui-input mt-1"
                                 >
                                     <option value="all">All Departments</option>
-                                    <option value="Computer Science Engineering">Computer Science</option>
-                                    <option value="Electrical Engineering">Electrical Engineering</option>
-                                    <option value="Mechanical Engineering">Mechanical Engineering</option>
+                                    <option v-for="dept in departments" :key="dept.id" :value="dept.id">{{ dept.name }}</option>
                                 </select>
                             </div>
                         </Card>
@@ -357,9 +368,7 @@ const askAIAboutDocument = (document) => {
                                             class="ui-input mt-1"
                                         >
                                             <option value="all">All Types</option>
-                                            <option value="PDF">PDF</option>
-                                            <option value="DOC">Word Document</option>
-                                            <option value="PPT">Presentation</option>
+                                            <option v-for="type in fileTypes" :key="type" :value="type">{{ String(type).toUpperCase() }}</option>
                                         </select>
                                     </div>
 
@@ -379,7 +388,7 @@ const askAIAboutDocument = (document) => {
                                     <!-- Clear Filters -->
                                     <div class="flex items-end">
                                         <button
-                                            @click="selectedCategory = 'all'; selectedDepartment = 'all'; selectedType = 'all'; searchQuery = ''"
+                                            @click="clearFilters"
                                             class="ui-btn-secondary w-full justify-center"
                                         >
                                             <XMarkIcon class="w-4 h-4" />
@@ -553,7 +562,7 @@ const askAIAboutDocument = (document) => {
                             :icon="DocumentTextIcon"
                         >
                             <button
-                                @click="selectedCategory = 'all'; selectedDepartment = 'all'; selectedType = 'all'; searchQuery = ''"
+                                @click="clearFilters"
                                 class="ui-btn-primary"
                             >
                                 Clear All Filters

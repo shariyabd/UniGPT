@@ -62,9 +62,30 @@ class EloquentUserRepository implements UserRepositoryInterface
         return User::where('last_login_at', '>=', now()->subMinutes(15))->count();
     }
 
-    public function getPaginatedWithRoles(int $perPage): LengthAwarePaginator
+    public function getPaginatedWithRoles(int $perPage, array $filters = []): LengthAwarePaginator
     {
-        return User::with('roles')->latest()->paginate($perPage);
+        $query = User::with('roles');
+
+        if (! empty($filters['role'])) {
+            $query->withRole($filters['role']);
+        }
+
+        if (($filters['status'] ?? null) === 'active') {
+            $query->where('is_active', true);
+        } elseif (($filters['status'] ?? null) === 'inactive') {
+            $query->where('is_active', false);
+        }
+
+        if (! empty($filters['search'])) {
+            $search = $filters['search'];
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhereHas('department', fn ($d) => $d->where('name', 'like', "%{$search}%"));
+            });
+        }
+
+        return $query->latest()->paginate($perPage);
     }
 
     public function findByDepartment(string $department): Collection

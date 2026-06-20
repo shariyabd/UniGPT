@@ -26,9 +26,15 @@ class UserManagementController extends Controller
         private readonly ActivityLogger $activity,
     ) {}
 
-    public function index(): Response
+    public function index(Request $request): Response
     {
-        $paginated = $this->users->getPaginatedUsers(25)->withQueryString();
+        $filters = [
+            'role' => $request->string('role')->toString() ?: null,
+            'status' => $request->string('status')->toString() ?: null,
+            'search' => $request->string('search')->toString() ?: null,
+        ];
+
+        $paginated = $this->users->getPaginatedUsers(25, $filters)->withQueryString();
         $paginated->setCollection(
             $paginated->getCollection()->map(fn (User $u) => $this->present($u))
         );
@@ -38,6 +44,7 @@ class UserManagementController extends Controller
             'roles' => Role::orderBy('level', 'desc')->get(['id', 'name', 'slug']),
             'departments' => Department::orderBy('name')->get(['id', 'name']),
             'stats' => $this->users->getUserStatistics(),
+            'filters' => $filters,
         ]);
     }
 

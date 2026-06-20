@@ -14,6 +14,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\DocumentResource;
 use App\Models\ActivityLog;
 use App\Models\Assignment;
+use App\Models\Department;
 use App\Models\Document;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -80,13 +81,25 @@ class StudentDashboardController extends Controller
     public function documents(Request $request): Response
     {
         $user = $this->user();
-        $filters = $request->only(['category', 'search']);
+
+        // All filters are applied SERVER-SIDE (via DocumentService::applyFilters)
+        // so they work across every paginated page, not just the current one.
+        $filters = [
+            'category' => $request->string('category')->toString() ?: null,
+            'search' => $request->string('search')->toString() ?: null,
+            'department_id' => $request->integer('department_id') ?: null,
+            'file_type' => $request->string('file_type')->toString() ?: null,
+        ];
 
         return Inertia::render('Student/Documents', [
             'documents' => DocumentResource::collection($this->documents->libraryFor($user, $filters, 25)),
             'filters' => $filters,
             'categories' => Document::approved()->visibleTo($user)
                 ->select('category')->distinct()->pluck('category'),
+            'departments' => Department::orderBy('name')->get(['id', 'name']),
+            'fileTypes' => Document::approved()->visibleTo($user)
+                ->whereNotNull('file_type')
+                ->select('file_type')->distinct()->orderBy('file_type')->pluck('file_type'),
         ]);
     }
 

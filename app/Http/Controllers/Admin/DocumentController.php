@@ -59,17 +59,35 @@ class DocumentController extends Controller
         ]);
     }
 
-    public function approvals(): Response
+    public function approvals(Request $request): Response
     {
-        $pending = $this->paginateCollection(
-            $this->documents->reviewQueue()->map(
-                fn (Document $document) => $this->presentForApproval($document)
-            )
+        $status = $request->string('status')->toString() ?: 'pending';
+        $search = trim($request->string('search')->toString());
+
+        // Filter SERVER-SIDE before paginating so status/search work across the
+        // whole review queue, not just the rows on the current page.
+        $documents = $this->documents->reviewQueue()->map(
+            fn (Document $document) => $this->presentForApproval($document)
         );
 
+        if ($status !== 'all') {
+            $documents = $documents->where('status', $status);
+        }
+
+        if ($search !== '') {
+            $needle = mb_strtolower($search);
+            $documents = $documents->filter(fn (array $doc) => str_contains(mb_strtolower($doc['title']), $needle)
+                || str_contains(mb_strtolower($doc['description']), $needle)
+                || str_contains(mb_strtolower($doc['uploadedBy']['name']), $needle)
+                || str_contains(mb_strtolower($doc['department']), $needle)
+                || collect($doc['tags'])->contains(fn ($tag) => str_contains(mb_strtolower((string) $tag), $needle))
+            );
+        }
+
         return Inertia::render('Admin/Approvals', [
-            'pendingDocuments' => $pending,
+            'pendingDocuments' => $this->paginateCollection($documents->values()),
             'stats' => $this->documents->statistics(),
+            'filters' => ['status' => $status, 'search' => $search ?: null],
         ]);
     }
 

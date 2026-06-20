@@ -29,8 +29,22 @@ class AssignmentController extends Controller
 
     public function index(): Response
     {
+        $filter = request()->string('filter')->toString() ?: 'all';
+        $all = collect($this->submissions->listFor(request()->user()));
+
+        // Filter SERVER-SIDE before paginating so the status tabs work across
+        // every page, not just the rows that happen to be on the current one.
+        $items = match ($filter) {
+            'pending' => $all->where('status', 'pending'),
+            'submitted' => $all->whereIn('status', ['submitted', 'late']),
+            'graded' => $all->where('status', 'graded'),
+            default => $all,
+        };
+
         return Inertia::render('Student/Assignments', [
-            'assignments' => $this->paginateCollection($this->submissions->listFor(request()->user())),
+            'assignments' => $this->paginateCollection($items->values()),
+            'filters' => ['filter' => $filter],
+            'pendingCount' => $all->where('status', 'pending')->count(),
         ]);
     }
 

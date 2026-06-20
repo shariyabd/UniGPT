@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
@@ -30,11 +30,36 @@ import {
 const props = defineProps({
     pendingDocuments: { type: Object, default: () => ({ data: [] }) },
     stats: { type: Object, default: () => ({}) },
+    filters: { type: Object, default: () => ({ status: 'pending', search: '' }) },
 });
 
-// Component state — default to the pending review queue.
-const selectedStatus = ref('pending');
-const searchQuery = ref('');
+// Component state — initialised from the server filters (applied SERVER-SIDE).
+const selectedStatus = ref(props.filters?.status ?? 'pending');
+const searchQuery = ref(props.filters?.search ?? '');
+
+const applyFilters = () => {
+    router.get(
+        route('admin.approvals'),
+        {
+            status: selectedStatus.value !== 'pending' ? selectedStatus.value : undefined,
+            search: searchQuery.value || undefined,
+        },
+        { preserveState: true, preserveScroll: true, replace: true },
+    );
+};
+
+let searchTimer = null;
+watch(searchQuery, () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(applyFilters, 300);
+});
+watch(selectedStatus, applyFilters);
+
+const clearFilters = () => {
+    selectedStatus.value = 'all';
+    searchQuery.value = '';
+    applyFilters();
+};
 const selectedDocument = ref(null);
 const showPreviewModal = ref(false);
 const showCommentModal = ref(false);
@@ -54,29 +79,9 @@ const statusOptions = computed(() => [
     { value: 'rejected', label: 'Rejected', count: props.stats.rejected ?? 0 }
 ]);
 
-// Computed properties
-const filteredDocuments = computed(() => {
-    let filtered = pendingDocuments.value;
-
-    // Filter by status
-    if (selectedStatus.value !== 'all') {
-        filtered = filtered.filter(doc => doc.status === selectedStatus.value);
-    }
-
-    // Filter by search query
-    if (searchQuery.value) {
-        const query = searchQuery.value.toLowerCase();
-        filtered = filtered.filter(doc =>
-            doc.title.toLowerCase().includes(query) ||
-            doc.description.toLowerCase().includes(query) ||
-            doc.uploadedBy.name.toLowerCase().includes(query) ||
-            doc.department.toLowerCase().includes(query) ||
-            doc.tags.some(tag => tag.toLowerCase().includes(query))
-        );
-    }
-
-    return filtered;
-});
+// The current page is already filtered server-side; expose it under the name
+// the template uses for the list and empty state.
+const filteredDocuments = computed(() => pendingDocuments.value);
 
 // Utility functions
 const formatDate = (dateString) => {
@@ -490,7 +495,7 @@ const downloadDocument = (doc) => {
                         :icon="DocumentTextIcon"
                     >
                         <button
-                            @click="searchQuery = ''; selectedStatus = 'all'"
+                            @click="clearFilters"
                             class="ui-btn-primary"
                         >
                             Clear Filters
@@ -502,6 +507,7 @@ const downloadDocument = (doc) => {
             </div>
 
             <!-- Comment Modal -->
+            <Teleport to="body">
             <div v-if="showCommentModal" class="fixed inset-0 z-50 overflow-y-auto">
                 <div class="flex min-h-full items-center justify-center p-4">
                     <div class="fixed inset-0 bg-content/40 backdrop-blur-sm" @click="showCommentModal = false"></div>
@@ -537,8 +543,10 @@ const downloadDocument = (doc) => {
                     </div>
                 </div>
             </div>
+            </Teleport>
 
             <!-- Preview Modal -->
+            <Teleport to="body">
             <div v-if="showPreviewModal" class="fixed inset-0 z-50 overflow-y-auto">
                 <div class="flex min-h-full items-center justify-center p-4">
                     <div class="fixed inset-0 bg-content/40 backdrop-blur-sm" @click="showPreviewModal = false"></div>
@@ -593,6 +601,7 @@ const downloadDocument = (doc) => {
                     </div>
                 </div>
             </div>
+            </Teleport>
         </AppLayout>
     </div>
 </template>
