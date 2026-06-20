@@ -35,6 +35,10 @@ class DatabaseSeeder extends Seeder
             TaskSeeder::class,
             AnnouncementSeeder::class, // admin broadcasts → per-recipient notifications
 
+            // AI provider config (OpenAI key from .env) — must precede the
+            // knowledge base so document embeddings use the configured provider.
+            AISettingsSeeder::class,
+
             // RAG knowledge base (preserved).
             KnowledgeBaseSeeder::class,
         ]);
