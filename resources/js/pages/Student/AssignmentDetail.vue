@@ -40,7 +40,7 @@ const submit = () => {
         preserveScroll: true,
         onSuccess: () => {
             form.file = null;
-            toast.success('Submission saved.');
+            // Success toast comes from the server flash (centralized pipeline).
         },
         onError: (errors) => toast.error(Object.values(errors)[0] || 'Could not submit.'),
     });

@@ -145,7 +145,7 @@ const submitTask = () => {
             taskForm.reset();
             taskForm.priority = defaultPriority.value;
             showTaskForm.value = false;
-            toast.success('Task added.');
+            // Success toast comes from the server flash (centralized pipeline).
         },
         onError: () => toast.error('Could not add the task.'),
     });
@@ -170,7 +170,7 @@ const removeTask = async (event) => {
 
     router.delete(route('tasks.destroy', event.taskId), {
         ...visitOptions,
-        onSuccess: () => toast.success('Task deleted.'),
+        // Success toast comes from the server flash (centralized pipeline).
         onError: () => toast.error('Could not delete the task.'),
     });
 };

@@ -38,7 +38,8 @@ const register = (section) => {
     registerForm.section_id = section.sectionId;
     registerForm.post(route('register.store'), {
         preserveScroll: true,
-        onSuccess: () => toast.success(`Registered for ${section.code}.`),
+        // Success toast comes from the server flash (centralized pipeline) — firing
+        // one here too would double it.
         onError: (errors) => toast.error(Object.values(errors)[0] || 'Could not register.'),
     });
 };
@@ -53,7 +54,7 @@ const drop = async (course) => {
     if (!ok) return;
     router.delete(route('register.drop', course.sectionId), {
         preserveScroll: true,
-        onSuccess: () => toast.success(`Dropped ${course.code}.`),
+        // Success toast comes from the server flash (centralized pipeline).
         onError: (errors) => toast.error(Object.values(errors)[0] || 'Could not drop.'),
     });
 };

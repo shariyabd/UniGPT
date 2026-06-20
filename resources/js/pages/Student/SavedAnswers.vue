@@ -442,7 +442,7 @@ const saveNotes = (itemId, notes) => {
     router.patch(route('saved.update', itemId), { notes }, {
         preserveScroll: true,
         preserveState: true,
-        onSuccess: () => toast.success('Notes saved.'),
+        // Success toast comes from the server flash (centralized pipeline).
         onError: () => toast.error('Could not save notes.'),
     });
 };

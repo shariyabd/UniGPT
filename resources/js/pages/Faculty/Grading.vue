@@ -270,7 +270,7 @@ const submitGrade = () => {
         preserveScroll: true,
         // A fresh visit re-seeds assignments/submissions from the server.
         onSuccess: () => {
-            toast.success('Grade saved.');
+            // Success toast comes from the server flash (centralized pipeline).
             closeGradingPanel();
         },
         onError: (errors) => {
