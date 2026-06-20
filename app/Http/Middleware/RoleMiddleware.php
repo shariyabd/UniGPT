@@ -36,8 +36,10 @@ class RoleMiddleware
                 'ip' => $request->ip(),
             ]);
 
+            // One-shot flash → single toast via the centralized pipeline (app.js).
+            // See PermissionMiddleware for why withErrors(['access']) is unsuitable.
             return redirect()->route($user->getDashboardRoute())
-                ->withErrors(['access' => 'You do not have permission to access this resource.']);
+                ->with('error', 'You do not have permission to access this resource.');
         }
 
         return $next($request);

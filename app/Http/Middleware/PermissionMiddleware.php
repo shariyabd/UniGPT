@@ -39,8 +39,13 @@ class PermissionMiddleware
                 ], 403);
             }
 
+            // Flash a one-shot error so the centralized toast pipeline (app.js)
+            // shows it exactly once on this redirect. Using withErrors() here is
+            // wrong: `access` is not a form field, so no view surfaces it, and the
+            // errors bag persists across visits — producing stale "permission"
+            // toasts on pages the user is actually allowed to see.
             return redirect()->route($user->getDashboardRoute())
-                ->withErrors(['access' => 'You do not have the required permissions to access this resource.']);
+                ->with('error', 'You do not have the required permissions to access this resource.');
         }
 
         return $next($request);
