@@ -197,6 +197,7 @@ const remove = async (dept) => {
             </div>
 
             <!-- Create / Edit modal -->
+            <Teleport to="body">
             <div v-if="showModal" class="fixed inset-0 z-50 overflow-y-auto">
                 <div class="flex min-h-full items-center justify-center p-4">
                     <div class="fixed inset-0 bg-content/60 backdrop-blur-sm" @click="closeModal"></div>
@@ -272,6 +273,7 @@ const remove = async (dept) => {
                     </div>
                 </div>
             </div>
+            </Teleport>
         </AppLayout>
     </div>
 </template>

@@ -28,11 +28,14 @@ import {
     PresentationChartLineIcon,
     SparklesIcon,
 } from '@heroicons/vue/24/outline';
+import { useConfirm } from '@/composables/useConfirm';
 
 // Real data from the backend (CourseController@show → CourseService::courseDetail).
 const props = defineProps({
     course: { type: Object, required: true },
 });
+
+const { confirm } = useConfirm();
 
 const activeTab = ref('overview');
 
@@ -72,8 +75,14 @@ const submitMaterial = () => {
     });
 };
 
-const deleteMaterial = (materialId) => {
-    if (!confirm('Delete this material? This cannot be undone.')) return;
+const deleteMaterial = async (materialId) => {
+    const ok = await confirm({
+        title: 'Delete material',
+        message: 'Delete this material? This cannot be undone.',
+        confirmLabel: 'Delete',
+        variant: 'danger',
+    });
+    if (!ok) return;
     router.delete(route('faculty.courses.materials.destroy', [props.course.id, materialId]), {
         preserveScroll: true,
     });
@@ -123,8 +132,14 @@ const toggleStatus = (assignment) => {
     router.patch(route('faculty.assignments.status', assignment.id), {}, { preserveScroll: true });
 };
 
-const deleteAssignment = (assignment) => {
-    if (!confirm(`Delete "${assignment.title}"? This also removes its submissions. This cannot be undone.`)) return;
+const deleteAssignment = async (assignment) => {
+    const ok = await confirm({
+        title: 'Delete assignment',
+        message: `Delete "${assignment.title}"? This also removes its submissions. This cannot be undone.`,
+        confirmLabel: 'Delete',
+        variant: 'danger',
+    });
+    if (!ok) return;
     router.delete(route('faculty.assignments.destroy', assignment.id), { preserveScroll: true });
 };
 
@@ -526,6 +541,7 @@ const formatDate = (date) => date
             </div>
 
             <!-- View assignment / quiz details -->
+            <Teleport to="body">
             <div v-if="viewingAssignment" class="fixed inset-0 z-50 overflow-y-auto">
                 <div class="flex min-h-full items-center justify-center p-4">
                     <div class="fixed inset-0 bg-black/60 backdrop-blur-sm" @click="viewingAssignment = null"></div>
@@ -573,8 +589,10 @@ const formatDate = (date) => date
                     </div>
                 </div>
             </div>
+            </Teleport>
 
             <!-- Edit assignment / quiz -->
+            <Teleport to="body">
             <div v-if="editingId" class="fixed inset-0 z-50 overflow-y-auto">
                 <div class="flex min-h-full items-center justify-center p-4">
                     <div class="fixed inset-0 bg-black/60 backdrop-blur-sm" @click="editingId = null"></div>
@@ -636,6 +654,7 @@ const formatDate = (date) => date
                     </form>
                 </div>
             </div>
+            </Teleport>
         </AppLayout>
     </div>
 </template>

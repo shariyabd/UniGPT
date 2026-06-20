@@ -165,6 +165,7 @@ const submitClose = () => {
             </div>
 
             <!-- Create modal -->
+            <Teleport to="body">
             <div v-if="showCreate" class="fixed inset-0 z-50 overflow-y-auto">
                 <div class="flex min-h-full items-center justify-center p-4">
                     <div class="fixed inset-0 bg-content/60 backdrop-blur-sm" @click="closeCreate"></div>
@@ -202,8 +203,10 @@ const submitClose = () => {
                     </div>
                 </div>
             </div>
+            </Teleport>
 
             <!-- Close / rollover modal -->
+            <Teleport to="body">
             <div v-if="showClose" class="fixed inset-0 z-50 overflow-y-auto">
                 <div class="flex min-h-full items-center justify-center p-4">
                     <div class="fixed inset-0 bg-content/60 backdrop-blur-sm" @click="closeCloseModal"></div>
@@ -236,6 +239,7 @@ const submitClose = () => {
                     </div>
                 </div>
             </div>
+            </Teleport>
         </AppLayout>
     </div>
 </template>

@@ -531,6 +531,7 @@ if (assignments.value.length > 0) {
             </div>
 
             <!-- Grading Panel Modal -->
+            <Teleport to="body">
             <div v-if="showGradingPanel" class="fixed inset-0 z-50 overflow-y-auto">
                 <div class="flex min-h-full items-center justify-center p-4">
                     <div class="fixed inset-0 bg-black/60 backdrop-blur-sm" @click="closeGradingPanel"></div>
@@ -754,6 +755,7 @@ if (assignments.value.length > 0) {
                     </div>
                 </div>
             </div>
+            </Teleport>
         </AppLayout>
     </div>
 </template>

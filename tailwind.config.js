@@ -117,8 +117,13 @@ export default {
             },
             keyframes: {
                 'fade-in': {
+                    // The final state intentionally omits `transform` so the
+                    // element settles back to `transform: none`. A retained
+                    // transform (e.g. via fill-mode) would make the element a
+                    // containing block for `position: fixed` descendants,
+                    // which mis-positions modals rendered inside it.
                     '0%': { opacity: '0', transform: 'translateY(6px)' },
-                    '100%': { opacity: '1', transform: 'translateY(0)' },
+                    '100%': { opacity: '1' },
                 },
             },
             animation: {
