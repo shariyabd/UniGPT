@@ -20,6 +20,7 @@ import {
     UserPlusIcon,
     UserMinusIcon,
     MagnifyingGlassIcon,
+    CheckIcon,
 } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
@@ -250,19 +251,40 @@ const availableStudents = computed(() => {
     return props.students.filter((s) => !takenIds.has(s.id));
 });
 
+// Search box inside the roster modal — narrows the assignable students by
+// name or student ID so the registrar can pick one without scrolling.
+const rosterSearch = ref('');
+const filteredAvailable = computed(() => {
+    const query = rosterSearch.value.trim().toLowerCase();
+    if (!query) return availableStudents.value;
+    return availableStudents.value.filter((s) =>
+        s.name.toLowerCase().includes(query)
+        || (s.student_id ?? '').toString().toLowerCase().includes(query)
+    );
+});
+
 const openRoster = (section) => {
     rosterSectionId.value = section.id;
+    rosterSearch.value = '';
     enrollForm.reset();
     enrollForm.clearErrors();
     showRoster.value = true;
 };
-const closeRoster = () => { showRoster.value = false; rosterSectionId.value = null; enrollForm.reset(); };
+const closeRoster = () => {
+    showRoster.value = false;
+    rosterSectionId.value = null;
+    rosterSearch.value = '';
+    enrollForm.reset();
+};
 
 const submitAssign = () => {
     enrollForm.post(route('admin.sections.assign', rosterSectionId.value), {
         preserveScroll: true,
         preserveState: true,
-        onSuccess: () => enrollForm.reset(),
+        onSuccess: () => {
+            enrollForm.reset();
+            rosterSearch.value = '';
+        },
     });
 };
 
@@ -424,6 +446,7 @@ const dropStudent = async (student) => {
             </div>
 
             <!-- Course modal -->
+            <Teleport to="body">
             <div v-if="showCourseModal" class="fixed inset-0 z-50 overflow-y-auto">
                 <div class="flex min-h-full items-center justify-center p-4">
                     <div class="fixed inset-0 bg-content/60 backdrop-blur-sm" @click="closeCourseModal"></div>
@@ -479,8 +502,10 @@ const dropStudent = async (student) => {
                     </div>
                 </div>
             </div>
+            </Teleport>
 
             <!-- Section modal -->
+            <Teleport to="body">
             <div v-if="showSectionModal" class="fixed inset-0 z-50 overflow-y-auto">
                 <div class="flex min-h-full items-center justify-center p-4">
                     <div class="fixed inset-0 bg-content/60 backdrop-blur-sm" @click="closeSectionModal"></div>
@@ -560,12 +585,14 @@ const dropStudent = async (student) => {
                     </div>
                 </div>
             </div>
+            </Teleport>
 
             <!-- Roster modal (registrar enroll / drop) -->
+            <Teleport to="body">
             <div v-if="showRoster && rosterSection" class="fixed inset-0 z-50 overflow-y-auto">
                 <div class="flex min-h-full items-center justify-center p-4">
                     <div class="fixed inset-0 bg-content/60 backdrop-blur-sm" @click="closeRoster"></div>
-                    <div class="relative flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden ui-card">
+                    <div class="relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden ui-card">
                         <div class="flex flex-shrink-0 items-center justify-between border-b border-line px-6 py-4">
                             <h3 class="ui-card-title">
                                 Roster · {{ rosterSection.courseCode }} Section {{ rosterSection.label }}
@@ -576,24 +603,52 @@ const dropStudent = async (student) => {
 
                         <div class="flex min-h-0 flex-1 flex-col">
                             <!-- Assign form -->
-                            <form @submit.prevent="submitAssign" class="flex items-end gap-3 border-b border-line p-6">
-                                <div class="flex-1">
-                                    <label class="ui-label">Assign a student</label>
-                                    <select v-model="enrollForm.student_id" class="ui-input">
-                                        <option :value="null">Select a student…</option>
-                                        <option v-for="s in availableStudents" :key="s.id" :value="s.id">
-                                            {{ s.name }}<span v-if="s.student_id"> ({{ s.student_id }})</span>
-                                        </option>
-                                    </select>
-                                    <p v-if="enrollForm.errors.student_id" class="text-xs text-danger-fg mt-1">{{ enrollForm.errors.student_id }}</p>
+                            <form @submit.prevent="submitAssign" class="space-y-3 border-b border-line p-6">
+                                <label class="ui-label">Assign a student</label>
+                                <div class="relative">
+                                    <MagnifyingGlassIcon class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-content-faint" />
+                                    <input
+                                        v-model="rosterSearch"
+                                        type="search"
+                                        placeholder="Search students by name or ID…"
+                                        class="ui-input pl-9"
+                                    />
                                 </div>
-                                <button
-                                    type="submit"
-                                    class="ui-btn-primary"
-                                    :disabled="enrollForm.processing || !enrollForm.student_id || activeRoster.length >= rosterSection.maxEnrollment"
-                                >
-                                    <UserPlusIcon class="w-4 h-4" /> Assign
-                                </button>
+
+                                <!-- Filterable results — pick one without scrolling the whole list. -->
+                                <div class="max-h-44 overflow-y-auto rounded-control border border-line divide-y divide-line">
+                                    <p v-if="availableStudents.length === 0" class="p-3 text-sm text-content-muted">
+                                        All students are already on this roster.
+                                    </p>
+                                    <p v-else-if="filteredAvailable.length === 0" class="p-3 text-sm text-content-muted">
+                                        No students match “{{ rosterSearch }}”.
+                                    </p>
+                                    <button
+                                        v-for="s in filteredAvailable"
+                                        :key="s.id"
+                                        type="button"
+                                        @click="enrollForm.student_id = s.id"
+                                        :class="[
+                                            'flex w-full items-center justify-between gap-2 p-3 text-left text-sm transition-colors',
+                                            enrollForm.student_id === s.id ? 'bg-primary-soft text-primary' : 'hover:bg-bg/60',
+                                        ]"
+                                    >
+                                        <span class="truncate">{{ s.name }}<span v-if="s.student_id" class="text-content-muted"> · {{ s.student_id }}</span></span>
+                                        <CheckIcon v-if="enrollForm.student_id === s.id" class="h-4 w-4 flex-shrink-0" />
+                                    </button>
+                                </div>
+
+                                <p v-if="enrollForm.errors.student_id" class="text-xs text-danger-fg">{{ enrollForm.errors.student_id }}</p>
+
+                                <div class="flex justify-end">
+                                    <button
+                                        type="submit"
+                                        class="ui-btn-primary"
+                                        :disabled="enrollForm.processing || !enrollForm.student_id || activeRoster.length >= rosterSection.maxEnrollment"
+                                    >
+                                        <UserPlusIcon class="w-4 h-4" /> Assign
+                                    </button>
+                                </div>
                             </form>
 
                             <!-- Current roster -->
@@ -622,6 +677,7 @@ const dropStudent = async (student) => {
                     </div>
                 </div>
             </div>
+            </Teleport>
         </AppLayout>
     </div>
 </template>
