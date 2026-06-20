@@ -7,6 +7,7 @@ use App\Http\Controllers\Concerns\PaginatesCollections;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreDocumentRequest;
 use App\Http\Resources\DocumentResource;
+use App\Infrastructure\FileStorage\DocumentStorageService;
 use App\Models\Department;
 use App\Models\Document;
 use Illuminate\Http\RedirectResponse;
@@ -19,7 +20,10 @@ class DocumentController extends Controller
 {
     use PaginatesCollections;
 
-    public function __construct(private readonly DocumentService $documents) {}
+    public function __construct(
+        private readonly DocumentService $documents,
+        private readonly DocumentStorageService $storage,
+    ) {}
 
     public function upload(): Response
     {
@@ -27,7 +31,7 @@ class DocumentController extends Controller
             'departments' => Department::orderBy('name')->get(['id', 'name']),
             'categories' => $this->categories(),
             'recentUploads' => DocumentResource::collection(
-                Document::with(['uploader', 'department'])->latest()->limit(5)->get()
+                Document::with(['uploader', 'departments'])->latest()->limit(5)->get()
             ),
             'stats' => $this->documents->uploadStatistics(),
         ]);
@@ -124,7 +128,9 @@ class DocumentController extends Controller
             'id' => $document->id,
             'title' => $document->title,
             'description' => $document->description ?? '',
-            'department' => $document->department?->name ?? '—',
+            'department' => $document->departments->isNotEmpty()
+                ? $document->departments->pluck('name')->join(', ')
+                : 'All Departments',
             'category' => $document->category,
             'uploadDate' => $document->created_at?->toIso8601String(),
             'size' => (new DocumentResource($document))->resolve()['fileSize'],
@@ -178,11 +184,12 @@ class DocumentController extends Controller
 
     public function download(Document $document)
     {
-        abort_unless($document->file_path && Storage::disk('local')->exists($document->file_path), 404);
+        $disk = Storage::disk($this->storage->disk());
+        abort_unless($document->file_path && $disk->exists($document->file_path), 404);
 
         $this->documents->recordDownload($document);
 
-        return Storage::disk('local')->download(
+        return $disk->download(
             $document->file_path,
             $document->original_filename ?? $document->title
         );
@@ -190,15 +197,16 @@ class DocumentController extends Controller
 
     public function preview(Document $document)
     {
-        abort_unless($document->file_path && Storage::disk('local')->exists($document->file_path), 404);
+        $disk = Storage::disk($this->storage->disk());
+        abort_unless($document->file_path && $disk->exists($document->file_path), 404);
 
         $this->documents->recordView($document);
 
         // Serve inline so PDFs/text render in the browser instead of downloading.
-        return Storage::disk('local')->response(
+        return $disk->response(
             $document->file_path,
             $document->original_filename ?? $document->title,
-            ['Content-Type' => Storage::disk('local')->mimeType($document->file_path) ?: 'application/octet-stream'],
+            ['Content-Type' => $disk->mimeType($document->file_path) ?: 'application/octet-stream'],
             'inline'
         );
     }

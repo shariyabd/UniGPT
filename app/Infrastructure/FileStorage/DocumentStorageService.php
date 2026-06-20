@@ -7,12 +7,14 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 /**
- * Stores uploaded knowledge-base documents on the configured (private) disk
- * and exposes path/existence helpers used by the document pipeline.
+ * Stores uploaded knowledge-base documents on the configured disk and exposes
+ * path/existence helpers used by the document pipeline. This `DISK` constant is
+ * the single source of truth for where documents live — the controller, seeder
+ * and text extractor all resolve the disk through this service.
  */
 class DocumentStorageService
 {
-    private const DISK = 'local';
+    private const DISK = 'public';
 
     private const DIRECTORY = 'documents';
 
@@ -43,6 +45,16 @@ class DocumentStorageService
     public function exists(string $path): bool
     {
         return Storage::disk(self::DISK)->exists($path);
+    }
+
+    /**
+     * Every stored document file (relative paths on the configured disk).
+     *
+     * @return array<int, string>
+     */
+    public function files(): array
+    {
+        return Storage::disk(self::DISK)->files(self::DIRECTORY);
     }
 
     public function absolutePath(string $path): string

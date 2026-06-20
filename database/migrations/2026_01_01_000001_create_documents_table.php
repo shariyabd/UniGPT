@@ -12,9 +12,9 @@ return new class extends Migration
             $table->id();
             $table->string('title');
             $table->text('description')->nullable();
-            $table->foreignId('department_id')->nullable()
-                ->constrained()
-                ->onUpdate('cascade')->onDelete('set null');
+            // Department targeting is many-to-many via the `document_department`
+            // pivot (a document can belong to several departments, or none =
+            // "All Departments"), so there is no single department_id column.
             $table->string('category')->default('General');
             $table->string('file_type', 20)->nullable();
             $table->string('file_path');
@@ -23,7 +23,9 @@ return new class extends Migration
             $table->unsignedInteger('pages')->nullable();
             $table->string('version')->default('1.0');
             $table->string('status')->default('pending');
-            $table->string('visibility')->default('students'); // public, students, faculty, admins
+            // Audiences allowed to see the document, e.g. ["students","faculty"].
+            // Multi-select; an empty array means no audience is targeted.
+            $table->json('visibility')->nullable();
             $table->json('tags')->nullable();
             $table->unsignedInteger('downloads')->default(0);
             $table->unsignedInteger('views')->default(0);
@@ -39,8 +41,10 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
 
-            $table->index(['status', 'visibility']);
-            $table->index(['department_id', 'category']);
+            // visibility is a JSON column and can't live in a btree index; the
+            // department FK moved to the pivot table, so index the scalar columns.
+            $table->index('status');
+            $table->index('category');
         });
     }
 

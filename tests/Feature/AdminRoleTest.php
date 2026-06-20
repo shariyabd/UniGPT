@@ -156,7 +156,7 @@ class AdminRoleTest extends TestCase
 
     public function test_admin_can_upload_and_approve_a_document_which_gets_indexed(): void
     {
-        Storage::fake('local');
+        Storage::fake('public');
         $admin = $this->admin();
 
         $file = UploadedFile::fake()->createWithContent(
@@ -187,7 +187,7 @@ class AdminRoleTest extends TestCase
 
     public function test_admin_can_reject_a_document(): void
     {
-        Storage::fake('local');
+        Storage::fake('public');
         $admin = $this->admin();
 
         $file = UploadedFile::fake()->createWithContent('draft.txt', 'Some draft content that needs revision.');

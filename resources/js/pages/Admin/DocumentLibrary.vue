@@ -60,6 +60,7 @@ const documents = ref((props.documents?.data ?? []).map((d) => ({
     title: d.title,
     description: d.description ?? '',
     department: d.department ?? '—',
+    departmentNames: (d.departments ?? []).map((dept) => dept.name),
     category: d.category,
     fileType: (d.type ?? 'file').toUpperCase(),
     size: d.fileSize,
@@ -125,7 +126,12 @@ const filteredDocuments = computed(() => {
     }
 
     if (selectedDepartment.value !== 'all') {
-        filtered = filtered.filter(doc => doc.department === selectedDepartment.value);
+        // A document with no targeted departments is university-wide, so it
+        // matches every department filter.
+        filtered = filtered.filter(doc =>
+            doc.departmentNames.length === 0 ||
+            doc.departmentNames.includes(selectedDepartment.value)
+        );
     }
 
     if (selectedFileType.value !== 'all') {

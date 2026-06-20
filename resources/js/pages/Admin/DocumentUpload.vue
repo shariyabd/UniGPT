@@ -34,17 +34,61 @@ const dragActive = ref(false);
 const uploadedFiles = ref([]);
 const isUploading = ref(false);
 
-// Form data
+// Form data — department_ids/visibility are multi-select. An empty
+// department_ids array means "All Departments" (university-wide).
 const uploadForm = ref({
-    department_id: '',
+    department_ids: [],
     category: '',
     description: '',
     tags: [],
-    visibility: 'students'
+    visibility: ['students'],
 });
 
 const departments = computed(() => props.departments);
 const categories = computed(() => props.categories);
+
+const visibilityOptions = [
+    { value: 'students', label: 'Students' },
+    { value: 'faculty', label: 'Faculty' },
+    { value: 'admins', label: 'Admin Only' },
+];
+
+// "All Departments" = no specific department selected.
+const allDepartmentsSelected = computed(() => uploadForm.value.department_ids.length === 0);
+
+const toggleAllDepartments = () => {
+    uploadForm.value.department_ids = [];
+};
+
+const toggleDepartment = (id) => {
+    const ids = uploadForm.value.department_ids;
+    const index = ids.indexOf(id);
+    if (index === -1) {
+        ids.push(id);
+    } else {
+        ids.splice(index, 1);
+    }
+};
+
+const allVisibilitySelected = computed(
+    () => uploadForm.value.visibility.length === visibilityOptions.length
+);
+
+const toggleAllVisibility = () => {
+    uploadForm.value.visibility = allVisibilitySelected.value
+        ? []
+        : visibilityOptions.map((option) => option.value);
+};
+
+const toggleVisibility = (value) => {
+    const selected = uploadForm.value.visibility;
+    const index = selected.indexOf(value);
+    if (index === -1) {
+        selected.push(value);
+    } else {
+        selected.splice(index, 1);
+    }
+};
 
 // Recent uploads from the server, normalized to the shape the sidebar renders.
 const recentUploads = computed(() => {
@@ -135,7 +179,11 @@ const priorities = [
 ];
 
 const startUpload = async () => {
-    if (uploadedFiles.value.length === 0 || !uploadForm.value.category) {
+    if (
+        uploadedFiles.value.length === 0 ||
+        !uploadForm.value.category ||
+        uploadForm.value.visibility.length === 0
+    ) {
         return;
     }
 
@@ -147,7 +195,7 @@ const startUpload = async () => {
             router.post(route('admin.documents.store'), {
                 title: item.name.replace(/\.[^.]+$/, ''),
                 description: uploadForm.value.description,
-                department_id: uploadForm.value.department_id || null,
+                department_ids: uploadForm.value.department_ids,
                 category: uploadForm.value.category,
                 visibility: uploadForm.value.visibility,
                 tags: uploadForm.value.tags,
@@ -169,11 +217,11 @@ const startUpload = async () => {
     isUploading.value = false;
     uploadedFiles.value = [];
     uploadForm.value = {
-        department_id: '',
+        department_ids: [],
         category: '',
         description: '',
         tags: [],
-        visibility: 'students'
+        visibility: ['students'],
     };
 };
 
@@ -317,20 +365,8 @@ const getStatusColor = (status) => {
                         </Card>
 
                         <!-- Upload Form -->
-                        <Card v-if="uploadedFiles.length > 0" title="Document Information" :icon="TagIcon">
+                        <Card title="Document Information" :icon="TagIcon">
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <!-- Department -->
-                                <div>
-                                    <label class="ui-label">Department *</label>
-                                    <select
-                                        v-model="uploadForm.department_id"
-                                        class="ui-input"
-                                    >
-                                        <option value="">Select Department</option>
-                                        <option v-for="dept in departments" :key="dept.id" :value="dept.id">{{ dept.name }}</option>
-                                    </select>
-                                </div>
-
                                 <!-- Category -->
                                 <div>
                                     <label class="ui-label">Category *</label>
@@ -356,18 +392,76 @@ const getStatusColor = (status) => {
                                     </select>
                                 </div>
 
-                                <!-- Visibility -->
-                                <div>
-                                    <label class="ui-label">Visibility</label>
-                                    <select
-                                        v-model="uploadForm.visibility"
-                                        class="ui-input"
-                                    >
-                                        <option value="public">Public (All Users)</option>
-                                        <option value="students">Students</option>
-                                        <option value="faculty">Faculty</option>
-                                        <option value="admins">Admin Only</option>
-                                    </select>
+                                <!-- Departments (multi-select) -->
+                                <div class="md:col-span-2">
+                                    <label class="ui-label">Departments</label>
+                                    <p class="text-xs text-content-muted mb-2">
+                                        Select one or more departments, or choose "All Departments" to make it available university-wide.
+                                    </p>
+                                    <div class="flex flex-wrap gap-2">
+                                        <button
+                                            type="button"
+                                            @click="toggleAllDepartments"
+                                            :class="[
+                                                'px-3 py-1.5 rounded-pill text-sm font-medium border transition-colors',
+                                                allDepartmentsSelected
+                                                    ? 'bg-primary text-white border-primary'
+                                                    : 'bg-bg text-content-muted border-line hover:border-primary',
+                                            ]"
+                                        >
+                                            All Departments
+                                        </button>
+                                        <button
+                                            v-for="dept in departments"
+                                            :key="dept.id"
+                                            type="button"
+                                            @click="toggleDepartment(dept.id)"
+                                            :class="[
+                                                'px-3 py-1.5 rounded-pill text-sm font-medium border transition-colors',
+                                                uploadForm.department_ids.includes(dept.id)
+                                                    ? 'bg-primary text-white border-primary'
+                                                    : 'bg-bg text-content-muted border-line hover:border-primary',
+                                            ]"
+                                        >
+                                            {{ dept.name }}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Visibility (multi-select) -->
+                                <div class="md:col-span-2">
+                                    <label class="ui-label">Visibility *</label>
+                                    <p class="text-xs text-content-muted mb-2">
+                                        Choose which audiences can see this document. Select at least one.
+                                    </p>
+                                    <div class="flex flex-wrap gap-2">
+                                        <button
+                                            type="button"
+                                            @click="toggleAllVisibility"
+                                            :class="[
+                                                'px-3 py-1.5 rounded-pill text-sm font-medium border transition-colors',
+                                                allVisibilitySelected
+                                                    ? 'bg-primary text-white border-primary'
+                                                    : 'bg-bg text-content-muted border-line hover:border-primary',
+                                            ]"
+                                        >
+                                            All
+                                        </button>
+                                        <button
+                                            v-for="option in visibilityOptions"
+                                            :key="option.value"
+                                            type="button"
+                                            @click="toggleVisibility(option.value)"
+                                            :class="[
+                                                'px-3 py-1.5 rounded-pill text-sm font-medium border transition-colors',
+                                                uploadForm.visibility.includes(option.value)
+                                                    ? 'bg-primary text-white border-primary'
+                                                    : 'bg-bg text-content-muted border-line hover:border-primary',
+                                            ]"
+                                        >
+                                            {{ option.label }}
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
 
@@ -412,10 +506,10 @@ const getStatusColor = (status) => {
                                 </div>
                                 <button
                                     @click="startUpload"
-                                    :disabled="isUploading || uploadedFiles.length === 0"
+                                    :disabled="isUploading || uploadedFiles.length === 0 || !uploadForm.category || uploadForm.visibility.length === 0"
                                     class="ui-btn-primary disabled:opacity-60 disabled:cursor-not-allowed"
                                 >
-                                    {{ isUploading ? 'Uploading...' : `Upload ${uploadedFiles.length} File${uploadedFiles.length !== 1 ? 's' : ''}` }}
+                                    {{ isUploading ? 'Uploading...' : uploadedFiles.length === 0 ? 'Select a file to upload' : `Upload ${uploadedFiles.length} File${uploadedFiles.length !== 1 ? 's' : ''}` }}
                                 </button>
                             </div>
                         </Card>

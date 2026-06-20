@@ -25,7 +25,15 @@ class DocumentResource extends JsonResource
             'title' => $this->title,
             'description' => $this->description,
             'category' => $this->category,
-            'department' => $this->whenLoaded('department', fn () => $this->department?->name),
+            // Many-to-many departments. `department` is a human-readable summary
+            // ("All Departments" when none are targeted) for list/detail views;
+            // `departments`/`departmentIds` drive multi-select editing + filters.
+            'department' => $this->whenLoaded('departments', fn () => $this->departmentSummary()),
+            'departments' => $this->whenLoaded(
+                'departments',
+                fn () => $this->departments->map(fn ($d) => ['id' => $d->id, 'name' => $d->name])->values()
+            ),
+            'departmentIds' => $this->whenLoaded('departments', fn () => $this->departments->pluck('id')->values()),
             'type' => $this->file_type,
             'fileSize' => $this->humanFileSize(),
             'fileSizeBytes' => $this->file_size,
@@ -44,6 +52,13 @@ class DocumentResource extends JsonResource
             'downloadUrl' => Route::has($downloadRoute) ? route($downloadRoute, $this->id) : null,
             'previewUrl' => Route::has($previewRoute) ? route($previewRoute, $this->id) : null,
         ];
+    }
+
+    private function departmentSummary(): string
+    {
+        $names = $this->departments->pluck('name')->filter()->values();
+
+        return $names->isEmpty() ? 'All Departments' : $names->join(', ');
     }
 
     private function humanFileSize(): string

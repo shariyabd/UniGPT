@@ -12,6 +12,7 @@ use App\Domain\User\Models\User;
 use App\Enums\TaskPriority;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\DocumentResource;
+use App\Infrastructure\FileStorage\DocumentStorageService;
 use App\Models\ActivityLog;
 use App\Models\Assignment;
 use App\Models\Department;
@@ -30,6 +31,7 @@ class StudentDashboardController extends Controller
         private readonly TranscriptService $transcript,
         private readonly ExamService $exams,
         private readonly CalendarService $calendar,
+        private readonly DocumentStorageService $documentStorage,
     ) {}
 
     public function index(): Response
@@ -203,7 +205,10 @@ class StudentDashboardController extends Controller
 
         $this->documents->recordDownload($document);
 
-        return Storage::disk('local')->download(
+        // Documents live on the disk owned by DocumentStorageService (the public
+        // disk), not the local disk — resolve it through the service so this stays
+        // correct if the storage location ever changes.
+        return Storage::disk($this->documentStorage->disk())->download(
             $document->file_path,
             $document->original_filename ?? $document->title,
         );

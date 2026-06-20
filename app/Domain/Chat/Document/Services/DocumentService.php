@@ -32,22 +32,33 @@ class DocumentService
      */
     public function upload(User $uploader, array $data, UploadedFile $file): Document
     {
+        // Hash the contents before storing so we can detect duplicate uploads.
+        $fileHash = hash_file('sha256', $file->getRealPath());
+
         $stored = $this->storage->store($file);
 
         $document = Document::create([
             'title' => $data['title'],
             'description' => $data['description'] ?? null,
-            'department_id' => $data['department_id'] ?? $uploader->department_id,
             'category' => $data['category'] ?? 'General',
-            'visibility' => $data['visibility'] ?? 'students',
+            'visibility' => $data['visibility'] ?? ['students'],
             'tags' => $data['tags'] ?? [],
             'file_path' => $stored['path'],
             'file_type' => $stored['file_type'],
             'file_size' => $stored['file_size'],
             'original_filename' => $stored['original_filename'],
+            'file_hash' => $fileHash,
             'status' => DocumentStatus::PENDING,
             'uploaded_by' => $uploader->id,
         ]);
+
+        // Empty selection ("All Departments") leaves the pivot empty; otherwise
+        // target the chosen departments. Falls back to the uploader's department.
+        $departmentIds = $data['department_ids'] ?? [];
+        if (empty($departmentIds) && $uploader->department_id && ! array_key_exists('department_ids', $data)) {
+            $departmentIds = [$uploader->department_id];
+        }
+        $document->departments()->sync($departmentIds);
 
         $this->activity->log('document.uploaded', "Uploaded \"{$document->title}\"", $document, [], $uploader);
 
@@ -127,7 +138,7 @@ class DocumentService
      */
     public function pendingQueue(): Collection
     {
-        return Document::with(['uploader', 'department', 'approvals.reviewer'])
+        return Document::with(['uploader', 'departments', 'approvals.reviewer'])
             ->where('status', DocumentStatus::PENDING->value)
             ->latest()
             ->get();
@@ -140,7 +151,7 @@ class DocumentService
      */
     public function reviewQueue(): Collection
     {
-        return Document::with(['uploader', 'department', 'approvals.reviewer'])
+        return Document::with(['uploader', 'departments', 'approvals.reviewer'])
             ->latest()
             ->get();
     }
@@ -159,7 +170,7 @@ class DocumentService
      */
     public function library(array $filters = [], int $perPage = 12, ?User $user = null): LengthAwarePaginator
     {
-        $query = Document::with(['uploader', 'department']);
+        $query = Document::with(['uploader', 'departments']);
 
         if ($user) {
             $query->withExists([
@@ -192,7 +203,7 @@ class DocumentService
      */
     public function libraryFor(User $user, array $filters = [], int $perPage = 12): LengthAwarePaginator
     {
-        $query = Document::approved()->visibleTo($user)->with(['uploader', 'department']);
+        $query = Document::approved()->visibleTo($user)->with(['uploader', 'departments']);
 
         return $this->applyFilters($query, $filters)
             ->latest()
@@ -255,7 +266,7 @@ class DocumentService
         }
 
         if (! empty($filters['department_id'])) {
-            $query->where('department_id', $filters['department_id']);
+            $query->forDepartment((int) $filters['department_id']);
         }
 
         if (! empty($filters['file_type']) && $filters['file_type'] !== 'all') {

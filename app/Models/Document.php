@@ -19,11 +19,11 @@ class Document extends Model
     protected $fillable = [
         'title',
         'description',
-        'department_id',
         'category',
         'file_type',
         'file_path',
         'original_filename',
+        'file_hash',
         'file_size',
         'pages',
         'version',
@@ -43,15 +43,20 @@ class Document extends Model
     {
         return [
             'tags' => 'array',
+            'visibility' => 'array',
             'status' => DocumentStatus::class,
             'approved_at' => 'datetime',
             'processed_at' => 'datetime',
         ];
     }
 
-    public function department(): BelongsTo
+    /**
+     * Departments this document targets. An empty set means it is visible to
+     * every department ("All Departments").
+     */
+    public function departments(): BelongsToMany
     {
-        return $this->belongsTo(Department::class);
+        return $this->belongsToMany(Department::class, 'document_department');
     }
 
     public function uploader(): BelongsTo
@@ -92,6 +97,18 @@ class Document extends Model
         return $query->where('status', DocumentStatus::APPROVED->value);
     }
 
+    /**
+     * Documents targeting a given department (or every department when the
+     * document has no department pivot rows).
+     */
+    public function scopeForDepartment(Builder $query, int $departmentId): Builder
+    {
+        return $query->where(function (Builder $q) use ($departmentId) {
+            $q->whereDoesntHave('departments')
+                ->orWhereHas('departments', fn (Builder $d) => $d->whereKey($departmentId));
+        });
+    }
+
     public function scopePending(Builder $query): Builder
     {
         return $query->whereIn('status', [
@@ -102,7 +119,9 @@ class Document extends Model
     }
 
     /**
-     * Limit documents to those a given user is allowed to see.
+     * Limit documents to those a given user is allowed to see. Visibility is a
+     * multi-audience JSON array, so a document is visible when any audience the
+     * user belongs to is present in that array (admins see everything).
      */
     public function scopeVisibleTo(Builder $query, User $user): Builder
     {
@@ -110,7 +129,7 @@ class Document extends Model
             return $query;
         }
 
-        $allowed = ['public'];
+        $allowed = [];
         if ($user->isStudent()) {
             $allowed[] = 'students';
         }
@@ -119,6 +138,10 @@ class Document extends Model
             $allowed[] = 'faculty';
         }
 
-        return $query->whereIn('visibility', array_unique($allowed));
+        return $query->where(function (Builder $audiences) use ($allowed) {
+            foreach (array_unique($allowed) as $audience) {
+                $audiences->orWhereJsonContains('visibility', $audience);
+            }
+        });
     }
 }
