@@ -35,6 +35,9 @@ class User extends Authenticatable
         'preferences',
         'is_active',
         'last_login_at',
+        'ai_chat_blocked_at',
+        'ai_chat_blocked_until',
+        'ai_chat_block_reason',
     ];
 
     protected $hidden = [
@@ -47,6 +50,8 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'last_login_at' => 'datetime',
+            'ai_chat_blocked_at' => 'datetime',
+            'ai_chat_blocked_until' => 'datetime',
             'is_active' => 'boolean',
             'preferences' => 'array',
             'password' => 'hashed',
@@ -63,6 +68,60 @@ class User extends Authenticatable
     public function chatSessions(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(\App\Models\ChatSession::class);
+    }
+
+    /**
+     * All chat messages this user has generated, across every session — used to
+     * aggregate request counts and token usage for the admin AI-usage monitor.
+     */
+    public function chatMessages(): \Illuminate\Database\Eloquent\Relations\HasManyThrough
+    {
+        return $this->hasManyThrough(
+            \App\Models\ChatMessage::class,
+            \App\Models\ChatSession::class,
+            'user_id',          // FK on chat_sessions → users
+            'chat_session_id',  // FK on chat_messages → chat_sessions
+            'id',
+            'id',
+        );
+    }
+
+    /**
+     * Whether the user is currently blocked from the AI chat. A block is active
+     * when it has been set and is either permanent (no expiry) or not yet expired.
+     */
+    public function isAiChatBlocked(): bool
+    {
+        if ($this->ai_chat_blocked_at === null) {
+            return false;
+        }
+
+        return $this->ai_chat_blocked_until === null
+            || $this->ai_chat_blocked_until->isFuture();
+    }
+
+    /**
+     * Block the user from the AI chat. A null $until is a permanent block.
+     */
+    public function blockAiChat(string $reason, ?\Illuminate\Support\Carbon $until = null): void
+    {
+        $this->forceFill([
+            'ai_chat_blocked_at' => now(),
+            'ai_chat_blocked_until' => $until,
+            'ai_chat_block_reason' => $reason,
+        ])->save();
+    }
+
+    /**
+     * Restore the user's AI-chat access.
+     */
+    public function unblockAiChat(): void
+    {
+        $this->forceFill([
+            'ai_chat_blocked_at' => null,
+            'ai_chat_blocked_until' => null,
+            'ai_chat_block_reason' => null,
+        ])->save();
     }
 
     public function savedAnswers(): \Illuminate\Database\Eloquent\Relations\HasMany

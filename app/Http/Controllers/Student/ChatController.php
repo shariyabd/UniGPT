@@ -48,6 +48,13 @@ class ChatController extends Controller
             'supportedLanguages' => $this->aiSettings->supportedLanguages(),
             // Prefer the student's saved language preference when it's still supported.
             'defaultLanguage' => $this->preferredLanguage($user),
+            // AI-chat access state, so a blocked student sees the admin's note
+            // instead of the composer.
+            'aiAccess' => [
+                'blocked' => $user->isAiChatBlocked(),
+                'reason' => $user->ai_chat_block_reason,
+                'blockedUntil' => $user->ai_chat_blocked_until?->toIso8601String(),
+            ],
         ]);
     }
 

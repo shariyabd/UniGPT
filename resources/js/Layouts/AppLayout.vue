@@ -23,6 +23,7 @@ import {
     PencilIcon,
     SparklesIcon,
     ChartBarIcon,
+    CpuChipIcon,
     UsersIcon,
     BuildingOffice2Icon,
     ShieldCheckIcon,
@@ -115,6 +116,7 @@ const navByRole = {
         ] },
         { section: 'System', items: [
             { label: 'Analytics', route: 'admin.analytics', icon: ChartBarIcon, permission: 'view_all_analytics' },
+            { label: 'AI Usage', route: 'admin.ai-usage', icon: CpuChipIcon, permission: 'view_all_analytics' },
             { label: 'Announcements', route: 'admin.announcements', icon: MegaphoneIcon, permission: 'send_notifications' },
             { label: 'Settings', route: 'admin.settings', icon: Cog6ToothIcon, permission: 'configure_ai' },
             { label: 'Monitor', route: 'admin.monitor', icon: ServerStackIcon, permission: 'manage_system' },

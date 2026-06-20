@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AdminDashboardController;
+use App\Http\Controllers\Admin\AiUsageController;
 use App\Http\Controllers\Admin\AnalyticsController;
 use App\Http\Controllers\Admin\AnnouncementController;
 use App\Http\Controllers\Admin\CourseController as AdminCourseController;
@@ -71,7 +72,7 @@ Route::middleware(['auth'])->group(function () {
         // AI chat (page is Inertia; send/load are JSON for a live feel)
         Route::get('/chat', [ChatController::class, 'index'])->middleware('permission:use_ai_chat')->name('chat');
         Route::get('/chat/archived', [ChatController::class, 'archived'])->middleware('permission:view_chat_history')->name('chat.archived');
-        Route::post('/chat', [ChatController::class, 'store'])->middleware('permission:use_ai_chat')->name('chat.send');
+        Route::post('/chat', [ChatController::class, 'store'])->middleware(['permission:use_ai_chat', 'ai.chat.access'])->name('chat.send');
         Route::get('/chat/sessions/{session}', [ChatController::class, 'show'])->middleware('permission:view_chat_history')->name('chat.session');
         Route::patch('/chat/sessions/{session}', [ChatController::class, 'rename'])->middleware('permission:use_ai_chat')->name('chat.session.rename');
         Route::patch('/chat/sessions/{session}/pin', [ChatController::class, 'togglePin'])->middleware('permission:view_chat_history')->name('chat.session.pin');
@@ -221,6 +222,11 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/documents/{document}/comment', [AdminDocumentController::class, 'comment'])->middleware('permission:approve_document')->name('documents.comment');
 
         Route::get('/analytics', [AnalyticsController::class, 'index'])->middleware('permission:view_all_analytics')->name('analytics');
+
+        // AI usage monitor — per-user/per-request token tracking + AI-chat access control
+        Route::get('/ai-usage', [AiUsageController::class, 'index'])->middleware('permission:view_all_analytics')->name('ai-usage');
+        Route::post('/ai-usage/{user}/block', [AiUsageController::class, 'block'])->middleware('permission:update_user')->name('ai-usage.block');
+        Route::post('/ai-usage/{user}/unblock', [AiUsageController::class, 'unblock'])->middleware('permission:update_user')->name('ai-usage.unblock');
 
         // User management
         Route::get('/users', [UserManagementController::class, 'index'])->middleware('permission:view_users')->name('users');
