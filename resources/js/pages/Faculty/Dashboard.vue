@@ -176,6 +176,18 @@ const facultySubtitle = computed(() => {
                                             <AcademicCapIcon class="w-5 h-5" />
                                         </span>
                                     </div>
+                                    <p
+                                        v-if="course.sections && course.sections.length"
+                                        class="mb-2 flex flex-wrap items-center gap-1.5"
+                                    >
+                                        <span
+                                            v-for="label in course.sections"
+                                            :key="label"
+                                            class="inline-flex items-center rounded-full bg-primary-soft px-2 py-0.5 text-xs font-semibold text-primary"
+                                        >
+                                            Section {{ label }}
+                                        </span>
+                                    </p>
                                     <p class="text-xs text-content-muted mb-4">
                                         {{ course.semester }} • {{ course.credits }} credits
                                     </p>
