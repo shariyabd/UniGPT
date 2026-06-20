@@ -63,6 +63,7 @@ const navByRole = {
             { label: 'Transcript', route: 'transcript', icon: AcademicCapIcon, permission: 'view_courses' },
             { label: 'Materials', route: 'materials', icon: BookOpenIcon, permission: 'view_courses' },
             { label: 'Assignments', route: 'assignments', icon: ClipboardDocumentListIcon, permission: 'view_assignments' },
+            { label: 'Class Tests', route: 'class-tests', icon: ClipboardDocumentCheckIcon, permission: 'take_class_test' },
             { label: 'Attendance', route: 'attendance', icon: ClipboardDocumentCheckIcon, permission: 'view_attendance' },
             { label: 'Exams', route: 'exams', icon: PencilSquareIcon, permission: 'view_exams' },
         ] },
@@ -86,6 +87,7 @@ const navByRole = {
         { section: 'Teaching', items: [
             { label: 'Courses', route: 'faculty.courses', icon: BookOpenIcon, permission: 'view_courses' },
             { label: 'Grading', route: 'faculty.grading', icon: ClipboardDocumentCheckIcon, permission: 'grade_assignment' },
+            { label: 'Class Tests', route: 'faculty.class-tests', icon: ClipboardDocumentListIcon, permission: 'manage_class_tests' },
             { label: 'Exams', route: 'faculty.exams', icon: PencilSquareIcon, permission: 'view_exams' },
         ] },
         { section: 'Insights', items: [
