@@ -22,7 +22,7 @@ import {
     ExclamationTriangleIcon,
     CheckCircleIcon,
     InformationCircleIcon,
-    EyeIcon,
+    ArrowDownTrayIcon,
     ChevronDownIcon,
     ChevronUpIcon,
     ArrowTopRightOnSquareIcon,
@@ -57,6 +57,21 @@ const props = defineProps({
     modes: { type: Array, default: () => [] },
     supportedLanguages: { type: Array, default: () => [{ code: 'en', name: 'English' }] },
     defaultLanguage: { type: String, default: 'en' },
+    aiAccess: { type: Object, default: () => ({ blocked: false, reason: null, blockedUntil: null }) },
+});
+
+// When an admin has blocked this student's AI chat, the composer is hidden and a
+// warning note (with the admin's reason) is shown in its place.
+const isBlocked = computed(() => props.aiAccess?.blocked === true);
+const blockReason = computed(() =>
+    props.aiAccess?.reason
+    || 'Your access to the AI chat has been blocked. Please contact an administrator.'
+);
+const blockedUntilLabel = computed(() => {
+    if (!props.aiAccess?.blockedUntil) return '';
+    return new Date(props.aiAccess.blockedUntil).toLocaleString('en-US', {
+        dateStyle: 'medium', timeStyle: 'short',
+    });
 });
 
 const toast = useToast();
@@ -306,7 +321,10 @@ const normalizeMessage = (msg) => ({
     confidence: msg.confidence ?? 100,
     saved: msg.saved ?? false,
     contextRelevance: (msg.sources && msg.sources.length) ? 'course' : null,
-    followUpSuggestions: msg.followUpSuggestions ?? [],
+    // Starter suggestions are only shown on the initial welcome message to guide
+    // the user; per-answer follow-ups are intentionally omitted to keep replies
+    // focused on the answer itself.
+    followUpSuggestions: [],
     sources: (msg.sources ?? []).map((s) => ({
         ...s,
         confidence: (s.confidence ?? 0) / 100,
@@ -415,10 +433,16 @@ const sendMessage = async () => {
         currentSources.value = assistant.sources;
         currentMessageId.value = assistant.id;
     } catch (e) {
+        // A 403 means an admin has blocked this user's AI chat access — surface
+        // the reason note they left instead of the generic error.
+        const blocked = e?.response?.status === 403;
+        const content = blocked
+            ? (e.response?.data?.message || 'Your access to the AI chat has been blocked. Please contact an administrator.')
+            : 'Sorry, something went wrong while generating a response. Please try again.';
         messages.value.push({
             id: 'e' + Date.now(),
             role: 'assistant',
-            content: 'Sorry, something went wrong while generating a response. Please try again.',
+            content,
             timestamp: new Date().toISOString(),
             confidence: 0,
             sources: [],
@@ -540,7 +564,21 @@ const showSourceDetails = (messageId) => {
     if (message && message.sources) {
         currentSources.value = message.sources;
         currentMessageId.value = messageId;
+        // Open the sources panel so "View All" works on smaller screens where it
+        // starts collapsed (otherwise the click appears to do nothing).
+        showSourcePanel.value = true;
     }
+};
+
+// Download the original source document. Sources carry the document id; the
+// student documents.download route streams the file (policy-gated to approved,
+// visible documents — exactly what retrieval surfaces).
+const downloadSource = (source) => {
+    if (!source?.document_id) {
+        toast.info('This source has no downloadable file.');
+        return;
+    }
+    window.open(route('documents.download', source.document_id), '_blank');
 };
 
 const scrollToBottom = () => {
@@ -870,6 +908,25 @@ watch(() => messages.value.length, () => {
                             style="scroll-behavior: smooth;"
                         >
                             <div class="mx-auto w-full max-w-3xl space-y-6 px-4 py-6 sm:px-6">
+                            <!-- Blocked notice: when an admin has revoked AI chat access, this
+                                 replaces the conversation and the composer is hidden. -->
+                            <div v-if="isBlocked" class="flex justify-center pt-6">
+                                <div class="w-full max-w-xl rounded-card border border-danger-fg/30 bg-danger-bg p-6 text-center">
+                                    <div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-danger-fg/15 text-danger-fg">
+                                        <ExclamationTriangleIcon class="h-6 w-6" />
+                                    </div>
+                                    <h3 class="text-base font-semibold text-danger-fg">AI Chat access blocked</h3>
+                                    <p class="mt-2 whitespace-pre-line text-sm text-content">{{ blockReason }}</p>
+                                    <p v-if="blockedUntilLabel" class="mt-3 text-xs text-content-muted">
+                                        Access is scheduled to be restored on {{ blockedUntilLabel }}.
+                                    </p>
+                                    <p v-else class="mt-3 text-xs text-content-muted">
+                                        Please contact an administrator if you believe this is a mistake.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <template v-else>
                             <div
                                 v-for="message in messages"
                                 :key="message.id"
@@ -968,10 +1025,11 @@ watch(() => messages.value.length, () => {
                                                         Academic Sources
                                                     </p>
                                                     <button
+                                                        v-if="message.sources.length > 2"
                                                         @click="showSourceDetails(message.id)"
                                                         class="text-xs text-primary hover:text-primary-hover font-semibold inline-flex items-center gap-1"
                                                     >
-                                                        View All
+                                                        View all {{ message.sources.length }}
                                                         <ArrowTopRightOnSquareIcon class="w-3.5 h-3.5" />
                                                     </button>
                                                 </div>
@@ -995,6 +1053,14 @@ watch(() => messages.value.length, () => {
                                                         <span :class="`px-2 py-1 text-xs font-medium rounded-pill border ${getConfidenceColor(source.confidence * 100)}`">
                                                             {{ Math.round(source.confidence * 100) }}%
                                                         </span>
+                                                        <button
+                                                            @click="downloadSource(source)"
+                                                            class="p-1.5 rounded-control text-content-faint hover:text-primary hover:bg-primary-soft transition-colors flex-shrink-0"
+                                                            title="Download source document"
+                                                            aria-label="Download source document"
+                                                        >
+                                                            <ArrowDownTrayIcon class="w-4 h-4" />
+                                                        </button>
                                                     </div>
                                                 </div>
                                             </div>
@@ -1041,11 +1107,12 @@ watch(() => messages.value.length, () => {
                                     </div>
                                 </div>
                             </div>
+                            </template>
                             </div>
                         </div>
 
-                        <!-- Composer -->
-                        <div class="flex-shrink-0 border-t border-line bg-surface">
+                        <!-- Composer (hidden when the student's AI chat access is blocked) -->
+                        <div v-if="!isBlocked" class="flex-shrink-0 border-t border-line bg-surface">
                             <div class="mx-auto w-full max-w-3xl px-4 py-3 sm:px-6 sm:py-4">
                             <form @submit.prevent="sendMessage" class="space-y-2.5">
                                 <!-- Input Area -->
@@ -1201,12 +1268,19 @@ watch(() => messages.value.length, () => {
 
                                     <!-- Source Meta & Actions -->
                                     <div class="flex items-center justify-between">
-                                        <span class="text-xs text-content-faint">
+                                        <span v-if="source.lastUpdated" class="text-xs text-content-faint">
                                             Updated {{ new Date(source.lastUpdated).toLocaleDateString() }}
                                         </span>
-                                        <button class="flex items-center gap-1 text-xs text-primary hover:text-primary-hover font-semibold">
-                                            <EyeIcon class="w-3.5 h-3.5" />
-                                            View
+                                        <span v-else class="text-xs text-content-faint">
+                                            University document
+                                        </span>
+                                        <button
+                                            @click="downloadSource(source)"
+                                            class="flex items-center gap-1 text-xs text-primary hover:text-primary-hover font-semibold"
+                                            title="Download source document"
+                                        >
+                                            <ArrowDownTrayIcon class="w-3.5 h-3.5" />
+                                            Download
                                         </button>
                                     </div>
                                 </div>
