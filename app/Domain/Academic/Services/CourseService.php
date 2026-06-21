@@ -23,7 +23,7 @@ class CourseService
     public function catalog(): Collection
     {
         return Course::with(['department', 'sections.faculty', 'sections.term', 'sections.students'])
-            ->orderBy('code')
+            ->latest()
             ->get()
             ->map(fn (Course $course) => [
                 'id' => $course->id,

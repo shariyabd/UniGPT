@@ -20,7 +20,7 @@ class DepartmentController extends Controller
     public function index(): Response
     {
         $departments = Department::withCount(['users', 'courses'])
-            ->orderBy('name')
+            ->latest()
             ->paginate(25)
             ->withQueryString()
             ->through(fn (Department $d) => [
