@@ -23,6 +23,7 @@ const props = defineProps({
 });
 
 const departmentItems = computed(() => props.departments.data ?? []);
+const totalDepartments = computed(() => props.departments.total ?? departmentItems.value.length);
 
 const { confirm, notify } = useConfirm();
 
@@ -104,6 +105,7 @@ const remove = async (dept) => {
                     title="Departments"
                     subtitle="Manage academic departments, their codes and status."
                     :icon="BuildingOffice2Icon"
+                    :count="totalDepartments"
                 >
                     <template #actions>
                         <button type="button" @click="openCreate" class="ui-btn-primary">

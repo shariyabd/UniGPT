@@ -4,6 +4,8 @@ defineProps({
     subtitle: { type: String, default: '' },
     icon: { type: [Object, Function], default: null },
     eyebrow: { type: String, default: '' },
+    // Optional total-item count rendered as a pill beside the title.
+    count: { type: [Number, null], default: null },
 });
 </script>
 
@@ -18,7 +20,15 @@ defineProps({
             </div>
             <div class="min-w-0">
                 <p v-if="eyebrow" class="text-xs font-semibold uppercase tracking-wider text-content-faint">{{ eyebrow }}</p>
-                <h1 class="text-2xl font-bold tracking-tight text-content">{{ title }}</h1>
+                <div class="flex items-center gap-2">
+                    <h1 class="text-2xl font-bold tracking-tight text-content">{{ title }}</h1>
+                    <span
+                        v-if="count !== null"
+                        class="inline-flex items-center rounded-pill bg-primary-soft px-2.5 py-0.5 text-sm font-semibold text-primary"
+                    >
+                        {{ count }}
+                    </span>
+                </div>
                 <p v-if="subtitle" class="mt-0.5 text-sm text-content-muted">{{ subtitle }}</p>
             </div>
         </div>
