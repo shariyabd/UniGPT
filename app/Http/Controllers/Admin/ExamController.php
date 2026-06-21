@@ -31,16 +31,25 @@ class ExamController extends Controller
             'search' => $request->string('search')->trim()->value(),
             'course_id' => $request->input('course_id'),
             'type' => $request->input('type'),
+            'date_from' => $request->date('date_from')?->toDateString(),
+            'date_to' => $request->date('date_to')?->toDateString(),
         ];
 
         // Filter the full exam list server-side BEFORE paginating, so a chosen
-        // course/type/search matches across every page — not just the current 25.
+        // course/type/search/date-range matches across every page — not just the
+        // current 25.
         $exams = $this->exams->adminList()
             ->when($filters['course_id'], fn ($collection, $courseId) => $collection->filter(
                 fn (array $exam) => (string) ($exam['course']['id'] ?? '') === (string) $courseId
             ))
             ->when($filters['type'], fn ($collection, $type) => $collection->filter(
                 fn (array $exam) => $exam['type'] === $type
+            ))
+            ->when($filters['date_from'], fn ($collection, $from) => $collection->filter(
+                fn (array $exam) => $exam['date'] >= $from
+            ))
+            ->when($filters['date_to'], fn ($collection, $to) => $collection->filter(
+                fn (array $exam) => $exam['date'] <= $to
             ))
             ->when($filters['search'], function ($collection, $search) {
                 $needle = Str::lower($search);

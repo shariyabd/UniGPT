@@ -7,6 +7,7 @@ import Card from '@/components/ui/Card.vue';
 import Badge from '@/components/ui/Badge.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import Pagination from '@/components/ui/Pagination.vue';
+import SearchableSelect from '@/components/ui/SearchableSelect.vue';
 import { useConfirm } from '@/composables/useConfirm';
 import {
     PencilSquareIcon,
@@ -39,16 +40,23 @@ const editingId = ref(null);
 const searchQuery = ref(props.filters.search ?? '');
 const selectedCourse = ref(props.filters.course_id ? Number(props.filters.course_id) : 'all');
 const selectedType = ref(props.filters.type ?? 'all');
+const dateFrom = ref(props.filters.date_from ?? '');
+const dateTo = ref(props.filters.date_to ?? '');
 
 // Push the current filter state to the server (resets to page 1). Search is
 // debounced; the dropdowns fire immediately.
+// Clearing a SearchableSelect emits null; treat it the same as the "all" sentinel.
+const isAll = (value) => value === 'all' || value === null;
+
 const applyFilters = () => {
     router.get(
         route('admin.exams'),
         {
             search: searchQuery.value || undefined,
-            course_id: selectedCourse.value !== 'all' ? selectedCourse.value : undefined,
-            type: selectedType.value !== 'all' ? selectedType.value : undefined,
+            course_id: !isAll(selectedCourse.value) ? selectedCourse.value : undefined,
+            type: !isAll(selectedType.value) ? selectedType.value : undefined,
+            date_from: dateFrom.value || undefined,
+            date_to: dateTo.value || undefined,
         },
         { preserveState: true, preserveScroll: true, replace: true },
     );
@@ -59,7 +67,26 @@ watch(searchQuery, () => {
     clearTimeout(searchTimer);
     searchTimer = setTimeout(applyFilters, 300);
 });
-watch([selectedCourse, selectedType], applyFilters);
+watch([selectedCourse, selectedType, dateFrom, dateTo], applyFilters);
+
+// Filter dropdown options (the empty "All …" entry is handled by placeholder + clearable).
+const courseFilterOptions = computed(() =>
+    props.courses.map((course) => ({ value: course.id, label: `${course.code} — ${course.name}` })),
+);
+const typeFilterOptions = computed(() =>
+    props.types.map((t) => ({ value: t.value, label: t.label })),
+);
+
+// Form dropdown options.
+const courseFormOptions = computed(() =>
+    props.courses.map((course) => ({ value: course.id, label: `${course.code} — ${course.name}` })),
+);
+const sectionFormOptions = computed(() =>
+    availableSections.value.map((section) => ({ value: section.id, label: `Section ${section.label}` })),
+);
+const typeFormOptions = computed(() =>
+    props.types.map((t) => ({ value: t.value, label: t.label })),
+);
 
 const form = useForm({
     course_id: '',
@@ -89,7 +116,8 @@ const onCourseChange = () => {
 };
 
 const hasActiveFilters = computed(() =>
-    searchQuery.value !== '' || selectedCourse.value !== 'all' || selectedType.value !== 'all'
+    searchQuery.value !== '' || !isAll(selectedCourse.value) || !isAll(selectedType.value)
+    || dateFrom.value !== '' || dateTo.value !== ''
 );
 
 // Total exams matched by the active filters, across all pages.
@@ -99,6 +127,8 @@ const clearFilters = () => {
     searchQuery.value = '';
     selectedCourse.value = 'all';
     selectedType.value = 'all';
+    dateFrom.value = '';
+    dateTo.value = '';
     // The dropdown watcher fires applyFilters; nudge in case nothing changed.
     applyFilters();
 };
@@ -167,6 +197,7 @@ const remove = async (exam) => {
                     title="Exam Management"
                     subtitle="Schedule exams across courses; enrolled students are notified automatically."
                     :icon="PencilSquareIcon"
+                    :count="totalExams"
                 >
                     <template #actions>
                         <button type="button" @click="openCreate" class="ui-btn-primary">
@@ -206,17 +237,41 @@ const remove = async (exam) => {
                             </div>
 
                             <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
-                                <select v-model="selectedCourse" class="ui-input sm:w-auto" aria-label="Filter by course">
-                                    <option value="all">All Courses</option>
-                                    <option v-for="course in courses" :key="course.id" :value="course.id">
-                                        {{ course.code }} — {{ course.name }}
-                                    </option>
-                                </select>
+                                <div class="sm:w-56">
+                                    <SearchableSelect
+                                        v-model="selectedCourse"
+                                        :options="courseFilterOptions"
+                                        placeholder="All Courses"
+                                        clearable
+                                    />
+                                </div>
 
-                                <select v-model="selectedType" class="ui-input sm:w-auto" aria-label="Filter by type">
-                                    <option value="all">All Types</option>
-                                    <option v-for="t in types" :key="t.value" :value="t.value">{{ t.label }}</option>
-                                </select>
+                                <div class="sm:w-44">
+                                    <SearchableSelect
+                                        v-model="selectedType"
+                                        :options="typeFilterOptions"
+                                        placeholder="All Types"
+                                        clearable
+                                    />
+                                </div>
+
+                                <div class="flex items-center gap-2">
+                                    <input
+                                        v-model="dateFrom"
+                                        type="date"
+                                        class="ui-input sm:w-auto"
+                                        aria-label="Exams from date"
+                                        :max="dateTo || undefined"
+                                    />
+                                    <span class="text-content-faint">–</span>
+                                    <input
+                                        v-model="dateTo"
+                                        type="date"
+                                        class="ui-input sm:w-auto"
+                                        aria-label="Exams to date"
+                                        :min="dateFrom || undefined"
+                                    />
+                                </div>
 
                                 <button
                                     v-if="hasActiveFilters"
@@ -329,21 +384,24 @@ const remove = async (exam) => {
                             <div class="flex-1 space-y-4 overflow-y-auto p-6">
                                 <div>
                                     <label class="ui-label">Course *</label>
-                                    <select v-model="form.course_id" class="ui-input" @change="onCourseChange">
-                                        <option value="" disabled>— Select —</option>
-                                        <option v-for="course in courses" :key="course.id" :value="course.id">{{ course.code }} — {{ course.name }}</option>
-                                    </select>
+                                    <SearchableSelect
+                                        v-model="form.course_id"
+                                        :options="courseFormOptions"
+                                        placeholder="— Select —"
+                                        @update:model-value="onCourseChange"
+                                    />
                                     <p v-if="form.errors.course_id" class="text-xs text-danger-fg mt-1">{{ form.errors.course_id }}</p>
                                 </div>
 
                                 <div>
                                     <label class="ui-label">Section</label>
-                                    <select v-model="form.section_id" class="ui-input" :disabled="!form.course_id">
-                                        <option value="">All sections</option>
-                                        <option v-for="section in availableSections" :key="section.id" :value="section.id">
-                                            Section {{ section.label }}
-                                        </option>
-                                    </select>
+                                    <SearchableSelect
+                                        v-model="form.section_id"
+                                        :options="sectionFormOptions"
+                                        placeholder="All sections"
+                                        :disabled="!form.course_id"
+                                        clearable
+                                    />
                                     <p class="text-xs text-content-muted mt-1">
                                         Leave as “All sections” to schedule this exam for every section of the course.
                                     </p>
@@ -359,9 +417,7 @@ const remove = async (exam) => {
                                 <div class="grid grid-cols-2 gap-3">
                                     <div>
                                         <label class="ui-label">Type</label>
-                                        <select v-model="form.type" class="ui-input">
-                                            <option v-for="t in types" :key="t.value" :value="t.value">{{ t.label }}</option>
-                                        </select>
+                                        <SearchableSelect v-model="form.type" :options="typeFormOptions" />
                                     </div>
                                     <div>
                                         <label class="ui-label">Date *</label>
