@@ -30,6 +30,7 @@ class DatabaseSeeder extends Seeder
             EnrollmentSeeder::class,    // students → sections (current term)
             CourseMaterialSeeder::class,
             ExamSeeder::class,
+            ClassTestSeeder::class,      // faculty-authored, section-isolated class tests
             AttendanceSeeder::class,
             NoteSeeder::class,
             TaskSeeder::class,
