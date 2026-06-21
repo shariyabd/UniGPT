@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
 import {
@@ -28,14 +28,13 @@ const { isDark, initTheme, toggleTheme } = useTheme();
 onMounted(() => initTheme());
 const isLogin = ref(true);
 const showPassword = ref(false);
-const selectedRole = ref('admin');
+const selectedRole = ref('');
 const isLoading = ref(false);
-const emailDomain = ref('');
 
 const loginForm = useForm({
     email: '',
     password: '',
-    role: 'admin',
+    role: '',
     remember: false
 });
 
@@ -44,7 +43,7 @@ const signupForm = useForm({
     email: '',
     password: '',
     password_confirmation: '',
-    role: 'admin',
+    role: '',
     department_id: '',
     student_id: '',
     employee_id: '',
@@ -142,49 +141,22 @@ const passwordStrength = computed(() => {
     return { strength, message, color };
 });
 
-
-watch(() => isLogin.value ? loginForm.email : signupForm.email, (email) => {
-    if (email) {
-        const domain = email.split('@')[1]?.toLowerCase();
-        emailDomain.value = domain || '';
-
-        if (email.includes('student.') || email.includes('.student@')) {
-            selectedRole.value = 'student';
-            if (isLogin.value) loginForm.role = 'student';
-            else signupForm.role = 'student';
-        } else if (email.includes('admin') || email.includes('it.') || domain === 'admin.university.edu') {
-            selectedRole.value = 'admin';
-            if (isLogin.value) loginForm.role = 'admin';
-            else signupForm.role = 'admin';
-        } else if (email.includes('prof.') || email.includes('faculty.') || email.includes('dr.')) {
-            selectedRole.value = 'faculty';
-            if (isLogin.value) loginForm.role = 'faculty';
-            else signupForm.role = 'faculty';
-        }
-    }
-});
-
 const toggleMode = () => {
     isLogin.value = !isLogin.value;
     loginForm.reset();
     signupForm.reset();
-    selectedRole.value = 'student';
+    selectedRole.value = '';
 };
 
 const selectRole = (role) => {
     selectedRole.value = role;
+    // Admin accounts are login-only — there is no self-service sign up for them,
+    // so picking Admin while on the sign-up tab snaps back to the login form.
+    if (role === 'admin' && !isLogin.value) {
+        isLogin.value = true;
+    }
     if (isLogin.value) {
         loginForm.role = role;
-        if(role == "admin"){
-            loginForm.email = "admin@university.edu";
-            loginForm.password = "demo123";
-        }else if(role == "faculty"){
-            loginForm.email = "prof.smith@university.edu";
-            loginForm.password = "demo123";
-        }else if(role == "student"){
-            loginForm.email = "student@university.edu";
-            loginForm.password = "demo123";
-        }
     } else {
         signupForm.role = role;
     }
@@ -196,6 +168,22 @@ const handleSubmit = () => {
 
     const form = isLogin.value ? loginForm : signupForm;
     const routeName = isLogin.value ? 'login.store' : 'register';
+
+    // The form uses `novalidate`, so the browser never shows native popups on blur
+    // or Enter. We validate only here, on the user's explicit Sign in / Create
+    // account click, with a friendly toast instead of a premature browser bubble.
+    if (!selectedRole.value) {
+        toast.error('Please select a role to continue.');
+        return;
+    }
+    if (!form.email) {
+        toast.error('Please enter your email address.');
+        return;
+    }
+    if (!form.password) {
+        toast.error('Please enter your password.');
+        return;
+    }
 
     // On success the server redirects to the dashboard; no toast is fired here so
     // a "redirecting…" message can't linger on the already-loaded destination page.
@@ -273,7 +261,7 @@ const brandFeatures = [
     <div>
         <Head :title="isLogin ? 'Login' : 'Sign Up'" />
 
-        <div class="relative min-h-screen flex bg-bg">
+        <div class="relative flex min-h-screen bg-bg lg:h-screen lg:overflow-hidden">
             <!-- Floating theme toggle (works on every breakpoint) -->
             <button
                 type="button"
@@ -286,26 +274,32 @@ const brandFeatures = [
             </button>
 
             <!-- Left Panel - Gradient brand -->
-            <div class="bg-brand-gradient relative hidden lg:flex lg:w-1/2 overflow-hidden">
-                <!-- Animated aurora glow -->
-                <div class="aurora animate-aurora -top-24 -left-24 h-96 w-96 bg-white/25"></div>
-                <div class="aurora animate-aurora bottom-0 right-0 h-96 w-96" style="background:#22d3ee66; animation-delay:-6s"></div>
-                <div class="aurora animate-aurora left-1/3 top-1/2 h-72 w-72 bg-white/15" style="animation-delay:-11s"></div>
-                <!-- Fine dotted texture -->
-                <div
-                    class="pointer-events-none absolute inset-0 opacity-[0.12]"
-                    style="background-image: radial-gradient(#fff 1px, transparent 1px); background-size: 22px 22px;"
-                ></div>
+            <div class="bg-brand-gradient relative hidden overflow-hidden lg:flex lg:h-screen lg:w-1/2">
+                <!-- Decorative layer (clipped, never contributes to scroll height) -->
+                <div class="pointer-events-none absolute inset-0 overflow-hidden">
+                    <!-- Animated aurora glow -->
+                    <div class="aurora animate-aurora -top-24 -left-24 h-96 w-96 bg-white/25"></div>
+                    <div class="aurora animate-aurora bottom-0 right-0 h-96 w-96" style="background:#22d3ee66; animation-delay:-6s"></div>
+                    <div class="aurora animate-aurora left-1/3 top-1/2 h-72 w-72 bg-white/15" style="animation-delay:-11s"></div>
+                    <!-- Fine dotted texture -->
+                    <div
+                        class="absolute inset-0 opacity-[0.12]"
+                        style="background-image: radial-gradient(#fff 1px, transparent 1px); background-size: 22px 22px;"
+                    ></div>
 
-                <!-- Floating glass chips echoing the landing hero -->
-                <div class="absolute right-12 top-28 hidden animate-float rounded-control border border-white/20 bg-white/10 px-3 py-2 text-xs font-semibold text-white backdrop-blur-md xl:block">
-                    🔒 Cited from your docs
-                </div>
-                <div class="absolute right-20 bottom-36 hidden animate-float-slow rounded-control border border-white/20 bg-white/10 px-3 py-2 text-xs font-semibold text-white backdrop-blur-md xl:block">
-                    ⚡ Answers in ~1.2s
+                    <!-- Floating glass chips echoing the landing hero -->
+                    <div class="absolute right-12 top-28 hidden animate-float rounded-control border border-white/20 bg-white/10 px-3 py-2 text-xs font-semibold text-white backdrop-blur-md xl:block">
+                        🔒 Cited from your docs
+                    </div>
+                    <div class="absolute right-20 bottom-36 hidden animate-float-slow rounded-control border border-white/20 bg-white/10 px-3 py-2 text-xs font-semibold text-white backdrop-blur-md xl:block">
+                        ⚡ Answers in ~1.2s
+                    </div>
                 </div>
 
-                <div class="relative z-10 mx-auto flex w-full max-w-lg flex-col justify-center gap-12 p-10 xl:p-14 text-white">
+                <!-- Scrollable content: m-auto centers it when it fits, and lets it
+                     scroll from the top (instead of clipping) on short viewports. -->
+                <div class="relative z-10 flex w-full overflow-y-auto">
+                    <div class="m-auto flex w-full max-w-lg flex-col gap-6 p-8 text-white xl:gap-10 xl:p-12">
                     <!-- Logo & name -->
                     <div v-reveal class="reveal flex items-center gap-3">
                         <div class="flex h-12 w-12 items-center justify-center rounded-control bg-white/95 text-primary shadow-lg">
@@ -369,16 +363,21 @@ const brandFeatures = [
                             </button>
                         </div>
                     </div>
+                    </div>
                 </div>
             </div>
 
             <!-- Right Panel - Auth form -->
-            <div class="relative flex flex-1 flex-col justify-center overflow-hidden px-6 py-12 sm:px-10 lg:w-1/2 xl:w-[45%]">
+            <div class="relative flex flex-1 flex-col overflow-hidden lg:h-screen lg:w-1/2 xl:w-[45%]">
                 <!-- Ambient backdrop -->
                 <div class="pointer-events-none absolute inset-0 grid-backdrop"></div>
-                <div class="aurora animate-aurora -right-16 top-8 h-72 w-72 bg-primary/30"></div>
+                <div class="pointer-events-none absolute inset-0 overflow-hidden">
+                    <div class="aurora animate-aurora -right-16 top-8 h-72 w-72 bg-primary/30"></div>
+                </div>
 
-                <div class="relative z-10 mx-auto w-full max-w-md">
+                <!-- Scrollable content: centers when it fits, scrolls when the viewport is short -->
+                <div class="relative z-10 flex w-full flex-1 overflow-y-auto px-6 py-10 sm:px-10">
+                    <div class="m-auto w-full max-w-md">
                     <!-- Mobile Logo -->
                     <div class="mb-8 flex flex-col items-center text-center lg:hidden">
                         <div class="bg-brand-gradient mb-3 flex h-14 w-14 items-center justify-center rounded-card shadow-card-hover">
@@ -427,7 +426,7 @@ const brandFeatures = [
                         </div>
 
                         <!-- Login/Signup Form -->
-                        <form @submit.prevent="handleSubmit" class="space-y-5">
+                        <form @submit.prevent="handleSubmit" novalidate class="space-y-5">
 
                             <!-- Name (Signup only) -->
                             <div v-if="!isLogin">
@@ -620,7 +619,8 @@ const brandFeatures = [
                                     <span class="ml-2 text-sm text-content-muted">Remember me</span>
                                 </label>
                                 <Link
-                                    href="/password/reset"
+                                    v-if="selectedRole !== 'admin'"
+                                    :href="route('password.request')"
                                     class="text-sm font-semibold text-content-muted transition-colors hover:text-content"
                                 >
                                     Forgot password?
@@ -662,8 +662,8 @@ const brandFeatures = [
                             </button>
                         </form>
 
-                        <!-- Toggle Login/Signup -->
-                        <div class="mt-6 text-center">
+                        <!-- Toggle Login/Signup (Admin is login-only, so hide it) -->
+                        <div v-if="selectedRole !== 'admin'" class="mt-6 text-center">
                             <p class="text-sm text-content-muted">
                                 {{ isLogin ? "Don't have an account?" : "Already have an account?" }}
                                 <button
@@ -682,6 +682,7 @@ const brandFeatures = [
                     <p class="mt-6 text-center text-xs text-content-faint">
                         © {{ new Date().getFullYear() }} UniGPT. Empowering education through AI.
                     </p>
+                    </div>
                 </div>
             </div>
         </div>

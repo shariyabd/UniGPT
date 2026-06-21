@@ -26,7 +26,9 @@ return [
     'tasks_per_student' => (int) env('SEED_TASKS', 3),
 
     // Shared password for all bulk (non-demo) accounts. Hashed once and reused.
-    'password' => env('SEED_PASSWORD', 'password'),
+    // Applies to every seeded student / faculty / admin (via the SeedsUsers
+    // trait). The canonical demo accounts in RBACSeeder keep their own creds.
+    'password' => env('SEED_PASSWORD', 'demo12345'),
 
     // The canonical demo accounts owned by RBACSeeder/AcademicSeeder. Bulk
     // seeders exclude these so the test/demo fixture is never duplicated.
