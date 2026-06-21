@@ -129,8 +129,12 @@ const filteredSubmissions = computed(() => {
     return filtered;
 });
 
+const hasAssignments = computed(() => assignments.value.length > 0);
+
 const gradingStats = computed(() => {
-    if (!currentAssignment.value) return {};
+    if (!currentAssignment.value) {
+        return { completionRate: 0, pendingCount: 0, averageGrade: 0, totalSubmissions: 0 };
+    }
 
     const assignment = currentAssignment.value;
     const graded = assignment.submissions.graded;
@@ -323,6 +327,7 @@ if (assignments.value.length > 0) {
                             <div class="flex-1 min-w-[14rem]">
                                 <label class="ui-label">Select Assignment to Grade</label>
                                 <select
+                                    v-if="hasAssignments"
                                     v-model="selectedAssignment"
                                     @change="selectAssignment(selectedAssignment)"
                                     class="ui-input max-w-md"
@@ -331,6 +336,9 @@ if (assignments.value.length > 0) {
                                         {{ assignment.title }} ({{ assignment.submissions.pending }} pending)
                                     </option>
                                 </select>
+                                <p v-else class="ui-input max-w-md bg-neutral-bg text-content-muted">
+                                    No assignments yet
+                                </p>
                             </div>
 
                             <div v-if="sections.length > 1">
@@ -348,7 +356,7 @@ if (assignments.value.length > 0) {
                         </div>
 
                         <!-- Assignment Stats -->
-                        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div v-if="currentAssignment" class="grid grid-cols-2 lg:grid-cols-4 gap-4">
                             <div class="text-center rounded-card bg-bg px-4 py-3">
                                 <div class="text-2xl font-bold text-content">{{ currentAssignment.submissions.total }}</div>
                                 <div class="text-xs text-content-muted">Total</div>
@@ -369,7 +377,7 @@ if (assignments.value.length > 0) {
                     </div>
 
                     <!-- Assignment Details -->
-                    <div class="mt-6 p-4 bg-bg rounded-card">
+                    <div v-if="currentAssignment" class="mt-6 p-4 bg-bg rounded-card">
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                             <div>
                                 <span class="font-medium text-content-muted">Type:</span>
@@ -391,10 +399,20 @@ if (assignments.value.length > 0) {
                             </span>
                         </div>
                     </div>
+
+                    <!-- No assignments yet for this course/section -->
+                    <EmptyState
+                        v-if="!hasAssignments"
+                        :icon="DocumentTextIcon"
+                        title="No assignments to grade yet"
+                        :description="props.courseData
+                            ? 'This section has no assignments. Create an assignment to start collecting and grading submissions.'
+                            : 'You are not assigned to any teaching section yet.'"
+                    />
                 </Card>
 
                 <!-- Filters and Controls -->
-                <Card>
+                <Card v-if="hasAssignments">
                     <div class="flex flex-col sm:flex-row gap-4">
                         <!-- Search -->
                         <div class="relative flex-1 max-w-md">
@@ -426,7 +444,7 @@ if (assignments.value.length > 0) {
                 </Card>
 
                 <!-- Submissions List -->
-                <Card padding="p-0">
+                <Card v-if="hasAssignments" padding="p-0">
                     <!-- List Header -->
                     <div class="px-5 sm:px-6 py-3 border-b border-line">
                         <span class="text-sm font-medium text-content-muted">
