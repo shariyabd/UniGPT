@@ -45,7 +45,7 @@ class EnrollmentTest extends TestCase
         $section = $this->openSection($student);
 
         $this->actingAs($this->user('admin@university.edu'))
-            ->post(route('admin.sections.assign', $section->id), ['student_id' => $student->id])
+            ->post(route('admin.sections.assign', $section->id), ['student_ids' => [$student->id]])
             ->assertRedirect();
 
         // Assignment is a pending placement, not an immediate enrolment — the
@@ -70,7 +70,7 @@ class EnrollmentTest extends TestCase
 
         $admin = $this->user('admin@university.edu');
 
-        $this->actingAs($admin)->post(route('admin.sections.assign', $section->id), ['student_id' => $student->id]);
+        $this->actingAs($admin)->post(route('admin.sections.assign', $section->id), ['student_ids' => [$student->id]]);
         $this->actingAs($admin)->delete(route('admin.sections.drop', [$section->id, $student->id]))->assertRedirect();
 
         $this->assertDatabaseHas('course_user', [
@@ -100,7 +100,7 @@ class EnrollmentTest extends TestCase
         ]);
 
         $this->actingAs($this->user('admin@university.edu'))
-            ->post(route('admin.sections.assign', $section->id), ['student_id' => $student->id])
+            ->post(route('admin.sections.assign', $section->id), ['student_ids' => [$student->id]])
             ->assertRedirect();
 
         // Capacity (enrolled + pending) is full, so the student must not have been
@@ -118,7 +118,7 @@ class EnrollmentTest extends TestCase
         $section = $this->openSection($student);
 
         $response = $this->actingAs($this->user('prof.smith@university.edu'))
-            ->post(route('admin.sections.assign', $section->id), ['student_id' => $student->id]);
+            ->post(route('admin.sections.assign', $section->id), ['student_ids' => [$student->id]]);
 
         $this->assertContains($response->status(), [302, 403]);
     }

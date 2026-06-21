@@ -7,6 +7,7 @@ import Card from '@/components/ui/Card.vue';
 import Badge from '@/components/ui/Badge.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import Pagination from '@/components/ui/Pagination.vue';
+import SearchableSelect from '@/components/ui/SearchableSelect.vue';
 import { useConfirm } from '@/composables/useConfirm';
 import {
     AcademicCapIcon,
@@ -197,8 +198,26 @@ const sectionLabelOptions = computed(() => {
     const used = (sectionCourse.value?.sections || [])
         .filter((s) => s.id !== editingSectionId.value && s.termId === sectionForm.term_id)
         .map((s) => s.label);
-    return SECTION_LABELS.map((label) => ({ label, disabled: used.includes(label) }));
+    return SECTION_LABELS.map((label) => ({
+        value: label,
+        label: used.includes(label) ? `${label} (in use)` : label,
+        disabled: used.includes(label),
+    }));
 });
+
+/* ---- Dropdown options ({value,label}) for SearchableSelect ---- */
+const departmentOptions = computed(() =>
+    props.departments.map((d) => ({ value: d.id, label: d.name })),
+);
+const semesterSelectOptions = computed(() =>
+    semesterOptions.value.map((s) => ({ value: s, label: `Semester ${s}` })),
+);
+const termOptions = computed(() =>
+    props.terms.map((t) => ({ value: t.id, label: `${t.name}${t.is_current ? ' (current)' : ''}` })),
+);
+const facultyOptions = computed(() =>
+    props.faculty.map((f) => ({ value: f.id, label: f.name })),
+);
 
 const closeSectionModal = () => { showSectionModal.value = false; sectionForm.reset(); sectionForm.clearErrors(); };
 
@@ -229,7 +248,7 @@ const removeSection = async (section) => {
 /* ---- Roster (registrar enroll / drop) ---- */
 const showRoster = ref(false);
 const rosterSectionId = ref(null);
-const enrollForm = useForm({ student_id: null });
+const enrollForm = useForm({ student_ids: [] });
 
 // Derive the live section from props so the modal reflects enroll/drop reloads.
 const rosterSection = computed(() => {
@@ -250,6 +269,26 @@ const availableStudents = computed(() => {
     const takenIds = new Set(activeRoster.value.map((r) => r.id));
     return props.students.filter((s) => !takenIds.has(s.id));
 });
+
+// Seats left after current reservations — caps how many can be assigned at once.
+const remainingSeats = computed(() =>
+    Math.max(0, (rosterSection.value?.maxEnrollment ?? 0) - activeRoster.value.length),
+);
+
+const isSelected = (id) => enrollForm.student_ids.includes(id);
+
+// Toggle a student in the multi-select. Deselect is always allowed; select is
+// blocked once the picked count would exceed the remaining seats.
+const toggleStudent = (id) => {
+    const ids = enrollForm.student_ids;
+    const index = ids.indexOf(id);
+    if (index !== -1) {
+        ids.splice(index, 1);
+        return;
+    }
+    if (ids.length >= remainingSeats.value) return;
+    ids.push(id);
+};
 
 // Search box inside the roster modal — narrows the assignable students by
 // name or student ID so the registrar can pick one without scrolling.
@@ -313,6 +352,7 @@ const dropStudent = async (student) => {
                     title="Course Catalog"
                     subtitle="Manage catalog courses and assign faculty to sections (offerings)."
                     :icon="AcademicCapIcon"
+                    :count="totalCourses"
                 >
                     <template #actions>
                         <button type="button" @click="openCreateCourse" class="ui-btn-primary">
@@ -339,14 +379,22 @@ const dropStudent = async (student) => {
                             <MagnifyingGlassIcon class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-content-faint" />
                             <input v-model="search" type="search" placeholder="Search by code or name…" class="ui-input pl-9" />
                         </div>
-                        <select v-model="departmentFilter" class="ui-input sm:w-56">
-                            <option :value="null">All departments</option>
-                            <option v-for="d in departments" :key="d.id" :value="d.id">{{ d.name }}</option>
-                        </select>
-                        <select v-model="semesterFilter" class="ui-input sm:w-44">
-                            <option :value="null">All semesters</option>
-                            <option v-for="s in semesterOptions" :key="s" :value="s">Semester {{ s }}</option>
-                        </select>
+                        <div class="sm:w-56">
+                            <SearchableSelect
+                                v-model="departmentFilter"
+                                :options="departmentOptions"
+                                placeholder="All departments"
+                                clearable
+                            />
+                        </div>
+                        <div class="sm:w-44">
+                            <SearchableSelect
+                                v-model="semesterFilter"
+                                :options="semesterSelectOptions"
+                                placeholder="All semesters"
+                                clearable
+                            />
+                        </div>
                         <button
                             v-if="hasActiveFilters"
                             type="button"
@@ -476,10 +524,12 @@ const dropStudent = async (student) => {
                                 <div class="grid grid-cols-3 gap-3">
                                     <div>
                                         <label class="ui-label">Department</label>
-                                        <select v-model="courseForm.department_id" class="ui-input">
-                                            <option :value="null">—</option>
-                                            <option v-for="d in departments" :key="d.id" :value="d.id">{{ d.name }}</option>
-                                        </select>
+                                        <SearchableSelect
+                                            v-model="courseForm.department_id"
+                                            :options="departmentOptions"
+                                            placeholder="—"
+                                            clearable
+                                        />
                                     </div>
                                     <div>
                                         <label class="ui-label">Semester</label>
@@ -521,32 +571,30 @@ const dropStudent = async (student) => {
                                 <div class="grid grid-cols-2 gap-3">
                                     <div>
                                         <label class="ui-label">Section label *</label>
-                                        <select v-model="sectionForm.label" class="ui-input">
-                                            <option
-                                                v-for="opt in sectionLabelOptions"
-                                                :key="opt.label"
-                                                :value="opt.label"
-                                                :disabled="opt.disabled"
-                                            >
-                                                {{ opt.label }}{{ opt.disabled ? ' (in use)' : '' }}
-                                            </option>
-                                        </select>
+                                        <SearchableSelect
+                                            v-model="sectionForm.label"
+                                            :options="sectionLabelOptions"
+                                        />
                                         <p v-if="sectionForm.errors.label" class="text-xs text-danger-fg mt-1">{{ sectionForm.errors.label }}</p>
                                     </div>
                                     <div>
                                         <label class="ui-label">Term</label>
-                                        <select v-model="sectionForm.term_id" class="ui-input">
-                                            <option :value="null">—</option>
-                                            <option v-for="t in terms" :key="t.id" :value="t.id">{{ t.name }}{{ t.is_current ? ' (current)' : '' }}</option>
-                                        </select>
+                                        <SearchableSelect
+                                            v-model="sectionForm.term_id"
+                                            :options="termOptions"
+                                            placeholder="—"
+                                            clearable
+                                        />
                                     </div>
                                 </div>
                                 <div>
                                     <label class="ui-label">Faculty (instructor)</label>
-                                    <select v-model="sectionForm.faculty_id" class="ui-input">
-                                        <option :value="null">Unassigned</option>
-                                        <option v-for="f in faculty" :key="f.id" :value="f.id">{{ f.name }}</option>
-                                    </select>
+                                    <SearchableSelect
+                                        v-model="sectionForm.faculty_id"
+                                        :options="facultyOptions"
+                                        placeholder="Unassigned"
+                                        clearable
+                                    />
                                     <p v-if="sectionForm.errors.faculty_id" class="text-xs text-danger-fg mt-1">{{ sectionForm.errors.faculty_id }}</p>
                                 </div>
                                 <div class="grid grid-cols-2 gap-3">
@@ -604,7 +652,10 @@ const dropStudent = async (student) => {
                         <div class="flex min-h-0 flex-1 flex-col">
                             <!-- Assign form -->
                             <form @submit.prevent="submitAssign" class="space-y-3 border-b border-line p-6">
-                                <label class="ui-label">Assign a student</label>
+                                <label class="ui-label">
+                                    Assign students
+                                    <span class="font-normal text-content-muted">· {{ remainingSeats }} seat(s) left</span>
+                                </label>
                                 <div class="relative">
                                     <MagnifyingGlassIcon class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-content-faint" />
                                     <input
@@ -627,26 +678,30 @@ const dropStudent = async (student) => {
                                         v-for="s in filteredAvailable"
                                         :key="s.id"
                                         type="button"
-                                        @click="enrollForm.student_id = s.id"
+                                        @click="toggleStudent(s.id)"
+                                        :disabled="!isSelected(s.id) && enrollForm.student_ids.length >= remainingSeats"
                                         :class="[
                                             'flex w-full items-center justify-between gap-2 p-3 text-left text-sm transition-colors',
-                                            enrollForm.student_id === s.id ? 'bg-primary-soft text-primary' : 'hover:bg-bg/60',
+                                            isSelected(s.id) ? 'bg-primary-soft text-primary' : 'hover:bg-bg/60',
+                                            !isSelected(s.id) && enrollForm.student_ids.length >= remainingSeats ? 'cursor-not-allowed opacity-50' : '',
                                         ]"
                                     >
                                         <span class="truncate">{{ s.name }}<span v-if="s.student_id" class="text-content-muted"> · {{ s.student_id }}</span></span>
-                                        <CheckIcon v-if="enrollForm.student_id === s.id" class="h-4 w-4 flex-shrink-0" />
+                                        <CheckIcon v-if="isSelected(s.id)" class="h-4 w-4 flex-shrink-0" />
                                     </button>
                                 </div>
 
-                                <p v-if="enrollForm.errors.student_id" class="text-xs text-danger-fg">{{ enrollForm.errors.student_id }}</p>
+                                <p v-if="enrollForm.errors.student_ids" class="text-xs text-danger-fg">{{ enrollForm.errors.student_ids }}</p>
 
-                                <div class="flex justify-end">
+                                <div class="flex items-center justify-between gap-3">
+                                    <span class="text-xs text-content-muted">{{ enrollForm.student_ids.length }} selected</span>
                                     <button
                                         type="submit"
                                         class="ui-btn-primary"
-                                        :disabled="enrollForm.processing || !enrollForm.student_id || activeRoster.length >= rosterSection.maxEnrollment"
+                                        :disabled="enrollForm.processing || enrollForm.student_ids.length === 0 || remainingSeats === 0"
                                     >
-                                        <UserPlusIcon class="w-4 h-4" /> Assign
+                                        <UserPlusIcon class="w-4 h-4" />
+                                        Assign{{ enrollForm.student_ids.length ? ` (${enrollForm.student_ids.length})` : '' }}
                                     </button>
                                 </div>
                             </form>

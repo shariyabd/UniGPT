@@ -64,41 +64,76 @@ class SectionController extends Controller
     }
 
     /**
-     * Assign a student to a section (registrar action), capacity-enforced. This
-     * creates a pending placement that reserves a seat; the student confirms it
-     * on their registration page to become enrolled.
+     * Assign one or more students to a section (registrar action), capacity-enforced.
+     * Each creates a pending placement that reserves a seat; the student confirms it
+     * on their registration page to become enrolled. Capacity is re-checked per
+     * student, so a partial batch fills the remaining seats and reports the rest.
      */
     public function assign(Request $request, Section $section): RedirectResponse
     {
         $data = $request->validate([
-            'student_id' => ['required', Rule::exists('users', 'id')],
+            'student_ids' => ['required', 'array', 'min:1'],
+            'student_ids.*' => ['integer', Rule::exists('users', 'id')],
         ]);
 
-        $student = User::findOrFail($data['student_id']);
-
-        if (! $student->isStudent()) {
-            return back()->with('error', 'Only students can be assigned to a section.');
-        }
-
-        if (! $this->enrollment->hasCapacity($section)) {
-            return back()->with('error', "Section {$section->label} is full.");
-        }
-
-        $this->enrollment->assign($section, $student);
-
+        $students = User::whereIn('id', $data['student_ids'])->get();
         $course = $section->course;
-        $this->activity->log('enrollment.assigned', "Assigned {$student->name} to {$course->code} ({$section->label})", $section, [], $request->user());
 
-        $this->notifications->notify(
-            user: $student,
-            type: NotificationType::ENROLLMENT,
-            title: 'Course assigned — register to confirm',
-            message: "You have been assigned to {$course->code} — {$course->name} (Section {$section->label}). Go to Registration and click Register to confirm your seat.",
-            link: route('register'),
-            data: ['course_id' => $course->id, 'section_id' => $section->id],
-        );
+        $assigned = [];
+        $skipped = [];
 
-        return back()->with('success', "Assigned {$student->name} to Section {$section->label}.");
+        foreach ($students as $student) {
+            if (! $student->isStudent()) {
+                $skipped[] = "{$student->name} (not a student)";
+
+                continue;
+            }
+
+            if ($section->students()->whereKey($student->id)->exists()) {
+                $skipped[] = "{$student->name} (already in section)";
+
+                continue;
+            }
+
+            if (! $this->enrollment->hasCapacity($section)) {
+                $skipped[] = "{$student->name} (section full)";
+
+                continue;
+            }
+
+            $this->enrollment->assign($section, $student);
+            $assigned[] = $student;
+
+            $this->notifications->notify(
+                user: $student,
+                type: NotificationType::ENROLLMENT,
+                title: 'Course assigned — register to confirm',
+                message: "You have been assigned to {$course->code} — {$course->name} (Section {$section->label}). Go to Registration and click Register to confirm your seat.",
+                link: route('register'),
+                data: ['course_id' => $course->id, 'section_id' => $section->id],
+            );
+        }
+
+        if ($assigned !== []) {
+            $count = count($assigned);
+            $this->activity->log(
+                'enrollment.assigned',
+                "Assigned {$count} student(s) to {$course->code} ({$section->label})",
+                $section,
+                ['student_ids' => collect($assigned)->pluck('id')->all()],
+                $request->user(),
+            );
+        }
+
+        $message = $assigned !== []
+            ? count($assigned).' student(s) assigned to Section '.$section->label.'.'
+            : 'No students were assigned.';
+
+        if ($skipped !== []) {
+            $message .= ' Skipped: '.implode(', ', $skipped).'.';
+        }
+
+        return back()->with($assigned !== [] ? 'success' : 'error', $message);
     }
 
     /**
