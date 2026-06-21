@@ -1,16 +1,20 @@
 <script setup>
+import { computed, ref } from 'vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
 import Card from '@/components/ui/Card.vue';
 import Badge from '@/components/ui/Badge.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
+import SearchableSelect from '@/components/ui/SearchableSelect.vue';
 import {
     MegaphoneIcon,
     PaperAirplaneIcon,
     UsersIcon,
     ClockIcon,
     InboxStackIcon,
+    PencilIcon,
+    XMarkIcon,
 } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
@@ -24,10 +28,45 @@ const form = useForm({
     message: '',
 });
 
+const audienceOptions = computed(() =>
+    props.audiences.map((a) => ({ value: a.value, label: a.label })),
+);
+
 const submit = () => {
     form.post(route('admin.announcements.store'), {
         preserveScroll: true,
         onSuccess: () => form.reset('title', 'message'),
+    });
+};
+
+/* ---- Edit a sent announcement (title + message only; audience is fixed) ---- */
+const showEdit = ref(false);
+const editForm = useForm({
+    created_at: '',
+    original_title: '',
+    title: '',
+    message: '',
+});
+
+const openEdit = (item) => {
+    editForm.clearErrors();
+    editForm.created_at = item.createdAt;
+    editForm.original_title = item.title;
+    editForm.title = item.title;
+    editForm.message = item.message;
+    showEdit.value = true;
+};
+
+const closeEdit = () => {
+    showEdit.value = false;
+    editForm.reset();
+    editForm.clearErrors();
+};
+
+const submitEdit = () => {
+    editForm.patch(route('admin.announcements.update'), {
+        preserveScroll: true,
+        onSuccess: closeEdit,
     });
 };
 </script>
@@ -43,6 +82,7 @@ const submit = () => {
                     subtitle="Broadcast a notification to a group of users."
                     eyebrow="Admin"
                     :icon="MegaphoneIcon"
+                    :count="recent.length"
                 />
 
                 <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
@@ -52,13 +92,10 @@ const submit = () => {
                             <form @submit.prevent="submit" class="space-y-5">
                                 <div>
                                     <label class="ui-label" for="announcement-audience">Audience</label>
-                                    <select
-                                        id="announcement-audience"
+                                    <SearchableSelect
                                         v-model="form.audience"
-                                        class="ui-input"
-                                    >
-                                        <option v-for="a in audiences" :key="a.value" :value="a.value">{{ a.label }}</option>
-                                    </select>
+                                        :options="audienceOptions"
+                                    />
                                 </div>
 
                                 <div>
@@ -115,10 +152,21 @@ const submit = () => {
                             <Card v-for="(item, i) in recent" :key="i" hover padding="p-4">
                                 <div class="flex items-start justify-between gap-3">
                                     <p class="text-sm font-semibold text-content">{{ item.title }}</p>
-                                    <span class="shrink-0 inline-flex items-center gap-1 text-xs text-content-muted">
-                                        <ClockIcon class="w-3.5 h-3.5" />
-                                        {{ item.time }}
-                                    </span>
+                                    <div class="shrink-0 flex items-center gap-2">
+                                        <span class="inline-flex items-center gap-1 text-xs text-content-muted">
+                                            <ClockIcon class="w-3.5 h-3.5" />
+                                            {{ item.time }}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            @click="openEdit(item)"
+                                            class="ui-btn-ghost p-1.5"
+                                            aria-label="Edit announcement"
+                                            title="Edit announcement"
+                                        >
+                                            <PencilIcon class="w-4 h-4" />
+                                        </button>
+                                    </div>
                                 </div>
                                 <p class="text-sm text-content-muted mt-1">{{ item.message }}</p>
                                 <div class="mt-3 flex flex-wrap items-center gap-2">
@@ -133,6 +181,56 @@ const submit = () => {
                     </div>
                 </div>
             </div>
+
+            <!-- Edit announcement modal -->
+            <Teleport to="body">
+                <div v-if="showEdit" class="fixed inset-0 z-50 overflow-y-auto">
+                    <div class="flex min-h-full items-center justify-center p-4">
+                        <div class="fixed inset-0 bg-content/60 backdrop-blur-sm" @click="closeEdit"></div>
+                        <div class="relative flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden ui-card">
+                            <div class="flex flex-shrink-0 items-center justify-between border-b border-line px-6 py-4">
+                                <h3 class="ui-card-title">Edit announcement</h3>
+                                <button type="button" @click="closeEdit" class="ui-btn-ghost p-2" aria-label="Close">
+                                    <XMarkIcon class="h-5 w-5" />
+                                </button>
+                            </div>
+                            <form @submit.prevent="submitEdit" class="flex min-h-0 flex-1 flex-col">
+                                <div class="flex-1 space-y-4 overflow-y-auto p-6">
+                                    <p class="text-xs text-content-muted">
+                                        Editing updates the title and message for everyone who received this announcement. The audience can't be changed.
+                                    </p>
+                                    <div>
+                                        <label class="ui-label">Title</label>
+                                        <input
+                                            v-model="editForm.title"
+                                            type="text"
+                                            maxlength="150"
+                                            class="ui-input"
+                                        />
+                                        <p v-if="editForm.errors.title" class="text-xs text-danger-fg mt-1">{{ editForm.errors.title }}</p>
+                                    </div>
+                                    <div>
+                                        <label class="ui-label">Message</label>
+                                        <textarea
+                                            v-model="editForm.message"
+                                            rows="4"
+                                            maxlength="2000"
+                                            class="ui-input resize-none"
+                                        ></textarea>
+                                        <p v-if="editForm.errors.message" class="text-xs text-danger-fg mt-1">{{ editForm.errors.message }}</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center justify-end gap-3 border-t border-line px-6 py-4">
+                                    <button type="button" @click="closeEdit" class="ui-btn-ghost">Cancel</button>
+                                    <button type="submit" :disabled="editForm.processing" class="ui-btn-primary">
+                                        {{ editForm.processing ? 'Saving…' : 'Save changes' }}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </Teleport>
         </AppLayout>
     </div>
 </template>

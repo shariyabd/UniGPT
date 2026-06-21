@@ -271,6 +271,7 @@ Route::middleware(['auth'])->group(function () {
         // Announcements / broadcast notifications
         Route::get('/announcements', [AnnouncementController::class, 'index'])->middleware('permission:send_notifications')->name('announcements');
         Route::post('/announcements', [AnnouncementController::class, 'store'])->middleware('permission:send_notifications')->name('announcements.store');
+        Route::patch('/announcements', [AnnouncementController::class, 'update'])->middleware('permission:send_notifications')->name('announcements.update');
 
         // Exam / timetable management
         Route::get('/exams', [AdminExamController::class, 'index'])->middleware('permission:manage_exams')->name('exams');
