@@ -60,6 +60,54 @@ class StoreClassTestRequest extends FormRequest
         ];
     }
 
+    /**
+     * Human-readable field names for default validation messages.
+     *
+     * @return array<string, string>
+     */
+    public function attributes(): array
+    {
+        return [
+            'section_id' => 'section',
+            'duration_minutes' => 'duration',
+            'pass_marks' => 'pass marks',
+            'available_from' => 'available from',
+            'available_until' => 'available until',
+        ];
+    }
+
+    /**
+     * Friendly, question-numbered messages so faculty never see raw keys like
+     * "questions.0.question_text is required". ":position" is the 1-based index.
+     *
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'section_id.required' => 'Select the section this test belongs to.',
+            'title.required' => 'Give the class test a title.',
+            'duration_minutes.required' => 'Set how many minutes students have.',
+            'status.in' => 'Status must be either draft or published.',
+            'available_until.after_or_equal' => 'The "available until" time must be after the "available from" time.',
+
+            'questions.required' => 'Add at least one question.',
+            'questions.array' => 'Add at least one question.',
+            'questions.min' => 'Add at least one question.',
+
+            'questions.*.type.required' => 'Choose a type for question :position.',
+            'questions.*.type.in' => 'Question :position has an unsupported type.',
+            'questions.*.question_text.required' => 'Enter the question text for question :position.',
+            'questions.*.question_text.max' => 'Question :position is too long (max 2000 characters).',
+            'questions.*.marks.required' => 'Enter the marks for question :position.',
+            'questions.*.marks.integer' => 'Marks for question :position must be a whole number.',
+            'questions.*.marks.min' => 'Marks for question :position must be at least 1.',
+            'questions.*.marks.max' => 'Marks for question :position cannot exceed 100.',
+            'questions.*.correct_answer.required' => 'Select the correct answer for question :position.',
+            'questions.*.options.*.text.max' => 'An option in question :position is too long (max 500 characters).',
+        ];
+    }
+
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator): void {
