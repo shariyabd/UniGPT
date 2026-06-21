@@ -39,7 +39,11 @@ class FacultyAnalyticsService
         $sections = $faculty->teachingSections()->with('course')->get();
         $courses = $sections->pluck('course')->filter()->unique('id')->sortBy('code')->values();
         $sectionIdsByCourse = $sections->groupBy('course_id')->map(fn (Collection $g) => $g->pluck('id'));
-        $selected = $courseId ? $courses->firstWhere('id', $courseId) : $courses->first();
+
+        // A null course means "All courses" (the default), so the detail report
+        // aggregates every section the faculty teaches rather than silently
+        // collapsing to the first course.
+        $selected = $courseId ? $courses->firstWhere('id', $courseId) : null;
 
         return [
             'courses' => $courses->map(fn (Course $c) => [
@@ -49,10 +53,53 @@ class FacultyAnalyticsService
             ])->values(),
             'overview' => $this->overview($faculty, $courses, $sectionIdsByCourse),
             'selectedCourseId' => $selected?->id,
-            'report' => $selected
-                ? $this->courseReport($selected, $sectionIdsByCourse->get($selected->id, collect()))
-                : null,
+            'report' => $this->buildReport($selected, $courses, $sectionIdsByCourse),
         ];
+    }
+
+    /**
+     * Build the detail report for the selected course, or an aggregate across
+     * every section the faculty teaches when no course is selected ("All").
+     *
+     * @param  Collection<int, Course>  $courses
+     * @param  Collection<int, Collection<int, int>>  $sectionIdsByCourse
+     * @return array<string, mixed>|null
+     */
+    private function buildReport(?Course $selected, Collection $courses, Collection $sectionIdsByCourse): ?array
+    {
+        if ($courses->isEmpty()) {
+            return null;
+        }
+
+        if ($selected) {
+            $sectionIds = $sectionIdsByCourse->get($selected->id, collect());
+            $students = $selected->students()->wherePivotIn('section_id', $sectionIds)->get();
+
+            return $this->compileReport(
+                course: ['id' => $selected->id, 'code' => $selected->code, 'name' => $selected->name],
+                sectionIds: $sectionIds,
+                students: $students,
+            );
+        }
+
+        // "All courses": flatten every section the faculty teaches and merge each
+        // course's roster (one row per enrolment, so grade counts stay accurate).
+        $sectionIds = $sectionIdsByCourse->flatten()->values();
+        $students = $courses->flatMap(
+            fn (Course $course) => $course->students()
+                ->wherePivotIn('section_id', $sectionIdsByCourse->get($course->id, collect()))
+                ->get()
+        )->values();
+
+        return $this->compileReport(
+            course: [
+                'id' => null,
+                'code' => 'All Courses',
+                'name' => "{$courses->count()} courses · {$sectionIds->count()} sections",
+            ],
+            sectionIds: $sectionIds,
+            students: $students,
+        );
     }
 
     /**
@@ -85,24 +132,23 @@ class FacultyAnalyticsService
     }
 
     /**
-     * Detailed academic report for a single course, scoped to the faculty's sections.
+     * Detailed academic report for a roster + section scope. Works for a single
+     * course or the aggregated "All courses" view — the caller supplies the
+     * already-resolved section ids and student roster.
      *
+     * @param  array{id: int|null, code: string, name: string}  $course
      * @param  Collection<int, int>  $sectionIds
+     * @param  Collection<int, User>  $students
      * @return array<string, mixed>
      */
-    private function courseReport(Course $course, Collection $sectionIds): array
+    private function compileReport(array $course, Collection $sectionIds, Collection $students): array
     {
-        $students = $course->students()->wherePivotIn('section_id', $sectionIds)->get();
         $gradeDistribution = $this->gradeDistribution($students);
         $submissionStats = $this->submissionStats($sectionIds);
         $attendanceSummary = $this->attendance->summaryForSections($sectionIds);
 
         return [
-            'course' => [
-                'id' => $course->id,
-                'code' => $course->code,
-                'name' => $course->name,
-            ],
+            'course' => $course,
             'enrolled' => $students->count(),
             'attendance' => $attendanceSummary,
             'gradeDistribution' => $gradeDistribution,

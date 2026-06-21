@@ -72,6 +72,7 @@ const completionRate = computed(() => formatPercent(props.report?.submissions?.c
                                 @change="onCourseChange"
                                 class="ui-input min-w-[16rem]"
                             >
+                                <option value="">All Courses</option>
                                 <option v-for="course in courses" :key="course.id" :value="course.id">{{ course.code }} — {{ course.name }}</option>
                             </select>
                         </div>
