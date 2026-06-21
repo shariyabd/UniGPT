@@ -9,6 +9,7 @@ import Card from '@/components/ui/Card.vue';
 import Badge from '@/components/ui/Badge.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import Pagination from '@/components/ui/Pagination.vue';
+import SearchableSelect from '@/components/ui/SearchableSelect.vue';
 import {
     UsersIcon,
     MagnifyingGlassIcon,
@@ -293,6 +294,7 @@ const bulkUpdateRole = (role) => {
                     title="User Management"
                     subtitle="Manage users, roles, and permissions"
                     :icon="UsersIcon"
+                    :count="userStats.total"
                 >
                     <template #actions>
                         <Link
@@ -333,26 +335,22 @@ const bulkUpdateRole = (role) => {
                             <!-- Filters -->
                             <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
                                 <!-- Role Filter -->
-                                <select
-                                    v-model="selectedRole"
-                                    class="ui-input sm:w-auto"
-                                    aria-label="Filter by role"
-                                >
-                                    <option v-for="role in roleOptions" :key="role.value" :value="role.value">
-                                        {{ role.label }}
-                                    </option>
-                                </select>
+                                <div class="sm:w-44">
+                                    <SearchableSelect
+                                        v-model="selectedRole"
+                                        :options="roleOptions"
+                                        placeholder="All Roles"
+                                    />
+                                </div>
 
                                 <!-- Status Filter -->
-                                <select
-                                    v-model="selectedStatus"
-                                    class="ui-input sm:w-auto"
-                                    aria-label="Filter by status"
-                                >
-                                    <option v-for="status in statusOptions" :key="status.value" :value="status.value">
-                                        {{ status.label }}
-                                    </option>
-                                </select>
+                                <div class="sm:w-44">
+                                    <SearchableSelect
+                                        v-model="selectedStatus"
+                                        :options="statusOptions"
+                                        placeholder="All Status"
+                                    />
+                                </div>
                             </div>
                         </div>
                     </Card>
