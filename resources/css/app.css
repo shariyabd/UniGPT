@@ -119,6 +119,13 @@
         @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
     }
 
+    /* Inside the authenticated app shell (Student/Faculty/Admin), let the page
+       content fill the width available beside the sidebar instead of centering a
+       narrow max-w-7xl block. Marketing/landing pages keep the centered width. */
+    .app-main .page-container {
+        @apply max-w-none px-4 sm:px-6 lg:px-8 xl:px-10;
+    }
+
     /* Surface / card — white, 1px hairline border, subtle shadow, 16px radius. */
     .ui-card {
         @apply rounded-card border border-line bg-surface shadow-card;

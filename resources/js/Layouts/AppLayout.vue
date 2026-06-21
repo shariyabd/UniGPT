@@ -309,7 +309,7 @@ if (typeof window !== 'undefined') {
             </header>
 
             <ConfirmDialog />
-            <main class="min-h-[calc(100dvh-64px)] animate-fade-in">
+            <main class="app-main min-h-[calc(100dvh-64px)] animate-fade-in">
                 <slot />
             </main>
         </div>
