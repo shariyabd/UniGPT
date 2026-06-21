@@ -166,7 +166,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-    <div ref="rootEl" class="min-h-screen select-none bg-bg">
+    <div ref="rootEl" class="exam-root min-h-screen select-none overflow-y-auto bg-bg">
         <Head :title="props.test.title" />
 
         <!-- Pre-start gate (needed for a user gesture to enter fullscreen) -->
@@ -265,3 +265,21 @@ onBeforeUnmount(() => {
         </div>
     </div>
 </template>
+
+<style>
+/*
+ * When `rootEl` enters fullscreen the browser sizes it to the viewport and
+ * clips overflow, so a tall question list becomes unreachable (the student
+ * cannot scroll past the first few questions). Force the fullscreen element to
+ * own the scroll. Prefixed variants are split into separate rules so an
+ * unsupported pseudo-class doesn't invalidate the whole block.
+ */
+.exam-root:fullscreen {
+    height: 100%;
+    overflow-y: auto;
+}
+.exam-root:-webkit-full-screen {
+    height: 100%;
+    overflow-y: auto;
+}
+</style>
