@@ -6,6 +6,7 @@ import PageHeader from '@/components/ui/PageHeader.vue';
 import Card from '@/components/ui/Card.vue';
 import Badge from '@/components/ui/Badge.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
+import SearchableSelect from '@/components/ui/SearchableSelect.vue';
 import { useConfirm } from '@/composables/useConfirm';
 import {
     CalendarDaysIcon,
@@ -22,6 +23,10 @@ import {
 
 const props = defineProps({
     terms: { type: Array, default: () => [] },
+    // The standard term names not yet used (Fall / Spring / Summer).
+    availableNames: { type: Array, default: () => [] },
+    // Whether a term can still be added (fewer than the three standards exist).
+    canAddTerm: { type: Boolean, default: false },
 });
 
 const { confirm, notify } = useConfirm();
@@ -30,7 +35,15 @@ const { confirm, notify } = useConfirm();
 const showCreate = ref(false);
 const createForm = useForm({ name: '', start_date: '', end_date: '' });
 
-const openCreate = () => { createForm.reset(); createForm.clearErrors(); showCreate.value = true; };
+const nameOptions = computed(() => props.availableNames.map((name) => ({ value: name, label: name })));
+
+const openCreate = () => {
+    createForm.reset();
+    createForm.clearErrors();
+    // Pre-select the first available standard name.
+    createForm.name = props.availableNames[0] ?? '';
+    showCreate.value = true;
+};
 const closeCreate = () => { showCreate.value = false; createForm.reset(); createForm.clearErrors(); };
 const submitCreate = () => {
     createForm.post(route('admin.terms.store'), { preserveScroll: true, onSuccess: closeCreate });
@@ -61,6 +74,10 @@ const closeForm = useForm({ next_term_id: null });
 
 const otherTerms = computed(() => props.terms.filter((t) => t.id !== closingTerm.value?.id));
 
+const nextTermOptions = computed(() =>
+    otherTerms.value.map((t) => ({ value: t.id, label: t.name })),
+);
+
 const openClose = (term) => {
     closingTerm.value = term;
     closeForm.reset();
@@ -83,9 +100,10 @@ const submitClose = () => {
                     title="Academic Terms"
                     subtitle="Manage terms and run the end-of-term rollover."
                     :icon="CalendarDaysIcon"
+                    :count="terms.length"
                 >
                     <template #actions>
-                        <button type="button" @click="openCreate" class="ui-btn-primary">
+                        <button v-if="canAddTerm" type="button" @click="openCreate" class="ui-btn-primary">
                             <PlusIcon class="w-4 h-4" /> New term
                         </button>
                     </template>
@@ -178,7 +196,12 @@ const submitClose = () => {
                             <div class="flex-1 space-y-4 overflow-y-auto p-6">
                                 <div>
                                     <label class="ui-label">Name *</label>
-                                    <input v-model="createForm.name" type="text" placeholder="Fall 2026" class="ui-input" />
+                                    <SearchableSelect
+                                        v-model="createForm.name"
+                                        :options="nameOptions"
+                                        placeholder="Select a term"
+                                    />
+                                    <p class="mt-1 text-xs text-content-muted">Terms are standardised to Fall, Spring and Summer.</p>
                                     <p v-if="createForm.errors.name" class="text-xs text-danger-fg mt-1">{{ createForm.errors.name }}</p>
                                 </div>
                                 <div class="grid grid-cols-2 gap-3">
@@ -223,10 +246,12 @@ const submitClose = () => {
                                 </p>
                                 <div>
                                     <label class="ui-label">Promote next term to current (optional)</label>
-                                    <select v-model="closeForm.next_term_id" class="ui-input">
-                                        <option :value="null">Don't change current term</option>
-                                        <option v-for="t in otherTerms" :key="t.id" :value="t.id">{{ t.name }}</option>
-                                    </select>
+                                    <SearchableSelect
+                                        v-model="closeForm.next_term_id"
+                                        :options="nextTermOptions"
+                                        placeholder="Don't change current term"
+                                        clearable
+                                    />
                                 </div>
                             </div>
                             <div class="flex items-center justify-end gap-3 border-t border-line px-6 py-4">

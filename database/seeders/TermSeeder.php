@@ -21,7 +21,7 @@ class TermSeeder extends Seeder
         $terms = [
             [
                 'slug' => 'spring-2026',
-                'name' => 'Spring 2026',
+                'name' => 'Spring',
                 'start_date' => '2026-01-15',
                 'end_date' => '2026-05-15',
                 'is_current' => false,
@@ -29,7 +29,7 @@ class TermSeeder extends Seeder
             ],
             [
                 'slug' => 'summer-2026',
-                'name' => 'Summer 2026',
+                'name' => 'Summer',
                 'start_date' => '2026-06-01',
                 'end_date' => '2026-08-31',
                 'is_current' => true,
@@ -37,7 +37,7 @@ class TermSeeder extends Seeder
             ],
             [
                 'slug' => 'fall-2026',
-                'name' => 'Fall 2026',
+                'name' => 'Fall',
                 'start_date' => '2026-09-15',
                 'end_date' => '2026-12-31',
                 'is_current' => false,
@@ -57,6 +57,6 @@ class TermSeeder extends Seeder
             $current->update(['is_current' => true]);
         }
 
-        $this->command->info('   ✓ Terms seeded (3, current = Summer 2026)');
+        $this->command->info('   ✓ Terms seeded (3, current = Summer)');
     }
 }

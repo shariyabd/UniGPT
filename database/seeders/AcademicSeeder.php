@@ -186,12 +186,12 @@ class AcademicSeeder extends Seeder
     {
         $prior = Term::firstOrCreate(
             ['slug' => 'spring-2026'],
-            ['name' => 'Spring 2026', 'start_date' => '2026-01-15', 'end_date' => '2026-05-15', 'is_current' => false],
+            ['name' => 'Spring', 'start_date' => '2026-01-15', 'end_date' => '2026-05-15', 'is_current' => false],
         );
 
         $current = Term::firstOrCreate(
             ['slug' => 'summer-2026'],
-            ['name' => 'Summer 2026', 'start_date' => '2026-06-01', 'end_date' => '2026-08-31', 'is_current' => true, 'is_registration_open' => true],
+            ['name' => 'Summer', 'start_date' => '2026-06-01', 'end_date' => '2026-08-31', 'is_current' => true, 'is_registration_open' => true],
         );
 
         return [$prior, $current];

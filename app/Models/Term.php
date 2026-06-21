@@ -24,6 +24,14 @@ class Term extends Model
 {
     use HasFactory;
 
+    /**
+     * The three standard academic terms. These are universal per university, so
+     * a term's name is constrained to this set and at most one of each may exist.
+     *
+     * @var list<string>
+     */
+    public const STANDARD_NAMES = ['Fall', 'Spring', 'Summer'];
+
     protected $fillable = [
         'name',
         'slug',

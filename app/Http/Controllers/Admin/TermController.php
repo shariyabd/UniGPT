@@ -24,8 +24,16 @@ class TermController extends Controller
 
     public function index(): Response
     {
+        $terms = $this->terms->overview();
+
+        // Only the standard names not yet used are offered, and "Add" is hidden
+        // once all three exist.
+        $availableNames = array_values(array_diff(Term::STANDARD_NAMES, Term::pluck('name')->all()));
+
         return Inertia::render('Admin/Terms', [
-            'terms' => $this->terms->overview(),
+            'terms' => $terms,
+            'availableNames' => $availableNames,
+            'canAddTerm' => $terms->count() < count(Term::STANDARD_NAMES) && $availableNames !== [],
         ]);
     }
 
