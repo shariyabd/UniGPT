@@ -8,6 +8,7 @@ import { useTheme } from '@/composables/useTheme';
 import {
     Squares2X2Icon,
     ChatBubbleLeftRightIcon,
+    ChatBubbleLeftEllipsisIcon,
     BookmarkIcon,
     MapIcon,
     AcademicCapIcon,
@@ -72,6 +73,10 @@ const navByRole = {
             { label: 'AI Chat', route: 'chat', icon: ChatBubbleLeftRightIcon, permission: 'use_ai_chat' },
             { label: 'Saved Answers', route: 'saved', icon: BookmarkIcon, permission: 'view_chat_history' },
         ] },
+        { section: 'Connect', items: [
+            { label: 'My Faculty', route: 'my-faculty', icon: UsersIcon },
+            { label: 'Messages', route: 'messages', icon: ChatBubbleLeftEllipsisIcon },
+        ] },
         { section: 'Planner', items: [
             { label: 'Calendar', route: 'calendar', icon: CalendarIcon },
             { label: 'Tasks', route: 'tasks', icon: CheckCircleIcon },
@@ -90,6 +95,10 @@ const navByRole = {
             { label: 'Grading', route: 'faculty.grading', icon: ClipboardDocumentCheckIcon, permission: 'grade_assignment' },
             { label: 'Class Tests', route: 'faculty.class-tests', icon: ClipboardDocumentListIcon, permission: 'manage_class_tests' },
             { label: 'Exams', route: 'faculty.exams', icon: PencilSquareIcon, permission: 'view_exams' },
+        ] },
+        { section: 'Connect', items: [
+            { label: 'My Students', route: 'faculty.students', icon: UsersIcon },
+            { label: 'Messages', route: 'faculty.messages', icon: ChatBubbleLeftEllipsisIcon },
         ] },
         { section: 'Insights', items: [
             { label: 'Analytics', route: 'faculty.analytics', icon: ChartBarIcon, permission: 'view_department_analytics' },

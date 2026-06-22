@@ -25,11 +25,13 @@ use App\Http\Controllers\Faculty\CourseController as FacultyCourseController;
 use App\Http\Controllers\Faculty\CourseMaterialController as FacultyCourseMaterialController;
 use App\Http\Controllers\Faculty\FacultyDashboardController;
 use App\Http\Controllers\Faculty\GradingController as FacultyGradingController;
+use App\Http\Controllers\Faculty\StudentDirectoryController as FacultyStudentDirectoryController;
 use App\Http\Controllers\LegalController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Student\AssignmentController as StudentAssignmentController;
 use App\Http\Controllers\Student\ChatController;
 use App\Http\Controllers\Student\ClassTestController as StudentClassTestController;
+use App\Http\Controllers\Student\FacultyDirectoryController as StudentFacultyDirectoryController;
 use App\Http\Controllers\Student\NoteController;
 use App\Http\Controllers\Student\RegistrationController as StudentRegistrationController;
 use App\Http\Controllers\Student\SavedAnswerController;
@@ -131,6 +133,11 @@ Route::middleware(['auth'])->group(function () {
         Route::patch('/tasks/{task}/toggle', [TaskController::class, 'toggle'])->name('tasks.toggle');
         Route::delete('/tasks/{task}', [TaskController::class, 'destroy'])->name('tasks.destroy');
 
+        // My Faculty — directory of the student's instructors, plus a dedicated
+        // messenger view (UI/UX skeleton; chat is an "Upcoming Feature" placeholder).
+        Route::get('/my-faculty', [StudentFacultyDirectoryController::class, 'index'])->name('my-faculty');
+        Route::get('/messages', [StudentFacultyDirectoryController::class, 'messages'])->name('messages');
+
         // Self-service account pages (no extra permission beyond the student role)
         Route::get('/profile', [StudentDashboardController::class, 'profile'])->name('profile');
         Route::patch('/profile', [StudentDashboardController::class, 'updateProfile'])->name('profile.update');
@@ -140,6 +147,12 @@ Route::middleware(['auth'])->group(function () {
 
     Route::middleware('role:faculty')->prefix('faculty')->name('faculty.')->group(function () {
         Route::get('/dashboard', [FacultyDashboardController::class, 'index'])->name('dashboard');
+
+        // My Students — roster of students in the faculty's own courses/sections,
+        // plus a dedicated messenger view (UI/UX skeleton; chat is an
+        // "Upcoming Feature" placeholder).
+        Route::get('/students', [FacultyStudentDirectoryController::class, 'index'])->name('students');
+        Route::get('/messages', [FacultyStudentDirectoryController::class, 'messages'])->name('messages');
 
         // Courses — faculty view the courses/sections they teach (catalog +
         // section management is admin-owned).
