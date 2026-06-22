@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Faculty;
 
+use App\Domain\Academic\Services\ClassTestService;
 use App\Domain\Academic\Services\CourseManagementService;
 use App\Domain\Academic\Services\CourseService;
 use App\Domain\Chat\Services\ChatService;
@@ -13,6 +14,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Faculty\AssistantChatRequest;
 use App\Http\Requests\Faculty\GenerateAssignmentRequest;
 use App\Http\Requests\Faculty\GenerateQuizRequest;
+use App\Http\Requests\Faculty\PublishClassTestRequest;
 use App\Http\Requests\Faculty\PublishContentRequest;
 use App\Models\ChatMessage;
 use App\Models\ChatSession;
@@ -192,6 +194,57 @@ class AIAssistantController extends Controller
             'ok' => true,
             'id' => $assignment->id,
             'message' => 'Published to '.$course->code.'.',
+        ]);
+    }
+
+    /**
+     * Publish a generated quiz as an interactive, auto-graded class test instead of
+     * a text assignment. Reuses the Class Test engine end-to-end, so students take
+     * it in-browser and answers never leave the server during an attempt.
+     */
+    public function publishClassTest(
+        PublishClassTestRequest $request,
+        ClassTestService $classTests,
+        ActivityLogger $activity,
+    ): JsonResponse {
+        $data = $request->validated();
+        $course = Course::findOrFail($data['course_id']);
+
+        Gate::authorize('manage', $course);
+
+        // The test is bound to the section this faculty member teaches in the course.
+        $section = $course->sectionFor($request->user());
+
+        if ($section === null) {
+            return response()->json([
+                'message' => 'You do not teach a section in this course, so a class test cannot be created.',
+            ], 422);
+        }
+
+        // ClassTestService::create() persists the questions, computes total marks and
+        // notifies enrolled students when the status is "published".
+        $test = $classTests->create([
+            'section_id' => $section->id,
+            'title' => $data['title'],
+            'description' => $data['description'] ?? null,
+            'duration_minutes' => $data['duration_minutes'],
+            'status' => 'published',
+            'shuffle_questions' => true,
+            'questions' => $data['questions'],
+        ], $request->user());
+
+        $activity->log(
+            'class_test.created',
+            "Published class test \"{$test->title}\" to {$course->code}",
+            $test,
+            ['source' => 'ai-assistant'],
+            $request->user(),
+        );
+
+        return response()->json([
+            'ok' => true,
+            'id' => $test->id,
+            'message' => 'Published as a class test in '.$course->code.'.',
         ]);
     }
 

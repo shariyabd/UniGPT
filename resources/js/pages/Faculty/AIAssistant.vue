@@ -341,6 +341,13 @@ const generatedContent = ref(null);
 const showPreview = ref(false);
 const isPublishing = ref(false);
 const newTopic = ref('');
+// Whether the published quiz reveals correct answers to students. Faculty always
+// see answers in the preview below; this only governs what students receive.
+// Defaults to off so students never see answers unless explicitly opted in.
+const includeAnswers = ref(false);
+// How a generated quiz is published: 'assignment' (text handout, manual grading)
+// or 'class_test' (interactive, auto-graded via the Class Test engine).
+const publishTarget = ref('assignment');
 
 const difficultyOptions = [
     { value: 'easy', label: 'Easy' },
@@ -546,6 +553,8 @@ const clearForms = () => {
     assignmentForm.value = { title: '', course: '', type: 'Project', topics: [], difficulty: 'medium', duration: '14', points: '100', allowGroup: false, includeRubric: true, includeResources: true };
     generatedContent.value = null;
     showPreview.value = false;
+    includeAnswers.value = false;
+    publishTarget.value = 'assignment';
 };
 
 // --- Export (browser print → PDF) ---
@@ -598,18 +607,20 @@ const exportGenerated = () => {
 };
 
 // --- Publish (persist as a real Assignment on the course) ---
-const quizToText = (content) => {
+// When `withAnswers` is false the published text is question-only — no correct
+// option marker, no answer line, no explanation — so students never see answers.
+const quizToText = (content, withAnswers = false) => {
     const lines = [content.instructions, ''];
     content.questions.forEach((q, i) => {
         lines.push(`Q${i + 1} (${q.points} pt) [${q.type}]. ${q.question}`);
         if (q.type === 'multiple-choice') {
-            q.options.forEach((o, idx) => lines.push(`  ${String.fromCharCode(65 + idx)}. ${o}${idx === q.correctAnswer ? '  ✓' : ''}`));
+            q.options.forEach((o, idx) => lines.push(`  ${String.fromCharCode(65 + idx)}. ${o}${withAnswers && idx === q.correctAnswer ? '  ✓' : ''}`));
         } else if (q.type === 'true-false') {
-            lines.push(`  Answer: ${q.correctAnswer ? 'True' : 'False'}`);
-        } else {
+            if (withAnswers) lines.push(`  Answer: ${q.correctAnswer ? 'True' : 'False'}`);
+        } else if (withAnswers && q.answerText) {
             lines.push(`  Expected answer: ${q.answerText}`);
         }
-        if (q.explanation) lines.push(`  Explanation: ${q.explanation}`);
+        if (withAnswers && q.explanation) lines.push(`  Explanation: ${q.explanation}`);
         lines.push('');
     });
     return lines.join('\n');
@@ -620,18 +631,73 @@ const rubricForPublish = (content) => {
     return content.rubric.map((c) => ({ criterion: c.category, points: Math.round((c.weight / 100) * content.totalPoints) }));
 };
 
+// Convert generated quiz questions into the Class Test engine's question shape.
+// Only multiple-choice and true/false are auto-gradable, so other types are
+// dropped — the UI tells faculty how many will be included before publishing.
+const OPTION_KEYS = ['A', 'B', 'C', 'D', 'E', 'F'];
+const quizToClassTestQuestions = (content) => {
+    const questions = [];
+    (content?.questions ?? []).forEach((q) => {
+        if (q.type === 'multiple-choice') {
+            const options = (q.options ?? [])
+                .map((text) => String(text))
+                .filter((text) => text.trim() !== '')
+                .slice(0, OPTION_KEYS.length)
+                .map((text, i) => ({ key: OPTION_KEYS[i], text }));
+            if (options.length < 2) return;
+            const idx = Number.isInteger(q.correctAnswer) && q.correctAnswer >= 0 && q.correctAnswer < options.length ? q.correctAnswer : 0;
+            questions.push({ type: 'mcq', question_text: q.question, options, correct_answer: options[idx].key, marks: q.points || 1 });
+        } else if (q.type === 'true-false') {
+            questions.push({ type: 'true_false', question_text: q.question, options: [], correct_answer: q.correctAnswer ? 'true' : 'false', marks: q.points || 1 });
+        }
+        // short-answer / essay / fill-in-blank / matching are not auto-gradable.
+    });
+    return questions;
+};
+
+// How many of the generated questions can become class-test questions.
+const classTestEligibleCount = computed(() =>
+    generatedContent.value?.type === 'quiz' ? quizToClassTestQuestions(generatedContent.value).length : 0
+);
+
 const publishContent = async () => {
     const content = generatedContent.value;
     if (!content) return;
     const courseId = courseIdByName.value[content.course];
     if (!courseId) { toast.error('Select one of your courses before publishing.'); return; }
 
+    // Quiz → Class Test: hand the questions to the interactive, auto-graded engine.
+    if (content.type === 'quiz' && publishTarget.value === 'class_test') {
+        const questions = quizToClassTestQuestions(content);
+        if (questions.length === 0) {
+            toast.error('Class tests support only multiple-choice and true/false questions. Add some, or publish as an assignment.');
+            return;
+        }
+        isPublishing.value = true;
+        try {
+            const { data } = await axios.post(route('faculty.ai-assistant.publish-class-test'), {
+                course_id: courseId,
+                title: content.title,
+                description: content.instructions,
+                duration_minutes: content.timeLimit || 30,
+                questions,
+            });
+            toast.success(data.message ?? 'Published as a class test.');
+            showPreview.value = false;
+        } catch (e) {
+            toast.error(e?.response?.data?.message || 'Could not publish the class test. Please try again.');
+        } finally {
+            isPublishing.value = false;
+        }
+        return;
+    }
+
     isPublishing.value = true;
     try {
         const payload = content.type === 'quiz'
             ? {
                 course_id: courseId, title: content.title, type: 'quiz',
-                description: quizToText(content),
+                description: quizToText(content, includeAnswers.value),
                 total_points: content.questions.reduce((sum, q) => sum + (q.points || 1), 0),
                 due_at: null, rubric: null,
             }
@@ -1191,6 +1257,54 @@ watch(() => messages.value.length, scrollToBottom);
                                 <!-- Quiz -->
                                 <template v-if="generatedContent.type === 'quiz'">
                                     <div class="bg-primary-soft rounded-control p-4 text-sm text-primary">{{ generatedContent.instructions }}</div>
+
+                                    <!-- Publish target: a plain text handout (Assignment) or the
+                                         interactive, auto-graded Class Test engine. This preview always
+                                         shows the answer key to faculty regardless of the choice. -->
+                                    <div class="rounded-card border border-line bg-bg p-3 space-y-3">
+                                        <div>
+                                            <span class="text-sm font-medium text-content">Publish as</span>
+                                            <div class="mt-2 grid grid-cols-2 gap-2">
+                                                <button
+                                                    type="button"
+                                                    @click="publishTarget = 'assignment'"
+                                                    :class="['rounded-control border px-3 py-2 text-left text-sm font-medium transition-colors', publishTarget === 'assignment' ? 'border-primary bg-primary-soft text-primary' : 'border-line text-content-muted hover:bg-neutral-bg']"
+                                                >
+                                                    Assignment
+                                                    <span class="mt-0.5 block text-xs font-normal">Text handout · manual grading</span>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    @click="publishTarget = 'class_test'"
+                                                    :class="['rounded-control border px-3 py-2 text-left text-sm font-medium transition-colors', publishTarget === 'class_test' ? 'border-primary bg-primary-soft text-primary' : 'border-line text-content-muted hover:bg-neutral-bg']"
+                                                >
+                                                    Class Test
+                                                    <span class="mt-0.5 block text-xs font-normal">Interactive · auto-graded</span>
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <!-- Assignment sub-option: whether the handout text reveals answers. -->
+                                        <label v-if="publishTarget === 'assignment'" class="flex items-start gap-3 border-t border-line pt-3">
+                                            <input v-model="includeAnswers" type="checkbox" class="mt-0.5 rounded border-line text-primary focus:ring-primary" />
+                                            <span class="text-sm">
+                                                <span class="font-medium text-content">Include answers for students</span>
+                                                <span class="mt-0.5 block text-xs text-content-muted">
+                                                    {{ includeAnswers
+                                                        ? 'Students will see the correct answers and explanations in the published quiz.'
+                                                        : 'Students will see only the questions. Correct answers and explanations are hidden.' }}
+                                                </span>
+                                            </span>
+                                        </label>
+
+                                        <!-- Class test note: answers are handled by the engine automatically. -->
+                                        <p v-else class="border-t border-line pt-3 text-xs text-content-muted">
+                                            Students take this in-browser. Answers are hidden during the test and shown on the results page after they submit; grading is automatic.
+                                            <span class="mt-1 block font-medium" :class="classTestEligibleCount === 0 ? 'text-danger-fg' : 'text-content'">
+                                                {{ classTestEligibleCount }} of {{ generatedContent.questions.length }} question(s) will be included — only multiple-choice &amp; true/false are auto-gradable.
+                                            </span>
+                                        </p>
+                                    </div>
                                     <div v-if="generatedContent.questions.length === 0" class="text-sm text-content-muted">All questions removed. Regenerate to create more.</div>
                                     <div v-for="question in generatedContent.questions" :key="question.id" class="border border-line rounded-card p-4">
                                         <div class="flex items-start justify-between gap-2 mb-2">

@@ -165,6 +165,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/ai-assistant/quiz', [FacultyAIAssistantController::class, 'generateQuiz'])->middleware('permission:use_ai_chat')->name('ai-assistant.quiz');
         Route::post('/ai-assistant/assignment', [FacultyAIAssistantController::class, 'generateAssignment'])->middleware('permission:create_assignment')->name('ai-assistant.assignment');
         Route::post('/ai-assistant/publish', [FacultyAIAssistantController::class, 'publish'])->middleware('permission:create_assignment')->name('ai-assistant.publish');
+        Route::post('/ai-assistant/publish-class-test', [FacultyAIAssistantController::class, 'publishClassTest'])->middleware('permission:manage_class_tests')->name('ai-assistant.publish-class-test');
 
         // Attendance
         Route::get('/courses/{course}/attendance', [FacultyAttendanceController::class, 'index'])->middleware('permission:mark_attendance')->name('courses.attendance');
