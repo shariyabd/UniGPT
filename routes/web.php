@@ -43,6 +43,10 @@ use Inertia\Inertia;
 // Public marketing landing page.
 Route::get('/', fn () => Inertia::render('Landing'))->name('home');
 
+// Standalone product presentation / pitch deck. Renders full-screen with no
+// app chrome — the Presentation page is self-contained (no AppLayout).
+Route::get('/presentation', fn () => Inertia::render('Presentation'))->name('presentation');
+
 // Authentication Routes
 Route::middleware('guest')->group(function () {});
 Route::get('/login', [AuthenticationController::class, 'create'])->name('login');

@@ -1,0 +1,323 @@
+/**
+ * UniGPT — product presentation deck (config-driven).
+ *
+ * The presentation is generated from this data model, NOT hardcoded markup.
+ * Each slide declares a `layout` (rendered by Presentation.vue) plus
+ * layout-specific fields. Add / reorder / remove slides here and the deck
+ * updates automatically — counter, progress bar and dot-nav are all derived
+ * from `slides.length`.
+ *
+ * Slide shape:
+ *   { id, layout, kicker?, title?, subtitle?, ...layoutFields }
+ *
+ * Icons are referenced by name (string) and resolved against the heroicons
+ * map in Presentation.vue — keeps this file pure data.
+ */
+
+export const meta = {
+    name: 'UniGPT',
+    tagline: 'AI Academic Copilot for Universities',
+    repo: 'Laravel 11 · Inertia 2 · Vue 3 · MySQL',
+};
+
+export const slides = [
+    /* ---------------------------------------------------------------- 01 HOOK */
+    {
+        id: 'cover',
+        layout: 'cover',
+        kicker: 'AI academic copilot for universities',
+        title: 'Run your university on\nintelligence, not paperwork.',
+        subtitle:
+            'One platform. Three tailored experiences. Grounded AI that answers from your own academic documents — with citations, not hallucinations.',
+        tags: ['Students', 'Faculty', 'Administrators'],
+        chips: [
+            { icon: 'SparklesIcon', label: 'RAG-grounded answers' },
+            { icon: 'ShieldCheckIcon', label: 'Role-based governance' },
+            { icon: 'ClipboardDocumentCheckIcon', label: 'Proctored AI exams' },
+        ],
+    },
+
+    /* ------------------------------------------------------------- 02 PROBLEM */
+    {
+        id: 'problem',
+        layout: 'statement',
+        kicker: 'The problem',
+        title: 'Campus knowledge is everywhere —\nand answers are nowhere.',
+        accent: 'danger',
+        points: [
+            { icon: 'FolderOpenIcon', title: 'Fragmented systems', desc: 'Syllabi, notes and policies scattered across portals, PDFs and inboxes.' },
+            { icon: 'ExclamationTriangleIcon', title: 'Generic AI hallucinates', desc: 'ChatGPT invents policies it has never seen. Unsafe for an institution.' },
+            { icon: 'ClockIcon', title: 'Staff drown in repetition', desc: 'The same questions, grading and admin tasks, answered manually, again and again.' },
+        ],
+    },
+
+    /* --------------------------------------------------------- 03 WHY MATTERS */
+    {
+        id: 'stakes',
+        layout: 'statement',
+        kicker: 'Why it matters',
+        title: 'In academia, a wrong answer\nis worse than no answer.',
+        accent: 'warning',
+        points: [
+            { icon: 'LockClosedIcon', title: 'Trust is everything', desc: 'A policy answer must be traceable to a real, approved source document.' },
+            { icon: 'EyeIcon', title: 'Accountability', desc: 'Institutions need to see, govern and audit how AI is used on campus.' },
+            { icon: 'BoltIcon', title: 'Speed at scale', desc: 'Thousands of students, hundreds of courses — manual workflows do not scale.' },
+        ],
+    },
+
+    /* ------------------------------------------------------------ 04 SOLUTION */
+    {
+        id: 'solution',
+        layout: 'pillars',
+        kicker: 'The solution',
+        title: 'UniGPT — one AI platform for the whole campus',
+        subtitle: 'Grounded intelligence, role-aware dashboards, end-to-end academic workflows.',
+        items: [
+            { icon: 'SparklesIcon', title: 'Grounded AI', desc: 'Every answer cited from your approved documents, with a confidence score.' },
+            { icon: 'UsersIcon', title: 'Three experiences', desc: 'Student, Faculty and Admin dashboards — one login, tailored to each role.' },
+            { icon: 'AcademicCapIcon', title: 'Full academic loop', desc: 'Teach, quiz, submit, proctor, grade and report — wired end-to-end.' },
+        ],
+    },
+
+    /* -------------------------------------------------------- 05 ARCHITECTURE */
+    {
+        id: 'architecture',
+        layout: 'architecture',
+        kicker: 'System architecture',
+        title: 'Modern, modular, no vendor lock-in',
+        subtitle: 'Domain-Driven Design over a single Laravel + MySQL instance — no external vector DB, no LLM SDK.',
+        layers: [
+            { name: 'Presentation', accent: 'cyan', items: ['Vue 3 + Inertia 2', 'Tailwind + Vite', 'Ziggy routes'] },
+            { name: 'Application', accent: 'primary', items: ['Role / Permission middleware', 'Controllers + Form Requests', 'Domain services & actions'] },
+            { name: 'Domain (DDD)', accent: 'violet', items: ['Chat · RAG · Academic', 'Pluggable AI providers', 'Contracts over implementations'] },
+            { name: 'Data', accent: 'emerald', items: ['MySQL 8 (uni_gpt)', 'Native cosine vector store', 'Audit log & analytics'] },
+        ],
+    },
+
+    /* ----------------------------------------------------------------- 06 RBAC */
+    {
+        id: 'rbac',
+        layout: 'roles',
+        kicker: 'Role-based access control',
+        title: 'Three roles, 40+ fine-grained permissions',
+        subtitle: 'Every route guarded. Every action audited. Role assignments can even expire.',
+        roles: [
+            {
+                icon: 'AcademicCapIcon', name: 'Student', accent: 'cyan',
+                tagline: 'Learn & get answers',
+                features: ['AI tutor chat', 'Assignments & submissions', 'Proctored class tests', 'Materials · transcript · attendance'],
+            },
+            {
+                icon: 'BookOpenIcon', name: 'Faculty', accent: 'primary',
+                tagline: 'Teach & assess',
+                features: ['AI teaching assistant', 'AI quiz & assignment generator', 'Grading + AI feedback', 'Learning analytics'],
+            },
+            {
+                icon: 'ShieldCheckIcon', name: 'Admin', accent: 'emerald',
+                tagline: 'Govern & monitor',
+                features: ['User & role matrix editor', 'Document approval workflow', 'AI usage monitor & access control', 'Courses · terms · departments'],
+            },
+        ],
+    },
+
+    /* ------------------------------------------------------------- 07 AI CORE */
+    {
+        id: 'rag-pipeline',
+        layout: 'pipeline',
+        kicker: 'The AI core',
+        title: 'Retrieval-Augmented Generation, MySQL-native',
+        subtitle: 'From an uploaded PDF to a cited answer — the whole pipeline runs in-house.',
+        steps: [
+            { icon: 'DocumentTextIcon', label: 'Upload & approve', sub: 'Admin curates the knowledge base' },
+            { icon: 'PuzzlePieceIcon', label: 'Chunk', sub: '512-token semantic units' },
+            { icon: 'CpuChipIcon', label: 'Embed', sub: 'Vectors stored in MySQL' },
+            { icon: 'MagnifyingGlassIcon', label: 'Retrieve', sub: 'Cosine similarity, top-K' },
+            { icon: 'CheckBadgeIcon', label: 'Cite', sub: 'Confidence + source excerpts' },
+        ],
+    },
+
+    /* --------------------------------------------------- 08 GROUNDED ANSWERS */
+    {
+        id: 'grounded',
+        layout: 'chat',
+        kicker: 'The differentiator',
+        title: 'Answers you can trust — and verify',
+        subtitle: 'Inline citations, a live confidence score and downloadable sources. No black box.',
+        keywords: [
+            { icon: 'CheckBadgeIcon', label: 'Confidence score', desc: 'High / Medium / Low, computed from retrieval similarity.' },
+            { icon: 'DocumentTextIcon', label: 'Cited sources', desc: 'Every claim traces back to an approved document & page.' },
+            { icon: 'GlobeAltIcon', label: 'Multi-language', desc: 'English & Bangla out of the box, configurable per institution.' },
+        ],
+    },
+
+    /* ------------------------------------------------------- 09 STUDENT GRID */
+    {
+        id: 'student-features',
+        layout: 'grid',
+        kicker: 'Student experience',
+        title: 'Everything a student needs, in one place',
+        columns: 3,
+        items: [
+            { icon: 'SparklesIcon', title: 'AI Tutor', desc: 'Grounded chat with citations, history, pin & archive.' },
+            { icon: 'ClipboardDocumentCheckIcon', title: 'Class Tests', desc: 'Timed, proctored, auto-graded with instant review.' },
+            { icon: 'PencilSquareIcon', title: 'Assignments', desc: 'Submit work, track status, read rubrics.' },
+            { icon: 'BookOpenIcon', title: 'Materials & Roadmap', desc: 'Course content with per-item completion tracking.' },
+            { icon: 'ChartBarIcon', title: 'Transcript & Attendance', desc: 'Grades and academic history at a glance.' },
+            { icon: 'LightBulbIcon', title: 'Notes & Tasks', desc: 'Personal productivity + saved AI answers.' },
+        ],
+    },
+
+    /* --------------------------------------------------- 10 STUDENT WORKFLOW */
+    {
+        id: 'student-journey',
+        layout: 'workflow',
+        kicker: 'Workflow · Student asks the AI',
+        title: 'Question to grounded answer in seconds',
+        steps: [
+            { title: 'Ask', desc: 'Student types a question in the AI tutor chat.' },
+            { title: 'Retrieve', desc: 'System embeds the query and finds the most relevant approved chunks.' },
+            { title: 'Ground', desc: 'The model answers strictly from retrieved context.' },
+            { title: 'Cite & save', desc: 'Sources, confidence and follow-ups attached — bookmark for later.' },
+        ],
+    },
+
+    /* ------------------------------------------------------- 11 FACULTY GRID */
+    {
+        id: 'faculty-features',
+        layout: 'grid',
+        kicker: 'Faculty experience',
+        title: 'An AI co-teacher for every instructor',
+        columns: 3,
+        items: [
+            { icon: 'SparklesIcon', title: 'AI Assistant', desc: 'ChatGPT-style workspace, course-aware context.' },
+            { icon: 'BeakerIcon', title: 'AI Quiz Generator', desc: 'Topic → MCQ / true-false with explanations, editable.' },
+            { icon: 'PencilSquareIcon', title: 'Assignment Generator', desc: 'Auto-draft description, tasks and rubric.' },
+            { icon: 'CheckBadgeIcon', title: 'AI-Assisted Grading', desc: 'Draft constructive feedback against the rubric.' },
+            { icon: 'ChartBarIcon', title: 'Learning Analytics', desc: 'Class performance & at-risk student flags.' },
+            { icon: 'UserGroupIcon', title: 'Courses & Attendance', desc: 'Materials, rosters and attendance per section.' },
+        ],
+    },
+
+    /* --------------------------------------------------- 12 FACULTY WORKFLOW */
+    {
+        id: 'faculty-journey',
+        layout: 'workflow',
+        kicker: 'Workflow · Faculty creates an exam',
+        title: 'From topic to live exam in one flow',
+        accent: 'emerald',
+        steps: [
+            { title: 'Generate', desc: 'AI drafts a quiz from a topic, difficulty & Bloom level.' },
+            { title: 'Refine', desc: 'Faculty edits questions, options and answer keys.' },
+            { title: 'Publish', desc: 'One click → assignment OR interactive proctored class test.' },
+            { title: 'Auto-grade', desc: 'Students notified; objective answers graded instantly.' },
+        ],
+    },
+
+    /* --------------------------------------------------- 13 PROCTORED TESTS */
+    {
+        id: 'proctoring',
+        layout: 'grid',
+        kicker: 'Proctored class tests',
+        title: 'Real exam integrity, in the browser',
+        columns: 2,
+        items: [
+            { icon: 'EyeIcon', title: 'Fullscreen enforcement', desc: 'Tab-switch & fullscreen-exit detection with warnings.' },
+            { icon: 'ExclamationTriangleIcon', title: 'Auto-disqualify', desc: 'Exceed the warning limit → attempt auto-submitted.' },
+            { icon: 'ClockIcon', title: 'Per-student timer', desc: 'Countdown begins on start, not globally — fair to all.' },
+            { icon: 'ShieldCheckIcon', title: 'Server-authoritative grading', desc: 'Answers never trusted from the client; graded on the server.' },
+        ],
+    },
+
+    /* --------------------------------------------------------- 14 ADMIN GRID */
+    {
+        id: 'admin-features',
+        layout: 'grid',
+        kicker: 'Admin experience',
+        title: 'Govern the platform end-to-end',
+        columns: 3,
+        items: [
+            { icon: 'UsersIcon', title: 'User & Role Matrix', desc: 'Create users, edit the role→permission matrix live.' },
+            { icon: 'FolderOpenIcon', title: 'Document Approval', desc: 'Review, comment, approve → auto-embed into RAG.' },
+            { icon: 'CpuChipIcon', title: 'AI Usage Monitor', desc: 'Per-user tokens & requests; block / unblock access.' },
+            { icon: 'BookOpenIcon', title: 'Catalog & Terms', desc: 'Courses, sections, departments, term rollover.' },
+            { icon: 'BellAlertIcon', title: 'Announcements', desc: 'Broadcast notifications fan out to every user.' },
+            { icon: 'Cog6ToothIcon', title: 'AI Settings', desc: 'Temperature, top-K, similarity threshold, prompts.' },
+        ],
+    },
+
+    /* ----------------------------------------------- 15 GOVERNANCE / CONTROL */
+    {
+        id: 'governance',
+        layout: 'pillars',
+        kicker: 'Governed AI',
+        title: 'Institutions stay in control',
+        subtitle: 'AI on campus is curated, measured and accountable — never a free-for-all.',
+        items: [
+            { icon: 'CheckBadgeIcon', title: 'Approve before index', desc: 'Only admin-approved documents ever reach the AI.' },
+            { icon: 'CpuChipIcon', title: 'Measure every token', desc: 'Per-user usage tracking with block / unblock controls.' },
+            { icon: 'EyeIcon', title: 'Audit everything', desc: 'Every major action logged with user and timestamp.' },
+        ],
+    },
+
+    /* ------------------------------------------------------------ 16 METRICS */
+    {
+        id: 'metrics',
+        layout: 'metrics',
+        kicker: 'By the numbers',
+        title: 'A mature, demonstrable MVP',
+        stats: [
+            { value: '3', label: 'Role dashboards', sub: 'Student · Faculty · Admin' },
+            { value: '40+', label: 'Permissions', sub: 'Fine-grained RBAC matrix' },
+            { value: '100%', label: 'Core workflows', sub: 'Wired end-to-end' },
+            { value: '0', label: 'External AI deps', sub: 'No vector DB, no LLM SDK' },
+        ],
+    },
+
+    /* ------------------------------------------------------- 17 PLUGGABLE AI */
+    {
+        id: 'pluggable',
+        layout: 'pillars',
+        kicker: 'No lock-in',
+        title: 'Swap the brain, keep the platform',
+        subtitle: 'Provider logic lives behind an interface — demo today, production tomorrow.',
+        items: [
+            { icon: 'BeakerIcon', title: 'Mock provider', desc: 'Deterministic answers — full demo with zero API keys.' },
+            { icon: 'SparklesIcon', title: 'OpenAI provider', desc: 'Drop in a key for production-grade generation.' },
+            { icon: 'PuzzlePieceIcon', title: 'Future providers', desc: 'Gemini or local LLMs plug into the same contract.' },
+        ],
+    },
+
+    /* ------------------------------------------------------------ 18 ROADMAP */
+    {
+        id: 'roadmap',
+        layout: 'roadmap',
+        kicker: 'Where it goes next',
+        title: 'Shipped, and what is coming',
+        shipped: ['RAG tutor + citations', 'AI quiz → proctored exam', 'AI-assisted grading', 'RBAC + audit log', 'Document approval pipeline', 'AI usage governance'],
+        upcoming: ['Real-time messaging', 'Token-by-token streaming', 'Voice input / output', 'Managed vector DB at scale'],
+    },
+
+    /* ------------------------------------------------------------ 19 IMPACT */
+    {
+        id: 'impact',
+        layout: 'statement',
+        kicker: 'The impact',
+        title: 'Less paperwork. More learning.',
+        accent: 'success',
+        points: [
+            { icon: 'BoltIcon', title: 'Instant, trusted answers', desc: 'Students self-serve from grounded, cited knowledge 24/7.' },
+            { icon: 'ArrowTrendingUpIcon', title: 'Faculty multiplied', desc: 'AI drafts quizzes, exams and feedback — humans review, not author.' },
+            { icon: 'ShieldCheckIcon', title: 'Administration in control', desc: 'Full visibility and governance over AI on campus.' },
+        ],
+    },
+
+    /* ------------------------------------------------------------ 20 CLOSING */
+    {
+        id: 'closing',
+        layout: 'closing',
+        title: 'UniGPT',
+        subtitle: 'The AI academic copilot your campus can actually trust.',
+        points: ['Grounded · Governed · Proctored', 'Laravel 11 · Inertia 2 · Vue 3 · MySQL'],
+        cta: 'Thank you',
+    },
+];
