@@ -143,6 +143,20 @@ export const slides = [
         kicker: 'The differentiator',
         title: 'Answers you can trust — and verify',
         subtitle: 'Inline citations, a live confidence score and downloadable sources. No black box.',
+        pairs: [
+            {
+                q: "What's the late submission policy for CS401?",
+                a: 'Submissions are accepted up to 72 hours late with a 10% daily penalty. Beyond that a grade of zero applies unless an extension was approved.',
+                confidence: '96% confidence',
+                source: 'CS401 Syllabus · p.4',
+            },
+            {
+                q: 'When is the database systems midterm?',
+                a: 'The CS302 midterm is on March 14th, 9:00 AM in Hall B. It covers indexing, normalization and transaction control.',
+                confidence: '92% confidence',
+                source: 'Exam Timetable · Spring',
+            },
+        ],
         keywords: [
             { icon: 'CheckBadgeIcon', label: 'Confidence score', desc: 'High / Medium / Low, computed from retrieval similarity.' },
             { icon: 'DocumentTextIcon', label: 'Cited sources', desc: 'Every claim traces back to an approved document & page.' },
@@ -287,7 +301,168 @@ export const slides = [
         ],
     },
 
-    /* ------------------------------------------------------------ 18 ROADMAP */
+    /* ------------------------------------------------------ 18 SEE IT LIVE */
+    {
+        id: 'demo',
+        layout: 'demo',
+        kicker: 'See it in action',
+        title: 'A guided tour of the platform',
+        // Real screenshots captured from the running app (light theme) — see
+        // scripts/capture-demo.mjs. Six core screens per role.
+        frames: [
+            /* -------- Student -------- */
+            {
+                role: 'Student', tint: '#0891b2', image: '/demo/student-chat.png', path: '/chat',
+                title: 'AI Tutor — Grounded Chat',
+                caption: 'Ask anything about your courses; every answer is drawn from approved university documents.',
+                points: ['Cited sources + confidence score', 'Academic & exam-prep modes', 'Saved answers and chat history'],
+            },
+            {
+                role: 'Student', tint: '#0891b2', image: '/demo/student-roadmap.png', path: '/roadmap',
+                title: 'Learning Roadmap',
+                caption: 'A personalised, semester-by-semester journey with live progress.',
+                points: ['Per-module completion %', 'AI study recommendations', 'Timeline & grid views'],
+            },
+            {
+                role: 'Student', tint: '#0891b2', image: '/demo/student-dashboard.png', path: '/dashboard',
+                title: 'Student Dashboard',
+                caption: 'A personalised academic hub — progress, deadlines and one-tap actions.',
+                points: ['Live CGPA & attendance', 'Upcoming assignment deadlines', 'Quick access to AI chat & roadmap'],
+            },
+            {
+                role: 'Student', tint: '#0891b2', image: '/demo/student-class-tests.png', path: '/class-tests',
+                title: 'Proctored Class Tests',
+                caption: 'Timed, auto-graded quizzes set by instructors — with anti-cheat enforcement.',
+                points: ['Duration, questions & marks upfront', 'Fullscreen lockdown on start', 'Instant results & answer review'],
+            },
+            {
+                role: 'Student', tint: '#0891b2', image: '/demo/student-transcript.png', path: '/transcript',
+                title: 'Transcript & Grades',
+                caption: 'A complete academic record, grouped by semester.',
+                points: ['Cumulative GPA & credits', 'Per-course grades & points', 'Print-ready transcript'],
+            },
+            {
+                role: 'Student', tint: '#0891b2', image: '/demo/student-assignments.png', path: '/assignments',
+                title: 'Assignments & Submissions',
+                caption: 'Submit work and track grades across every course.',
+                points: ['To-do · submitted · graded filters', 'Due dates & point values', 'One-click file submission'],
+            },
+            {
+                role: 'Student', tint: '#0891b2', image: '/demo/student-exams.png', path: '/exams',
+                title: 'Exam Schedule',
+                caption: 'Upcoming and past exams for every enrolled course.',
+                points: ['Date, time, hall & marks', 'Midterm & final countdown', 'Exam-day instructions'],
+            },
+            {
+                role: 'Student', tint: '#0891b2', image: '/demo/student-materials.png', path: '/materials',
+                title: 'Course Materials',
+                caption: 'All your course content, organised by week.',
+                points: ['Per-course completion tracking', 'Weekly progress overview', 'Search & download materials'],
+            },
+
+            /* -------- Faculty -------- */
+            {
+                role: 'Faculty', tint: '#7c3aed', image: '/demo/faculty-ai.png', path: '/faculty/ai-assistant',
+                title: 'AI Teaching Assistant',
+                caption: 'Generate ready-to-publish quizzes and assignments from a single topic.',
+                points: ['MCQ · True/False · Essay types', 'Difficulty & Bloom-level control', 'Edit, then publish in one click'],
+            },
+            {
+                role: 'Faculty', tint: '#7c3aed', image: '/demo/faculty-courses.png', path: '/faculty/courses',
+                title: 'My Courses',
+                caption: 'Every section you teach, with class progress and AI shortcuts.',
+                points: ['Live class-progress bars', 'Generate quiz / assignment', 'Manage materials per section'],
+            },
+            {
+                role: 'Faculty', tint: '#7c3aed', image: '/demo/faculty-analytics.png', path: '/faculty/analytics',
+                title: 'Learning Analytics',
+                caption: 'Performance and attendance across every course you teach.',
+                points: ['At-risk student flags', 'Grade distribution charts', 'Attendance & pending-grading totals'],
+            },
+            {
+                role: 'Faculty', tint: '#7c3aed', image: '/demo/faculty-class-tests.png', path: '/faculty/class-tests',
+                title: 'Class Test Authoring',
+                caption: 'Create, publish and track timed quizzes for each of your sections.',
+                points: ['Per-section publishing', 'Live results & analytics', 'Edit or close at any time'],
+            },
+            {
+                role: 'Faculty', tint: '#7c3aed', image: '/demo/faculty-students.png', path: '/faculty/students',
+                title: 'My Students',
+                caption: 'The full roster across the courses and sections you teach.',
+                points: ['Filter by course & section', 'Student IDs & enrolment', 'Direct message a student'],
+            },
+            {
+                role: 'Faculty', tint: '#7c3aed', image: '/demo/faculty-dashboard.png', path: '/faculty/dashboard',
+                title: 'Faculty Dashboard',
+                caption: 'Teaching at a glance — courses, students and pending work.',
+                points: ['Active courses & total students', 'Pending grading count', 'AI quick-actions panel'],
+            },
+            {
+                role: 'Faculty', tint: '#7c3aed', image: '/demo/faculty-exams.png', path: '/faculty/exams',
+                title: 'Exam Timetable',
+                caption: 'Scheduled exams across the courses you teach.',
+                points: ['Per-course exam cards', 'Date, time & venue', 'Managed by administration'],
+            },
+
+            /* -------- Admin -------- */
+            {
+                role: 'Admin', tint: '#059669', image: '/demo/admin-documents.png', path: '/admin/documents',
+                title: 'RAG Knowledge Base',
+                caption: 'Curate exactly which documents the AI is allowed to answer from.',
+                points: ['Approve → auto-embed into RAG', 'Department-scoped visibility', 'Preview, version & download'],
+            },
+            {
+                role: 'Admin', tint: '#059669', image: '/demo/admin-roles.png', path: '/admin/roles',
+                title: 'Roles & Permissions',
+                caption: 'A live matrix of every permission each role holds.',
+                points: ['40+ granular permissions', 'Toggle per role, applied instantly', 'Protected system administrator'],
+            },
+            {
+                role: 'Admin', tint: '#059669', image: '/demo/admin-users.png', path: '/admin/users',
+                title: 'User Management',
+                caption: 'Manage every account with full role control.',
+                points: ['Create · edit · deactivate', 'Assign roles (with expiry)', 'Search by role & status'],
+            },
+            {
+                role: 'Admin', tint: '#059669', image: '/demo/admin-courses.png', path: '/admin/courses',
+                title: 'Course Catalog',
+                caption: 'The institution-wide catalog and section offerings.',
+                points: ['Hundreds of courses & sections', 'Assign faculty to sections', 'Filter by department & semester'],
+            },
+            {
+                role: 'Admin', tint: '#059669', image: '/demo/admin-analytics.png', path: '/admin/analytics',
+                title: 'System Analytics',
+                caption: 'Platform-wide visibility for administrators.',
+                points: ['Users by role breakdown', 'Query & token trends', 'Document library stats'],
+            },
+            {
+                role: 'Admin', tint: '#059669', image: '/demo/admin-departments.png', path: '/admin/departments',
+                title: 'Departments',
+                caption: 'Academic departments with their codes and rollups.',
+                points: ['User & course counts', 'Active / inactive status', 'Create, edit & manage'],
+            },
+            {
+                role: 'Admin', tint: '#059669', image: '/demo/admin-exams.png', path: '/admin/exams',
+                title: 'Exam Management',
+                caption: 'Schedule exams across courses — students are notified automatically.',
+                points: ['Hundreds of scheduled exams', 'Filter by course, type & date', 'Auto-notify enrolled students'],
+            },
+            {
+                role: 'Admin', tint: '#059669', image: '/demo/admin-terms.png', path: '/admin/terms',
+                title: 'Academic Terms',
+                caption: 'Manage terms and run the end-of-term rollover.',
+                points: ['Set the current term', 'Open / close registration', 'Section & enrolment counts'],
+            },
+            {
+                role: 'Admin', tint: '#059669', image: '/demo/admin-announcements.png', path: '/admin/announcements',
+                title: 'Announcements',
+                caption: 'Broadcast a notification to any group of users.',
+                points: ['Target everyone or a role', 'Fan-out to all recipients', 'History of recent sends'],
+            },
+        ],
+    },
+
+    /* ------------------------------------------------------------ 19 ROADMAP */
     {
         id: 'roadmap',
         layout: 'roadmap',
