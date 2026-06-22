@@ -19,6 +19,23 @@ use Illuminate\Database\Seeder;
  */
 class AISettingsSeeder extends Seeder
 {
+    /**
+     * Standard RAG retrieval profile, calibrated for text-embedding-3-small.
+     *
+     * These are the known-good values that make grounded answers reliable:
+     *  - top_k 6                  — enough passages for multi-hop questions.
+     *  - similarity_threshold 0.35 — 3-small's relevant cosines sit ~0.3–0.65;
+     *                                the previous 0.7 floor matched nothing and
+     *                                collapsed retrieval to a single document.
+     *
+     * config('rag.retrieval.*') (env-overridable) takes precedence so admins can
+     * still tune values, but these constants guarantee the seeder writes a
+     * non-failing configuration even if config/env is missing or stale.
+     */
+    private const STANDARD_TOP_K = 6;
+
+    private const STANDARD_SIMILARITY_THRESHOLD = 0.35;
+
     public function run(): void
     {
         $this->command->info('Seeding AI settings...');
@@ -37,8 +54,11 @@ class AISettingsSeeder extends Seeder
             'embedding_model' => config('ai.embedding.model'),
             'temperature' => (float) config('ai.providers.openai.temperature'),
             'max_tokens' => (int) config('ai.providers.openai.max_tokens'),
-            'rag_top_k' => (int) config('rag.retrieval.top_k'),
-            'rag_similarity_threshold' => (float) config('rag.retrieval.similarity_threshold'),
+            'rag_top_k' => (int) config('rag.retrieval.top_k', self::STANDARD_TOP_K),
+            'rag_similarity_threshold' => (float) config(
+                'rag.retrieval.similarity_threshold',
+                self::STANDARD_SIMILARITY_THRESHOLD,
+            ),
         ];
 
         // The key is stored encrypted (write-only, never exposed to the client).
