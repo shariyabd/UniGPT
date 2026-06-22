@@ -40,24 +40,27 @@ class SectionSeeder extends Seeder
             ->groupBy(fn (User $u) => $u->department_id.'-'.$u->semester)
             ->map->count();
 
-        // Teaching faculty grouped by department, plus a global fallback pool.
+        // Teaching faculty grouped by department. There is intentionally NO
+        // cross-department fallback: a faculty may only teach courses owned by
+        // their own department, so a course in a department with no faculty is
+        // left unstaffed (faculty_id = null) rather than assigned someone from
+        // another department, which would break that invariant.
         $facultyByDepartment = User::withRole(UserRole::FACULTY)
             ->get(['id', 'department_id'])
             ->groupBy('department_id');
-        $facultyFallback = $facultyByDepartment->flatten(1)->pluck('id')->all();
         $facultyCursor = [];
 
         $created = 0;
 
         Course::doesntHave('sections')->with([])->chunkById(100, function ($courses) use (
-            $term, $capacity, $demand, $facultyByDepartment, $facultyFallback, &$facultyCursor, &$created
+            $term, $capacity, $demand, $facultyByDepartment, &$facultyCursor, &$created
         ) {
             foreach ($courses as $course) {
                 $bucketDemand = (int) ($demand[$course->department_id.'-'.$course->semester] ?? 0);
                 $sectionsNeeded = max(1, (int) ceil($bucketDemand / max(1, $capacity)));
 
-                $deptFaculty = $facultyByDepartment->get($course->department_id)?->pluck('id')->all()
-                    ?: $facultyFallback;
+                // Only faculty from the course's OWN department may teach it.
+                $deptFaculty = $facultyByDepartment->get($course->department_id)?->pluck('id')->all() ?: [];
 
                 for ($s = 0; $s < $sectionsNeeded; $s++) {
                     $facultyId = $this->nextFaculty($course->department_id, $deptFaculty, $facultyCursor);

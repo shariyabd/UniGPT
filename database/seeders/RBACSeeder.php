@@ -169,12 +169,21 @@ class RBACSeeder extends Seeder
         $this->command->info('Creating demo users...');
 
         $departmentIds = Department::all()->pluck('id')->toArray();
+
+        // Pin the demo accounts to ONE department (Computer Science Engineering)
+        // rather than random ones. The demo academic data is all CS courses, and
+        // both demo faculty teach CS sections — so they must share the CS
+        // department to satisfy the "faculty teach only their own department's
+        // courses" invariant. Falls back to the first department if CS is absent.
+        $demoDepartmentId = Department::where('name', 'Computer Science Engineering')->value('id')
+            ?? ($departmentIds[0] ?? null);
+
         $demoUsers = [
             [
                 'name' => 'Demo Student',
                 'email' => 'student@university.edu',
                 'password' => Hash::make('demo123'),
-                'department_id' => $departmentIds[array_rand($departmentIds)],
+                'department_id' => $demoDepartmentId,
                 'semester' => 5,
                 'student_id' => 'CS2024001',
                 'role' => UserRole::STUDENT,
@@ -183,7 +192,7 @@ class RBACSeeder extends Seeder
                 'name' => 'Prof. John Smith',
                 'email' => 'prof.smith@university.edu',
                 'password' => Hash::make('demo123'),
-                'department_id' => $departmentIds[array_rand($departmentIds)],
+                'department_id' => $demoDepartmentId,
                 'employee_id' => 'FAC001',
                 'bio' => 'Professor of Computer Science with 15+ years of experience in AI and Machine Learning.',
                 'role' => UserRole::FACULTY,
@@ -192,7 +201,7 @@ class RBACSeeder extends Seeder
                 'name' => 'Prof. Emily Jones',
                 'email' => 'prof.jones@university.edu',
                 'password' => Hash::make('demo123'),
-                'department_id' => $departmentIds[array_rand($departmentIds)],
+                'department_id' => $demoDepartmentId,
                 'employee_id' => 'FAC002',
                 'bio' => 'Assistant Professor specialising in Data Structures and Software Engineering.',
                 'role' => UserRole::FACULTY,
@@ -201,7 +210,7 @@ class RBACSeeder extends Seeder
                 'name' => 'System Administrator',
                 'email' => 'admin@university.edu',
                 'password' => Hash::make('demo123'),
-                'department_id' => $departmentIds[array_rand($departmentIds)],
+                'department_id' => $demoDepartmentId,
                 'employee_id' => 'ADM001',
                 'bio' => 'System Administrator managing UniGPT platform and all technical operations.',
                 'role' => UserRole::ADMIN,

@@ -71,6 +71,39 @@ class AdminCatalogTest extends TestCase
         ]);
     }
 
+    public function test_section_faculty_must_belong_to_the_courses_department(): void
+    {
+        $course = Course::where('code', 'CS305')->first();
+
+        if (! $course) {
+            $this->markTestSkipped('CS305 not seeded.');
+        }
+
+        // A faculty member from a DIFFERENT department than the course owner.
+        $foreignFaculty = User::withRole(\App\Enums\UserRole::FACULTY)
+            ->where('department_id', '!=', $course->department_id)
+            ->first();
+
+        if (! $foreignFaculty) {
+            $this->markTestSkipped('No cross-department faculty seeded.');
+        }
+
+        $this->actingAs($this->user('admin@university.edu'))
+            ->post("/admin/courses/{$course->id}/sections", [
+                'label' => 'H',
+                'term_id' => Term::where('is_current', true)->value('id'),
+                'faculty_id' => $foreignFaculty->id,
+                'max_enrollment' => 40,
+                'is_active' => true,
+            ])
+            ->assertSessionHasErrors('faculty_id');
+
+        $this->assertDatabaseMissing('sections', [
+            'course_id' => $course->id,
+            'label' => 'H',
+        ]);
+    }
+
     public function test_faculty_can_no_longer_create_courses(): void
     {
         $faculty = $this->user('prof.smith@university.edu');

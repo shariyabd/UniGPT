@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Admin;
 
+use App\Domain\User\Models\User;
+use App\Models\Course;
 use App\Models\Term;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -53,7 +55,25 @@ class SectionRequest extends FormRequest
                     ->ignore($this->route('section')?->id),
             ],
             'term_id' => ['nullable', 'exists:terms,id'],
-            'faculty_id' => ['nullable', 'exists:users,id'],
+            'faculty_id' => [
+                'nullable',
+                'exists:users,id',
+                // Root invariant: a faculty member may only teach courses owned by
+                // their OWN department. Reject an assignment whose faculty belongs
+                // to a different department than the section's course.
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if ($value === null) {
+                        return;
+                    }
+
+                    $courseDepartmentId = Course::whereKey($this->courseId())->value('department_id');
+                    $facultyDepartmentId = User::whereKey($value)->value('department_id');
+
+                    if ($courseDepartmentId !== null && $facultyDepartmentId !== $courseDepartmentId) {
+                        $fail('The assigned faculty must belong to the course\'s department.');
+                    }
+                },
+            ],
             'max_enrollment' => ['required', 'integer', 'min:1', 'max:1000'],
             'is_active' => ['boolean'],
             'schedule' => ['nullable', 'array'],
