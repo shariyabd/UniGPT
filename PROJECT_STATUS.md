@@ -3,7 +3,7 @@
 > The live status tracker. **Source of truth = code.** For architecture and logic see
 > [PROJECT_ANALYSIS.md](PROJECT_ANALYSIS.md); for layout see [DIRECTORY_TREE.md](DIRECTORY_TREE.md).
 >
-> **Last updated:** 2026-06-18
+> **Last updated:** 2026-06-23
 > **Contents:** [Summary](#progress-summary) · [Feature matrix](#feature-matrix-codebase-vs-spec)
 > · [Recently shipped](#recently-shipped) · [Incomplete tasks](#incomplete-tasks)
 > · [Future plans / upcoming features](#future-plans--upcoming-features)
@@ -57,6 +57,7 @@ current MVP.
 | Attendance · Transcript · Exams · Calendar | ✅ | Attendance/Transcript/Exam/Calendar services |
 | Notes · Tasks (owner-scoped) | ✅ | `NoteController`, `TaskController` |
 | Notifications (bell + index) | ✅ | `NotificationService`, `NotificationController` |
+| **Real-time chat with faculty** (presence, typing, unread) | ✅ | `Messenger/MessageController`, `Conversation`/`Message`, `Events/MessageSent` (Ably) |
 
 ### Faculty
 | Feature | Status | Evidence |
@@ -69,6 +70,7 @@ current MVP.
 | Attendance management | ✅ | `Faculty/AttendanceController` |
 | Learning analytics & at-risk flagging | ✅ | `FacultyAnalyticsService` |
 | Exam timetable (read) | ✅ | `ExamService::forFaculty` |
+| **Real-time chat with students** (presence, typing, unread) | ✅ | `Messenger/MessageController`, `Conversation`/`Message`, `Events/MessageSent` (Ably) |
 
 ### Admin
 | Feature | Status | Evidence |
@@ -87,6 +89,21 @@ current MVP.
 ---
 
 ## Recently shipped
+
+### Real-time student↔faculty messaging
+A direct, **real-time chat** between a student and a faculty member they share a section
+with — distinct from the AI tutor. 1:1 conversations are persisted (`conversations` /
+`conversation_user` / `messages`), eligibility is enforced by `User::canMessage()` (must
+share a section) and a `ConversationPolicy`. Delivery is **DB-first, then broadcast**:
+`MessageSent` (`ShouldBroadcastNow`) publishes to a private per-conversation channel over
+**Ably**, with a low-frequency polling fallback so messages still arrive if the socket
+drops. Messenger-style UX: **online presence** via a lightweight heartbeat
+(`PresenceController`, `last_seen_at`, 2-min active window), a **typing indicator** over
+Ably whispers, and a conversation list that **reorders to newest** with last-message
+preview and **unread counts** (cleared on read). Text-only, and built to fit **cPanel
+shared hosting** — synchronous broadcast (no queue worker) on the free Ably tier
+(≈200 concurrent connections). Backed by `MessengerTest`. To lift the connection cap,
+upgrade the Ably plan or self-host Laravel Reverb on a VPS — the Echo client is unchanged.
 
 ### Timed quizzes / class tests (online exam system)
 Faculty author timed quizzes/class tests on a section — title, instructions/rules,
@@ -146,16 +163,9 @@ Tracked, not-yet-done work (excluding the larger future features below):
 
 ### A. New product features (requested)
 
-#### 1. 🔴 Real-time chat between students and faculty
-A direct, **real-time messaging** channel so students can message faculty members inside
-the platform (distinct from the AI tutor chat).
-- **Scope:** 1:1 (and optionally course/section) threads, presence/typing, unread counts.
-- **Likely build:** a `conversations` / `messages` schema; Laravel broadcasting
-  (Reverb/Pusher) + Echo on the Vue side; reuse `NotificationService` for offline pings.
-- **Note:** today cross-role communication is **asynchronous** via in-app notifications;
-  this adds a synchronous channel.
+> ✅ **Real-time student↔faculty chat has shipped** — see [Recently shipped](#recently-shipped).
 
-#### 2. 🔴 Telegram / WhatsApp notifications
+#### 1. 🔴 Telegram / WhatsApp notifications
 Deliver important academic events to students' phones via **Telegram and/or WhatsApp**,
 since students aren't always on the website.
 - **Triggers:** assignment published/updated, quiz scheduled, syllabus updates, course
@@ -165,7 +175,7 @@ since students aren't always on the website.
   chat IDs in user `preferences`; queue the sends. Reuses the existing `NotificationType`
   events as the trigger surface.
 
-#### 3. 🔴 Digital library with AI assistant
+#### 2. 🔴 Digital library with AI assistant
 A **library module** of academic books/resources, plus an **AI assistant scoped to the
 library** so students get answers grounded specifically in the available library content.
 - **Scope:** browsable/searchable library catalog; a library-scoped RAG assistant.

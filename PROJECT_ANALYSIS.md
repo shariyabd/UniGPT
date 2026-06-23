@@ -355,14 +355,18 @@ How roles and components interact (all relationships below are **wired and real*
 - **Admin → Faculty/Student:** account governance, document approval, AI config,
   section/term ownership, student↔section assignment.
 - **Faculty → Student:** materials, published assignments/quizzes, grades + feedback.
+- **Faculty ↔ Student (real-time):** direct 1:1 chat between a student and a faculty
+  member they share a section with — presence, typing and unread counts, over Ably
+  (`Messenger/MessageController`, `MessageSent`). A synchronous channel alongside the
+  asynchronous notifications below.
 - **Student → Faculty:** submissions and activity feed grading and analytics.
 - **System events → Notifications:** grade posted, material/assignment/exam published,
   enrollment assigned, admin announcement.
 - **Everyone → Chat/RAG + Knowledge base:** the shared dependency at the center.
 
 > **Not yet present** (see [PROJECT_STATUS.md](PROJECT_STATUS.md) → Future Plans):
-> direct real-time student↔faculty messaging, and external (Telegram/WhatsApp) push.
-> Today, cross-role communication is asynchronous via in-app notifications.
+> external (Telegram/WhatsApp) push. Direct real-time student↔faculty messaging has
+> **shipped**; broadcast announcements and event notifications remain asynchronous.
 
 ---
 

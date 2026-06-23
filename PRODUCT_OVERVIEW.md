@@ -102,6 +102,7 @@ prep, research — keep responses on-task.
 | **Attendance & analytics** | Mark attendance in seconds; track rates, grades, GPA and engagement across every course. |
 | **Granular RBAC** | Roles map to fine-grained permissions with time-limited grants — every action is gated and logged. |
 | **Announcements & alerts** | Broadcast to any audience and notify the right people on exams, grades and new materials. |
+| **Real-time messaging** | Students and faculty chat live in-app — online presence, typing indicators, unread counts and instant delivery, separate from the AI tutor. |
 | **Registration & rostering** | Admins assign students to course sections; students confirm in one click — seats, terms and rosters stay consistent. |
 | **Exams, transcripts & calendar** | Schedule exams, auto-build transcripts with GPA & CGPA, and merge every deadline into one calendar. |
 
@@ -122,6 +123,7 @@ planner that keeps the term on track.
 - Attendance, transcript & GPA tracking
 - Course roadmap, materials & document library
 - Exam schedule, calendar, notes & tasks
+- Real-time messaging with your faculty
 - *Sample dashboard metrics:* 6 courses · 3.78 CGPA · 94% attendance
 
 ### 📊 Faculty — *Teach more, administrate less*
@@ -133,6 +135,7 @@ feedback in seconds.
 - One-click attendance with live class stats
 - Grading workspace with AI-drafted feedback
 - Per-course analytics & grade distributions
+- Real-time messaging with your students
 - *Sample dashboard metrics:* 4 courses · 128 students · 12 to grade
 
 ### ⚙️ Admin — *Total control, live oversight*
@@ -287,14 +290,15 @@ How modules, services and roles connect — the platform is one loop, not isolat
 
 **Flagship upcoming features**
 
+> ✅ **Real-time student–faculty chat has shipped** — see the Core platform & Roles sections above.
+
 | Feature | Stage | What it adds |
 |---|---|---|
-| **Real-time student–faculty chat** | In design | Direct, live messaging between students and faculty — separate from the AI tutor — with presence, typing and unread counts. |
+| **Token-by-token streaming** | In design | Watch grounded answers generate live, word by word — faster perceived responses over a streaming transport. |
 | **Telegram & WhatsApp alerts** | Planned | Push assignments, scheduled quizzes, syllabus changes and announcements straight to the phones students already use. |
 | **Digital library + AI assistant** | Exploring | A library of academic books and resources with an AI assistant that answers strictly from the library's own content — grounded, cited, on-syllabus. |
 
 **Also on the engineering roadmap** *(later phases — most depend on additional infrastructure)*
-- **Streaming chat** — token-by-token responses as they generate.
 - **Voice I/O** — speak to the assistant with speech-to-text & text-to-speech.
 - **Predictive analytics** — early-risk signals & recommendations from academic data.
 - **More AI providers** — Gemini and self-hosted models alongside OpenAI.
