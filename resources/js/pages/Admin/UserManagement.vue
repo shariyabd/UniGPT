@@ -256,6 +256,14 @@ const deleteUser = async (userId) => {
     });
 };
 
+// Non-destructive activate/deactivate — flips the account's active status.
+const toggleActive = (user) => {
+    router.patch(route('admin.users.toggle-active', user.id), {}, {
+        preserveScroll: true,
+        preserveState: true
+    });
+};
+
 const bulkUpdateStatus = (status) => {
     const ids = Array.from(selectedUsers.value);
     ids.forEach(userId => {
@@ -490,9 +498,22 @@ const bulkUpdateRole = (role) => {
                                                 </button>
                                                 <button
                                                     v-if="can('update_user') && !user.isProtected"
+                                                    @click="toggleActive(user)"
+                                                    class="ui-btn-ghost p-2"
+                                                    :aria-label="user.status === 'active' ? 'Deactivate user' : 'Activate user'"
+                                                    :title="user.status === 'active' ? 'Deactivate user' : 'Activate user'"
+                                                >
+                                                    <component
+                                                        :is="user.status === 'active' ? XCircleIcon : CheckCircleIcon"
+                                                        class="h-4 w-4"
+                                                    />
+                                                </button>
+                                                <button
+                                                    v-if="can('delete_user') && !user.isProtected"
                                                     @click="deleteUser(user.id)"
                                                     class="ui-btn-ghost p-2 text-danger-fg hover:text-danger-fg"
-                                                    aria-label="Deactivate user"
+                                                    aria-label="Delete user"
+                                                    title="Delete user"
                                                 >
                                                     <TrashIcon class="h-4 w-4" />
                                                 </button>

@@ -7,6 +7,7 @@ import EmptyState from '@/components/ui/EmptyState.vue';
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue';
 import { useConfirm } from '@/composables/useConfirm';
 import { useTheme } from '@/composables/useTheme';
+import { renderMarkdown } from '@/lib/markdown';
 import {
     SparklesIcon,
     PaperAirplaneIcon,
@@ -141,14 +142,7 @@ const formatRelativeTime = (timestamp) => {
     return `${Math.floor(diffInHours / 24)}d ago`;
 };
 
-const parseMessageContent = (content) => (content || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-content">$1</strong>')
-    .replace(/\*(.*?)\*/g, '<em class="italic">$1</em>')
-    .replace(/•\s/g, '<span class="text-primary font-bold">•</span> ')
-    .replace(/\n/g, '<br>');
+const parseMessageContent = (content) => renderMarkdown(content);
 
 const scrollToBottom = () => {
     nextTick(() => {

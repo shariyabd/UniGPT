@@ -3,6 +3,7 @@ import { ref, computed, nextTick, onMounted, watch } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import axios from 'axios';
 import { useToast } from 'vue-toastification';
+import { renderMarkdown } from '@/lib/markdown';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import {
     ChatBubbleLeftRightIcon,
@@ -376,14 +377,8 @@ const getSourceTypeIcon = (type) => {
     return icons[type] || DocumentIcon;
 };
 
-// Enhanced markdown-like parsing
-const parseMessageContent = (content) => {
-    return content
-        .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-content">$1</strong>')
-        .replace(/\*(.*?)\*/g, '<em class="italic">$1</em>')
-        .replace(/•\s/g, '<span class="text-content font-bold">•</span> ')
-        .replace(/\n/g, '<br>');
-};
+// Render AI responses as Markdown (headings, code, lists, bold/italic) + LaTeX.
+const parseMessageContent = (content) => renderMarkdown(content);
 
 // Actions
 const upsertSession = (session) => {

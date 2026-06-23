@@ -47,6 +47,19 @@ const props = defineProps({
 // A faculty teaching several sections of a course grades one section at a time.
 const selectedSection = ref(props.activeSectionId);
 
+// The grading view scopes to one course at a time. The selector lets faculty
+// switch between every course they teach (not just the first one).
+const selectedCourse = ref(props.courseData?.id ?? null);
+
+const changeCourse = () => {
+    if (!selectedCourse.value) return;
+    router.get(
+        route('faculty.course.grading', selectedCourse.value),
+        {},
+        { preserveState: false, preserveScroll: true },
+    );
+};
+
 const changeSection = () => {
     if (!props.courseData?.id) return;
     router.get(
@@ -322,8 +335,21 @@ if (assignments.value.length > 0) {
                 <!-- Assignment Selection & Stats -->
                 <Card>
                     <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
-                        <!-- Assignment + Section Selectors -->
+                        <!-- Course + Assignment + Section Selectors -->
                         <div class="flex flex-1 flex-wrap items-end gap-4">
+                            <div v-if="courses.length > 1" class="min-w-[14rem]">
+                                <label class="ui-label">Course</label>
+                                <select
+                                    v-model="selectedCourse"
+                                    class="ui-input"
+                                    @change="changeCourse"
+                                >
+                                    <option v-for="c in courses" :key="c.id" :value="c.id">
+                                        {{ c.code }} — {{ c.name }}
+                                    </option>
+                                </select>
+                            </div>
+
                             <div class="flex-1 min-w-[14rem]">
                                 <label class="ui-label">Select Assignment to Grade</label>
                                 <select

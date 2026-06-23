@@ -102,11 +102,38 @@ class AdminDashboardController extends Controller
      */
     private function systemHealth(array $docStats): array
     {
+        $databaseUp = $this->databaseUp();
+
+        // Mirror the System Monitor's disk threshold (>= 85% = degraded) so the
+        // dashboard banner and the monitor page never disagree.
+        $diskFree = @disk_free_space(base_path()) ?: 0;
+        $diskTotal = @disk_total_space(base_path()) ?: 1;
+        $diskUsedPercent = round((($diskTotal - $diskFree) / $diskTotal) * 100, 1);
+
+        $status = match (true) {
+            ! $databaseUp => 'down',
+            $diskUsedPercent >= 85 => 'degraded',
+            default => 'healthy',
+        };
+
         return [
-            'database_status' => 'healthy',
+            'status' => $status,
+            'database_status' => $databaseUp ? 'healthy' : 'down',
+            'disk_used_percent' => $diskUsedPercent,
             'ai_provider' => app(\App\Domain\Chat\Contracts\AIProviderInterface::class)->name(),
             'documents_indexed' => $docStats['approved'],
             'documents_pending' => $docStats['pending'],
         ];
+    }
+
+    private function databaseUp(): bool
+    {
+        try {
+            \Illuminate\Support\Facades\DB::connection()->getPdo();
+
+            return true;
+        } catch (\Throwable $e) {
+            return false;
+        }
     }
 }

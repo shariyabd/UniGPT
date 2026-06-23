@@ -21,7 +21,11 @@ Stack:
 
 * Docs mention **Livewire** → incorrect (installed but unused)
 * Actual frontend → **Inertia + Vue**
-* AI/RAG/VectorDB mostly unimplemented scaffolding in `app/Domain/*` and `app/Infrastructure/*`
+* **AI/RAG is implemented and live** — OpenAI (`gpt-4o`, embeddings `text-embedding-3-small`)
+  configured via Admin → Settings (provider reachable). Student chat returns
+  RAG-cited answers; faculty AI assistant + AI quiz/assignment generation work.
+  (The earlier "mostly unimplemented scaffolding" note is outdated — verify in
+  `app/Domain/Chat/*` before assuming a feature is stubbed.)
 
 **Trust code over docs.**
 

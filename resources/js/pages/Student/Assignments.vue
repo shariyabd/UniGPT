@@ -57,8 +57,9 @@ const applyFilter = (value) => {
 // Global pending count from the server (not just the current page).
 const pendingCount = computed(() => props.pendingCount);
 
-const formatDate = (iso) =>
-    iso ? new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'No due date';
+// Due dates use the server-formatted label (app timezone). Re-parsing the ISO
+// string in the browser would shift the day across timezones (BUG-5).
+const dueText = (item) => item.dueLabel ?? 'No due date';
 </script>
 
 <template>
@@ -121,7 +122,7 @@ const formatDate = (iso) =>
                                     <h3 class="mt-0.5 truncate font-bold text-content">{{ item.title }}</h3>
                                     <div class="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-content-muted">
                                         <span class="flex items-center gap-1.5">
-                                            <CalendarIcon class="h-4 w-4 text-content-faint" /> Due {{ formatDate(item.dueAt) }}
+                                            <CalendarIcon class="h-4 w-4 text-content-faint" /> Due {{ dueText(item) }}
                                         </span>
                                         <span class="flex items-center gap-1.5 capitalize">{{ item.type }} · {{ item.totalPoints }} pts</span>
                                     </div>

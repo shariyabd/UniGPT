@@ -155,9 +155,23 @@ const pendingCount = computed(() => {
 // Attendance rate doubles as the "overall progress" figure on the insights card.
 const attendanceRate = computed(() => studentInsights.value.attendanceRate ?? 0);
 
+// Overall health badge — mirrors the System Monitor (healthy/degraded/down) so
+// the two pages agree. Falls back to the database flag for older payloads.
+const healthBadge = computed(() => {
+    const status = props.systemHealth.status
+        ?? (props.systemHealth.database_status === 'healthy' ? 'healthy' : 'down');
+    const map = {
+        healthy: { variant: 'success', label: 'All Systems Operational' },
+        degraded: { variant: 'warning', label: 'Degraded' },
+        down: { variant: 'danger', label: 'Attention Needed' },
+    };
+    return map[status] ?? map.down;
+});
+
 const headerSubtitle = computed(() => {
     const name = authUser.value.name ?? 'Administrator';
-    const department = authUser.value.department;
+    // `department` is shared as an object ({id, name, slug, code}); show its name.
+    const department = authUser.value.department?.name ?? null;
     return department ? `${greeting.value}, ${name} • ${department}` : `${greeting.value}, ${name}`;
 });
 
@@ -314,8 +328,8 @@ const getActivityColor = (status) => {
                         <!-- System Health Monitor -->
                         <Card title="System Health" :icon="ServerIcon">
                             <template #actions>
-                                <Badge :variant="systemHealth.database_status === 'healthy' ? 'success' : 'danger'" dot>
-                                    {{ systemHealth.database_status === 'healthy' ? 'All Systems Operational' : 'Attention Needed' }}
+                                <Badge :variant="healthBadge.variant" dot>
+                                    {{ healthBadge.label }}
                                 </Badge>
                             </template>
                             <div class="space-y-3">

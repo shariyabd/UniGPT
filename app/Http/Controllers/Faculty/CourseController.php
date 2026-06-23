@@ -22,8 +22,8 @@ class CourseController extends Controller
 
     public function index(): Response
     {
-        return Inertia::render('Faculty/Dashboard', [
-            'activeCourses' => $this->courses->facultyCourses(request()->user()),
+        return Inertia::render('Faculty/Courses', [
+            'courses' => $this->courses->facultyCourses(request()->user()),
         ]);
     }
 
