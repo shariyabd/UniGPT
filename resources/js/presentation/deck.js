@@ -105,17 +105,41 @@ export const slides = [
             {
                 icon: 'AcademicCapIcon', name: 'Student', accent: 'cyan',
                 tagline: 'Learn & get answers',
-                features: ['AI tutor chat', 'Assignments & submissions', 'Proctored class tests', 'Materials · transcript · attendance'],
+                features: [
+                    'AI chat with citations, confidence & saved answers',
+                    'Personal dashboard: courses, CGPA & deadlines',
+                    'One-click registration for assigned course sections',
+                    'Timed quizzes & class tests with instant auto-graded results',
+                    'Attendance, transcript & GPA tracking',
+                    'Course roadmap, materials & document library',
+                    'Exam schedule, calendar, notes & tasks',
+                    'Real-time messaging with your faculty',
+                ],
             },
             {
                 icon: 'BookOpenIcon', name: 'Faculty', accent: 'primary',
                 tagline: 'Teach & assess',
-                features: ['AI teaching assistant', 'AI quiz & assignment generator', 'Grading + AI feedback', 'Learning analytics'],
+                features: [
+                    'AI teaching assistant: quizzes, assignments & rubrics',
+                    'Build timed quizzes & class tests with auto-grading',
+                    'Manage taught sections & publish course materials',
+                    'One-click attendance with live class stats',
+                    'Grading workspace with AI-drafted feedback',
+                    'Per-course analytics & grade distributions',
+                    'Real-time messaging with your students',
+                ],
             },
             {
                 icon: 'ShieldCheckIcon', name: 'Admin', accent: 'emerald',
                 tagline: 'Govern & monitor',
-                features: ['User & role matrix editor', 'Document approval workflow', 'AI usage monitor & access control', 'Courses · terms · departments'],
+                features: [
+                    'User, role & permission matrix management',
+                    'Course catalog, sections, terms & student assignment',
+                    'Document approval workflow & knowledge base',
+                    'Institution-wide analytics & top queries',
+                    'AI provider settings, prompts & retrieval tuning',
+                    'System monitor, departments & announcements',
+                ],
             },
         ],
     },
@@ -161,6 +185,26 @@ export const slides = [
             { icon: 'CheckBadgeIcon', label: 'Confidence score', desc: 'High / Medium / Low, computed from retrieval similarity.' },
             { icon: 'DocumentTextIcon', label: 'Cited sources', desc: 'Every claim traces back to an approved document & page.' },
             { icon: 'GlobeAltIcon', label: 'Multi-language', desc: 'English & Bangla out of the box, configurable per institution.' },
+        ],
+    },
+
+    /* --------------------------------------------------- 08b CORE PLATFORM */
+    {
+        id: 'core-platform',
+        layout: 'grid',
+        kicker: 'Core platform',
+        title: 'One platform, every academic workflow',
+        columns: 3,
+        items: [
+            { icon: 'SparklesIcon', title: 'Grounded AI tutor', desc: 'Cited, confidence-scored answers from approved docs — modes, history & saved answers.' },
+            { icon: 'DocumentTextIcon', title: 'Document knowledge base', desc: 'Upload → review → approve; approved docs auto-chunk, embed and become searchable.' },
+            { icon: 'Squares2X2Icon', title: 'Role-based dashboards', desc: 'Student, faculty and admin each get a tailored home with the tools that matter.' },
+            { icon: 'AcademicCapIcon', title: 'AI teaching automation', desc: 'Generate quizzes, assignments and rubrics, and draft grading feedback.' },
+            { icon: 'ClipboardDocumentCheckIcon', title: 'Timed & proctored tests', desc: 'In-panel quizzes with a live countdown, anti-cheat lockdown and instant auto-grading.' },
+            { icon: 'ChatBubbleLeftRightIcon', title: 'Real-time messaging', desc: 'Students and faculty chat live in-app — presence, typing and unread counts.' },
+            { icon: 'ChartBarIcon', title: 'Attendance & analytics', desc: 'One-tap attendance; track rates, grades, GPA and engagement per course.' },
+            { icon: 'ShieldCheckIcon', title: 'Granular RBAC + audit', desc: 'Fine-grained, time-limited permissions — every action gated and logged.' },
+            { icon: 'BookOpenIcon', title: 'Registration, exams & terms', desc: 'Assign → confirm rostering, exam schedules, GPA transcripts and a unified calendar.' },
         ],
     },
 
@@ -239,6 +283,36 @@ export const slides = [
             { icon: 'ExclamationTriangleIcon', title: 'Auto-disqualify', desc: 'Exceed the warning limit → attempt auto-submitted.' },
             { icon: 'ClockIcon', title: 'Per-student timer', desc: 'Countdown begins on start, not globally — fair to all.' },
             { icon: 'ShieldCheckIcon', title: 'Server-authoritative grading', desc: 'Answers never trusted from the client; graded on the server.' },
+        ],
+    },
+
+    /* ------------------------------------------------ 13b REAL-TIME MESSAGING */
+    {
+        id: 'messaging',
+        layout: 'grid',
+        kicker: 'Real-time messaging',
+        title: 'Students and faculty, talking live',
+        columns: 2,
+        items: [
+            { icon: 'ChatBubbleLeftRightIcon', title: 'Instant 1:1 chat', desc: 'Direct student↔faculty messaging — separate from the AI tutor. Messages land in real time, gated to people who share a section.' },
+            { icon: 'SignalIcon', title: 'Presence & typing', desc: 'Green “active now” when the other person is in the app, a live typing indicator, and last-seen — Messenger-style.' },
+            { icon: 'BellAlertIcon', title: 'Smart conversation list', desc: 'Newest thread jumps to the top with a last-message preview and an unread badge that clears as you read.' },
+            { icon: 'ShieldCheckIcon', title: 'Database-backed & reliable', desc: 'Every message is persisted first, then broadcast; a polling fallback guarantees delivery even if the socket drops.' },
+        ],
+    },
+
+    /* ------------------------------------------- 13c REAL-TIME ARCHITECTURE */
+    {
+        id: 'realtime-scale',
+        layout: 'pillars',
+        kicker: 'Realtime, honestly',
+        title: 'Built to run anywhere — even shared hosting',
+        subtitle: 'Live chat ships on a hosted broadcaster (Ably). Here is the trade-off and the path to production scale.',
+        accent: 'warning',
+        items: [
+            { icon: 'ServerStackIcon', title: 'The constraint', desc: 'cPanel shared hosting can’t run a persistent WebSocket server or queue worker — so the free Ably tier (≈200 concurrent connections) is the cap, and chat is text-only.' },
+            { icon: 'BoltIcon', title: 'How we stay within it', desc: 'Synchronous broadcast (no queue), DB as source of truth, heartbeat presence instead of always-on sockets, and a poll fallback — no connection wasted.' },
+            { icon: 'ArrowTrendingUpIcon', title: 'Path to production', desc: 'Lift the cap by upgrading the Ably plan, or self-host Laravel Reverb on a VPS with a queue worker. Same Echo client — only the broadcaster swaps.' },
         ],
     },
 
@@ -468,8 +542,8 @@ export const slides = [
         layout: 'roadmap',
         kicker: 'Where it goes next',
         title: 'Shipped, and what is coming',
-        shipped: ['RAG tutor + citations', 'AI quiz → proctored exam', 'AI-assisted grading', 'RBAC + audit log', 'Document approval pipeline', 'AI usage governance'],
-        upcoming: ['Real-time messaging', 'Token-by-token streaming', 'Voice input / output', 'Managed vector DB at scale'],
+        shipped: ['RAG tutor + citations', 'AI quiz → proctored exam', 'AI-assisted grading', 'Real-time messaging', 'RBAC + audit log', 'Document approval pipeline', 'AI usage governance'],
+        upcoming: ['Telegram / WhatsApp alerts', 'Token-by-token streaming', 'Voice input / output', 'Managed vector DB at scale'],
     },
 
     /* ------------------------------------------------------------ 19 IMPACT */

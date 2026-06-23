@@ -1,7 +1,6 @@
 <script setup>
 import SectionHeading from './SectionHeading.vue';
 import {
-    ChatBubbleLeftRightIcon,
     DevicePhoneMobileIcon,
     BookOpenIcon,
     ArrowRightIcon,
@@ -13,14 +12,15 @@ import {
 } from '@heroicons/vue/24/outline';
 
 // Flagship roadmap items — features in active design, building on the platform that ships today.
+// (Real-time student–faculty chat has shipped — see the Core platform section above.)
 const upcoming = [
     {
-        icon: ChatBubbleLeftRightIcon,
+        icon: BoltIcon,
         tile: 'bg-accent-sky-soft text-accent-sky-fg',
         phase: 'In design',
-        title: 'Real-time student–faculty chat',
-        body: 'Direct, live messaging between students and faculty inside the platform — separate from the AI tutor — with presence, typing and unread counts.',
-        tags: ['Live messaging', 'Course threads', 'Presence'],
+        title: 'Token-by-token streaming',
+        body: 'Watch grounded answers generate live, word by word — faster perceived responses and a more natural tutoring feel, over a streaming transport.',
+        tags: ['Live tokens', 'Streaming transport', 'Lower latency'],
     },
     {
         icon: DevicePhoneMobileIcon,
@@ -42,7 +42,6 @@ const upcoming = [
 
 // Deeper platform/engineering work — planned for later phases, mostly infra-dependent.
 const engineering = [
-    { icon: BoltIcon, title: 'Streaming chat', body: 'Token-by-token responses as they generate.' },
     { icon: MicrophoneIcon, title: 'Voice I/O', body: 'Speak to the assistant with speech-to-text & text-to-speech.' },
     { icon: PresentationChartLineIcon, title: 'Predictive analytics', body: 'Early-risk signals & recommendations from academic data.' },
     { icon: CpuChipIcon, title: 'More AI providers', body: 'Gemini and self-hosted models alongside OpenAI.' },

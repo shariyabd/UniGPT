@@ -23,6 +23,7 @@ const tabs = [
             'Attendance, transcript & GPA tracking',
             'Course roadmap, materials & document library',
             'Exam schedule, calendar, notes & tasks',
+            'Real-time messaging with your faculty',
         ],
         metrics: [
             { label: 'Courses', value: '6' },
@@ -44,6 +45,7 @@ const tabs = [
             'One-click attendance with live class stats',
             'Grading workspace with AI-drafted feedback',
             'Per-course analytics & grade distributions',
+            'Real-time messaging with your students',
         ],
         metrics: [
             { label: 'Courses', value: '4' },

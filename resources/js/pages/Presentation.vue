@@ -23,6 +23,7 @@ import {
     ChartBarIcon, LightBulbIcon, BeakerIcon, UserGroupIcon, BellAlertIcon,
     Cog6ToothIcon, ArrowTrendingUpIcon, ArrowLeftIcon, ArrowRightIcon,
     ArrowsPointingOutIcon, SunIcon, MoonIcon,
+    ChatBubbleLeftRightIcon, SignalIcon, ServerStackIcon, Squares2X2Icon,
 } from '@heroicons/vue/24/outline';
 
 const ICONS = {
@@ -32,6 +33,7 @@ const ICONS = {
     CpuChipIcon, MagnifyingGlassIcon, CheckBadgeIcon, GlobeAltIcon, PencilSquareIcon,
     ChartBarIcon, LightBulbIcon, BeakerIcon, UserGroupIcon, BellAlertIcon,
     Cog6ToothIcon, ArrowTrendingUpIcon,
+    ChatBubbleLeftRightIcon, SignalIcon, ServerStackIcon, Squares2X2Icon,
 };
 const iconFor = (name) => ICONS[name] || SparklesIcon;
 

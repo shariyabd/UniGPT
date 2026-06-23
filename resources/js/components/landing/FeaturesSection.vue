@@ -11,6 +11,7 @@ import {
     ClipboardDocumentCheckIcon,
     CalendarDaysIcon,
     PencilSquareIcon,
+    ChatBubbleLeftRightIcon,
 } from '@heroicons/vue/24/outline';
 </script>
 
@@ -88,12 +89,18 @@ import {
                 </div>
 
                 <div v-reveal="60" class="reveal ui-card ui-card-hover p-6">
+                    <span class="ui-icon-tile bg-accent-sky-soft text-accent-sky-fg"><ChatBubbleLeftRightIcon class="h-5 w-5" /></span>
+                    <h3 class="mt-4 font-semibold text-content">Real-time messaging</h3>
+                    <p class="mt-1.5 text-sm text-content-muted">Students and their faculty chat live in-app — with online presence, typing indicators, unread counts and instant delivery, separate from the AI tutor.</p>
+                </div>
+
+                <div v-reveal="60" class="reveal ui-card ui-card-hover p-6">
                     <span class="ui-icon-tile bg-accent-rose-soft text-accent-rose-fg"><ClipboardDocumentCheckIcon class="h-5 w-5" /></span>
                     <h3 class="mt-4 font-semibold text-content">Registration & rostering</h3>
                     <p class="mt-1.5 text-sm text-content-muted">Admins assign students to course sections; students confirm in one click — seats, terms and rosters stay consistent.</p>
                 </div>
 
-                <div v-reveal="120" class="reveal ui-card ui-card-hover p-6 md:col-span-2">
+                <div v-reveal="120" class="reveal ui-card ui-card-hover p-6">
                     <span class="ui-icon-tile bg-accent-yellow-soft text-accent-yellow-fg"><CalendarDaysIcon class="h-5 w-5" /></span>
                     <h3 class="mt-4 font-semibold text-content">Exams, transcripts & calendar</h3>
                     <p class="mt-1.5 text-sm text-content-muted">Schedule exams, auto-build transcripts with GPA & CGPA, and merge every deadline into one calendar.</p>
