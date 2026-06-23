@@ -2,23 +2,26 @@
 /**
  * Messenger-style two-pane shell (Meta Messenger pattern).
  *
- * UI/UX skeleton only — the chat thread is intentionally a non-functional
- * "Upcoming Feature" placeholder. The parent owns all data + filtering and
- * passes the already-filtered, normalised `contacts`; this component owns only
- * the layout, the selection state and the placeholder chat pane.
+ * The parent owns all data + filtering and passes the already-filtered,
+ * normalised `contacts`; this component owns the layout, the selection state
+ * and the live chat thread. Selecting a contact resolves (or creates) the 1:1
+ * conversation and streams its messages via {@link useConversation} — realtime
+ * with a polling fallback, DB as the source of truth.
  *
  * Normalised contact shape:
  *   { id, name, avatar, subtitle, tag?, tagVariant?, status?, meta?: [{label, value}] }
+ *   `id` is the target user's id (the person to message).
  */
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
+import { usePage } from '@inertiajs/vue3';
+import axios from 'axios';
+import { useConversation } from '@/composables/useConversation';
+import { useMessengerOverview } from '@/composables/useMessengerOverview';
 import Badge from '@/components/ui/Badge.vue';
 import {
     ChatBubbleLeftRightIcon,
     ArrowLeftIcon,
-    SparklesIcon,
     PaperAirplaneIcon,
-    PaperClipIcon,
-    FaceSmileIcon,
 } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
@@ -58,12 +61,6 @@ watch(
     },
 );
 
-const statusColor = {
-    online: 'bg-success-fg',
-    away: 'bg-warning-fg',
-    offline: 'bg-neutral-fg',
-};
-
 const select = (contact) => {
     selectedId.value = contact.id;
 };
@@ -71,6 +68,127 @@ const select = (contact) => {
 const clearSelection = () => {
     selectedId.value = null;
 };
+
+// --- Live conversation ------------------------------------------------------
+const page = usePage();
+const currentUserId = computed(() => page.props.auth?.user?.id ?? null);
+
+const {
+    conversationId, messages, loading, sending, otherTyping, notifyTyping, open, send, close,
+} = useConversation();
+
+const overview = useMessengerOverview();
+
+const draft = ref('');
+const threadEl = ref(null);
+
+const scrollToBottom = () => {
+    nextTick(() => {
+        if (threadEl.value) {
+            threadEl.value.scrollTop = threadEl.value.scrollHeight;
+        }
+    });
+};
+
+const markRead = (id) => {
+    if (id) {
+        axios.post(route('messenger.messages.read', id)).catch(() => {});
+    }
+};
+
+// Contacts decorated with live list state (presence, last-message preview,
+// unread), then ordered Messenger-style: active conversations newest-first, the
+// rest keep their incoming (name-sorted) order.
+const displayContacts = computed(() =>
+    props.contacts
+        .map((contact) => {
+            const live = overview.meta[contact.id];
+            return {
+                ...contact,
+                status: live?.online ? 'online' : undefined,
+                preview: live?.lastBody ?? null,
+                previewMine: live?.lastSenderId != null && live.lastSenderId === currentUserId.value,
+                lastAt: live?.lastAt ?? null,
+                unread: live?.unread ?? 0,
+            };
+        })
+        .sort((a, b) => {
+            if (a.lastAt && b.lastAt) {
+                return new Date(b.lastAt) - new Date(a.lastAt);
+            }
+            return a.lastAt ? -1 : b.lastAt ? 1 : 0;
+        }),
+);
+
+const contactIds = computed(() => props.contacts.map((contact) => contact.id));
+
+// Live presence for the open contact (header dot + "Active now").
+const selectedOnline = computed(
+    () => selectedId.value !== null && overview.meta[selectedId.value]?.online === true,
+);
+
+// Open/close the conversation as the selection changes. Covers every selection
+// path: clicking a contact, the deep-linked onMounted selection, and the
+// filter-driven auto-deselect above.
+watch(selectedId, async (id) => {
+    if (id === null) {
+        close();
+        return;
+    }
+    const contact = props.contacts.find((item) => item.id === id);
+    if (!contact) {
+        return;
+    }
+    await open(contact.id);
+    scrollToBottom();
+    overview.clearUnread(contact.id); // viewing it → no unread
+    markRead(conversationId.value);
+});
+
+// On every new message in the OPEN conversation: pin to bottom, bump the contact
+// to the top of the list with the new preview, and keep it marked read.
+watch(() => messages.value.length, () => {
+    scrollToBottom();
+    const last = messages.value[messages.value.length - 1];
+    if (!last || selectedId.value === null) {
+        return;
+    }
+    const fromMe = last.sender_id === currentUserId.value;
+    overview.applyLocalMessage(selectedId.value, last.body, last.sender_id, fromMe);
+    overview.clearUnread(selectedId.value);
+    if (!fromMe) {
+        markRead(conversationId.value);
+    }
+});
+
+// Keep the polled presence/unread set in sync with the (filtered) contact list.
+watch(contactIds, (ids) => overview.setIds(ids));
+
+const submit = async () => {
+    if (await send(draft.value)) {
+        draft.value = '';
+        scrollToBottom();
+    }
+};
+
+const isMine = (message) => message.sender_id === currentUserId.value;
+
+const formatTime = (iso) => {
+    if (!iso) {
+        return '';
+    }
+    return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+};
+
+onMounted(() => {
+    overview.setIds(contactIds.value);
+    overview.start();
+});
+
+onUnmounted(() => {
+    close();
+    overview.stop();
+});
 </script>
 
 <template>
@@ -86,7 +204,7 @@ const clearSelection = () => {
 
             <div class="flex-1 overflow-y-auto">
                 <button
-                    v-for="contact in contacts"
+                    v-for="contact in displayContacts"
                     :key="contact.id"
                     type="button"
                     class="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-primary-soft/60"
@@ -96,22 +214,35 @@ const clearSelection = () => {
                     <div class="relative flex-shrink-0">
                         <img :src="contact.avatar" :alt="contact.name" class="h-11 w-11 rounded-full object-cover" />
                         <span
-                            v-if="contact.status"
-                            class="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-surface"
-                            :class="statusColor[contact.status] ?? statusColor.offline"
+                            v-if="contact.status === 'online'"
+                            class="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-surface bg-success-fg"
+                            title="Active now"
                         ></span>
                     </div>
                     <div class="min-w-0 flex-1">
                         <p class="truncate text-sm font-semibold text-content">{{ contact.name }}</p>
-                        <p class="truncate text-xs text-content-muted">{{ contact.subtitle }}</p>
+                        <!-- Last-message preview when there's a conversation, else the directory subtitle. -->
+                        <p
+                            class="truncate text-xs"
+                            :class="contact.unread ? 'font-semibold text-content' : 'text-content-muted'"
+                        >
+                            <template v-if="contact.preview">
+                                <span v-if="contact.previewMine" class="text-content-faint">You: </span>{{ contact.preview }}
+                            </template>
+                            <template v-else>{{ contact.subtitle }}</template>
+                        </p>
                     </div>
                     <div class="flex flex-shrink-0 items-center gap-2">
-                        <Badge v-if="contact.tag" :variant="contact.tagVariant || 'primary'">{{ contact.tag }}</Badge>
-                        <ChatBubbleLeftRightIcon class="h-5 w-5 text-content-faint" />
+                        <span
+                            v-if="contact.unread"
+                            class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-bold text-white"
+                        >{{ contact.unread > 99 ? '99+' : contact.unread }}</span>
+                        <Badge v-else-if="contact.tag" :variant="contact.tagVariant || 'primary'">{{ contact.tag }}</Badge>
+                        <ChatBubbleLeftRightIcon v-else class="h-5 w-5 text-content-faint" />
                     </div>
                 </button>
 
-                <div v-if="!contacts.length" class="px-6 py-12 text-center text-sm text-content-muted">
+                <div v-if="!displayContacts.length" class="px-6 py-12 text-center text-sm text-content-muted">
                     {{ emptyListText }}
                 </div>
             </div>
@@ -133,64 +264,82 @@ const clearSelection = () => {
                     <div class="relative flex-shrink-0">
                         <img :src="selected.avatar" :alt="selected.name" class="h-10 w-10 rounded-full object-cover" />
                         <span
-                            v-if="selected.status"
-                            class="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-surface"
-                            :class="statusColor[selected.status] ?? statusColor.offline"
+                            v-if="selectedOnline"
+                            class="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-surface bg-success-fg"
+                            title="Active now"
                         ></span>
                     </div>
                     <div class="min-w-0">
                         <p class="truncate text-sm font-semibold text-content">{{ selected.name }}</p>
-                        <p class="truncate text-xs text-content-muted">{{ selected.subtitle }}</p>
-                    </div>
-                </div>
-
-                <!-- Body: "Upcoming Feature" placeholder -->
-                <div class="flex flex-1 flex-col items-center justify-center gap-4 overflow-y-auto bg-bg/40 p-8 text-center">
-                    <span class="ui-icon-tile h-14 w-14 bg-primary text-white">
-                        <SparklesIcon class="h-7 w-7" />
-                    </span>
-                    <Badge variant="warning" :dot="true">Upcoming Feature</Badge>
-                    <div class="max-w-sm space-y-1.5">
-                        <h3 class="text-lg font-semibold text-content">Direct messaging is coming soon</h3>
-                        <p class="text-sm text-content-muted">
-                            You'll soon be able to chat with <span class="font-medium text-content">{{ selected.name }}</span>
-                            in real time. We're still building this — hang tight!
+                        <p
+                            class="truncate text-xs"
+                            :class="otherTyping ? 'text-primary' : 'text-content-muted'"
+                        >
+                            <template v-if="otherTyping">typing…</template>
+                            <template v-else-if="selectedOnline">Active now</template>
+                            <template v-else>{{ selected.subtitle }}</template>
                         </p>
                     </div>
-
-                    <!-- Optional contact details for context -->
-                    <dl
-                        v-if="selected.meta && selected.meta.length"
-                        class="mt-2 grid w-full max-w-sm grid-cols-2 gap-3 text-left"
-                    >
-                        <div v-for="item in selected.meta" :key="item.label" class="rounded-control bg-surface p-3 shadow-card">
-                            <dt class="text-[11px] font-semibold uppercase tracking-wider text-content-faint">{{ item.label }}</dt>
-                            <dd class="mt-0.5 truncate text-sm font-medium text-content">{{ item.value }}</dd>
-                        </div>
-                    </dl>
                 </div>
 
-                <!-- Disabled composer -->
-                <div class="flex-shrink-0 border-t border-line p-3 sm:p-4">
-                    <div class="flex items-center gap-2 rounded-pill border border-line bg-neutral-bg px-3 py-2 opacity-70">
-                        <PaperClipIcon class="h-5 w-5 flex-shrink-0 text-content-faint" />
+                <!-- Message thread -->
+                <div ref="threadEl" class="flex flex-1 flex-col gap-2 overflow-y-auto bg-bg/40 p-4">
+                    <div v-if="loading" class="flex flex-1 items-center justify-center text-sm text-content-muted">
+                        Loading conversation…
+                    </div>
+
+                    <div
+                        v-else-if="!messages.length"
+                        class="flex flex-1 flex-col items-center justify-center gap-2 text-center text-sm text-content-muted"
+                    >
+                        <ChatBubbleLeftRightIcon class="h-8 w-8 text-content-faint" />
+                        <p>No messages yet. Say hello to {{ selected.name }}.</p>
+                    </div>
+
+                    <div
+                        v-for="message in messages"
+                        :key="message.id"
+                        class="flex"
+                        :class="isMine(message) ? 'justify-end' : 'justify-start'"
+                    >
+                        <div
+                            class="max-w-[78%] rounded-2xl px-3.5 py-2 text-sm shadow-card"
+                            :class="isMine(message)
+                                ? 'rounded-br-sm bg-primary text-white'
+                                : 'rounded-bl-sm bg-surface text-content'"
+                        >
+                            <p class="whitespace-pre-wrap break-words">{{ message.body }}</p>
+                            <p
+                                class="mt-1 text-right text-[10px]"
+                                :class="isMine(message) ? 'text-white/70' : 'text-content-faint'"
+                            >
+                                {{ formatTime(message.created_at) }}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Composer -->
+                <form class="flex-shrink-0 border-t border-line p-3 sm:p-4" @submit.prevent="submit">
+                    <div class="flex items-center gap-2 rounded-pill border border-line bg-surface px-3 py-2 focus-within:border-primary">
                         <input
+                            v-model="draft"
                             type="text"
-                            disabled
-                            placeholder="Messaging will be available soon…"
-                            class="flex-1 cursor-not-allowed border-0 bg-transparent text-sm text-content placeholder:text-content-faint focus:outline-none focus:ring-0"
+                            :placeholder="`Message ${selected.name}…`"
+                            class="flex-1 border-0 bg-transparent text-sm text-content placeholder:text-content-faint focus:outline-none focus:ring-0"
+                            @input="notifyTyping"
+                            @keydown.enter.exact.prevent="submit"
                         />
-                        <FaceSmileIcon class="h-5 w-5 flex-shrink-0 text-content-faint" />
                         <button
-                            type="button"
-                            disabled
-                            class="flex h-9 w-9 cursor-not-allowed items-center justify-center rounded-full bg-primary/40 text-white"
-                            aria-label="Send message (coming soon)"
+                            type="submit"
+                            :disabled="!draft.trim() || sending"
+                            class="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+                            aria-label="Send message"
                         >
                             <PaperAirplaneIcon class="h-4 w-4" />
                         </button>
                     </div>
-                </div>
+                </form>
             </template>
 
             <!-- Empty state (no contact selected) -->

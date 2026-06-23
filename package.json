@@ -20,10 +20,12 @@
         "vitest": "^3.2.6"
     },
     "dependencies": {
+        "@ably/laravel-echo": "^1.0.6",
         "@headlessui/vue": "^1.7.23",
         "@heroicons/vue": "^2.2.0",
         "@inertiajs/vue3": "^2.3.4",
         "@vitejs/plugin-vue": "^6.0.3",
+        "ably": "^1.2.50",
         "vue": "^3.5.26",
         "vue-toastification": "^2.0.0-rc.5"
     }

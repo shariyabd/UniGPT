@@ -5,6 +5,7 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog.vue';
 import NotificationBell from '@/components/NotificationBell.vue';
 import { usePermissions } from '@/composables/usePermissions';
 import { useTheme } from '@/composables/useTheme';
+import { useHeartbeat } from '@/composables/useHeartbeat';
 import {
     Squares2X2Icon,
     ChatBubbleLeftRightIcon,
@@ -46,6 +47,10 @@ import {
 const { can, hasRole, primaryRole } = usePermissions();
 const { isDark, initTheme, toggleTheme } = useTheme();
 const page = usePage();
+
+// Presence heartbeat — runs on every authenticated page so "active" status
+// reflects the user being anywhere in the app, not just the messenger.
+useHeartbeat();
 
 onMounted(initTheme);
 
