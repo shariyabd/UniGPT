@@ -27,7 +27,9 @@ use App\Http\Controllers\Faculty\FacultyDashboardController;
 use App\Http\Controllers\Faculty\GradingController as FacultyGradingController;
 use App\Http\Controllers\Faculty\StudentDirectoryController as FacultyStudentDirectoryController;
 use App\Http\Controllers\LegalController;
+use App\Http\Controllers\Messenger\MessageController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\PresenceController;
 use App\Http\Controllers\Student\AssignmentController as StudentAssignmentController;
 use App\Http\Controllers\Student\ChatController;
 use App\Http\Controllers\Student\ClassTestController as StudentClassTestController;
@@ -71,6 +73,21 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
     Route::post('/notifications/{notification}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
     Route::delete('/notifications/{notification}', [NotificationController::class, 'destroy'])->name('notifications.destroy');
+
+    // Direct messaging (student ↔ their faculty). JSON endpoints consumed by the
+    // messenger pages via axios for a live feel; access is relationship-based,
+    // so both roles share these routes. These also serve as the polling fallback
+    // when the realtime websocket is unavailable (the DB is the source of truth).
+    Route::prefix('messenger')->name('messenger.')->group(function () {
+        Route::post('/conversations', [MessageController::class, 'resolve'])->name('conversations.resolve');
+        Route::get('/overview', [MessageController::class, 'overview'])->name('overview');
+        Route::get('/conversations/{conversation}/messages', [MessageController::class, 'index'])->name('messages.index');
+        Route::post('/conversations/{conversation}/messages', [MessageController::class, 'store'])->name('messages.store');
+        Route::post('/conversations/{conversation}/read', [MessageController::class, 'markRead'])->name('messages.read');
+    });
+
+    // Presence heartbeat — pinged from every authenticated page (any role/route).
+    Route::post('/heartbeat', [PresenceController::class, 'ping'])->name('heartbeat');
 
     Route::middleware('role:student')->prefix('')->name('')->group(function () {
         Route::get('/dashboard', [StudentDashboardController::class, 'index'])->name('dashboard');
