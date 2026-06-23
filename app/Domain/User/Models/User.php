@@ -53,11 +53,28 @@ class User extends Authenticatable
             'ai_chat_blocked_at' => 'datetime',
             'ai_chat_blocked_until' => 'datetime',
             'is_active' => 'boolean',
+            'last_seen_at' => 'datetime',
             'preferences' => 'array',
             'password' => 'hashed',
             // Curriculum level (1–8), aligned with courses.semester.
             'semester' => 'integer',
         ];
+    }
+
+    /**
+     * A user counts as "active" (green dot) if their presence heartbeat landed
+     * within this window. The client pings more frequently than the window so a
+     * still-open tab never flickers offline.
+     */
+    public const ACTIVE_WINDOW_SECONDS = 120;
+
+    /**
+     * Whether the user is currently active, per the presence heartbeat.
+     */
+    public function isActive(): bool
+    {
+        return $this->last_seen_at !== null
+            && $this->last_seen_at->gt(now()->subSeconds(self::ACTIVE_WINDOW_SECONDS));
     }
 
     public function department(): BelongsTo
@@ -188,6 +205,44 @@ class User extends Authenticatable
     public function teachingSectionIds(): \Illuminate\Support\Collection
     {
         return $this->teachingSections()->pluck('id');
+    }
+
+    /**
+     * Whether this user is allowed to start/continue a direct conversation with
+     * another user. Messaging is restricted to a real teaching relationship: a
+     * faculty member and a student who share at least one section. Same-person
+     * and student↔student / faculty↔faculty pairs are never allowed.
+     */
+    public function canMessage(self $other): bool
+    {
+        if ($this->id === $other->id) {
+            return false;
+        }
+
+        [$faculty, $student] = match (true) {
+            $this->isFaculty() && $other->isStudent() => [$this, $other],
+            $this->isStudent() && $other->isFaculty() => [$other, $this],
+            default => [null, null],
+        };
+
+        if ($faculty === null || $student === null) {
+            return false;
+        }
+
+        return $faculty->teachingSectionIds()
+            ->intersect($student->enrolledSectionIds())
+            ->isNotEmpty();
+    }
+
+    /**
+     * Direct conversations this user participates in. The pivot carries the
+     * per-user read cursor (last_read_message_id) that backs unread counts.
+     */
+    public function conversations(): BelongsToMany
+    {
+        return $this->belongsToMany(\App\Models\Conversation::class, 'conversation_user')
+            ->withPivot('last_read_message_id')
+            ->withTimestamps();
     }
 
     public function teachingCourses(): \Illuminate\Database\Eloquent\Relations\HasMany
