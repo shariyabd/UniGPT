@@ -203,14 +203,35 @@ class StudentDashboardController extends Controller
     {
         \Illuminate\Support\Facades\Gate::authorize('download', $document);
 
-        $this->documents->recordDownload($document);
-
         // Documents live on the disk owned by DocumentStorageService (the public
         // disk), not the local disk — resolve it through the service so this stays
         // correct if the storage location ever changes.
-        return Storage::disk($this->documentStorage->disk())->download(
+        $disk = Storage::disk($this->documentStorage->disk());
+        abort_unless($document->file_path && $disk->exists($document->file_path), 404);
+
+        $this->documents->recordDownload($document);
+
+        return $disk->download(
             $document->file_path,
             $document->original_filename ?? $document->title,
+        );
+    }
+
+    public function previewDocument(Document $document)
+    {
+        \Illuminate\Support\Facades\Gate::authorize('view', $document);
+
+        $disk = Storage::disk($this->documentStorage->disk());
+        abort_unless($document->file_path && $disk->exists($document->file_path), 404);
+
+        $this->documents->recordView($document);
+
+        // Serve inline so PDFs/text render in the browser instead of downloading.
+        return $disk->response(
+            $document->file_path,
+            $document->original_filename ?? $document->title,
+            ['Content-Type' => $disk->mimeType($document->file_path) ?: 'application/octet-stream'],
+            'inline',
         );
     }
 

@@ -366,6 +366,25 @@ const getConfidenceColor = (confidence) => {
     return 'text-danger-fg bg-danger-bg border-line';
 };
 
+// Retrieval relevance is a raw embedding cosine score (0-1). With
+// text-embedding-3-small these cluster in a low band (~0.35–0.55) even for
+// strong matches, so showing a bare percentage (e.g. "35%") reads as broken to
+// users. We surface a qualitative tier instead. `value` is 0-1.
+const relevanceTier = (value) => {
+    if (value >= 0.55) return { label: 'High relevance', class: 'text-success-fg bg-success-bg border-line' };
+    if (value >= 0.42) return { label: 'Medium relevance', class: 'text-primary bg-primary-soft border-line' };
+    return { label: 'Related', class: 'text-content-muted bg-neutral-bg border-line' };
+};
+
+// Overall answer confidence (0-100) shown as a qualitative label for the same
+// reason — the underlying value is the best source's cosine score.
+const answerConfidenceTier = (percent) => {
+    const value = (percent ?? 0) / 100;
+    if (value >= 0.55) return { label: 'High confidence', class: 'text-success-fg bg-success-bg border-line' };
+    if (value >= 0.42) return { label: 'Good match', class: 'text-primary bg-primary-soft border-line' };
+    return { label: 'Best effort', class: 'text-warning-fg bg-warning-bg border-line' };
+};
+
 const getSourceTypeIcon = (type) => {
     const icons = {
         handbook: BookOpenIcon,
@@ -565,9 +584,18 @@ const showSourceDetails = (messageId) => {
     }
 };
 
-// Download the original source document. Sources carry the document id; the
-// student documents.download route streams the file (policy-gated to approved,
-// visible documents — exactly what retrieval surfaces).
+// Open the original source document inline (PDF/text render in the browser).
+// Sources carry the document id; both routes are policy-gated to approved,
+// visible documents — exactly what retrieval surfaces.
+const previewSource = (source) => {
+    if (!source?.document_id) {
+        toast.info('This source has no previewable file.');
+        return;
+    }
+    window.open(route('documents.preview', source.document_id), '_blank');
+};
+
+// Download the original source document.
 const downloadSource = (source) => {
     if (!source?.document_id) {
         toast.info('This source has no downloadable file.');
@@ -964,9 +992,9 @@ watch(() => messages.value.length, () => {
 
                                             <!-- Confidence Score & Actions -->
                                             <div class="flex items-center gap-2 flex-shrink-0">
-                                                <span :class="`hidden sm:inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-full border ${getConfidenceColor(message.confidence)}`">
+                                                <span :class="`hidden sm:inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-full border ${answerConfidenceTier(message.confidence).class}`">
                                                     <CheckCircleIcon class="w-3.5 h-3.5 mr-1" />
-                                                    {{ message.confidence }}%
+                                                    {{ answerConfidenceTier(message.confidence).label }}
                                                 </span>
 
                                                 <button
@@ -1038,15 +1066,20 @@ watch(() => messages.value.length, () => {
                                                             <component :is="getSourceTypeIcon(source.type)" class="w-4 h-4" />
                                                         </div>
                                                         <div class="flex-1 min-w-0">
-                                                            <p class="text-xs font-medium text-content truncate">
+                                                            <button
+                                                                type="button"
+                                                                @click="previewSource(source)"
+                                                                class="text-xs font-medium text-content truncate hover:text-primary hover:underline text-left w-full"
+                                                                title="Open document preview"
+                                                            >
                                                                 {{ source.title }}
-                                                            </p>
+                                                            </button>
                                                             <p class="text-xs text-content-faint">
                                                                 Page {{ source.page }} • {{ source.section }}
                                                             </p>
                                                         </div>
-                                                        <span :class="`px-2 py-1 text-xs font-medium rounded-pill border ${getConfidenceColor(source.confidence * 100)}`">
-                                                            {{ Math.round(source.confidence * 100) }}%
+                                                        <span :class="`px-2 py-1 text-xs font-medium rounded-pill border ${relevanceTier(source.confidence).class}`">
+                                                            {{ relevanceTier(source.confidence).label }}
                                                         </span>
                                                         <button
                                                             @click="downloadSource(source)"
@@ -1240,17 +1273,22 @@ watch(() => messages.value.length, () => {
                                                 <component :is="getSourceTypeIcon(source.type)" class="w-5 h-5" />
                                             </div>
                                             <div class="flex-1 min-w-0">
-                                                <h4 class="font-semibold text-content text-sm line-clamp-2">
+                                                <button
+                                                    type="button"
+                                                    @click="previewSource(source)"
+                                                    class="font-semibold text-content text-sm line-clamp-2 text-left hover:text-primary hover:underline"
+                                                    title="Open document preview"
+                                                >
                                                     {{ source.title }}
-                                                </h4>
+                                                </button>
                                                 <p class="text-xs text-content-faint mt-0.5">
                                                     {{ source.section }} • Page {{ source.page }}
                                                 </p>
                                             </div>
                                         </div>
 
-                                        <span :class="`px-2 py-1 text-xs font-semibold rounded-pill border flex-shrink-0 ${getConfidenceColor(source.confidence * 100)}`">
-                                            {{ Math.round(source.confidence * 100) }}%
+                                        <span :class="`px-2 py-1 text-xs font-semibold rounded-pill border flex-shrink-0 ${relevanceTier(source.confidence).class}`">
+                                            {{ relevanceTier(source.confidence).label }}
                                         </span>
                                     </div>
 
@@ -1269,14 +1307,24 @@ watch(() => messages.value.length, () => {
                                         <span v-else class="text-xs text-content-faint">
                                             University document
                                         </span>
-                                        <button
-                                            @click="downloadSource(source)"
-                                            class="flex items-center gap-1 text-xs text-primary hover:text-primary-hover font-semibold"
-                                            title="Download source document"
-                                        >
-                                            <ArrowDownTrayIcon class="w-3.5 h-3.5" />
-                                            Download
-                                        </button>
+                                        <div class="flex items-center gap-3">
+                                            <button
+                                                @click="previewSource(source)"
+                                                class="flex items-center gap-1 text-xs text-primary hover:text-primary-hover font-semibold"
+                                                title="Open document preview"
+                                            >
+                                                <ArrowTopRightOnSquareIcon class="w-3.5 h-3.5" />
+                                                Preview
+                                            </button>
+                                            <button
+                                                @click="downloadSource(source)"
+                                                class="flex items-center gap-1 text-xs text-content-muted hover:text-content font-semibold"
+                                                title="Download source document"
+                                            >
+                                                <ArrowDownTrayIcon class="w-3.5 h-3.5" />
+                                                Download
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
