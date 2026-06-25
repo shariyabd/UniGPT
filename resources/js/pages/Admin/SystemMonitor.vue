@@ -30,8 +30,13 @@ const props = defineProps({
             cpu: { load1: 0, load5: 0, load15: 0, cores: 1 },
             memory: { usage: 0, peak: 0 },
             storage: { usedPercent: 0, free: '0 B', total: '0 B' },
-            services: { database: 'down', queue: '-', cache: '-', aiProvider: '-' },
-            app: { php: '-', laravel: '-', environment: '-', uptimePercent: 0 },
+            services: {
+                database: 'down',
+                queue: { driver: '-', status: 'down' },
+                cache: { driver: '-', status: 'down' },
+                aiProvider: { name: '-', status: 'unconfigured' },
+            },
+            app: { php: '-', laravel: '-', environment: '-', uptime: 'n/a' },
         }),
     },
 });
@@ -150,8 +155,8 @@ onUnmounted(() => { if (timer) clearInterval(timer); });
                         :hint="`${metrics.storage.free} free of ${metrics.storage.total}`"
                     />
                     <StatCard
-                        label="Uptime"
-                        :value="`${metrics.app.uptimePercent}%`"
+                        label="System Uptime"
+                        :value="metrics.app.uptime"
                         :icon="BoltIcon"
                         color="violet"
                         :hint="`PHP memory: ${metrics.memory.usage} MB`"
@@ -224,22 +229,34 @@ onUnmounted(() => { if (timer) clearInterval(timer); });
                             <span class="flex items-center gap-2 font-medium text-content">
                                 <QueueListIcon class="h-4 w-4 text-primary" />
                                 Queue
+                                <span class="text-xs text-content-muted">({{ metrics.services.queue.driver }})</span>
                             </span>
-                            <Badge variant="slate" dot>{{ metrics.services.queue }}</Badge>
+                            <Badge :variant="serviceUp(metrics.services.queue.status) ? 'success' : 'danger'" dot>
+                                <component :is="serviceUp(metrics.services.queue.status) ? CheckCircleIcon : XCircleIcon" class="h-3.5 w-3.5" />
+                                {{ metrics.services.queue.status }}
+                            </Badge>
                         </div>
                         <div class="flex items-center justify-between p-4 rounded-card bg-bg border border-line">
                             <span class="flex items-center gap-2 font-medium text-content">
                                 <CloudIcon class="h-4 w-4 text-primary" />
                                 Cache
+                                <span class="text-xs text-content-muted">({{ metrics.services.cache.driver }})</span>
                             </span>
-                            <Badge variant="slate" dot>{{ metrics.services.cache }}</Badge>
+                            <Badge :variant="serviceUp(metrics.services.cache.status) ? 'success' : 'danger'" dot>
+                                <component :is="serviceUp(metrics.services.cache.status) ? CheckCircleIcon : XCircleIcon" class="h-3.5 w-3.5" />
+                                {{ metrics.services.cache.status }}
+                            </Badge>
                         </div>
                         <div class="flex items-center justify-between p-4 rounded-card bg-bg border border-line">
                             <span class="flex items-center gap-2 font-medium text-content">
                                 <SparklesIcon class="h-4 w-4 text-primary" />
                                 AI Provider
+                                <span class="text-xs text-content-muted capitalize">({{ metrics.services.aiProvider.name }})</span>
                             </span>
-                            <Badge variant="violet" dot><span class="capitalize">{{ metrics.services.aiProvider }}</span></Badge>
+                            <Badge :variant="serviceUp(metrics.services.aiProvider.status) ? 'success' : 'warning'" dot>
+                                <component :is="serviceUp(metrics.services.aiProvider.status) ? CheckCircleIcon : XCircleIcon" class="h-3.5 w-3.5" />
+                                {{ metrics.services.aiProvider.status }}
+                            </Badge>
                         </div>
                     </div>
                 </Card>
@@ -260,8 +277,8 @@ onUnmounted(() => { if (timer) clearInterval(timer); });
                             <div class="font-semibold capitalize text-content">{{ metrics.app.environment }}</div>
                         </div>
                         <div class="p-4 rounded-card bg-bg border border-line">
-                            <div class="text-content-muted">Uptime</div>
-                            <div class="font-semibold text-content">{{ metrics.app.uptimePercent }}%</div>
+                            <div class="text-content-muted">System Uptime</div>
+                            <div class="font-semibold text-content">{{ metrics.app.uptime }}</div>
                         </div>
                     </div>
                 </Card>
