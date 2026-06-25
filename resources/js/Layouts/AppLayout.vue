@@ -1,6 +1,6 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue';
-import { Link, usePage } from '@inertiajs/vue3';
+import { ref, computed, onMounted, watch } from 'vue';
+import { Link, router, usePage } from '@inertiajs/vue3';
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue';
 import NotificationBell from '@/components/NotificationBell.vue';
 import { usePermissions } from '@/composables/usePermissions';
@@ -158,22 +158,108 @@ const navGroups = computed(() => {
         .filter((group) => group.items.length > 0);
 });
 
+// --- Header navigation search ----------------------------------------------
+// A flat, permission-filtered list of every page the current user can reach,
+// searchable by page title. The header search jumps between modules/pages.
+const searchableItems = computed(() =>
+    navGroups.value.flatMap((group) =>
+        group.items
+            .filter((item) => hasRoute(item.route))
+            .map((item) => ({
+                label: item.label,
+                section: group.section,
+                route: item.route,
+                icon: item.icon,
+            })),
+    ),
+);
+
+const searchQuery = ref('');
+const searchOpen = ref(false);
+const searchInput = ref(null);
+const activeIndex = ref(0);
+
+const searchResults = computed(() => {
+    const query = searchQuery.value.trim().toLowerCase();
+    if (!query) {
+        return searchableItems.value;
+    }
+
+    return searchableItems.value.filter(
+        (item) =>
+            item.label.toLowerCase().includes(query) ||
+            item.section.toLowerCase().includes(query),
+    );
+});
+
+// Keep the highlighted result valid as the query narrows the list.
+watch(searchResults, () => { activeIndex.value = 0; });
+
+const openSearch = () => { searchOpen.value = true; };
+const closeSearch = () => { searchOpen.value = false; };
+
+const goToResult = (item) => {
+    if (!item) {
+        return;
+    }
+    searchOpen.value = false;
+    searchQuery.value = '';
+    router.visit(route(item.route));
+};
+
+const onSearchEnter = () => {
+    goToResult(searchResults.value[activeIndex.value] ?? searchResults.value[0]);
+};
+
+const moveActive = (delta) => {
+    const count = searchResults.value.length;
+    if (count === 0) {
+        return;
+    }
+    activeIndex.value = (activeIndex.value + delta + count) % count;
+};
+
 const user = computed(() => page.props.auth?.user ?? null);
 const userInitial = computed(() => (user.value?.name?.charAt(0) ?? '?').toUpperCase());
 
-const hasRoute = (name) => {
+// Function declarations (hoisted) so the header-search computeds defined above
+// can reference hasRoute() even though it appears later in source order.
+function hasRoute(name) {
     try { return !!route().has(name); } catch (e) { return false; }
-};
-const isActive = (name) => {
+}
+function isActive(name) {
     try { return route().current(name); } catch (e) { return false; }
-};
+}
 const promoHref = computed(() => (hasRoute(meta.value.promoRoute) ? route(meta.value.promoRoute) : '#'));
+
+// The AI assistant is the headline feature, so it gets a prominent header CTA.
+// Students land in the AI Chat; faculty in their AI Teaching Assistant. Admins
+// have no conversational assistant, so the CTA is hidden for them.
+const aiAssistant = computed(() => {
+    if (primaryRole.value === 'faculty') {
+        return { route: 'faculty.ai-assistant', label: 'AI Assistant' };
+    }
+    if (primaryRole.value === 'student') {
+        return { route: 'chat', label: 'AI Assistant' };
+    }
+    return null;
+});
+const aiAssistantHref = computed(() =>
+    aiAssistant.value && hasRoute(aiAssistant.value.route) ? route(aiAssistant.value.route) : null,
+);
 
 const closeSidebar = () => { sidebarOpen.value = false; };
 
 if (typeof window !== 'undefined') {
     window.addEventListener('click', (e) => {
         if (!e.target.closest('[data-user-menu]')) showUserMenu.value = false;
+    });
+    // ⌘K / Ctrl+K focuses the header page search.
+    window.addEventListener('keydown', (e) => {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+            e.preventDefault();
+            searchInput.value?.focus();
+        }
     });
 }
 </script>
@@ -263,16 +349,47 @@ if (typeof window !== 'undefined') {
                     <Bars3Icon class="h-5 w-5" />
                 </button>
 
-                <!-- Search -->
+                <!-- Search (jump to a page) -->
                 <div class="relative hidden max-w-md flex-1 sm:block">
                     <MagnifyingGlassIcon class="pointer-events-none absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-content-faint" />
                     <input
+                        ref="searchInput"
+                        v-model="searchQuery"
                         type="search"
-                        placeholder="Search here..."
-                        aria-label="Search"
+                        placeholder="Search pages..."
+                        aria-label="Search pages"
                         class="w-full rounded-pill border border-line bg-surface py-2.5 pl-11 pr-16 text-sm text-content shadow-card placeholder:text-content-faint focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        @focus="openSearch"
+                        @blur="closeSearch"
+                        @keydown.down.prevent="moveActive(1)"
+                        @keydown.up.prevent="moveActive(-1)"
+                        @keydown.enter.prevent="onSearchEnter"
+                        @keydown.esc="closeSearch"
                     />
-                    <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded-md bg-neutral-bg px-2 py-1 text-[11px] font-semibold text-content-faint">⌘ F</span>
+                    <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded-md bg-neutral-bg px-2 py-1 text-[11px] font-semibold text-content-faint">⌘ K</span>
+
+                    <!-- Results dropdown -->
+                    <div
+                        v-if="searchOpen"
+                        class="absolute left-0 right-0 top-full z-50 mt-2 max-h-80 overflow-y-auto rounded-card border border-line bg-surface py-2 shadow-card"
+                    >
+                        <button
+                            v-for="(item, idx) in searchResults"
+                            :key="item.route"
+                            type="button"
+                            @mousedown.prevent="goToResult(item)"
+                            @mouseenter="activeIndex = idx"
+                            class="flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors"
+                            :class="idx === activeIndex ? 'bg-primary-soft text-primary' : 'text-content hover:bg-neutral-bg'"
+                        >
+                            <component :is="item.icon" class="h-4 w-4 flex-shrink-0" />
+                            <span class="flex-1 truncate">{{ item.label }}</span>
+                            <span class="text-xs text-content-faint">{{ item.section }}</span>
+                        </button>
+                        <p v-if="searchResults.length === 0" class="px-4 py-3 text-sm text-content-muted">
+                            No pages match “{{ searchQuery }}”.
+                        </p>
+                    </div>
                 </div>
 
                 <div class="ml-auto flex items-center gap-2 sm:gap-3">
@@ -288,6 +405,23 @@ if (typeof window !== 'undefined') {
                     </button>
 
                     <NotificationBell v-if="user && !(user.preferences && user.preferences.notifications === false)" />
+
+                    <!-- AI Assistant — the app's headline feature, given a prominent
+                         always-visible CTA for students and faculty. -->
+                    <Link
+                        v-if="aiAssistantHref"
+                        :href="aiAssistantHref"
+                        class="group relative flex h-10 items-center gap-2 rounded-pill bg-brand-gradient px-3 text-sm font-semibold text-white shadow-[0_8px_22px_-8px_rgba(124,92,252,0.65)] ring-1 ring-white/20 transition-transform duration-200 hover:-translate-y-0.5 sm:px-4"
+                        :title="aiAssistant.label"
+                        :aria-label="aiAssistant.label"
+                    >
+                        <span class="absolute right-1.5 top-1.5 flex h-2 w-2">
+                            <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-75"></span>
+                            <span class="relative inline-flex h-2 w-2 rounded-full bg-white"></span>
+                        </span>
+                        <SparklesIcon class="h-5 w-5 transition-transform duration-200 group-hover:scale-110" />
+                        <span class="hidden sm:inline">{{ aiAssistant.label }}</span>
+                    </Link>
 
                     <div v-if="user" class="relative" data-user-menu>
                         <button @click.stop="showUserMenu = !showUserMenu" class="flex items-center gap-2.5 rounded-pill border border-line bg-surface py-1.5 pl-1.5 pr-2.5 shadow-card transition-colors hover:bg-primary-soft">
