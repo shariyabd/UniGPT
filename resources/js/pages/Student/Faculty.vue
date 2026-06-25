@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { Head } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
@@ -34,6 +34,27 @@ const filteredFaculty = computed(() => {
         return matchesName && matchesCourse;
     });
 });
+
+// Client-side pagination over the filtered directory so search/filter keep
+// working across the full set.
+const PER_PAGE = 12;
+const currentPage = ref(1);
+
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredFaculty.value.length / PER_PAGE)));
+
+const paginatedFaculty = computed(() => {
+    const start = (currentPage.value - 1) * PER_PAGE;
+    return filteredFaculty.value.slice(start, start + PER_PAGE);
+});
+
+// Any search/filter change resets to the first page so results aren't hidden.
+watch([search, courseFilter], () => {
+    currentPage.value = 1;
+});
+
+const goToPage = (page) => {
+    currentPage.value = Math.min(Math.max(1, page), totalPages.value);
+};
 
 const chatHref = (id) => route('messages', { to: id });
 
@@ -78,18 +99,46 @@ const metaFor = (member) => [
                 </div>
 
                 <!-- Faculty grid -->
-                <div v-if="filteredFaculty.length" class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                    <DirectoryCard
-                        v-for="member in filteredFaculty"
-                        :key="member.rowId"
-                        :name="member.name"
-                        :avatar="member.avatar"
-                        :subtitle="member.department || 'Faculty'"
-                        :tag="member.course.code"
-                        :meta="metaFor(member)"
-                        :chat-href="chatHref(member.id)"
-                    />
-                </div>
+                <template v-if="filteredFaculty.length">
+                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                        <DirectoryCard
+                            v-for="member in paginatedFaculty"
+                            :key="member.rowId"
+                            :name="member.name"
+                            :avatar="member.avatar"
+                            :subtitle="member.department || 'Faculty'"
+                            :tag="member.course.code"
+                            :meta="metaFor(member)"
+                            :chat-href="chatHref(member.id)"
+                        />
+                    </div>
+
+                    <!-- Pagination -->
+                    <div
+                        v-if="totalPages > 1"
+                        class="flex items-center justify-between gap-4"
+                    >
+                        <span class="text-sm text-content-muted">
+                            Page {{ currentPage }} of {{ totalPages }} · {{ filteredFaculty.length }} faculty
+                        </span>
+                        <div class="flex items-center gap-2">
+                            <button
+                                class="ui-btn-secondary"
+                                :disabled="currentPage === 1"
+                                @click="goToPage(currentPage - 1)"
+                            >
+                                Previous
+                            </button>
+                            <button
+                                class="ui-btn-secondary"
+                                :disabled="currentPage === totalPages"
+                                @click="goToPage(currentPage + 1)"
+                            >
+                                Next
+                            </button>
+                        </div>
+                    </div>
+                </template>
                 <EmptyState
                     v-else
                     :icon="UserGroupIcon"

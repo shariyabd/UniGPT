@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
@@ -28,6 +28,26 @@ const filteredCourses = computed(() => {
         `${course.code} ${course.name}`.toLowerCase().includes(query),
     );
 });
+
+// Client-side pagination over the filtered courses list.
+const PER_PAGE = 12;
+const currentPage = ref(1);
+
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredCourses.value.length / PER_PAGE)));
+
+const paginatedCourses = computed(() => {
+    const start = (currentPage.value - 1) * PER_PAGE;
+    return filteredCourses.value.slice(start, start + PER_PAGE);
+});
+
+// Searching resets to the first page so results aren't hidden.
+watch(searchQuery, () => {
+    currentPage.value = 1;
+});
+
+const goToPage = (page) => {
+    currentPage.value = Math.min(Math.max(1, page), totalPages.value);
+};
 </script>
 
 <template>
@@ -69,7 +89,7 @@ const filteredCourses = computed(() => {
 
                     <div v-else class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
                         <Link
-                            v-for="course in filteredCourses"
+                            v-for="course in paginatedCourses"
                             :key="course.id"
                             :href="route('faculty.courses.show', course.id)"
                             class="group block rounded-card border border-line bg-surface p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card"
@@ -113,6 +133,32 @@ const filteredCourses = computed(() => {
                                 </div>
                             </div>
                         </Link>
+                    </div>
+
+                    <!-- Pagination -->
+                    <div
+                        v-if="totalPages > 1"
+                        class="mt-6 flex items-center justify-between gap-4 border-t border-line pt-4"
+                    >
+                        <span class="text-sm text-content-muted">
+                            Page {{ currentPage }} of {{ totalPages }} · {{ filteredCourses.length }} course(s)
+                        </span>
+                        <div class="flex items-center gap-2">
+                            <button
+                                class="ui-btn-secondary"
+                                :disabled="currentPage === 1"
+                                @click="goToPage(currentPage - 1)"
+                            >
+                                Previous
+                            </button>
+                            <button
+                                class="ui-btn-secondary"
+                                :disabled="currentPage === totalPages"
+                                @click="goToPage(currentPage + 1)"
+                            >
+                                Next
+                            </button>
+                        </div>
                     </div>
                 </Card>
             </div>

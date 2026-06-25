@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
@@ -31,6 +31,26 @@ const form = useForm({
 const audienceOptions = computed(() =>
     props.audiences.map((a) => ({ value: a.value, label: a.label })),
 );
+
+/* ---- Client-side pagination over the recent announcements list ---- */
+const PER_PAGE = 12;
+const currentPage = ref(1);
+
+const totalPages = computed(() => Math.max(1, Math.ceil(props.recent.length / PER_PAGE)));
+
+const paginatedRecent = computed(() => {
+    const start = (currentPage.value - 1) * PER_PAGE;
+    return props.recent.slice(start, start + PER_PAGE);
+});
+
+// A fresh list (e.g. after sending an announcement) resets to the first page.
+watch(() => props.recent, () => {
+    currentPage.value = 1;
+});
+
+const goToPage = (page) => {
+    currentPage.value = Math.min(Math.max(1, page), totalPages.value);
+};
 
 const submit = () => {
     form.post(route('admin.announcements.store'), {
@@ -149,7 +169,7 @@ const submitEdit = () => {
                         />
 
                         <div v-else class="space-y-3">
-                            <Card v-for="(item, i) in recent" :key="i" hover padding="p-4">
+                            <Card v-for="(item, i) in paginatedRecent" :key="i" hover padding="p-4">
                                 <div class="flex items-start justify-between gap-3">
                                     <p class="text-sm font-semibold text-content">{{ item.title }}</p>
                                     <div class="shrink-0 flex items-center gap-2">
@@ -177,6 +197,32 @@ const submitEdit = () => {
                                     </Badge>
                                 </div>
                             </Card>
+                        </div>
+
+                        <!-- Pagination -->
+                        <div
+                            v-if="totalPages > 1"
+                            class="flex items-center justify-between gap-4 pt-1"
+                        >
+                            <span class="text-sm text-content-muted">
+                                Page {{ currentPage }} of {{ totalPages }} · {{ recent.length }} results
+                            </span>
+                            <div class="flex items-center gap-2">
+                                <button
+                                    class="ui-btn-secondary"
+                                    :disabled="currentPage === 1"
+                                    @click="goToPage(currentPage - 1)"
+                                >
+                                    Previous
+                                </button>
+                                <button
+                                    class="ui-btn-secondary"
+                                    :disabled="currentPage === totalPages"
+                                    @click="goToPage(currentPage + 1)"
+                                >
+                                    Next
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

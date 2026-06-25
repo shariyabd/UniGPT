@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { Head } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
@@ -55,6 +55,26 @@ const filteredStudents = computed(() => {
         return matchesName && matchesCourse && matchesDepartment && matchesSemester && matchesSection;
     });
 });
+
+// Client-side pagination over the filtered roster.
+const PER_PAGE = 12;
+const currentPage = ref(1);
+
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredStudents.value.length / PER_PAGE)));
+
+const paginatedStudents = computed(() => {
+    const start = (currentPage.value - 1) * PER_PAGE;
+    return filteredStudents.value.slice(start, start + PER_PAGE);
+});
+
+// Any filter/search change resets to the first page so results aren't hidden.
+watch([search, courseFilter, departmentFilter, semesterFilter, sectionFilter], () => {
+    currentPage.value = 1;
+});
+
+const goToPage = (page) => {
+    currentPage.value = Math.min(Math.max(1, page), totalPages.value);
+};
 
 const chatHref = (id) => route('faculty.messages', { to: id });
 
@@ -119,7 +139,7 @@ const selectClass =
                 <!-- Student grid -->
                 <div v-if="filteredStudents.length" class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                     <DirectoryCard
-                        v-for="student in filteredStudents"
+                        v-for="student in paginatedStudents"
                         :key="student.rowId"
                         :name="student.name"
                         :avatar="student.avatar"
@@ -135,6 +155,32 @@ const selectClass =
                     title="No students found"
                     description="No students match the current filters."
                 />
+
+                <!-- Pagination -->
+                <div
+                    v-if="totalPages > 1"
+                    class="flex flex-col items-center justify-between gap-3 sm:flex-row"
+                >
+                    <span class="text-sm text-content-muted">
+                        Page {{ currentPage }} of {{ totalPages }} · {{ filteredStudents.length }} students
+                    </span>
+                    <div class="flex items-center gap-2">
+                        <button
+                            class="ui-btn-secondary"
+                            :disabled="currentPage === 1"
+                            @click="goToPage(currentPage - 1)"
+                        >
+                            Previous
+                        </button>
+                        <button
+                            class="ui-btn-secondary"
+                            :disabled="currentPage === totalPages"
+                            @click="goToPage(currentPage + 1)"
+                        >
+                            Next
+                        </button>
+                    </div>
+                </div>
             </div>
         </AppLayout>
     </div>
