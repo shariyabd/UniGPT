@@ -5,6 +5,7 @@ import PageHeader from '@/components/ui/PageHeader.vue';
 import Card from '@/components/ui/Card.vue';
 import Badge from '@/components/ui/Badge.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
+import Pagination from '@/components/ui/Pagination.vue';
 import {
     ClipboardDocumentListIcon,
     ClockIcon,
@@ -13,7 +14,8 @@ import {
 } from '@heroicons/vue/24/outline';
 
 defineProps({
-    tests: { type: Array, default: () => [] },
+    // Laravel paginator: { data: [...], meta/links/... }.
+    tests: { type: Object, default: () => ({ data: [] }) },
 });
 
 const stateOf = (test) => {
@@ -40,14 +42,14 @@ const isDone = (test) => ['submitted', 'expired', 'disqualified'].includes(test.
                 />
 
                 <EmptyState
-                    v-if="tests.length === 0"
+                    v-if="tests.data.length === 0"
                     title="No class tests"
                     description="There are no class tests available for your sections right now."
                     :icon="ClipboardDocumentListIcon"
                 />
 
                 <div v-else class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <Card v-for="test in tests" :key="test.id" hover>
+                    <Card v-for="test in tests.data" :key="test.id" hover>
                         <div class="flex items-start justify-between gap-3">
                             <div class="min-w-0">
                                 <div class="text-sm font-semibold text-content-muted">
@@ -89,6 +91,8 @@ const isDone = (test) => ['submitted', 'expired', 'disqualified'].includes(test.
                         </div>
                     </Card>
                 </div>
+
+                <Pagination :paginator="tests" label="class tests" />
             </div>
         </AppLayout>
     </div>

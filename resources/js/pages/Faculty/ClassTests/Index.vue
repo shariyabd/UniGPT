@@ -1,10 +1,12 @@
 <script setup>
+import { ref, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
 import Card from '@/components/ui/Card.vue';
 import Badge from '@/components/ui/Badge.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
+import Pagination from '@/components/ui/Pagination.vue';
 import { useConfirm } from '@/composables/useConfirm';
 import {
     ClipboardDocumentListIcon,
@@ -14,10 +16,28 @@ import {
     TrashIcon,
     UsersIcon,
     ClockIcon,
+    MagnifyingGlassIcon,
 } from '@heroicons/vue/24/outline';
 
-defineProps({
-    tests: { type: Array, default: () => [] },
+const props = defineProps({
+    // Laravel paginator: tests.data holds the current page's rows.
+    tests: { type: Object, default: () => ({ data: [] }) },
+    filters: { type: Object, default: () => ({ search: '' }) },
+});
+
+// Server-side search (debounced) — title or course code/name. Reloads only the
+// `tests` prop and preserves scroll so typing stays smooth.
+const search = ref(props.filters.search ?? '');
+let searchTimer = null;
+watch(search, (value) => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+        router.get(
+            route('faculty.class-tests'),
+            { search: value || undefined },
+            { preserveState: true, preserveScroll: true, replace: true, only: ['tests', 'filters'] },
+        );
+    }, 300);
 });
 
 const { confirm } = useConfirm();
@@ -57,6 +77,16 @@ const remove = async (test) => {
                     :icon="ClipboardDocumentListIcon"
                 >
                     <template #actions>
+                        <div class="relative w-full sm:w-64">
+                            <MagnifyingGlassIcon class="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-content-faint" />
+                            <input
+                                v-model="search"
+                                type="search"
+                                placeholder="Search class tests…"
+                                aria-label="Search class tests"
+                                class="ui-input w-full pl-10"
+                            />
+                        </div>
                         <Link :href="route('faculty.class-tests.create')" class="ui-btn ui-btn-primary">
                             <PlusIcon class="h-4 w-4" /> New class test
                         </Link>
@@ -65,15 +95,17 @@ const remove = async (test) => {
 
                 <Card padding="p-0">
                     <EmptyState
-                        v-if="tests.length === 0"
-                        title="No class tests yet"
-                        description="Create your first timed quiz for a section you teach."
+                        v-if="tests.data.length === 0"
+                        :title="filters.search ? 'No class tests found' : 'No class tests yet'"
+                        :description="filters.search
+                            ? 'No class tests match your search. Try a different title or course code.'
+                            : 'Create your first timed quiz for a section you teach.'"
                         :icon="ClipboardDocumentListIcon"
                     />
 
                     <div v-else class="divide-y divide-line">
                         <div
-                            v-for="test in tests"
+                            v-for="test in tests.data"
                             :key="test.id"
                             class="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
                         >
@@ -107,6 +139,10 @@ const remove = async (test) => {
                                 </button>
                             </div>
                         </div>
+                    </div>
+
+                    <div v-if="tests.data.length" class="px-4 pb-4">
+                        <Pagination :paginator="tests" label="class tests" />
                     </div>
                 </Card>
             </div>

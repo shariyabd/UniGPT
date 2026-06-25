@@ -26,8 +26,11 @@ class ClassTestController extends Controller
 
     public function index(): Response
     {
+        $search = trim((string) request()->input('search', '')) ?: null;
+
         return Inertia::render('Faculty/ClassTests/Index', [
-            'tests' => $this->classTests->facultyList($this->user()),
+            'tests' => $this->classTests->facultyList($this->user(), $search),
+            'filters' => ['search' => $search],
         ]);
     }
 

@@ -12,8 +12,8 @@ use App\Models\ClassTest;
 use App\Models\ClassTestAttempt;
 use App\Models\ClassTestQuestion;
 use App\Models\Section;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -142,18 +142,28 @@ class ClassTestService
     // ---------------------------------------------------------------------
 
     /**
-     * Tests for the sections a faculty member teaches, newest first.
+     * Tests for the sections a faculty member teaches, newest first, paginated.
+     * An optional search term matches the test title or its course code/name.
      *
-     * @return Collection<int, array<string, mixed>>
+     * @return LengthAwarePaginator<array<string, mixed>>
      */
-    public function facultyList(User $faculty): Collection
+    public function facultyList(User $faculty, ?string $search = null): LengthAwarePaginator
     {
         return ClassTest::with(['course', 'section'])
             ->withCount(['questions', 'attempts'])
             ->whereIn('section_id', $faculty->teachingSectionIds())
+            ->when($search, function ($query, string $search) {
+                $query->where(function ($inner) use ($search) {
+                    $inner->where('title', 'like', "%{$search}%")
+                        ->orWhereHas('course', fn ($course) => $course
+                            ->where('code', 'like', "%{$search}%")
+                            ->orWhere('name', 'like', "%{$search}%"));
+                });
+            })
             ->orderByDesc('id')
-            ->get()
-            ->map(fn (ClassTest $test) => $this->presentSummary($test));
+            ->paginate(25)
+            ->withQueryString()
+            ->through(fn (ClassTest $test) => $this->presentSummary($test));
     }
 
     /**
@@ -331,16 +341,14 @@ class ClassTestService
 
     /**
      * Published, in-window tests for the student's enrolled sections, each tagged
-     * with the student's attempt state.
-     *
-     * @return Collection<int, array<string, mixed>>
+     * with the student's attempt state. Paginated (newest first).
      */
-    public function studentList(User $student): Collection
+    public function studentList(User $student): LengthAwarePaginator
     {
         $sectionIds = $student->enrolledSectionIds();
 
         if ($sectionIds->isEmpty()) {
-            return collect();
+            return new LengthAwarePaginator(items: [], total: 0, perPage: 25);
         }
 
         $attempts = ClassTestAttempt::where('user_id', $student->id)
@@ -352,8 +360,9 @@ class ClassTestService
             ->published()
             ->whereIn('section_id', $sectionIds)
             ->orderByDesc('id')
-            ->get()
-            ->map(function (ClassTest $test) use ($attempts) {
+            ->paginate(25)
+            ->withQueryString()
+            ->through(function (ClassTest $test) use ($attempts) {
                 $attempt = $attempts->get($test->id);
 
                 return [
