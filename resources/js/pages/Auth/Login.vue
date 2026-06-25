@@ -25,11 +25,31 @@ import { useTheme } from '@/composables/useTheme';
 
 const toast = useToast();
 const { isDark, initTheme, toggleTheme } = useTheme();
-onMounted(() => initTheme());
 const isLogin = ref(true);
 const showPassword = ref(false);
 const selectedRole = ref('');
 const isLoading = ref(false);
+
+// Demo/testing credentials per role (seeded by RBACSeeder). Selecting a role on
+// the login form auto-fills these so the app can be demoed without typing.
+const DEMO_CREDENTIALS = {
+    admin: { email: 'admin@university.edu', password: 'demo123' },
+    faculty: { email: 'prof.smith@university.edu', password: 'demo123' },
+    student: { email: 'student@university.edu', password: 'demo123' },
+};
+
+const applyDemoCredentials = (role) => {
+    const creds = DEMO_CREDENTIALS[role];
+    if (!creds) return;
+    loginForm.email = creds.email;
+    loginForm.password = creds.password;
+};
+
+onMounted(() => {
+    initTheme();
+    // Default the login form to Admin with its demo credentials prefilled.
+    selectRole('admin');
+});
 
 const loginForm = useForm({
     email: '',
@@ -146,6 +166,11 @@ const toggleMode = () => {
     loginForm.reset();
     signupForm.reset();
     selectedRole.value = '';
+    // Returning to login re-applies the Admin demo default; the sign-up form
+    // stays blank for real account creation.
+    if (isLogin.value) {
+        selectRole('admin');
+    }
 };
 
 const selectRole = (role) => {
@@ -157,6 +182,8 @@ const selectRole = (role) => {
     }
     if (isLogin.value) {
         loginForm.role = role;
+        // Auto-fill the demo credentials for the selected role (demo/testing UX).
+        applyDemoCredentials(role);
     } else {
         signupForm.role = role;
     }
@@ -202,10 +229,7 @@ const handleDemoLogin = (role) => {
     // Keep the form UI in sync for visual feedback.
     selectedRole.value = role;
     loginForm.role = role;
-    loginForm.email = role === 'admin' ? 'admin@university.edu' :
-                     role === 'faculty' ? 'prof.smith@university.edu' :
-                     'student@university.edu';
-    loginForm.password = 'demo123';
+    applyDemoCredentials(role);
 
     // Authenticate via the dedicated demo-login endpoint, which logs the demo
     // user in server-side and redirects to the role's dashboard. (Previously
