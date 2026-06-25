@@ -106,6 +106,7 @@ const displayContacts = computed(() =>
             return {
                 ...contact,
                 status: live?.online ? 'online' : undefined,
+                lastActive: live?.lastActive ?? null,
                 preview: live?.lastBody ?? null,
                 previewMine: live?.lastSenderId != null && live.lastSenderId === currentUserId.value,
                 lastAt: live?.lastAt ?? null,
@@ -126,6 +127,43 @@ const contactIds = computed(() => props.contacts.map((contact) => contact.id));
 const selectedOnline = computed(
     () => selectedId.value !== null && overview.meta[selectedId.value]?.online === true,
 );
+
+// Messenger-style "last active" label from a last-seen timestamp.
+const formatLastActive = (iso) => {
+    if (!iso) {
+        return 'Offline';
+    }
+    const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+    if (seconds < 60) {
+        return 'Active now';
+    }
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) {
+        return `Active ${minutes}m ago`;
+    }
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) {
+        return `Active ${hours}h ago`;
+    }
+    const days = Math.floor(hours / 24);
+    if (days < 7) {
+        return `Active ${days}d ago`;
+    }
+    return `Active ${new Date(iso).toLocaleDateString()}`;
+};
+
+// Presence label for the open conversation header. Empty until we actually have
+// presence data, so the header can fall back to the contact subtitle.
+const selectedPresenceLabel = computed(() => {
+    if (selectedId.value === null) {
+        return '';
+    }
+    const live = overview.meta[selectedId.value];
+    if (live?.online) {
+        return 'Active now';
+    }
+    return live?.lastActive ? formatLastActive(live.lastActive) : '';
+});
 
 // Open/close the conversation as the selection changes. Covers every selection
 // path: clicking a contact, the deep-linked onMounted selection, and the
@@ -164,9 +202,33 @@ watch(() => messages.value.length, () => {
 // Keep the polled presence/unread set in sync with the (filtered) contact list.
 watch(contactIds, (ids) => overview.setIds(ids));
 
+const composerInput = ref(null);
+
+// Grow the composer with its content (like modern chat apps) up to a max height.
+const autoResize = () => {
+    notifyTyping();
+    const el = composerInput.value;
+    if (!el) {
+        return;
+    }
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+};
+
+const resetComposerHeight = () => {
+    if (composerInput.value) {
+        composerInput.value.style.height = 'auto';
+    }
+};
+
 const submit = async () => {
+    // Ignore blank/whitespace-only drafts (Enter on an empty composer).
+    if (!draft.value.trim()) {
+        return;
+    }
     if (await send(draft.value)) {
         draft.value = '';
+        resetComposerHeight();
         scrollToBottom();
     }
 };
@@ -221,7 +283,9 @@ onUnmounted(() => {
                     </div>
                     <div class="min-w-0 flex-1">
                         <p class="truncate text-sm font-semibold text-content">{{ contact.name }}</p>
-                        <!-- Last-message preview when there's a conversation, else the directory subtitle. -->
+                        <!-- Secondary line: last-message preview if a conversation
+                             exists, else a Messenger-style presence/last-active
+                             label, else the directory subtitle. -->
                         <p
                             class="truncate text-xs"
                             :class="contact.unread ? 'font-semibold text-content' : 'text-content-muted'"
@@ -229,6 +293,10 @@ onUnmounted(() => {
                             <template v-if="contact.preview">
                                 <span v-if="contact.previewMine" class="text-content-faint">You: </span>{{ contact.preview }}
                             </template>
+                            <template v-else-if="contact.status === 'online'">
+                                <span class="text-success-fg">Active now</span>
+                            </template>
+                            <template v-else-if="contact.lastActive">{{ formatLastActive(contact.lastActive) }}</template>
                             <template v-else>{{ contact.subtitle }}</template>
                         </p>
                     </div>
@@ -276,7 +344,7 @@ onUnmounted(() => {
                             :class="otherTyping ? 'text-primary' : 'text-content-muted'"
                         >
                             <template v-if="otherTyping">typing…</template>
-                            <template v-else-if="selectedOnline">Active now</template>
+                            <template v-else-if="selectedPresenceLabel">{{ selectedPresenceLabel }}</template>
                             <template v-else>{{ selected.subtitle }}</template>
                         </p>
                     </div>
@@ -321,24 +389,29 @@ onUnmounted(() => {
 
                 <!-- Composer -->
                 <form class="flex-shrink-0 border-t border-line p-3 sm:p-4" @submit.prevent="submit">
-                    <div class="flex items-center gap-2 rounded-pill border border-line bg-surface px-3 py-2 focus-within:border-primary">
-                        <input
+                    <div class="flex items-end gap-2 rounded-2xl border border-line bg-surface px-3 py-2 focus-within:border-primary">
+                        <textarea
+                            ref="composerInput"
                             v-model="draft"
-                            type="text"
+                            rows="1"
                             :placeholder="`Message ${selected.name}…`"
-                            class="flex-1 border-0 bg-transparent text-sm text-content placeholder:text-content-faint focus:outline-none focus:ring-0"
-                            @input="notifyTyping"
+                            class="flex-1 resize-none border-0 bg-transparent py-1 text-sm text-content placeholder:text-content-faint focus:outline-none focus:ring-0"
+                            @input="autoResize"
                             @keydown.enter.exact.prevent="submit"
-                        />
+                        ></textarea>
                         <button
                             type="submit"
                             :disabled="!draft.trim() || sending"
-                            class="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+                            class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
                             aria-label="Send message"
                         >
                             <PaperAirplaneIcon class="h-4 w-4" />
                         </button>
                     </div>
+                    <p class="mt-1.5 px-1 text-[10px] text-content-faint">
+                        <kbd class="rounded bg-neutral-bg px-1 py-0.5">Enter</kbd> to send ·
+                        <kbd class="rounded bg-neutral-bg px-1 py-0.5">Shift+Enter</kbd> for a new line
+                    </p>
                 </form>
             </template>
 

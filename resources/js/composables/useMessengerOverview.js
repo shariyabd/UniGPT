@@ -18,7 +18,7 @@ export function useMessengerOverview({ pollMs = 10000 } = {}) {
 
     function entry(userId) {
         if (!meta[userId]) {
-            meta[userId] = { online: false, lastBody: null, lastAt: null, lastSenderId: null, unread: 0 };
+            meta[userId] = { online: false, lastActive: null, lastBody: null, lastAt: null, lastSenderId: null, unread: 0 };
         }
         return meta[userId];
     }
@@ -32,6 +32,9 @@ export function useMessengerOverview({ pollMs = 10000 } = {}) {
         });
         Object.entries(data.presence ?? {}).forEach(([id, online]) => {
             entry(Number(id)).online = Boolean(online);
+        });
+        Object.entries(data.lastActive ?? {}).forEach(([id, lastActive]) => {
+            entry(Number(id)).lastActive = lastActive ?? null;
         });
         (data.conversations ?? []).forEach((conversation) => {
             const item = entry(conversation.user_id);

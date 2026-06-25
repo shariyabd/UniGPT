@@ -147,11 +147,21 @@ class MessageController extends Controller
             ->unique()
             ->values();
 
-        $activeIds = User::whereIn('id', $contactIds)
-            ->where('last_seen_at', '>=', now()->subSeconds(User::ACTIVE_WINDOW_SECONDS))
-            ->pluck('id');
+        // One query gives both "is active now" and "last seen" so the contact
+        // list can show a Messenger-style presence/last-active label.
+        $seen = User::whereIn('id', $contactIds)
+            ->get(['id', 'last_seen_at'])
+            ->keyBy('id');
 
-        $presence = $contactIds->mapWithKeys(fn (int $id) => [$id => $activeIds->contains($id)]);
+        $activeThreshold = now()->subSeconds(User::ACTIVE_WINDOW_SECONDS);
+
+        $presence = $contactIds->mapWithKeys(fn (int $id) => [
+            $id => (bool) $seen->get($id)?->last_seen_at?->gte($activeThreshold),
+        ]);
+
+        $lastActive = $contactIds->mapWithKeys(fn (int $id) => [
+            $id => $seen->get($id)?->last_seen_at?->toISOString(),
+        ]);
 
         $conversations = $user->conversations()
             ->with(['latestMessage', 'participants:id'])
@@ -177,6 +187,7 @@ class MessageController extends Controller
 
         return response()->json([
             'presence' => $presence,
+            'lastActive' => $lastActive,
             'conversations' => $conversations,
         ]);
     }
