@@ -22,7 +22,9 @@ import {
 } from '@heroicons/vue/24/outline';
 
 // Component state
-const selectedAssignment = ref(null);
+// 'all' shows submissions across every assignment (the default); a numeric id
+// narrows to one assignment.
+const selectedAssignment = ref('all');
 const selectedSubmission = ref(null);
 const showGradingPanel = ref(false);
 const filterStatus = ref('all');
@@ -42,19 +44,24 @@ const props = defineProps({
     assignments: { type: Array, default: () => [] },
     submissions: { type: Array, default: () => [] },
     courseId: { type: Number, default: null },
+    // True when showing every course/section the faculty teaches (the default).
+    allCourses: { type: Boolean, default: false },
 });
 
 // A faculty teaching several sections of a course grades one section at a time.
 const selectedSection = ref(props.activeSectionId);
 
-// The grading view scopes to one course at a time. The selector lets faculty
-// switch between every course they teach (not just the first one).
-const selectedCourse = ref(props.courseData?.id ?? null);
+// The grading view defaults to "All Courses" (null) and lets faculty narrow to
+// any single course they teach.
+const selectedCourse = ref(props.courseId ?? null);
 
 const changeCourse = () => {
-    if (!selectedCourse.value) return;
+    // "All Courses" (null) goes back to the aggregated index; a specific course
+    // loads its scoped grading view.
     router.get(
-        route('faculty.course.grading', selectedCourse.value),
+        selectedCourse.value
+            ? route('faculty.course.grading', selectedCourse.value)
+            : route('faculty.grading'),
         {},
         { preserveState: false, preserveScroll: true },
     );
@@ -94,13 +101,29 @@ const sortOptions = [
     { value: 'grade', label: 'Grade' }
 ];
 
-// Computed properties
+// Computed properties — null in "All Assignments" mode (no single assignment).
 const currentAssignment = computed(() => {
-    return assignments.value.find(a => a.id === selectedAssignment.value) || assignments.value[0];
+    if (selectedAssignment.value === 'all') return null;
+    return assignments.value.find(a => a.id === selectedAssignment.value) || null;
+});
+
+// The assignment shown in the grading modal: always the one the selected
+// submission belongs to. In "All Assignments" mode currentAssignment is null,
+// so the modal must resolve the assignment from the submission itself —
+// otherwise opening it dereferences null and the Grade button appears broken.
+const gradingAssignment = computed(() => {
+    if (selectedSubmission.value) {
+        return assignments.value.find(a => a.id === selectedSubmission.value.assignmentId)
+            ?? currentAssignment.value;
+    }
+    return currentAssignment.value;
 });
 
 const filteredSubmissions = computed(() => {
-    let filtered = submissions.value.filter(s => s.assignmentId === currentAssignment.value?.id);
+    // "All Assignments" shows every submission; otherwise scope to the selected one.
+    let filtered = selectedAssignment.value === 'all'
+        ? [...submissions.value]
+        : submissions.value.filter(s => s.assignmentId === selectedAssignment.value);
 
     // Apply status filter
     if (filterStatus.value !== 'all') {
@@ -145,22 +168,48 @@ const filteredSubmissions = computed(() => {
 const hasAssignments = computed(() => assignments.value.length > 0);
 
 const gradingStats = computed(() => {
-    if (!currentAssignment.value) {
+    // Aggregate across the selected assignment, or all of them in "All" mode.
+    const list = currentAssignment.value ? [currentAssignment.value] : assignments.value;
+
+    if (list.length === 0) {
         return { completionRate: 0, pendingCount: 0, averageGrade: 0, totalSubmissions: 0 };
     }
 
-    const assignment = currentAssignment.value;
-    const graded = assignment.submissions.graded;
-    const total = assignment.submissions.total;
-    const pending = assignment.submissions.pending;
+    const total = list.reduce((sum, a) => sum + a.submissions.total, 0);
+    const graded = list.reduce((sum, a) => sum + a.submissions.graded, 0);
+    const pending = list.reduce((sum, a) => sum + a.submissions.pending, 0);
+    const withAvg = list.filter(a => a.averageGrade != null);
+    const averageGrade = withAvg.length
+        ? Math.round((withAvg.reduce((sum, a) => sum + a.averageGrade, 0) / withAvg.length) * 10) / 10
+        : 0;
 
     return {
         completionRate: total > 0 ? Math.round((graded / total) * 100) : 0,
         pendingCount: pending,
-        averageGrade: assignment.averageGrade || 0,
-        totalSubmissions: total
+        averageGrade,
+        totalSubmissions: total,
     };
 });
+
+// Client-side pagination over the filtered submissions list.
+const PER_PAGE = 15;
+const currentPage = ref(1);
+
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredSubmissions.value.length / PER_PAGE)));
+
+const paginatedSubmissions = computed(() => {
+    const start = (currentPage.value - 1) * PER_PAGE;
+    return filteredSubmissions.value.slice(start, start + PER_PAGE);
+});
+
+// Any filter/scope change resets to the first page so results aren't hidden.
+watch([filterStatus, sortBy, searchQuery, selectedAssignment, () => props.submissions], () => {
+    currentPage.value = 1;
+});
+
+const goToPage = (page) => {
+    currentPage.value = Math.min(Math.max(1, page), totalPages.value);
+};
 
 // Utility functions
 const formatDateTime = (dateString) => {
@@ -299,10 +348,6 @@ const submitGrade = () => {
     });
 };
 
-// Initialize with first assignment
-if (assignments.value.length > 0) {
-    selectedAssignment.value = assignments.value[0].id;
-}
 </script>
 
 <template>
@@ -337,13 +382,14 @@ if (assignments.value.length > 0) {
                     <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
                         <!-- Course + Assignment + Section Selectors -->
                         <div class="flex flex-1 flex-wrap items-end gap-4">
-                            <div v-if="courses.length > 1" class="min-w-[14rem]">
+                            <div v-if="courses.length >= 1" class="min-w-[14rem]">
                                 <label class="ui-label">Course</label>
                                 <select
                                     v-model="selectedCourse"
                                     class="ui-input"
                                     @change="changeCourse"
                                 >
+                                    <option :value="null">All Courses</option>
                                     <option v-for="c in courses" :key="c.id" :value="c.id">
                                         {{ c.code }} — {{ c.name }}
                                     </option>
@@ -358,8 +404,9 @@ if (assignments.value.length > 0) {
                                     @change="selectAssignment(selectedAssignment)"
                                     class="ui-input max-w-md"
                                 >
+                                    <option value="all">All Assignments ({{ assignments.length }})</option>
                                     <option v-for="assignment in assignments" :key="assignment.id" :value="assignment.id">
-                                        {{ assignment.title }} ({{ assignment.submissions.pending }} pending)
+                                        <template v-if="allCourses">{{ assignment.courseCode }} · </template>{{ assignment.title }} ({{ assignment.submissions.pending }} pending)
                                     </option>
                                 </select>
                                 <p v-else class="ui-input max-w-md bg-neutral-bg text-content-muted">
@@ -481,7 +528,7 @@ if (assignments.value.length > 0) {
                     <!-- Submissions -->
                     <div class="divide-y divide-line">
                         <div
-                            v-for="submission in filteredSubmissions"
+                            v-for="submission in paginatedSubmissions"
                             :key="submission.id"
                             class="p-5 sm:p-6 hover:bg-bg transition-colors"
                         >
@@ -503,6 +550,9 @@ if (assignments.value.length > 0) {
                                             <p class="text-sm text-content-muted truncate">
                                                 {{ submission.student.email }}
                                             </p>
+                                            <p v-if="selectedAssignment === 'all'" class="mt-1 text-xs font-medium text-primary">
+                                                <span v-if="submission.courseCode">{{ submission.courseCode }} · </span>{{ submission.assignmentTitle }}
+                                            </p>
 
                                             <!-- Submission Info -->
                                             <div class="flex flex-wrap items-center gap-3 mt-2 text-sm">
@@ -523,10 +573,10 @@ if (assignments.value.length > 0) {
                                                 <div class="flex items-center gap-2 mb-2">
                                                     <CheckCircleIcon class="w-4 h-4 text-success-fg" />
                                                     <span class="text-sm font-medium text-success-fg">
-                                                        Graded: {{ submission.grade }}/{{ currentAssignment.totalPoints }}
+                                                        Graded: {{ submission.grade }}/{{ submission.totalPoints }}
                                                     </span>
                                                     <span :class="`font-bold ${getGradeColor(submission.grade)}`">
-                                                        ({{ ((submission.grade / currentAssignment.totalPoints) * 100).toFixed(1) }}%)
+                                                        ({{ ((submission.grade / submission.totalPoints) * 100).toFixed(1) }}%)
                                                     </span>
                                                 </div>
                                                 <p v-if="submission.feedback" class="text-sm text-content-muted whitespace-pre-line">
@@ -544,7 +594,7 @@ if (assignments.value.length > 0) {
                                                 —
                                             </div>
                                             <div class="text-xs text-content-muted">
-                                                / {{ currentAssignment.totalPoints }}
+                                                / {{ submission.totalPoints }}
                                             </div>
                                         </div>
                                     </div>
@@ -571,6 +621,32 @@ if (assignments.value.length > 0) {
                         title="No submissions found"
                         description="Try adjusting your filters or search terms."
                     />
+
+                    <!-- Pagination -->
+                    <div
+                        v-if="totalPages > 1"
+                        class="flex items-center justify-between gap-4 border-t border-line px-5 sm:px-6 py-3"
+                    >
+                        <span class="text-sm text-content-muted">
+                            Page {{ currentPage }} of {{ totalPages }} · {{ filteredSubmissions.length }} results
+                        </span>
+                        <div class="flex items-center gap-2">
+                            <button
+                                class="ui-btn-secondary"
+                                :disabled="currentPage === 1"
+                                @click="goToPage(currentPage - 1)"
+                            >
+                                Previous
+                            </button>
+                            <button
+                                class="ui-btn-secondary"
+                                :disabled="currentPage === totalPages"
+                                @click="goToPage(currentPage + 1)"
+                            >
+                                Next
+                            </button>
+                        </div>
+                    </div>
                 </Card>
             </div>
 
@@ -589,7 +665,7 @@ if (assignments.value.length > 0) {
                                         Grade Submission
                                     </h3>
                                     <p class="text-content-muted">
-                                        {{ selectedSubmission?.student.name }} - {{ currentAssignment.title }}
+                                        {{ selectedSubmission?.student.name }} - {{ gradingAssignment?.title }}
                                     </p>
                                 </div>
                                 <button
@@ -666,19 +742,19 @@ if (assignments.value.length > 0) {
                                     <!-- Grade Input -->
                                     <div class="mb-6">
                                         <label class="ui-label">
-                                            Grade (out of {{ currentAssignment.totalPoints }})
+                                            Grade (out of {{ gradingAssignment?.totalPoints }})
                                         </label>
                                         <input
                                             v-model="currentGrade"
                                             type="number"
-                                            :max="currentAssignment.totalPoints"
+                                            :max="gradingAssignment?.totalPoints"
                                             min="0"
                                             step="0.5"
                                             class="ui-input text-lg"
                                             placeholder="Enter grade..."
                                         />
                                         <div v-if="currentGrade" class="mt-1 text-sm text-content-muted">
-                                            Percentage: {{ ((currentGrade / currentAssignment.totalPoints) * 100).toFixed(1) }}%
+                                            Percentage: {{ ((currentGrade / gradingAssignment?.totalPoints) * 100).toFixed(1) }}%
                                         </div>
                                     </div>
 
@@ -687,25 +763,25 @@ if (assignments.value.length > 0) {
                                         <label class="ui-label">Quick Grades</label>
                                         <div class="grid grid-cols-4 gap-2">
                                             <button
-                                                @click="currentGrade = currentAssignment.totalPoints"
+                                                @click="currentGrade = gradingAssignment?.totalPoints"
                                                 class="py-2 bg-success-bg text-success-fg rounded-control hover:opacity-80 text-sm font-medium transition-colors"
                                             >
                                                 A (100%)
                                             </button>
                                             <button
-                                                @click="currentGrade = Math.round(currentAssignment.totalPoints * 0.9)"
+                                                @click="currentGrade = Math.round(gradingAssignment?.totalPoints * 0.9)"
                                                 class="py-2 bg-primary-soft text-primary rounded-control hover:opacity-80 text-sm font-medium transition-colors"
                                             >
                                                 A- (90%)
                                             </button>
                                             <button
-                                                @click="currentGrade = Math.round(currentAssignment.totalPoints * 0.85)"
+                                                @click="currentGrade = Math.round(gradingAssignment?.totalPoints * 0.85)"
                                                 class="py-2 bg-warning-bg text-warning-fg rounded-control hover:opacity-80 text-sm font-medium transition-colors"
                                             >
                                                 B+ (85%)
                                             </button>
                                             <button
-                                                @click="currentGrade = Math.round(currentAssignment.totalPoints * 0.8)"
+                                                @click="currentGrade = Math.round(gradingAssignment?.totalPoints * 0.8)"
                                                 class="py-2 bg-neutral-bg text-neutral-fg rounded-control hover:opacity-80 text-sm font-medium transition-colors"
                                             >
                                                 B (80%)
@@ -714,11 +790,11 @@ if (assignments.value.length > 0) {
                                     </div>
 
                                     <!-- Rubric Grading -->
-                                    <div v-if="currentAssignment.rubric" class="mb-6">
+                                    <div v-if="gradingAssignment?.rubric?.criteria?.length" class="mb-6">
                                         <h4 class="font-semibold text-content mb-3">Rubric Breakdown</h4>
                                         <div class="space-y-3">
                                             <div
-                                                v-for="criterion in currentAssignment.rubric.criteria"
+                                                v-for="criterion in gradingAssignment.rubric.criteria"
                                                 :key="criterion.name"
                                                 class="p-3 border border-line rounded-card"
                                             >

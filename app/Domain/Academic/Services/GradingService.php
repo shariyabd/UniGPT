@@ -20,15 +20,22 @@ class GradingService
      */
     public function overview(User $faculty, ?int $courseId = null, ?int $sectionId = null): array
     {
-        // Grading is scoped to ONE section the faculty teaches, so only that
-        // section's assignments, submissions and roster appear. A faculty who
-        // teaches several sections of a course switches between them.
         $sections = $faculty->teachingSections()->with('course')->get();
         $courses = $sections->pluck('course')->filter()->unique('id')->sortBy('code')->values();
-        $course = $courseId ? $courses->firstWhere('id', $courseId) : $courses->first();
+
+        // "All Courses" mode (no course selected): aggregate every assignment and
+        // submission across all sections the faculty teaches, so the grading list
+        // shows all records up front. Faculty then narrow by course/section.
+        if (! $courseId) {
+            return $this->allCoursesOverview($sections, $courses);
+        }
+
+        // Scoped to ONE section of ONE course. A faculty who teaches several
+        // sections of a course switches between them.
+        $course = $courses->firstWhere('id', $courseId);
 
         if (! $course) {
-            return ['courseData' => null, 'courses' => $this->courseOptions($courses), 'sections' => [], 'activeSectionId' => null, 'assignments' => [], 'submissions' => []];
+            return $this->emptyOverview($courses);
         }
 
         $courseSections = $sections->where('course_id', $course->id)->sortBy('id')->values();
@@ -38,6 +45,7 @@ class GradingService
         $course->load([
             'assignments' => fn ($q) => $q->whereIn('section_id', $scopeIds),
             'assignments.submissions.student',
+            'assignments.course',
         ]);
 
         return [
@@ -54,6 +62,65 @@ class GradingService
             'submissions' => $course->assignments->flatMap(
                 fn (Assignment $a) => $a->submissions->map(fn ($s) => $this->presentSubmission($s, $a))
             )->values(),
+            'allCourses' => false,
+        ];
+    }
+
+    /**
+     * Aggregate assignments and submissions across every section the faculty
+     * teaches (the default "All Courses / All Assignments" grading view).
+     *
+     * @param  Collection<int, \App\Models\Section>  $sections
+     * @param  Collection<int, Course>  $courses
+     * @return array<string, mixed>
+     */
+    private function allCoursesOverview(Collection $sections, Collection $courses): array
+    {
+        $sectionIds = $sections->pluck('id')->filter()->values();
+
+        $assignments = Assignment::query()
+            ->whereIn('section_id', $sectionIds)
+            ->with(['submissions.student', 'course'])
+            ->get();
+
+        $students = $courses->sum(function (Course $course) use ($sections): int {
+            $ids = $sections->where('course_id', $course->id)->pluck('id')->filter();
+
+            return $course->students()->wherePivotIn('section_id', $ids)->count();
+        });
+
+        return [
+            'courseData' => [
+                'id' => null,
+                'code' => 'All Courses',
+                'name' => 'Every teaching section',
+                'students' => $students,
+            ],
+            'courses' => $this->courseOptions($courses),
+            'sections' => [],
+            'activeSectionId' => null,
+            'assignments' => $assignments->map(fn (Assignment $a) => $this->presentAssignment($a))->values(),
+            'submissions' => $assignments->flatMap(
+                fn (Assignment $a) => $a->submissions->map(fn ($s) => $this->presentSubmission($s, $a))
+            )->values(),
+            'allCourses' => true,
+        ];
+    }
+
+    /**
+     * @param  Collection<int, Course>  $courses
+     * @return array<string, mixed>
+     */
+    private function emptyOverview(Collection $courses): array
+    {
+        return [
+            'courseData' => null,
+            'courses' => $this->courseOptions($courses),
+            'sections' => [],
+            'activeSectionId' => null,
+            'assignments' => [],
+            'submissions' => [],
+            'allCourses' => true,
         ];
     }
 
@@ -105,6 +172,7 @@ class GradingService
         return [
             'id' => $assignment->id,
             'title' => $assignment->title,
+            'courseCode' => $assignment->course?->code,
             'type' => $assignment->type,
             'dueDate' => $assignment->due_at?->toDateString(),
             'totalPoints' => $assignment->total_points,
@@ -131,6 +199,8 @@ class GradingService
         return [
             'id' => $submission->id,
             'assignmentId' => $assignment->id,
+            'assignmentTitle' => $assignment->title,
+            'courseCode' => $assignment->course?->code,
             'student' => [
                 'id' => $student?->id,
                 'name' => $student?->name,
