@@ -70,10 +70,15 @@ class KnowledgeBaseSeeder extends Seeder
                 continue;
             }
 
-            // Mirror the admin upload path: store a copy on the private disk with
-            // a UUID name. UploadedFile in test mode reads (does not move) the
-            // source, so the demo_files folder is left untouched.
-            $stored = $storage->store(new UploadedFile($source, $data['file'], null, null, true));
+            // Mirror the admin upload path, but pass the demo file's name so the
+            // stored path is deterministic. These documents are static, so their
+            // storage path must stay identical across re-seeds — otherwise the DB
+            // path drifts from the file actually on disk. UploadedFile in test
+            // mode reads (does not move) the source, so demo_files is untouched.
+            $stored = $storage->store(
+                file: new UploadedFile($source, $data['file'], null, null, true),
+                name: $data['file'],
+            );
 
             $document = Document::create([
                 'title' => $data['title'],

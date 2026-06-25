@@ -21,13 +21,20 @@ class DocumentStorageService
     /**
      * Persist an uploaded file and return its metadata.
      *
+     * Real uploads pass no name and get a collision-proof UUID filename.
+     * Predefined/static documents (the knowledge-base seeder) pass a stable
+     * $name so the stored path stays identical across re-seeds and the DB path
+     * never drifts from what is on disk.
+     *
      * @return array{path: string, file_type: string, file_size: int, original_filename: string}
      */
-    public function store(UploadedFile $file): array
+    public function store(UploadedFile $file, ?string $name = null): array
     {
         $extension = strtolower($file->getClientOriginalExtension() ?: $file->guessExtension() ?: 'bin');
-        $name = Str::uuid()->toString().'.'.$extension;
-        $path = $file->storeAs(self::DIRECTORY, $name, self::DISK);
+        $filename = $name !== null
+            ? Str::slug(pathinfo($name, PATHINFO_FILENAME)).'.'.$extension
+            : Str::uuid()->toString().'.'.$extension;
+        $path = $file->storeAs(self::DIRECTORY, $filename, self::DISK);
 
         return [
             'path' => $path,
