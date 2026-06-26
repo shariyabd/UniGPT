@@ -4,7 +4,9 @@ namespace App\Providers;
 
 use App\Domain\Chat\Contracts\AIProviderInterface;
 use App\Infrastructure\AI\AIProviderManager;
+use App\Models\Document;
 use App\Models\Setting;
+use App\Observers\DocumentObserver;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
 use Throwable;
@@ -23,6 +25,10 @@ class AIServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->applyStoredSettings();
+
+        // Bump the retrieval cache version whenever the document corpus changes,
+        // so cached RAG answers never go stale after an upload/edit/delete.
+        Document::observe(DocumentObserver::class);
     }
 
     /**

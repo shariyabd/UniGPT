@@ -9,6 +9,7 @@ use App\Domain\RAG\Retrieval\RetrievalService;
 use App\Domain\User\Models\User;
 use App\Enums\ChatMode;
 use App\Enums\ConfidenceLevel;
+use App\Enums\QueryIntent;
 
 /**
  * Orchestrates a retrieval-augmented answer: retrieve context → build a
@@ -22,6 +23,7 @@ class RagChatService
         private readonly RetrievalService $retrieval,
         private readonly CitationService $citations,
         private readonly AiSettings $settings,
+        private readonly QueryClassifier $classifier,
     ) {}
 
     /**
@@ -32,12 +34,19 @@ class RagChatService
      */
     public function answer(string $question, User $user, ChatMode $mode = ChatMode::ACADEMIC, array $history = [], string $language = 'en'): array
     {
+        // Fast path: greetings, thanks and "what can you do" never need retrieval
+        // or an LLM call. Answer them deterministically at zero API cost.
+        $intent = $this->classifier->classify($question);
+        if ($intent !== QueryIntent::ACADEMIC) {
+            return $this->cannedAnswer($this->classifier->reply($question, $user->name) ?? '', $mode);
+        }
+
         $retrieved = $this->retrieval->retrieve($question, $user);
         $context = $this->citations->buildContext($retrieved);
         $sources = $this->citations->toSources($retrieved);
         $score = $this->citations->overallConfidence($retrieved);
 
-        $messages = $this->buildMessages($question, $mode, $context, $history, $language);
+        $messages = $this->buildMessages($question, $mode, $context, $history, $language, $user);
         $result = $this->provider->chat($messages, $this->settings->chatOptions());
 
         return [
@@ -52,13 +61,36 @@ class RagChatService
     }
 
     /**
+     * Shape a deterministic (non-RAG) reply to match the RAG answer contract so
+     * the rest of the pipeline persists and renders it identically.
+     *
+     * @return array{content: string, confidence: ?int, confidence_level: ?string, sources: array, follow_ups: array, model: string, tokens: int}
+     */
+    private function cannedAnswer(string $content, ChatMode $mode): array
+    {
+        return [
+            'content' => $content,
+            'confidence' => null,
+            'confidence_level' => null,
+            'sources' => [],
+            'follow_ups' => $this->followUps($mode),
+            'model' => 'rule-based',
+            'tokens' => 0,
+        ];
+    }
+
+    /**
      * @param  array<int, array{role: string, content: string}>  $history
      * @return array<int, array{role: string, content: string}>
      */
-    private function buildMessages(string $question, ChatMode $mode, string $context, array $history, string $language = 'en'): array
+    private function buildMessages(string $question, ChatMode $mode, string $context, array $history, string $language, User $user): array
     {
         $system = $mode->systemPrompt()
             ."\n\nYou are UniGPT, a university academic copilot for students and faculty.";
+
+        if ($profile = $this->userContext($user)) {
+            $system .= "\n\n".$profile;
+        }
 
         $languageName = $this->settings->languageName($language);
         $system .= " Always write your entire response in {$languageName}, regardless of the "
@@ -104,6 +136,61 @@ class RagChatService
         $messages[] = ['role' => 'user', 'content' => $question];
 
         return $messages;
+    }
+
+    /**
+     * Describe who is asking — role, department, semester and their courses — so
+     * the model stays context-aware even when no documents match, and can resolve
+     * course aliases (e.g. "DSA" → the user's "Data Structures & Algorithms").
+     */
+    private function userContext(User $user): string
+    {
+        $role = match (true) {
+            $user->isFaculty() => 'faculty member',
+            $user->isStudent() => 'student',
+            default => 'university user',
+        };
+
+        $parts = ["The person you are assisting is {$user->name}, a {$role}"];
+        if ($department = $user->department?->name) {
+            $parts[] = "in the {$department} department";
+        }
+        if ($user->isStudent() && $user->semester) {
+            $parts[] = "currently in semester {$user->semester}";
+        }
+        $profile = implode(' ', $parts).'.';
+
+        $courses = $this->userCourses($user);
+        if ($courses !== []) {
+            $label = $user->isFaculty() ? 'They currently teach' : 'They are enrolled in';
+            $profile .= " {$label}: ".implode('; ', $courses).'. '
+                .'When the user refers to a subject by an abbreviation, acronym or short name, '
+                .'map it to the matching course above (e.g. its code or a common acronym). '
+                .'Even if no reference document matches, you can still help using this context '
+                .'and your general academic knowledge.';
+        }
+
+        return $profile;
+    }
+
+    /**
+     * The user's relevant courses as "CODE — Name" strings (enrolled for
+     * students, taught for faculty), excluding pending enrolments.
+     *
+     * @return array<int, string>
+     */
+    private function userCourses(User $user): array
+    {
+        $query = $user->isFaculty()
+            ? $user->teachingCourses()
+            : $user->enrolledCourses()->wherePivotNotIn('status', ['pending']);
+
+        return $query->get(['courses.code', 'courses.name'])
+            ->map(fn ($course): string => trim(($course->code ? $course->code.' — ' : '').$course->name))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
     }
 
     /**

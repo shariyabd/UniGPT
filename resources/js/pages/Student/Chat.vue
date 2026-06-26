@@ -119,7 +119,8 @@ const courseLabels = computed(() =>
 const chatModes = [
     { id: 'simple', label: 'Simple', icon: ChatBubbleBottomCenterTextIcon, description: 'Quick, concise answers', backend: 'general' },
     { id: 'detailed', label: 'Detailed', icon: BookOpenIcon, description: 'In-depth explanations with examples', backend: 'academic' },
-    { id: 'exam', label: 'Exam Mode', icon: FlagIcon, description: 'Exam-focused with key points', backend: 'exam_prep' }
+    { id: 'exam', label: 'Exam Mode', icon: FlagIcon, description: 'Exam-focused with key points', backend: 'exam_prep' },
+    { id: 'assignment', label: 'Assignment', icon: PencilSquareIcon, description: 'Coaches you through your assignment without doing it for you', backend: 'assignment_help' }
 ];
 
 const backendMode = computed(() =>

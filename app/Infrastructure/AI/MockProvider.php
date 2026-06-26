@@ -77,10 +77,15 @@ class MockProvider implements AIProviderInterface
 
     private function genericAnswer(string $question): string
     {
-        return "I couldn't find approved course material that directly answers"
-            .($question !== '' ? " \"{$question}\"" : ' your question').'. '
-            .'Try rephrasing, or ask an administrator to upload a relevant document so I can ground my answer. '
-            .'*(Demo response from the built-in mock AI provider.)*';
+        $topic = $question !== '' ? " about \"{$question}\"" : '';
+
+        return "I don't have an approved course document that directly covers this, but I can still "
+            ."help{$topic} from general academic knowledge.\n\n"
+            .'Tell me a bit more about what you want to achieve — for example a concept to explain, a '
+            .'topic to study, or a problem to work through — and I\'ll guide you step by step. If this '
+            .'relates to one of your enrolled courses, mention it and I\'ll tailor the answer.'
+            ."\n\n*(Demo response from the built-in mock AI provider — set OPENAI_API_KEY and "
+            .'AI_DEFAULT_PROVIDER=openai for full, live answers.)*';
     }
 
     private function lastUserMessage(array $messages): string

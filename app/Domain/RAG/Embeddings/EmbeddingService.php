@@ -3,8 +3,10 @@
 namespace App\Domain\RAG\Embeddings;
 
 use App\Domain\Chat\Contracts\AIProviderInterface;
+use App\Domain\RAG\Support\CorpusVersion;
 use App\Models\Document;
 use App\Models\Embedding;
+use Illuminate\Support\Facades\Cache;
 
 /**
  * Generates and stores vector embeddings for document chunks using the active
@@ -54,17 +56,40 @@ class EmbeddingService
             }
         }
 
+        // New vectors mean cached retrievals for this corpus are stale.
+        if ($written > 0) {
+            CorpusVersion::bump();
+        }
+
         return $written;
     }
 
     /**
      * Embed a query string into a single vector.
      *
+     * The (model, text) → vector mapping is deterministic, so the result is
+     * cached: repeated/identical queries reuse the vector instead of paying for
+     * another embedding API call. This cache never goes stale (a model always
+     * embeds the same text the same way), so it is keyed only by model + text.
+     *
      * @return array<int, float>
      */
     public function embedQuery(string $query): array
     {
-        return $this->provider->embed([$query])[0] ?? [];
+        $query = trim($query);
+        if ($query === '') {
+            return [];
+        }
+
+        $compute = fn (): array => $this->provider->embed([$query])[0] ?? [];
+
+        if (! (bool) config('rag.cache.enabled', true)) {
+            return $compute();
+        }
+
+        $key = 'rag:emb:'.$this->provider->embeddingModel().':'.sha1($query);
+
+        return Cache::remember($key, (int) config('rag.cache.ttl', 3600), $compute);
     }
 
     public function model(): string
