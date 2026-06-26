@@ -259,7 +259,11 @@ class DocumentService
      */
     public function libraryFor(User $user, array $filters = [], int $perPage = 12): LengthAwarePaginator
     {
-        $query = Document::approved()->visibleTo($user)->with(['uploader', 'departments']);
+        $query = Document::approved()->visibleTo($user)
+            ->with(['uploader', 'departments'])
+            ->withExists([
+                'bookmarkedBy as is_bookmarked' => fn (Builder $bookmarks) => $bookmarks->whereKey($user->id),
+            ]);
 
         return $this->applyFilters($query, $filters)
             ->latest()

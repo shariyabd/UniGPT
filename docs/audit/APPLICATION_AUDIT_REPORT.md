@@ -49,7 +49,7 @@ Landing/Presentation overstate one model name and one chunk size.**
 | Key | Value | Implication |
 |---|---|---|
 | `AI_DEFAULT_PROVIDER` | **`mock`** | ⚠️ Out-of-the-box, **all AI runs on the deterministic MockProvider**, not GPT-4o. Admin → AI Settings can flip it at runtime. |
-| `OPENAI_API_KEY` | **present (committed)** | ⚠️ **Security:** a live key is committed to the repo — rotate and move to a secret. |
+| `OPENAI_API_KEY` | present in **local `.env` only** | ✅ Corrected: `.env` is gitignored/untracked, `.env.example` ships an empty `OPENAI_API_KEY=`, and git history contains no `sk-` key. The key was **never committed**. (Earlier draft overstated this as a committed-secret leak.) |
 | `OPENAI_MODEL` | `gpt-4o` | Chat model when provider = openai. ✅ matches deck/landing. |
 | `EMBEDDING_MODEL` | `text-embedding-3-small` | ✅ Actual embedding model. ❌ Landing/FAQ/TechStack claim `text-embedding-3-large`. |
 | `config/ai.php:39` default | `text-embedding-ada-002` | ⚠️ Config default drifts from the real model; only safe because `.env` overrides it. |
@@ -190,7 +190,7 @@ real User is `App\Domain\User\Models\User`). Would fatal if called; **zero calle
 
 | # | Severity | Finding | Location |
 |---|---|---|---|
-| 1 | **High (security)** | Live `OPENAI_API_KEY` committed to `.env` | `.env:78` — rotate + move to secret |
+| 1 | ~~High~~ → **Resolved/Non-issue** | API key is **not** committed — `.env` gitignored, `.env.example` empty, no key in git history. Verified during Batch 3. | `.env.example:82`, `.gitignore:9` |
 | 2 | **High (perception)** | AI runs on **mock** provider out-of-the-box | `.env:77` `AI_DEFAULT_PROVIDER=mock` |
 | 3 | Medium | AI Settings "Test connection" never calls OpenAI | `SettingsController.php:103-114` |
 | 4 | Medium | Student document bookmark not persisted (local state only) | `Documents.vue:228-235` |

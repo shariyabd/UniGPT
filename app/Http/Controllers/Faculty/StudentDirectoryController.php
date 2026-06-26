@@ -21,8 +21,8 @@ use Inertia\Response;
  * from the course's department (cross-major electives are legitimate). Course →
  * faculty department ownership is enforced at assignment time (SectionRequest).
  *
- * Chat itself is still a UI/UX skeleton ("Upcoming Feature"); only the directory
- * and contact data are real.
+ * Real-time faculty↔student chat is fully implemented (see the Messenger
+ * controllers); this directory supplies the contact/launch points into it.
  */
 class StudentDirectoryController extends Controller
 {

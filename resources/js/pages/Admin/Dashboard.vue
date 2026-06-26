@@ -83,8 +83,6 @@ const pendingDocuments = computed(() =>
         size: doc.fileSize,
         type: doc.type,
         status: doc.status,
-        urgent: false,
-        preview: ''
     }))
 );
 
@@ -376,7 +374,7 @@ const getActivityColor = (status) => {
                                 <div
                                     v-for="doc in pendingDocuments.filter(d => d.status === 'pending')"
                                     :key="doc.id"
-                                    :class="`p-4 rounded-control border transition-colors ${doc.urgent ? 'border-danger-fg/20 bg-danger-bg' : 'border-line bg-bg'}`"
+                                    class="p-4 rounded-control border border-line bg-bg transition-colors"
                                 >
                                     <div class="flex justify-between items-start mb-2">
                                         <div class="flex-1">
@@ -390,12 +388,7 @@ const getActivityColor = (status) => {
                                                 {{ doc.size }} • {{ doc.type }}
                                             </p>
                                         </div>
-                                        <Badge v-if="doc.urgent" variant="danger">Urgent</Badge>
                                     </div>
-
-                                    <p class="text-xs text-content-muted mb-3 line-clamp-2">
-                                        {{ doc.preview }}
-                                    </p>
 
                                     <div class="flex items-center justify-between">
                                         <span class="text-xs text-content-faint">

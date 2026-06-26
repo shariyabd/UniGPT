@@ -21,8 +21,8 @@ use Inertia\Response;
  * assignment time in SectionRequest), so a student only ever sees faculty under
  * their own programme's departments.
  *
- * Chat itself is still a UI/UX skeleton ("Upcoming Feature"); only the directory
- * and contact data are real.
+ * Real-time student↔faculty chat is fully implemented (see the Messenger
+ * controllers); this directory supplies the contact/launch points into it.
  */
 class FacultyDirectoryController extends Controller
 {

@@ -153,7 +153,7 @@ export const slides = [
         subtitle: 'From an uploaded PDF to a cited answer — the whole pipeline runs in-house.',
         steps: [
             { icon: 'DocumentTextIcon', label: 'Upload & approve', sub: 'Admin curates the knowledge base' },
-            { icon: 'PuzzlePieceIcon', label: 'Chunk', sub: '512-token semantic units' },
+            { icon: 'PuzzlePieceIcon', label: 'Chunk', sub: '~150-token overlapping passages' },
             { icon: 'CpuChipIcon', label: 'Embed', sub: 'Vectors stored in MySQL' },
             { icon: 'MagnifyingGlassIcon', label: 'Retrieve', sub: 'Cosine similarity, top-K' },
             { icon: 'CheckBadgeIcon', label: 'Cite', sub: 'Confidence + source excerpts' },
@@ -369,7 +369,7 @@ export const slides = [
         title: 'Swap the brain, keep the platform',
         subtitle: 'Provider logic lives behind an interface — demo today, production tomorrow.',
         items: [
-            { icon: 'BeakerIcon', title: 'Mock provider', desc: 'Deterministic answers — full demo with zero API keys.' },
+            { icon: 'BeakerIcon', title: 'Mock provider (default)', desc: 'Ships in deterministic demo mode — full walkthrough with zero API keys.' },
             { icon: 'SparklesIcon', title: 'OpenAI provider', desc: 'Drop in a key for production-grade generation.' },
             { icon: 'PuzzlePieceIcon', title: 'Future providers', desc: 'Gemini or local LLMs plug into the same contract.' },
         ],
@@ -566,7 +566,7 @@ export const slides = [
         layout: 'closing',
         title: 'UniGPT',
         subtitle: 'The AI academic copilot your campus can actually trust.',
-        points: ['Grounded · Governed · Proctored', 'Laravel 11 · Inertia 2 · Vue 3 · MySQL'],
-        cta: 'Thank you',
+        points: ['100% core workflows · end-to-end', '0 external AI dependencies', 'Grounded · Governed · Proctored'],
+        cta: 'Ready to pilot on your campus this term →',
     },
 ];

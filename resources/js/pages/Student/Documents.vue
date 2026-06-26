@@ -143,8 +143,16 @@ const categories = computed(() => {
     ];
 });
 
-// Local bookmark state (keyed by document id)
-const bookmarkedIds = ref(new Set());
+// Bookmark state (keyed by document id) — seeded from the server's persisted
+// `isBookmarked` flag and re-synced whenever the documents prop reloads.
+const seedBookmarks = () =>
+    new Set((props.documents?.data || []).filter((d) => d.isBookmarked).map((d) => d.id));
+
+const bookmarkedIds = ref(seedBookmarks());
+
+watch(() => props.documents, () => {
+    bookmarkedIds.value = seedBookmarks();
+});
 
 // Documents derived from server props (mapped into template field names)
 const documents = computed(() => {
@@ -226,12 +234,17 @@ const fileTypeIcon = (type) => {
 
 // Actions
 const toggleBookmark = (documentId) => {
-    if (bookmarkedIds.value.has(documentId)) {
-        bookmarkedIds.value.delete(documentId);
-    } else {
-        bookmarkedIds.value.add(documentId);
-    }
-    bookmarkedIds.value = new Set(bookmarkedIds.value);
+    // Optimistic UI; the server persists to the document_bookmarks pivot and the
+    // partial reload re-syncs `bookmarkedIds` from the authoritative prop.
+    const next = new Set(bookmarkedIds.value);
+    next.has(documentId) ? next.delete(documentId) : next.add(documentId);
+    bookmarkedIds.value = next;
+
+    router.post(route('documents.bookmark', documentId), {}, {
+        preserveScroll: true,
+        preserveState: true,
+        only: ['documents'],
+    });
 };
 
 const downloadDocument = (document) => {

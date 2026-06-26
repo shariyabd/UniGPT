@@ -17,6 +17,7 @@ use App\Models\ActivityLog;
 use App\Models\Assignment;
 use App\Models\Department;
 use App\Models\Document;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -103,6 +104,26 @@ class StudentDashboardController extends Controller
                 ->whereNotNull('file_type')
                 ->select('file_type')->distinct()->orderBy('file_type')->pluck('file_type'),
         ]);
+    }
+
+    /**
+     * Toggle the current student's bookmark on a library document.
+     *
+     * Scoped to documents the student may actually see (approved + visible),
+     * so route-model binding can't be used to bookmark arbitrary documents.
+     */
+    public function toggleBookmark(Document $document): RedirectResponse
+    {
+        $user = $this->user();
+
+        abort_unless(
+            Document::approved()->visibleTo($user)->whereKey($document->getKey())->exists(),
+            404,
+        );
+
+        $this->documents->toggleBookmark(user: $user, document: $document);
+
+        return back(303);
     }
 
     public function materials(): Response

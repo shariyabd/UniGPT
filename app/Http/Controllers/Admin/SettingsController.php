@@ -104,12 +104,31 @@ class SettingsController extends Controller
     {
         $provider = app(AIProviderInterface::class);
 
-        return response()->json([
-            'provider' => $provider->name(),
-            'available' => $provider->isAvailable(),
-            'message' => $provider->name() === 'mock'
-                ? 'Using the built-in mock provider (no API key configured).'
-                : 'Provider reachable.',
-        ]);
+        // The mock provider needs no network — report it without a round-trip.
+        if ($provider->name() === 'mock') {
+            return response()->json([
+                'provider' => 'mock',
+                'available' => true,
+                'message' => 'Using the built-in mock provider (no API key configured).',
+            ]);
+        }
+
+        // For a real provider, actually reach the API with a minimal embedding
+        // call so "reachable" reflects a verified round-trip, not just a key check.
+        try {
+            $provider->embed(['ping']);
+
+            return response()->json([
+                'provider' => $provider->name(),
+                'available' => true,
+                'message' => 'Provider reachable — test request succeeded.',
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'provider' => $provider->name(),
+                'available' => false,
+                'message' => 'Provider unreachable: '.$e->getMessage(),
+            ], 422);
+        }
     }
 }

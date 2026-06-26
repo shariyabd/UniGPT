@@ -30,7 +30,7 @@ class AdminDashboardController extends Controller
         return Inertia::render('Admin/Dashboard', [
             'systemStats' => [
                 ['label' => 'Total Users', 'value' => $stats['total_users'], 'icon' => 'UsersIcon', 'gradient' => 'from-blue-500 to-indigo-600', 'description' => "{$stats['active_users']} active"],
-                ['label' => 'Online Now', 'value' => $stats['online_users'], 'icon' => 'SignalIcon', 'gradient' => 'from-green-500 to-emerald-600', 'description' => 'Last 5 minutes'],
+                ['label' => 'Online Now', 'value' => $stats['online_users'], 'icon' => 'SignalIcon', 'gradient' => 'from-green-500 to-emerald-600', 'description' => 'Last 15 minutes'],
                 ['label' => 'Documents', 'value' => $docStats['approved'], 'icon' => 'DocumentTextIcon', 'gradient' => 'from-purple-500 to-pink-600', 'description' => "{$docStats['pending']} pending"],
                 ['label' => 'New This Week', 'value' => $stats['new_registrations_this_week'], 'icon' => 'UserPlusIcon', 'gradient' => 'from-orange-500 to-red-600', 'description' => 'Registrations'],
             ],

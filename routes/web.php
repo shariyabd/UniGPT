@@ -114,6 +114,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/documents', [StudentDashboardController::class, 'documents'])->middleware('permission:view_documents')->name('documents');
         Route::get('/documents/{document}/download', [StudentDashboardController::class, 'downloadDocument'])->middleware('permission:download_document')->name('documents.download');
         Route::get('/documents/{document}/preview', [StudentDashboardController::class, 'previewDocument'])->middleware('permission:view_documents')->name('documents.preview');
+        Route::post('/documents/{document}/bookmark', [StudentDashboardController::class, 'toggleBookmark'])->middleware('permission:view_documents')->name('documents.bookmark');
 
         // My Documents — student-submitted documents that flow into the admin
         // approval queue. Owner-scoped upload / edit / delete.
@@ -168,7 +169,7 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('/tasks/{task}', [TaskController::class, 'destroy'])->name('tasks.destroy');
 
         // My Faculty — directory of the student's instructors, plus a dedicated
-        // messenger view (UI/UX skeleton; chat is an "Upcoming Feature" placeholder).
+        // messenger view (real-time chat is live; see the Messenger controllers).
         Route::get('/my-faculty', [StudentFacultyDirectoryController::class, 'index'])->name('my-faculty');
         Route::get('/messages', [StudentFacultyDirectoryController::class, 'messages'])->name('messages');
 
@@ -183,8 +184,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/dashboard', [FacultyDashboardController::class, 'index'])->name('dashboard');
 
         // My Students — roster of students in the faculty's own courses/sections,
-        // plus a dedicated messenger view (UI/UX skeleton; chat is an
-        // "Upcoming Feature" placeholder).
+        // plus a dedicated messenger view (real-time chat is live; see the
+        // Messenger controllers).
         Route::get('/students', [FacultyStudentDirectoryController::class, 'index'])->name('students');
         Route::get('/messages', [FacultyStudentDirectoryController::class, 'messages'])->name('messages');
 
