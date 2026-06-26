@@ -24,6 +24,8 @@ import {
 const props = defineProps({
     exams: { type: Object, default: () => ({ data: [] }) },
     courses: { type: Array, default: () => [] },
+    departments: { type: Array, default: () => [] },
+    sections: { type: Array, default: () => [] },
     types: { type: Array, default: () => [] },
     filters: { type: Object, default: () => ({}) },
 });
@@ -39,6 +41,8 @@ const editingId = ref(null);
 // shared/bookmarked filtered link restores its state.
 const searchQuery = ref(props.filters.search ?? '');
 const selectedCourse = ref(props.filters.course_id ? Number(props.filters.course_id) : 'all');
+const selectedDepartment = ref(props.filters.department_id ? Number(props.filters.department_id) : 'all');
+const selectedSection = ref(props.filters.section ?? 'all');
 const selectedType = ref(props.filters.type ?? 'all');
 const dateFrom = ref(props.filters.date_from ?? '');
 const dateTo = ref(props.filters.date_to ?? '');
@@ -54,6 +58,8 @@ const applyFilters = () => {
         {
             search: searchQuery.value || undefined,
             course_id: !isAll(selectedCourse.value) ? selectedCourse.value : undefined,
+            department_id: !isAll(selectedDepartment.value) ? selectedDepartment.value : undefined,
+            section: !isAll(selectedSection.value) ? selectedSection.value : undefined,
             type: !isAll(selectedType.value) ? selectedType.value : undefined,
             date_from: dateFrom.value || undefined,
             date_to: dateTo.value || undefined,
@@ -67,11 +73,17 @@ watch(searchQuery, () => {
     clearTimeout(searchTimer);
     searchTimer = setTimeout(applyFilters, 300);
 });
-watch([selectedCourse, selectedType, dateFrom, dateTo], applyFilters);
+watch([selectedCourse, selectedDepartment, selectedSection, selectedType, dateFrom, dateTo], applyFilters);
 
 // Filter dropdown options (the empty "All …" entry is handled by placeholder + clearable).
 const courseFilterOptions = computed(() =>
     props.courses.map((course) => ({ value: course.id, label: `${course.code} — ${course.name}` })),
+);
+const departmentFilterOptions = computed(() =>
+    props.departments.map((department) => ({ value: department.id, label: department.name })),
+);
+const sectionFilterOptions = computed(() =>
+    props.sections.map((label) => ({ value: label, label: `Section ${label}` })),
 );
 const typeFilterOptions = computed(() =>
     props.types.map((t) => ({ value: t.value, label: t.label })),
@@ -81,9 +93,13 @@ const typeFilterOptions = computed(() =>
 const courseFormOptions = computed(() =>
     props.courses.map((course) => ({ value: course.id, label: `${course.code} — ${course.name}` })),
 );
-const sectionFormOptions = computed(() =>
-    availableSections.value.map((section) => ({ value: section.id, label: `Section ${section.label}` })),
-);
+// "All Sections" is an explicit first option (value '') so scheduling for every
+// section of a course is a deliberate choice rather than a hidden empty state.
+// An empty string is converted to null server-side → exam created per section.
+const sectionFormOptions = computed(() => [
+    { value: '', label: 'All Sections' },
+    ...availableSections.value.map((section) => ({ value: section.id, label: `Section ${section.label}` })),
+]);
 const typeFormOptions = computed(() =>
     props.types.map((t) => ({ value: t.value, label: t.label })),
 );
@@ -116,7 +132,8 @@ const onCourseChange = () => {
 };
 
 const hasActiveFilters = computed(() =>
-    searchQuery.value !== '' || !isAll(selectedCourse.value) || !isAll(selectedType.value)
+    searchQuery.value !== '' || !isAll(selectedCourse.value) || !isAll(selectedDepartment.value)
+    || !isAll(selectedSection.value) || !isAll(selectedType.value)
     || dateFrom.value !== '' || dateTo.value !== ''
 );
 
@@ -126,6 +143,8 @@ const totalExams = computed(() => props.exams.meta?.total ?? props.exams.total ?
 const clearFilters = () => {
     searchQuery.value = '';
     selectedCourse.value = 'all';
+    selectedDepartment.value = 'all';
+    selectedSection.value = 'all';
     selectedType.value = 'all';
     dateFrom.value = '';
     dateTo.value = '';
@@ -230,7 +249,7 @@ const remove = async (exam) => {
                                 <input
                                     v-model="searchQuery"
                                     type="text"
-                                    placeholder="Search by title, course, or location..."
+                                    placeholder="Search by title, course code, section, or location..."
                                     class="ui-input pl-10"
                                     aria-label="Search exams"
                                 />
@@ -239,9 +258,27 @@ const remove = async (exam) => {
                             <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
                                 <div class="sm:w-56">
                                     <SearchableSelect
+                                        v-model="selectedDepartment"
+                                        :options="departmentFilterOptions"
+                                        placeholder="All Departments"
+                                        clearable
+                                    />
+                                </div>
+
+                                <div class="sm:w-56">
+                                    <SearchableSelect
                                         v-model="selectedCourse"
                                         :options="courseFilterOptions"
                                         placeholder="All Courses"
+                                        clearable
+                                    />
+                                </div>
+
+                                <div class="sm:w-44">
+                                    <SearchableSelect
+                                        v-model="selectedSection"
+                                        :options="sectionFilterOptions"
+                                        placeholder="All Sections"
                                         clearable
                                     />
                                 </div>
@@ -398,12 +435,11 @@ const remove = async (exam) => {
                                     <SearchableSelect
                                         v-model="form.section_id"
                                         :options="sectionFormOptions"
-                                        placeholder="All sections"
+                                        placeholder="All Sections"
                                         :disabled="!form.course_id"
-                                        clearable
                                     />
                                     <p class="text-xs text-content-muted mt-1">
-                                        Leave as “All sections” to schedule this exam for every section of the course.
+                                        Choose “All Sections” to schedule this exam for every section of the course.
                                     </p>
                                     <p v-if="form.errors.section_id" class="text-xs text-danger-fg mt-1">{{ form.errors.section_id }}</p>
                                 </div>

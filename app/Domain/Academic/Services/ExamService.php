@@ -28,7 +28,7 @@ class ExamService
      */
     public function adminList(): Collection
     {
-        return Exam::with(['course', 'section'])
+        return Exam::with(['course.department', 'section'])
             ->orderByDesc('exam_date')
             ->get()
             ->map(fn (Exam $exam) => $this->present($exam));
@@ -178,6 +178,8 @@ class ExamService
                 'id' => $exam->course?->id,
                 'code' => $exam->course?->code,
                 'name' => $exam->course?->name,
+                'departmentId' => $exam->course?->department_id,
+                'department' => $exam->course?->department?->name,
             ],
             'sectionId' => $exam->section_id,
             'section' => $exam->section?->label,

@@ -8,6 +8,7 @@ use App\Http\Controllers\Concerns\PaginatesCollections;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ExamRequest;
 use App\Models\Course;
+use App\Models\Department;
 use App\Models\Exam;
 use App\Services\ActivityLogger;
 use Illuminate\Http\RedirectResponse;
@@ -30,17 +31,36 @@ class ExamController extends Controller
         $filters = [
             'search' => $request->string('search')->trim()->value(),
             'course_id' => $request->input('course_id'),
+            'department_id' => $request->input('department_id'),
+            'section' => $request->string('section')->trim()->value() ?: null,
             'type' => $request->input('type'),
             'date_from' => $request->date('date_from')?->toDateString(),
             'date_to' => $request->date('date_to')?->toDateString(),
         ];
 
+        $allExams = $this->exams->adminList();
+
+        // Distinct section labels available across every exam, so the section
+        // filter (and the department + section combination) offers real choices.
+        $sectionOptions = $allExams
+            ->pluck('section')
+            ->filter()
+            ->unique()
+            ->sort(SORT_NATURAL)
+            ->values();
+
         // Filter the full exam list server-side BEFORE paginating, so a chosen
-        // course/type/search/date-range matches across every page — not just the
-        // current 25.
-        $exams = $this->exams->adminList()
+        // course/department/section/type/search/date-range matches across every
+        // page — not just the current 25.
+        $exams = $allExams
             ->when($filters['course_id'], fn ($collection, $courseId) => $collection->filter(
                 fn (array $exam) => (string) ($exam['course']['id'] ?? '') === (string) $courseId
+            ))
+            ->when($filters['department_id'], fn ($collection, $departmentId) => $collection->filter(
+                fn (array $exam) => (string) ($exam['course']['departmentId'] ?? '') === (string) $departmentId
+            ))
+            ->when($filters['section'], fn ($collection, $section) => $collection->filter(
+                fn (array $exam) => ($exam['section'] ?? null) === $section
             ))
             ->when($filters['type'], fn ($collection, $type) => $collection->filter(
                 fn (array $exam) => $exam['type'] === $type
@@ -55,7 +75,11 @@ class ExamController extends Controller
                 $needle = Str::lower($search);
 
                 return $collection->filter(fn (array $exam) => Str::contains(Str::lower(
-                    $exam['title'].' '.($exam['course']['code'] ?? '').' '.($exam['course']['name'] ?? '').' '.($exam['location'] ?? '')
+                    $exam['title']
+                    .' '.($exam['course']['code'] ?? '')
+                    .' '.($exam['course']['name'] ?? '')
+                    .' '.($exam['section'] ? 'section '.$exam['section'] : '')
+                    .' '.($exam['location'] ?? '')
                 ), $needle));
             })
             ->values();
@@ -65,6 +89,8 @@ class ExamController extends Controller
             'courses' => Course::with('sections:id,course_id,label')
                 ->orderBy('code')
                 ->get(['id', 'code', 'name']),
+            'departments' => Department::orderBy('name')->get(['id', 'name']),
+            'sections' => $sectionOptions,
             'types' => ExamType::options(),
             'filters' => $filters,
         ]);
