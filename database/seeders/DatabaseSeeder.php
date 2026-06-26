@@ -42,6 +42,9 @@ class DatabaseSeeder extends Seeder
 
             // RAG knowledge base (preserved).
             KnowledgeBaseSeeder::class,
+
+            // Demo student's own document submissions (PENDING approval queue).
+            StudentDocumentSeeder::class,
         ]);
     }
 }
