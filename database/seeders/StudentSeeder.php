@@ -5,128 +5,59 @@ declare(strict_types=1);
 namespace Database\Seeders;
 
 use App\Enums\UserRole;
-use App\Models\Course;
-use App\Models\Department;
+use Database\Seeders\Concerns\PlansAcademicLoad;
 use Database\Seeders\Concerns\SeedsUsers;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Seeds the bulk student body with a realistic, unbalanced distribution across
- * departments (CSE/BBA larger, niche departments smaller) and a junior-heavy
- * spread across semesters. Students are only placed into a (department, semester)
- * bucket that actually has courses, so EnrollmentSeeder can always give them a
- * full load.
+ * Seeds the bulk student body straight from the academic load plan: every active
+ * (department, semester) bucket receives exactly the head-count needed to fill
+ * each of its courses' sections to the target size (see PlansAcademicLoad). This
+ * replaces the old flat 2000-student count, which scattered students too thinly
+ * for sections to fill. Departments stay unbalanced (CSE/BBA larger) because the
+ * plan gives popular departments more sections and CSE more courses.
  */
 class StudentSeeder extends Seeder
 {
+    use PlansAcademicLoad;
     use SeedsUsers;
-
-    /** Relative department popularity (slug => weight). Unlisted = weight 1. */
-    private const DEPARTMENT_WEIGHTS = [
-        'computer-science-engineering' => 5,
-        'business-administration' => 4,
-        'electrical-engineering' => 3,
-        'mechanical-engineering' => 3,
-        'civil-engineering' => 2,
-        'psychology' => 2,
-        'mathematics' => 2,
-    ];
 
     public function run(): void
     {
-        $count = (int) config('seeder.students', 500);
-
         if (DB::table('users')->where('email', 'student1@university.edu')->exists()) {
             $this->command->info('   Students already seeded; skipping.');
 
             return;
         }
 
-        // Which semesters each department actually offers courses in.
-        $semestersByDepartment = Course::query()
-            ->select('department_id', 'semester')
-            ->whereNotNull('department_id')
-            ->whereNotNull('semester')
-            ->distinct()
-            ->get()
-            ->groupBy('department_id')
-            ->map(fn ($rows) => $rows->pluck('semester')->unique()->sort()->values()->all());
+        $plan = $this->academicLoadPlan();
 
-        if ($semestersByDepartment->isEmpty()) {
+        if ($plan->isEmpty()) {
             $this->command->warn('   No catalog courses; run CourseSeeder first.');
 
             return;
         }
 
-        // Concentrate the body into the lowest N offered semesters per department
-        // so each active (department, semester) bucket is dense enough to fill
-        // 3–4 sections of ~40 students, rather than scattering students thinly
-        // across every semester.
-        $activeCount = max(1, (int) config('seeder.active_semesters_per_department', 2));
-        $activeSemesters = $semestersByDepartment->map(
-            fn (array $semesters) => array_slice($semesters, 0, $activeCount)
-        );
-
-        $departmentPool = $this->weightedDepartmentPool($activeSemesters->keys()->all());
-
         $rows = [];
-        for ($i = 1; $i <= $count; $i++) {
-            $departmentId = $departmentPool[array_rand($departmentPool)];
-            $semester = $this->pickSemester($activeSemesters[$departmentId]);
+        $index = 0;
 
-            $rows[] = [
-                'name' => fake()->name(),
-                'email' => "student{$i}@university.edu",
-                'department_id' => $departmentId,
-                'student_id' => '2026'.str_pad((string) $i, 6, '0', STR_PAD_LEFT),
-                'semester' => $semester,
-            ];
+        foreach ($plan as $bucket) {
+            for ($n = 0; $n < $bucket['student_count']; $n++) {
+                $index++;
+
+                $rows[] = [
+                    'name' => fake()->name(),
+                    'email' => "student{$index}@university.edu",
+                    'department_id' => $bucket['department_id'],
+                    'student_id' => '2026'.str_pad((string) $index, 6, '0', STR_PAD_LEFT),
+                    'semester' => $bucket['semester'],
+                ];
+            }
         }
 
         $seeded = $this->createUsersWithRole($rows, UserRole::STUDENT);
 
-        $this->command->info("   ✓ Students seeded ({$seeded})");
-    }
-
-    /**
-     * Build a weighted pool of department ids (departments repeated by weight),
-     * restricted to departments that have courses.
-     *
-     * @param  array<int, int>  $departmentIds
-     * @return array<int, int>
-     */
-    private function weightedDepartmentPool(array $departmentIds): array
-    {
-        $weightBySlug = self::DEPARTMENT_WEIGHTS;
-        $slugById = Department::whereIn('id', $departmentIds)->pluck('slug', 'id');
-
-        $pool = [];
-        foreach ($departmentIds as $id) {
-            $weight = $weightBySlug[$slugById[$id] ?? ''] ?? 1;
-            for ($w = 0; $w < $weight; $w++) {
-                $pool[] = $id;
-            }
-        }
-
-        return $pool;
-    }
-
-    /**
-     * Pick a semester with a junior-heavy bias (lower semesters more likely).
-     *
-     * @param  array<int, int>  $semesters
-     */
-    private function pickSemester(array $semesters): int
-    {
-        $pool = [];
-        foreach ($semesters as $semester) {
-            $weight = max(1, 9 - $semester);
-            for ($w = 0; $w < $weight; $w++) {
-                $pool[] = $semester;
-            }
-        }
-
-        return $pool[array_rand($pool)];
+        $this->command->info("   ✓ Students seeded ({$seeded} across {$plan->count()} active buckets)");
     }
 }

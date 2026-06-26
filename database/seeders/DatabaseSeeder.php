@@ -45,6 +45,12 @@ class DatabaseSeeder extends Seeder
 
             // Demo student's own document submissions (PENDING approval queue).
             StudentDocumentSeeder::class,
+
+            // Fills the current-term demo courses' Section A with a realistic
+            // cohort so demo faculty rosters look full (the bulk seeders exclude
+            // demo courses to keep the test fixtures exact). Runs last so it only
+            // adds enrollments and disturbs nothing earlier.
+            DemoCourseRosterSeeder::class,
         ]);
     }
 }

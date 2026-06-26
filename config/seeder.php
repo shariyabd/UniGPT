@@ -8,22 +8,32 @@
  */
 return [
     // Bulk account counts (in addition to the four canonical demo accounts).
-    // Students are concentrated into a few active semesters per department (see
-    // active_semesters_per_department) so the courses they take fill realistic
-    // sections instead of scattering one or two students across every course.
-    'students' => (int) env('SEED_STUDENTS', 2000),
+    // NOTE: the student body is NOT a flat count. StudentSeeder derives the
+    // head-count of every (department, semester) bucket from the academic load
+    // plan (see Concerns\PlansAcademicLoad) so each offered section fills to
+    // target_section_size. faculty/admins remain flat counts.
     'faculty' => (int) env('SEED_FACULTY', 80),
     'admins' => (int) env('SEED_ADMINS', 10),
 
     // Sectioning & enrollment.
-    'section_capacity' => (int) env('SEED_SECTION_CAPACITY', 40),
-    // Each course gets between min and max sections (clamped against real demand)
-    // so every course shows a realistic 3–4 sections.
+    // Hard ceiling stored on each section (max_enrollment); must be ≥ the target
+    // fill below so the 40–50 band keeps a little headroom.
+    'section_capacity' => (int) env('SEED_SECTION_CAPACITY', 50),
+    // The number of students each section is filled to. The plan sizes the
+    // student body and the per-course section count around this so every section
+    // lands in the realistic 40–50 band.
+    'target_section_size' => (int) env('SEED_SECTION_TARGET', 45),
+    // Sections per course for an active bucket: popular departments (weight ≥ 4)
+    // use the max, the rest use the min. Capped at the A–J label set (≤ 10).
     'sections_per_course_min' => (int) env('SEED_SECTIONS_MIN', 3),
     'sections_per_course_max' => (int) env('SEED_SECTIONS_MAX', 4),
     // Each student registers for 4–5 of their (department, semester) courses.
     'min_courses_per_student' => (int) env('SEED_MIN_COURSES', 4),
     'max_courses_per_student' => (int) env('SEED_MAX_COURSES', 5),
+    // How many cohort students fill each current-term demo course's Section A
+    // (DemoCourseRosterSeeder). Kept below the demo sections' capacity of 60 so
+    // the self-registration tests keep room to register the demo student.
+    'demo_roster_size' => (int) env('SEED_DEMO_ROSTER', 40),
     // How many semesters per department actually receive students. Fewer active
     // semesters → denser buckets → fuller sections (the "concentrate" strategy).
     'active_semesters_per_department' => (int) env('SEED_ACTIVE_SEMESTERS', 2),
