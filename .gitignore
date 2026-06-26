@@ -29,3 +29,8 @@ yarn-error.log
 
 # Local skill-installation guide (not tracked)
 /SKILLS_INSTALL.md
+# Local tooling artifacts (MCP config, Playwright session output, skills lockfile, test evidence)
+.mcp.json
+.playwright-mcp/
+skills-lock.json
+faculty-courses-evidence.png
