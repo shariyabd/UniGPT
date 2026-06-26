@@ -16,6 +16,7 @@ use App\Http\Controllers\Admin\TermController as AdminTermController;
 use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\Auth\AuthenticationController;
 use App\Http\Controllers\Auth\PasswordResetController;
+use App\Http\Controllers\DocumentSubmissionController;
 use App\Http\Controllers\Faculty\AIAssistantController as FacultyAIAssistantController;
 use App\Http\Controllers\Faculty\AnalyticsController as FacultyAnalyticsController;
 use App\Http\Controllers\Faculty\AssignmentController as FacultyAssignmentController;
@@ -113,6 +114,17 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/documents', [StudentDashboardController::class, 'documents'])->middleware('permission:view_documents')->name('documents');
         Route::get('/documents/{document}/download', [StudentDashboardController::class, 'downloadDocument'])->middleware('permission:download_document')->name('documents.download');
         Route::get('/documents/{document}/preview', [StudentDashboardController::class, 'previewDocument'])->middleware('permission:view_documents')->name('documents.preview');
+
+        // My Documents — student-submitted documents that flow into the admin
+        // approval queue. Owner-scoped upload / edit / delete.
+        Route::middleware('permission:upload_document')->group(function () {
+            Route::get('/my-documents', [DocumentSubmissionController::class, 'index'])->name('my-documents');
+            Route::post('/my-documents', [DocumentSubmissionController::class, 'store'])->name('my-documents.store');
+            Route::post('/my-documents/{document}', [DocumentSubmissionController::class, 'update'])->name('my-documents.update');
+            Route::delete('/my-documents/{document}', [DocumentSubmissionController::class, 'destroy'])->name('my-documents.destroy');
+            Route::get('/my-documents/{document}/download', [DocumentSubmissionController::class, 'download'])->name('my-documents.download');
+            Route::get('/my-documents/{document}/preview', [DocumentSubmissionController::class, 'preview'])->name('my-documents.preview');
+        });
         Route::get('/materials', [StudentDashboardController::class, 'materials'])->middleware('permission:view_courses')->name('materials');
         Route::get('/materials/{material}/download', [StudentDashboardController::class, 'downloadMaterial'])->middleware('permission:view_courses')->name('materials.download');
         Route::patch('/materials/{material}/completion', [StudentDashboardController::class, 'toggleMaterialCompletion'])->middleware('permission:view_courses')->name('materials.completion');
@@ -186,6 +198,17 @@ Route::middleware(['auth'])->group(function () {
         Route::patch('/courses/{course}/materials/{material}', [FacultyCourseMaterialController::class, 'update'])->middleware('permission:manage_materials')->name('courses.materials.update');
         Route::delete('/courses/{course}/materials/{material}', [FacultyCourseMaterialController::class, 'destroy'])->middleware('permission:manage_materials')->name('courses.materials.destroy');
         Route::get('/courses/{course}/materials/{material}/download', [FacultyCourseMaterialController::class, 'download'])->middleware('permission:view_courses')->name('courses.materials.download');
+
+        // My Documents — faculty-submitted documents that flow into the admin
+        // approval queue. Owner-scoped upload / edit / delete.
+        Route::middleware('permission:upload_document')->group(function () {
+            Route::get('/my-documents', [DocumentSubmissionController::class, 'index'])->name('my-documents');
+            Route::post('/my-documents', [DocumentSubmissionController::class, 'store'])->name('my-documents.store');
+            Route::post('/my-documents/{document}', [DocumentSubmissionController::class, 'update'])->name('my-documents.update');
+            Route::delete('/my-documents/{document}', [DocumentSubmissionController::class, 'destroy'])->name('my-documents.destroy');
+            Route::get('/my-documents/{document}/download', [DocumentSubmissionController::class, 'download'])->name('my-documents.download');
+            Route::get('/my-documents/{document}/preview', [DocumentSubmissionController::class, 'preview'])->name('my-documents.preview');
+        });
 
         // AI teaching assistant — full ChatGPT-style chat workspace + generators
         Route::get('/ai-assistant', [FacultyAIAssistantController::class, 'index'])->middleware('permission:use_ai_chat')->name('ai-assistant');

@@ -86,6 +86,9 @@ class RBACSeeder extends Seeder
         $studentPermissions = [
             PermissionEnum::VIEW_DOCUMENTS,
             PermissionEnum::DOWNLOAD_DOCUMENT,
+            // Students submit documents to the shared knowledge base; admins
+            // review them in the approval queue before they go live.
+            PermissionEnum::UPLOAD_DOCUMENT,
             PermissionEnum::VIEW_COURSES,
             PermissionEnum::ENROLL_COURSE,
             PermissionEnum::VIEW_ASSIGNMENTS,

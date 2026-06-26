@@ -14,6 +14,7 @@ import {
     MapIcon,
     AcademicCapIcon,
     DocumentTextIcon,
+    DocumentArrowUpIcon,
     BookOpenIcon,
     ClipboardDocumentCheckIcon,
     ClipboardDocumentListIcon,
@@ -89,6 +90,7 @@ const navByRole = {
         ] },
         { section: 'Documents', items: [
             { label: 'Documents', route: 'documents', icon: DocumentTextIcon, permission: 'view_documents' },
+            { label: 'My Documents', route: 'my-documents', icon: DocumentArrowUpIcon, permission: 'upload_document' },
         ] },
     ],
     faculty: [
@@ -104,6 +106,9 @@ const navByRole = {
         { section: 'Connect', items: [
             { label: 'My Students', route: 'faculty.students', icon: UsersIcon },
             { label: 'Messages', route: 'faculty.messages', icon: ChatBubbleLeftEllipsisIcon },
+        ] },
+        { section: 'Documents', items: [
+            { label: 'My Documents', route: 'faculty.my-documents', icon: DocumentArrowUpIcon, permission: 'upload_document' },
         ] },
         { section: 'Insights', items: [
             { label: 'Analytics', route: 'faculty.analytics', icon: ChartBarIcon, permission: 'view_department_analytics' },

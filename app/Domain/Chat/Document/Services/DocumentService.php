@@ -65,6 +65,62 @@ class DocumentService
         return $document;
     }
 
+    /**
+     * Every document a given user has submitted, newest first, with the review
+     * trail so they can see decisions and reviewer comments on their own uploads.
+     *
+     * @return Collection<int, Document>
+     */
+    public function submissionsFor(User $user): Collection
+    {
+        return Document::with(['departments', 'approvals.reviewer'])
+            ->where('uploaded_by', $user->id)
+            ->latest()
+            ->get();
+    }
+
+    /**
+     * Edit a submission's metadata (and optionally its file). Any edit returns
+     * the document to the pending queue for fresh review and clears the previous
+     * decision, dropping stale indexed chunks.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public function updateSubmission(Document $document, array $data, User $editor, ?UploadedFile $file = null): Document
+    {
+        $payload = [
+            'title' => $data['title'],
+            'description' => $data['description'] ?? null,
+            'category' => $data['category'] ?? $document->category,
+            'tags' => $data['tags'] ?? [],
+            'status' => DocumentStatus::PENDING,
+            'rejection_reason' => null,
+            'approved_by' => null,
+            'approved_at' => null,
+        ];
+
+        if ($file) {
+            $this->storage->delete($document->file_path);
+            $stored = $this->storage->store($file);
+            $payload['file_path'] = $stored['path'];
+            $payload['file_type'] = $stored['file_type'];
+            $payload['file_size'] = $stored['file_size'];
+            $payload['original_filename'] = $stored['original_filename'];
+            $payload['file_hash'] = hash_file('sha256', $file->getRealPath());
+        }
+
+        $document->update($payload);
+        $document->chunks()->delete();
+
+        if (array_key_exists('department_ids', $data)) {
+            $document->departments()->sync($data['department_ids'] ?? []);
+        }
+
+        $this->activity->log('document.updated', "Updated \"{$document->title}\"", $document, [], $editor);
+
+        return $document->fresh(['departments', 'approvals.reviewer']);
+    }
+
     public function approve(Document $document, User $reviewer, ?string $comment = null): Document
     {
         $document->update([
