@@ -43,7 +43,7 @@ class UserManagementController extends Controller
             'users' => $paginated,
             'roles' => Role::orderBy('level', 'desc')->get(['id', 'name', 'slug']),
             'departments' => Department::orderBy('name')->get(['id', 'name']),
-            'stats' => $this->users->getUserStatistics(),
+            'stats' => $this->users->getUserStatistics($filters),
             'filters' => $filters,
         ]);
     }

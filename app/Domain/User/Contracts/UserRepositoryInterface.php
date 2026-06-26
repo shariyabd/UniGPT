@@ -30,6 +30,14 @@ interface UserRepositoryInterface
     public function countOnlineUsers(): int;
 
     /**
+     * Aggregate user counts, optionally constrained to the list filters.
+     *
+     * @param  array<string, string|null>  $filters  role, status, search
+     * @return array<string, int>
+     */
+    public function statistics(array $filters = []): array;
+
+    /**
      * @param  array<string, string|null>  $filters  role, status, search
      */
     public function getPaginatedWithRoles(int $perPage, array $filters = []): LengthAwarePaginator;

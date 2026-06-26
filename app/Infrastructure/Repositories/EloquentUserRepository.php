@@ -5,6 +5,7 @@ namespace App\Infrastructure\Repositories;
 use App\Domain\User\Contracts\UserRepositoryInterface;
 use App\Domain\User\Models\User;
 use App\Enums\UserRole;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 
@@ -64,8 +65,41 @@ class EloquentUserRepository implements UserRepositoryInterface
 
     public function getPaginatedWithRoles(int $perPage, array $filters = []): LengthAwarePaginator
     {
-        $query = User::with('roles');
+        return $this->applyFilters(User::with('roles'), $filters)
+            ->latest()
+            ->paginate($perPage);
+    }
 
+    /**
+     * Aggregate user counts, optionally constrained to the same filters the
+     * list view is using so the dashboard cards track the active query rather
+     * than reporting the unfiltered grand total.
+     *
+     * @param  array<string, string|null>  $filters  role, status, search
+     * @return array<string, int>
+     */
+    public function statistics(array $filters = []): array
+    {
+        return [
+            'total_users' => $this->applyFilters(User::query(), $filters)->count(),
+            'active_users' => $this->applyFilters(User::query(), $filters)->where('is_active', true)->count(),
+            'total_students' => $this->applyFilters(User::query(), $filters)->withRole(UserRole::STUDENT)->count(),
+            'total_faculty' => $this->applyFilters(User::query(), $filters)->withRole(UserRole::FACULTY)->count(),
+            'total_admins' => $this->applyFilters(User::query(), $filters)->withRole(UserRole::ADMIN)->count(),
+            'new_registrations_this_week' => $this->applyFilters(User::query(), $filters)
+                ->where('created_at', '>=', now()->subDays(7))->count(),
+            'online_users' => $this->applyFilters(User::query(), $filters)
+                ->where('last_login_at', '>=', now()->subMinutes(15))->count(),
+        ];
+    }
+
+    /**
+     * Apply the shared list filters (role, status, search) to a user query.
+     *
+     * @param  array<string, string|null>  $filters
+     */
+    private function applyFilters(Builder $query, array $filters): Builder
+    {
         if (! empty($filters['role'])) {
             $query->withRole($filters['role']);
         }
@@ -78,14 +112,14 @@ class EloquentUserRepository implements UserRepositoryInterface
 
         if (! empty($filters['search'])) {
             $search = $filters['search'];
-            $query->where(function ($q) use ($search) {
+            $query->where(function (Builder $q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
                     ->orWhere('email', 'like', "%{$search}%")
                     ->orWhereHas('department', fn ($d) => $d->where('name', 'like', "%{$search}%"));
             });
         }
 
-        return $query->latest()->paginate($perPage);
+        return $query;
     }
 
     public function findByDepartment(string $department): Collection

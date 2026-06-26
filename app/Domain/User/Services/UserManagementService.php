@@ -15,19 +15,16 @@ class UserManagementService
     ) {}
 
     /**
-     * Get user statistics for admin dashboard
+     * Get user statistics. Pass the active list filters (role, status, search)
+     * to scope the counts to the current query; omit them for grand totals
+     * (e.g. the admin dashboard).
+     *
+     * @param  array<string, string|null>  $filters
+     * @return array<string, int>
      */
-    public function getUserStatistics(): array
+    public function getUserStatistics(array $filters = []): array
     {
-        return [
-            'total_users' => $this->userRepository->count(),
-            'active_users' => $this->userRepository->countActive(),
-            'total_students' => $this->userRepository->countByRole(UserRole::STUDENT),
-            'total_faculty' => $this->userRepository->countByRole(UserRole::FACULTY),
-            'total_admins' => $this->userRepository->countByRole(UserRole::ADMIN),
-            'new_registrations_this_week' => $this->userRepository->countNewRegistrations(7),
-            'online_users' => $this->userRepository->countOnlineUsers(),
-        ];
+        return $this->userRepository->statistics($filters);
     }
 
     /**
