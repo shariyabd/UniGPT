@@ -479,7 +479,8 @@ const clearAllFilters = () => {
                         :key="document.id"
                         hover
                         padding="p-0"
-                        class="flex flex-col overflow-hidden"
+                        content-class="flex flex-1 flex-col"
+                        class="flex h-full flex-col overflow-hidden"
                     >
                         <!-- Document Header -->
                         <div class="flex-1 p-5">

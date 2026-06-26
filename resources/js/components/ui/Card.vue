@@ -5,6 +5,10 @@ defineProps({
     icon: { type: [Object, Function], default: null },
     padding: { type: String, default: 'p-5 sm:p-6' },
     hover: { type: Boolean, default: false },
+    // Extra classes for the content wrapper. Lets a card stretch its body to
+    // full height (e.g. `flex flex-1 flex-col`) so footers pin to the bottom in
+    // equal-height grids.
+    contentClass: { type: String, default: '' },
 });
 </script>
 
@@ -27,7 +31,7 @@ defineProps({
                 <slot name="actions" />
             </div>
         </header>
-        <div :class="padding">
+        <div :class="[padding, contentClass]">
             <slot />
         </div>
     </section>
