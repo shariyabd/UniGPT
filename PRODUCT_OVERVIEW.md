@@ -46,8 +46,8 @@ operational insight. **One login, three tailored experiences.**
 - Q: *"What's the late submission policy for CS401?"*
 - A: *"Submissions are accepted up to **72 hours late** with a 10% penalty per day. Beyond
   that, a grade of zero applies unless an extension was approved."*
-- Tagged with **96% confidence**, cited from **CS401 Syllabus · p.4**, answered in **~1.2s**.
-- Floating proof points: 🔒 *Cited from your docs* · ⚡ *Answer in ~1.2s*
+- Tagged with **96% confidence**, cited from **CS401 Syllabus · p.4**.
+- Floating proof points: 🔒 *Cited from your docs* · ⚡ *Grounded, cited answers*
 
 ---
 
@@ -168,7 +168,7 @@ academic health.
 | 4 | **Answer** | The model reasons over retrieved context and cites every claim. |
 
 **Engine highlights**
-- **Pluggable providers** — OpenAI gpt-4o + text-embedding-3-large in production, with a
+- **Pluggable providers** — OpenAI gpt-4o + text-embedding-3-small in production, with a
   built-in mock provider for offline development.
 - **Scoped to what you can see** — Retrieval only ever touches approved documents the
   current user is permitted to read — answers never leak.
@@ -259,7 +259,7 @@ How modules, services and roles connect — the platform is one loop, not isolat
 | Metric | Meaning |
 |---|---|
 | **12h** | Saved per week, per faculty member |
-| **1.2s** | Average grounded answer time |
+| **42+** | Fine-grained access permissions |
 | **3** | Tailored role experiences |
 | **100%** | Answers traced to a source |
 
@@ -349,7 +349,7 @@ is logged, and document retrieval is scoped so answers never surface content a u
 allowed to see.
 
 **Can we use our own AI provider?**
-Yes. UniGPT ships with an OpenAI integration (gpt-4o and text-embedding-3-large) and a
+Yes. UniGPT ships with an OpenAI integration (gpt-4o and text-embedding-3-small) and a
 pluggable provider layer, plus a built-in mock provider for offline development and testing.
 
 ---
