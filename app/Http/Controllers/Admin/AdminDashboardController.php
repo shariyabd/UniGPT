@@ -36,7 +36,7 @@ class AdminDashboardController extends Controller
             ],
             'statistics' => $stats,
             'pendingDocuments' => DocumentResource::collection(
-                Document::pending()->with(['uploader', 'department'])->latest()->limit(5)->get()
+                Document::pending()->with(['uploader', 'departments'])->latest()->limit(5)->get()
             ),
             'recentActivities' => $this->recentActivities(),
             'systemHealth' => $this->systemHealth($docStats),
