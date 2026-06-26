@@ -64,8 +64,14 @@ class EnrollmentSeeder extends Seeder
             ->get(['id', 'department_id', 'semester'])
             ->groupBy(fn (Course $c) => $c->department_id.'-'.$c->semester);
 
+        $minCourses = max(1, (int) config('seeder.min_courses_per_student', 4));
+        $maxCourses = max($minCourses, (int) config('seeder.max_courses_per_student', 5));
+
         $rows = [];
         $enrolled = 0;
+        // Running enrollment count per section, so we never exceed a section's
+        // capacity and sections fill (A, then B, …) toward their target size.
+        $sectionFill = [];
 
         foreach ($students as $bucket => $bucketStudents) {
             $courses = $coursesByBucket->get($bucket);
@@ -73,39 +79,43 @@ class EnrollmentSeeder extends Seeder
                 continue;
             }
 
-            $studentIds = $bucketStudents->pluck('id')->all();
+            foreach ($bucketStudents as $student) {
+                // Each student registers for 4–5 of their bucket's courses (or all
+                // of them, when the bucket offers fewer).
+                $take = min($courses->count(), random_int($minCourses, $maxCourses));
+                $chosen = $courses->shuffle()->take($take);
 
-            foreach ($courses as $course) {
-                $sections = $sectionsByCourse->get($course->id);
-                if (! $sections) {
-                    continue;
-                }
-
-                $offset = 0;
-                foreach ($sections as $section) {
-                    $slice = array_slice($studentIds, $offset, $section->max_enrollment);
-                    $offset += $section->max_enrollment;
-
-                    foreach ($slice as $studentId) {
-                        $rows[] = [
-                            'course_id' => $course->id,
-                            'section_id' => $section->id,
-                            'user_id' => $studentId,
-                            'term_id' => $term->id,
-                            'role' => 'student',
-                            'status' => 'enrolled',
-                            'grade' => null,
-                            'progress' => random_int(20, 95),
-                            'enrolled_at' => $now,
-                            'created_at' => $now,
-                            'updated_at' => $now,
-                        ];
-                        $enrolled++;
+                foreach ($chosen as $course) {
+                    $sections = $sectionsByCourse->get($course->id);
+                    if (! $sections) {
+                        continue;
                     }
 
-                    if ($offset >= count($studentIds)) {
-                        break;
+                    // First section of this course with remaining capacity.
+                    $target = $sections->first(
+                        fn (Section $section) => ($sectionFill[$section->id] ?? 0) < $section->max_enrollment
+                    );
+
+                    if (! $target) {
+                        continue; // every section full — the student takes fewer courses
                     }
+
+                    $sectionFill[$target->id] = ($sectionFill[$target->id] ?? 0) + 1;
+
+                    $rows[] = [
+                        'course_id' => $course->id,
+                        'section_id' => $target->id,
+                        'user_id' => $student->id,
+                        'term_id' => $term->id,
+                        'role' => 'student',
+                        'status' => 'enrolled',
+                        'grade' => null,
+                        'progress' => random_int(20, 95),
+                        'enrolled_at' => $now,
+                        'created_at' => $now,
+                        'updated_at' => $now,
+                    ];
+                    $enrolled++;
                 }
             }
         }

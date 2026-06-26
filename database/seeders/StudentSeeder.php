@@ -59,12 +59,21 @@ class StudentSeeder extends Seeder
             return;
         }
 
-        $departmentPool = $this->weightedDepartmentPool($semestersByDepartment->keys()->all());
+        // Concentrate the body into the lowest N offered semesters per department
+        // so each active (department, semester) bucket is dense enough to fill
+        // 3–4 sections of ~40 students, rather than scattering students thinly
+        // across every semester.
+        $activeCount = max(1, (int) config('seeder.active_semesters_per_department', 2));
+        $activeSemesters = $semestersByDepartment->map(
+            fn (array $semesters) => array_slice($semesters, 0, $activeCount)
+        );
+
+        $departmentPool = $this->weightedDepartmentPool($activeSemesters->keys()->all());
 
         $rows = [];
         for ($i = 1; $i <= $count; $i++) {
             $departmentId = $departmentPool[array_rand($departmentPool)];
-            $semester = $this->pickSemester($semestersByDepartment[$departmentId]);
+            $semester = $this->pickSemester($activeSemesters[$departmentId]);
 
             $rows[] = [
                 'name' => fake()->name(),

@@ -62,7 +62,81 @@ class CourseSeeder extends Seeder
             }
         }
 
+        $created += $this->padBucketsToFullLoad();
+
         $this->command->info("   ✓ Course catalog seeded ({$created} new courses)");
+    }
+
+    /**
+     * Real curricula carry more than three courses a semester. The curated lists
+     * above give every department its core courses, but several offer only three
+     * per semester — too few for a student to take the realistic 4–5 subjects.
+     * Pad every (department, semester) bucket up to a full load with generic
+     * electives / general-education courses so enrollment can hit that target.
+     * Idempotent via the generated course code.
+     */
+    private function padBucketsToFullLoad(): int
+    {
+        $target = max(2, (int) config('seeder.min_courses_per_student', 4) + 1);
+
+        $fillerTitles = [
+            'General Education',
+            'Technical Elective I',
+            'Technical Elective II',
+            'Communication Skills',
+            'Professional Ethics',
+        ];
+
+        $created = 0;
+
+        foreach (Department::all() as $department) {
+            $bySemester = Course::query()
+                ->where('department_id', $department->id)
+                ->whereNotNull('semester')
+                ->get(['id', 'code', 'semester'])
+                ->groupBy('semester');
+
+            foreach ($bySemester as $semester => $courses) {
+                $need = $target - $courses->count();
+                if ($need <= 0) {
+                    continue;
+                }
+
+                // Reuse the bucket's existing course-code prefix (e.g. "EEE") so
+                // the filler codes read naturally alongside the curated catalog.
+                $prefix = preg_match('/^[A-Za-z]+/', (string) $courses->first()->code, $m) ? $m[0] : 'GEN';
+
+                for ($n = 0; $n < $need; $n++) {
+                    $code = sprintf('%s %d9%d', $prefix, (int) $semester, $n);
+                    $name = $fillerTitles[$n % count($fillerTitles)];
+
+                    $course = Course::firstOrCreate(
+                        ['code' => $code],
+                        [
+                            'name' => $name,
+                            'description' => "{$name} — a general course of the {$department->name} programme (semester {$semester}).",
+                            'department_id' => $department->id,
+                            'faculty_id' => null,
+                            'semester' => (int) $semester,
+                            'credits' => 3,
+                            'schedule' => [
+                                'lectures' => $this->lectureSlot($n),
+                                'classroom' => 'Room '.(200 + ((int) $semester * 10) + $n),
+                                'office_hours' => 'By appointment',
+                            ],
+                            'max_enrollment' => 60,
+                            'is_active' => true,
+                        ],
+                    );
+
+                    if ($course->wasRecentlyCreated) {
+                        $created++;
+                    }
+                }
+            }
+        }
+
+        return $created;
     }
 
     private function lectureSlot(int $i): string

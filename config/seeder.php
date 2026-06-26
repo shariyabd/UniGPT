@@ -8,13 +8,25 @@
  */
 return [
     // Bulk account counts (in addition to the four canonical demo accounts).
-    'students' => (int) env('SEED_STUDENTS', 500),
+    // Students are concentrated into a few active semesters per department (see
+    // active_semesters_per_department) so the courses they take fill realistic
+    // sections instead of scattering one or two students across every course.
+    'students' => (int) env('SEED_STUDENTS', 2000),
     'faculty' => (int) env('SEED_FACULTY', 80),
     'admins' => (int) env('SEED_ADMINS', 10),
 
     // Sectioning & enrollment.
-    'section_capacity' => (int) env('SEED_SECTION_CAPACITY', 45),
-    'max_courses_per_student' => (int) env('SEED_MAX_COURSES', 6),
+    'section_capacity' => (int) env('SEED_SECTION_CAPACITY', 40),
+    // Each course gets between min and max sections (clamped against real demand)
+    // so every course shows a realistic 3–4 sections.
+    'sections_per_course_min' => (int) env('SEED_SECTIONS_MIN', 3),
+    'sections_per_course_max' => (int) env('SEED_SECTIONS_MAX', 4),
+    // Each student registers for 4–5 of their (department, semester) courses.
+    'min_courses_per_student' => (int) env('SEED_MIN_COURSES', 4),
+    'max_courses_per_student' => (int) env('SEED_MAX_COURSES', 5),
+    // How many semesters per department actually receive students. Fewer active
+    // semesters → denser buckets → fuller sections (the "concentrate" strategy).
+    'active_semesters_per_department' => (int) env('SEED_ACTIVE_SEMESTERS', 2),
 
     // Per-section academic content.
     'materials_per_section' => (int) env('SEED_MATERIALS', 3),

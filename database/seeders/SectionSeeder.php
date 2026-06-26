@@ -32,7 +32,9 @@ class SectionSeeder extends Seeder
             return;
         }
 
-        $capacity = (int) config('seeder.section_capacity', 45);
+        $capacity = (int) config('seeder.section_capacity', 40);
+        $minSections = max(1, (int) config('seeder.sections_per_course_min', 3));
+        $maxSections = max($minSections, (int) config('seeder.sections_per_course_max', 4));
 
         // Student demand per (department_id, semester) bucket.
         $demand = User::withRole(UserRole::STUDENT)
@@ -53,11 +55,13 @@ class SectionSeeder extends Seeder
         $created = 0;
 
         Course::doesntHave('sections')->with([])->chunkById(100, function ($courses) use (
-            $term, $capacity, $demand, $facultyByDepartment, &$facultyCursor, &$created
+            $term, $capacity, $minSections, $maxSections, $demand, $facultyByDepartment, &$facultyCursor, &$created
         ) {
             foreach ($courses as $course) {
                 $bucketDemand = (int) ($demand[$course->department_id.'-'.$course->semester] ?? 0);
-                $sectionsNeeded = max(1, (int) ceil($bucketDemand / max(1, $capacity)));
+                // Size to demand, but always within the configured 3–4 band so
+                // every course shows a realistic number of sections.
+                $sectionsNeeded = min($maxSections, max($minSections, (int) ceil($bucketDemand / max(1, $capacity))));
 
                 // Only faculty from the course's OWN department may teach it.
                 $deptFaculty = $facultyByDepartment->get($course->department_id)?->pluck('id')->all() ?: [];
