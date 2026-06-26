@@ -17,7 +17,7 @@ const pipeline = [
 ];
 
 const highlights = [
-    { icon: BoltIcon, title: 'Pluggable providers', body: 'OpenAI gpt-4o + text-embedding-3-large in production, with a built-in mock provider for offline development.' },
+    { icon: BoltIcon, title: 'Pluggable providers', body: 'OpenAI gpt-4o + text-embedding-3-small in production, with a built-in mock provider for offline development.' },
     { icon: LockClosedIcon, title: 'Scoped to what you can see', body: 'Retrieval only ever touches approved documents the current user is permitted to read — answers never leak.' },
 ];
 </script>

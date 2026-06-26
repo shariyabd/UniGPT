@@ -3,7 +3,7 @@ import { onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 
 const stats = [
     { key: 'hours', target: 12, suffix: 'h', label: 'Saved per week, per faculty member', decimals: 0 },
-    { key: 'time', target: 1.2, suffix: 's', label: 'Average grounded answer time', decimals: 1 },
+    { key: 'perms', target: 40, suffix: '+', label: 'Fine-grained access permissions', decimals: 0 },
     { key: 'roles', target: 3, suffix: '', label: 'Tailored role experiences', decimals: 0 },
     { key: 'cited', target: 100, suffix: '%', label: 'Answers traced to a source', decimals: 0 },
 ];

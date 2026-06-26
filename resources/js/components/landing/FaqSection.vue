@@ -9,7 +9,7 @@ const faqs = [
     { q: 'Is the AI mandatory to use?', a: 'No. The AI assistant is one part of the platform. Attendance, grading, transcripts, course management, analytics and admin tooling all work independently — the AI simply makes them faster.' },
     { q: 'Who can use the platform?', a: 'Three roles, each with a tailored experience: students get a learning copilot and planner, faculty get teaching and grading tools, and admins govern users, knowledge and the AI itself.' },
     { q: 'Is our data secure?', a: 'Access is governed by granular role-based permissions with time-limited grants, every action is logged, and document retrieval is scoped so answers never surface content a user isn\'t allowed to see.' },
-    { q: 'Can we use our own AI provider?', a: 'Yes. UniGPT ships with an OpenAI integration (gpt-4o and text-embedding-3-large) and a pluggable provider layer, plus a built-in mock provider for offline development and testing.' },
+    { q: 'Can we use our own AI provider?', a: 'Yes. UniGPT ships with an OpenAI integration (gpt-4o and text-embedding-3-small) and a pluggable provider layer, plus a built-in mock provider for offline development and testing.' },
 ];
 
 const open = ref(0);
