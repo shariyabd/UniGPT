@@ -7,14 +7,14 @@ import { useTheme } from '@/composables/useTheme';
 import { Cog6ToothIcon, SunIcon, MoonIcon, ComputerDesktopIcon, BellIcon, LanguageIcon, SwatchIcon } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
-    preferences: { type: Object, default: () => ({ theme: 'system', notifications: true, language: 'en' }) },
+    preferences: { type: Object, default: () => ({ theme: 'light', notifications: true, language: 'en' }) },
     supportedLanguages: { type: Array, default: () => [{ code: 'en', name: 'English' }] },
 });
 
 const { setTheme } = useTheme();
 
 const form = useForm({
-    theme: props.preferences.theme ?? 'system',
+    theme: props.preferences.theme ?? 'light',
     notifications: props.preferences.notifications ?? true,
     language: props.preferences.language ?? (props.supportedLanguages[0]?.code ?? 'en'),
 });

@@ -9,13 +9,13 @@
 
     <title inertia>{{ config('app.name', 'UniGPT') }}</title>
 
-    {{-- Apply theme before paint to avoid a light flash on dark-mode loads. --}}
+    {{-- Apply theme before paint to avoid a flash. The app defaults to LIGHT for
+         every portal; dark mode is opt-in and only applies when the user has
+         explicitly chosen it (we intentionally ignore the OS color-scheme). --}}
     <script>
         (function () {
             try {
-                var stored = localStorage.getItem('theme');
-                var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-                if (stored === 'dark' || (!stored && prefersDark)) {
+                if (localStorage.getItem('theme') === 'dark') {
                     document.documentElement.classList.add('dark');
                 }
             } catch (e) {}

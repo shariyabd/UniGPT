@@ -533,6 +533,6 @@ class StudentDashboardController extends Controller
      */
     private function defaultPreferences(): array
     {
-        return ['theme' => 'system', 'notifications' => true, 'language' => 'en'];
+        return ['theme' => 'light', 'notifications' => true, 'language' => 'en'];
     }
 }

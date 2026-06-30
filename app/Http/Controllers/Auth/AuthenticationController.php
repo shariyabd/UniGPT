@@ -51,11 +51,20 @@ class AuthenticationController extends Controller
 
         $user = User::where('email', $credentials['email'])->first();
 
-        if (! $user || ! $user->is_active) {
+        if (! $user) {
+            RateLimiter::hit($this->throttleKey($request));
+
+            // Keep a generic message for a missing account to avoid user enumeration.
+            throw ValidationException::withMessages([
+                'email' => __('auth.failed'),
+            ]);
+        }
+
+        if (! $user->is_active) {
             RateLimiter::hit($this->throttleKey($request));
 
             throw ValidationException::withMessages([
-                'email' => __('auth.failed'),
+                'email' => 'Your account is pending admin approval. You will be able to sign in once an admin activates it.',
             ]);
         }
 
@@ -106,7 +115,8 @@ class AuthenticationController extends Controller
                 },
             ],
             'password' => ['required', 'confirmed', Password::defaults()],
-            'role' => ['required', 'string', 'in:student,faculty,admin'],
+            // Admin accounts are login-only — there is no self-service admin sign up.
+            'role' => ['required', 'string', 'in:student,faculty'],
             'department_id' => ['required', 'max:50'],
             'semester' => ['nullable', 'string', 'max:50'],
             'student_id' => [
@@ -121,14 +131,13 @@ class AuthenticationController extends Controller
                 'string',
                 'max:50',
                 'unique:users',
-                'required_if:role,faculty,admin',
+                'required_if:role,faculty',
             ],
             'terms' => ['required', 'accepted'],
         ]);
         $roleEnum = match ($validated['role']) {
             'student' => UserRole::STUDENT,
             'faculty' => UserRole::FACULTY,
-            'admin' => UserRole::ADMIN,
         };
         $userData = [
             'name' => $validated['name'],
@@ -139,15 +148,18 @@ class AuthenticationController extends Controller
             'student_id' => $validated['student_id'] ?? null,
             'employee_id' => $validated['employee_id'] ?? null,
             'email_verified_at' => now(),
-            'is_active' => true,
+            // New self-service accounts start inactive and require admin approval
+            // before they can sign in (see store()'s inactive-account check).
+            'is_active' => false,
         ];
 
-        $user = $this->userService->createUser($userData, $roleEnum);
-        Auth::login($user);
+        $this->userService->createUser($userData, $roleEnum);
 
-        $user->updateLastLogin();
-
-        return $this->redirectBasedOnRole($validated['role']);
+        // Do not log the user in — they must wait for an admin to activate the account.
+        return redirect()->route('login')->with(
+            'success',
+            'Registration submitted. Your account is pending admin approval — you will be able to sign in once an admin activates it.'
+        );
     }
 
     public function demoLogin(Request $request): RedirectResponse

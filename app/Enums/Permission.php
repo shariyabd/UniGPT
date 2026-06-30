@@ -63,6 +63,7 @@ enum Permission: string
     case MANAGE_SYSTEM = 'manage_system';
     case VIEW_SYSTEM_LOGS = 'view_system_logs';
     case CONFIGURE_SETTINGS = 'configure_settings';
+    case CONFIGURE_EMAIL = 'configure_email';
     case MANAGE_PERMISSIONS = 'manage_permissions';
     case SEND_NOTIFICATIONS = 'send_notifications';
 
@@ -105,7 +106,7 @@ enum Permission: string
             self::VIEW_ALL_ANALYTICS => 'Analytics',
 
             self::MANAGE_SYSTEM, self::VIEW_SYSTEM_LOGS, self::CONFIGURE_SETTINGS,
-            self::MANAGE_PERMISSIONS, self::SEND_NOTIFICATIONS => 'System',
+            self::CONFIGURE_EMAIL, self::MANAGE_PERMISSIONS, self::SEND_NOTIFICATIONS => 'System',
         };
     }
 

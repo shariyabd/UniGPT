@@ -65,6 +65,7 @@ const signupForm = useForm({
     password_confirmation: '',
     role: '',
     department_id: '',
+    semester: '',
     student_id: '',
     employee_id: '',
     terms: false
@@ -194,7 +195,7 @@ const handleSubmit = () => {
     if (isLoading.value) return;
 
     const form = isLogin.value ? loginForm : signupForm;
-    const routeName = isLogin.value ? 'login.store' : 'register';
+    const routeName = isLogin.value ? 'login.store' : 'signup';
 
     // The form uses `novalidate`, so the browser never shows native popups on blur
     // or Enter. We validate only here, on the user's explicit Sign in / Create
@@ -554,6 +555,21 @@ const brandFeatures = [
                                     class="ui-input"
                                     placeholder="Enter your employee ID"
                                 />
+                            </div>
+
+                            <!-- Semester (Students only) — used to match courses -->
+                            <div v-if="!isLogin && selectedRole === 'student'">
+                                <label class="ui-label">Current semester</label>
+                                <select
+                                    v-model="signupForm.semester"
+                                    required
+                                    class="ui-input"
+                                >
+                                    <option value="">Select your semester</option>
+                                    <option v-for="n in 8" :key="n" :value="String(n)">
+                                        Semester {{ n }}
+                                    </option>
+                                </select>
                             </div>
 
                             <!-- Password -->

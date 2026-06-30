@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\AnnouncementController;
 use App\Http\Controllers\Admin\CourseController as AdminCourseController;
 use App\Http\Controllers\Admin\DepartmentController as AdminDepartmentController;
 use App\Http\Controllers\Admin\DocumentController as AdminDocumentController;
+use App\Http\Controllers\Admin\EmailSettingsController;
 use App\Http\Controllers\Admin\ExamController as AdminExamController;
 use App\Http\Controllers\Admin\MonitorController;
 use App\Http\Controllers\Admin\RoleController;
@@ -54,7 +55,10 @@ Route::get('/presentation', fn () => Inertia::render('Presentation'))->name('pre
 Route::middleware('guest')->group(function () {});
 Route::get('/login', [AuthenticationController::class, 'create'])->name('login');
 Route::post('/login', [AuthenticationController::class, 'store'])->name('login.store');
-Route::post('/register', [AuthenticationController::class, 'register'])->name('register');
+// Self-service account creation. Named `signup` (not `register`) to avoid
+// colliding with the student course-registration routes below, which own the
+// `/register` URI and the `register` name.
+Route::post('/signup', [AuthenticationController::class, 'register'])->name('signup');
 Route::post('/demo-login', [AuthenticationController::class, 'demoLogin'])->name('demo.login');
 
 // Password Reset Routes
@@ -343,6 +347,11 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/settings', [SettingsController::class, 'index'])->middleware('permission:configure_ai')->name('settings');
         Route::patch('/settings', [SettingsController::class, 'update'])->middleware('permission:configure_ai')->name('settings.update');
         Route::post('/settings/test', [SettingsController::class, 'test'])->middleware('permission:configure_ai')->name('settings.test');
+
+        // Email (SMTP) configuration
+        Route::get('/email-settings', [EmailSettingsController::class, 'index'])->middleware('permission:configure_email')->name('email-settings');
+        Route::patch('/email-settings', [EmailSettingsController::class, 'update'])->middleware('permission:configure_email')->name('email-settings.update');
+        Route::post('/email-settings/test', [EmailSettingsController::class, 'test'])->middleware('permission:configure_email')->name('email-settings.test');
     });
 });
 
