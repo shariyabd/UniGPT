@@ -34,7 +34,10 @@ export function useConversation({ pollMs = 4000 } = {}) {
 
     /** Append a message unless we already have it (id de-dupe). */
     function receive(message) {
-        if (!message || message.conversation_id !== conversationId.value) {
+        // Coerce ids: some hosts serialise the conversation_id foreign key as a
+        // string, which would fail a strict !== against the numeric open-id and
+        // silently drop every realtime/poll message.
+        if (!message || Number(message.conversation_id) !== Number(conversationId.value)) {
             return;
         }
         if (!messages.value.some((existing) => existing.id === message.id)) {

@@ -108,7 +108,7 @@ const displayContacts = computed(() =>
                 status: live?.online ? 'online' : undefined,
                 lastActive: live?.lastActive ?? null,
                 preview: live?.lastBody ?? null,
-                previewMine: live?.lastSenderId != null && live.lastSenderId === currentUserId.value,
+                previewMine: live?.lastSenderId != null && Number(live.lastSenderId) === Number(currentUserId.value),
                 lastAt: live?.lastAt ?? null,
                 unread: live?.unread ?? 0,
             };
@@ -191,7 +191,7 @@ watch(() => messages.value.length, () => {
     if (!last || selectedId.value === null) {
         return;
     }
-    const fromMe = last.sender_id === currentUserId.value;
+    const fromMe = Number(last.sender_id) === Number(currentUserId.value);
     overview.applyLocalMessage(selectedId.value, last.body, last.sender_id, fromMe);
     overview.clearUnread(selectedId.value);
     if (!fromMe) {
@@ -233,7 +233,10 @@ const submit = async () => {
     }
 };
 
-const isMine = (message) => message.sender_id === currentUserId.value;
+// Coerce both sides: some hosts return the foreign key as a string ("2"), which
+// would fail a strict === against the numeric auth id and push every message to
+// one side. Number() makes the check driver-independent.
+const isMine = (message) => Number(message.sender_id) === Number(currentUserId.value);
 
 const formatTime = (iso) => {
     if (!iso) {

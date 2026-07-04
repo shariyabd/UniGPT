@@ -27,6 +27,25 @@ class Message extends Model
         'body',
     ];
 
+    /**
+     * Cast the foreign keys to int so the JSON wire shape is deterministic.
+     *
+     * Some MySQL/PDO configurations (notably shared hosting) return non-primary
+     * integer columns as strings. Without these casts, `sender_id`/`conversation_id`
+     * ship as "2" on those hosts, breaking the client's strict `sender_id === userId`
+     * alignment check and the `conversation_id === openId` de-dupe guard — so
+     * messages render on the wrong side and realtime updates get silently dropped.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'conversation_id' => 'integer',
+            'sender_id' => 'integer',
+        ];
+    }
+
     public function conversation(): BelongsTo
     {
         return $this->belongsTo(Conversation::class);

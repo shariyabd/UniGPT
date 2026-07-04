@@ -37,3 +37,7 @@ faculty-courses-evidence.png
 
 # LibreOffice lock files
 .~lock.*#
+
+# local archives / scratch artifacts
+*.zip
+.playwright-mcp/
