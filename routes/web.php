@@ -42,8 +42,20 @@ use App\Http\Controllers\Student\RegistrationController as StudentRegistrationCo
 use App\Http\Controllers\Student\SavedAnswerController;
 use App\Http\Controllers\Student\StudentDashboardController;
 use App\Http\Controllers\Student\TaskController;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+
+// Development helper: clear all caches (config, route, view, cache, compiled,
+// events) from the browser. Restricted to the local environment so it can never
+// be triggered in production.
+Route::get('/clear-cache', function () {
+    abort_unless(app()->environment('local'), 403);
+
+    Artisan::call('optimize:clear');
+
+    return response('<pre>'.e(Artisan::output()).'</pre>');
+})->name('cache.clear');
 
 // Public marketing landing page.
 Route::get('/', fn () => Inertia::render('Landing'))->name('home');

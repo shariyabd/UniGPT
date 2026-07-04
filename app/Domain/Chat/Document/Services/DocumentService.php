@@ -205,11 +205,33 @@ class DocumentService
      * review the queue and revisit already-decided documents (filtered by
      * status client-side).
      */
-    public function reviewQueue(): Collection
+    /**
+     * The document review queue, filtered by status/search and paginated at the
+     * QUERY level — so only the current page of documents (and their approval
+     * relations) hydrate. Loading the entire queue at once exhausts memory on
+     * large corpora.
+     *
+     * @param  array{status?: string|null, search?: string|null}  $filters
+     * @return LengthAwarePaginator<int, Document>
+     */
+    public function reviewQueue(array $filters = [], int $perPage = 25): LengthAwarePaginator
     {
+        $status = $filters['status'] ?? 'pending';
+        $search = $filters['search'] ?? null;
+
         return Document::with(['uploader', 'departments', 'approvals.reviewer'])
+            ->when($status && $status !== 'all', fn (Builder $query) => $query->where('status', $status))
+            ->when($search, fn (Builder $query, $value) => $query->where(function (Builder $sub) use ($value) {
+                $like = '%'.$value.'%';
+                $sub->where('title', 'like', $like)
+                    ->orWhere('description', 'like', $like)
+                    ->orWhere('tags', 'like', $like)
+                    ->orWhereHas('uploader', fn (Builder $uploader) => $uploader->where('name', 'like', $like))
+                    ->orWhereHas('departments', fn (Builder $department) => $department->where('name', 'like', $like));
+            }))
             ->latest()
-            ->get();
+            ->paginate($perPage)
+            ->withQueryString();
     }
 
     /**

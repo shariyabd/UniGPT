@@ -8,6 +8,8 @@ use App\Enums\NotificationType;
 use App\Models\Course;
 use App\Models\Exam;
 use App\Models\Section;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -32,6 +34,51 @@ class ExamService
             ->orderByDesc('exam_date')
             ->get()
             ->map(fn (Exam $exam) => $this->present($exam));
+    }
+
+    /**
+     * The admin exam table, filtered and paginated at the QUERY level so only the
+     * current page's exams hydrate — bounded memory on a growing exam table.
+     *
+     * @param  array<string, mixed>  $filters
+     * @return LengthAwarePaginator<int, array<string, mixed>>
+     */
+    public function adminListPage(array $filters = [], int $perPage = 25): LengthAwarePaginator
+    {
+        return Exam::with(['course.department', 'section'])
+            ->when($filters['course_id'] ?? null, fn (Builder $query, $value) => $query->where('course_id', $value))
+            ->when($filters['department_id'] ?? null, fn (Builder $query, $value) => $query->whereHas('course', fn (Builder $course) => $course->where('department_id', $value)))
+            ->when($filters['section'] ?? null, fn (Builder $query, $value) => $query->whereHas('section', fn (Builder $section) => $section->where('label', $value)))
+            ->when($filters['type'] ?? null, fn (Builder $query, $value) => $query->where('type', $value))
+            ->when($filters['date_from'] ?? null, fn (Builder $query, $value) => $query->whereDate('exam_date', '>=', $value))
+            ->when($filters['date_to'] ?? null, fn (Builder $query, $value) => $query->whereDate('exam_date', '<=', $value))
+            ->when($filters['search'] ?? null, fn (Builder $query, $value) => $query->where(function (Builder $sub) use ($value) {
+                $like = '%'.$value.'%';
+                $sub->where('title', 'like', $like)
+                    ->orWhere('location', 'like', $like)
+                    ->orWhereHas('course', fn (Builder $course) => $course->where('code', 'like', $like)->orWhere('name', 'like', $like))
+                    ->orWhereHas('section', fn (Builder $section) => $section->where('label', 'like', $like));
+            }))
+            ->orderByDesc('exam_date')
+            ->paginate($perPage)
+            ->withQueryString()
+            ->through(fn (Exam $exam) => $this->present($exam));
+    }
+
+    /**
+     * Distinct section labels that actually have exams scheduled (for the section
+     * filter dropdown) — a lightweight query that never hydrates every exam.
+     *
+     * @return Collection<int, string>
+     */
+    public function sectionOptions(): Collection
+    {
+        return Section::query()
+            ->whereIn('id', Exam::query()->whereNotNull('section_id')->distinct()->pluck('section_id'))
+            ->orderBy('label')
+            ->pluck('label')
+            ->unique()
+            ->values();
     }
 
     /**
@@ -121,7 +168,7 @@ class ExamService
     }
 
     /**
-     * @param  \Illuminate\Support\Collection<int, int>  $sectionIds
+     * @param  Collection<int, int>  $sectionIds
      * @return Collection<int, Exam>
      */
     private function examsForSections(Collection $sectionIds): Collection

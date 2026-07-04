@@ -11,6 +11,7 @@ use App\Http\Requests\Messenger\StoreMessageRequest;
 use App\Http\Resources\MessageResource;
 use App\Models\Conversation;
 use App\Models\Message;
+use App\Policies\ConversationPolicy;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -20,7 +21,7 @@ use Illuminate\Support\Facades\Log;
 /**
  * Direct messaging between a student and a faculty member they share a section
  * with. Shared by both roles — authorization is relationship-based
- * ({@see User::canMessage()} to start, {@see \App\Policies\ConversationPolicy}
+ * ({@see User::canMessage()} to start, {@see ConversationPolicy}
  * to access), not role-based.
  *
  * The database is the source of truth: every message is persisted, then
@@ -78,8 +79,12 @@ class MessageController extends Controller
         $query = $conversation->messages()->getQuery();
 
         if ($after = $request->integer('after')) {
+            // Cap the catch-up batch: the client advances its cursor to the last
+            // id it received and polls again for the rest, so a long gap can never
+            // return an unbounded flood of messages in one response.
             $messages = $query->where('id', '>', $after)
                 ->orderBy('id')
+                ->limit(self::PAGE_SIZE)
                 ->get();
         } else {
             $messages = $query

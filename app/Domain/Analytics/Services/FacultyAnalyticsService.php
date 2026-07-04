@@ -9,6 +9,7 @@ use App\Models\AttendanceRecord;
 use App\Models\Course;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Faculty-facing learning analytics and academic reporting.
@@ -192,28 +193,29 @@ class FacultyAnalyticsService
      */
     private function submissionStats(Collection $sectionIds): array
     {
-        $submissions = AssignmentSubmission::whereHas('assignment', fn (Builder $q) => $q->whereIn('section_id', $sectionIds))
-            ->with('assignment:id,total_points')
-            ->get();
+        // Aggregate in SQL rather than hydrating every submission — counts and the
+        // mean score are computed by the database, so memory stays flat regardless
+        // of how many submissions the faculty's sections hold.
+        $base = AssignmentSubmission::whereHas('assignment', fn (Builder $q) => $q->whereIn('section_id', $sectionIds));
 
-        $graded = $submissions->whereNotNull('grade');
+        $total = (clone $base)->count();
+        $graded = (clone $base)->whereNotNull('grade')->count();
 
-        $percentages = $graded
-            ->map(function (AssignmentSubmission $s) {
-                $total = $s->assignment?->total_points;
-
-                return $total ? ((float) $s->grade / $total) * 100 : null;
-            })
-            ->filter();
+        $averageScore = AssignmentSubmission::query()
+            ->join('assignments', 'assignments.id', '=', 'assignment_submissions.assignment_id')
+            ->whereIn('assignments.section_id', $sectionIds)
+            ->whereNotNull('assignment_submissions.grade')
+            ->where('assignments.total_points', '>', 0)
+            ->avg(DB::raw('assignment_submissions.grade / assignments.total_points * 100'));
 
         return [
-            'total' => $submissions->count(),
-            'graded' => $graded->count(),
-            'pending' => $submissions->count() - $graded->count(),
-            'completionRate' => $submissions->count() > 0
-                ? (int) round($graded->count() / $submissions->count() * 100)
+            'total' => $total,
+            'graded' => $graded,
+            'pending' => $total - $graded,
+            'completionRate' => $total > 0
+                ? (int) round($graded / $total * 100)
                 : null,
-            'averageScore' => $percentages->isEmpty() ? null : (int) round($percentages->avg()),
+            'averageScore' => $averageScore === null ? null : (int) round((float) $averageScore),
         ];
     }
 
@@ -226,13 +228,21 @@ class FacultyAnalyticsService
      */
     private function atRiskStudents(Collection $sectionIds, Collection $students): array
     {
-        $records = AttendanceRecord::whereIn('section_id', $sectionIds)->get()->groupBy('user_id');
+        // Aggregate attendance per student in SQL (one row per student) instead of
+        // loading every attendance record into memory. "Present" is any status
+        // other than absent, mirroring AttendanceStatus::countsAsPresent().
+        $stats = AttendanceRecord::query()
+            ->whereIn('section_id', $sectionIds)
+            ->selectRaw('user_id, COUNT(*) as total, SUM(CASE WHEN status <> ? THEN 1 ELSE 0 END) as attended', ['absent'])
+            ->groupBy('user_id')
+            ->get()
+            ->keyBy('user_id');
 
         return $students
-            ->map(function (User $student) use ($records) {
-                $studentRecords = $records->get($student->id, collect());
-                $total = $studentRecords->count();
-                $attended = $studentRecords->filter(fn ($r) => $r->status->countsAsPresent())->count();
+            ->map(function (User $student) use ($stats) {
+                $row = $stats->get($student->id);
+                $total = (int) ($row->total ?? 0);
+                $attended = (int) ($row->attended ?? 0);
                 $rate = $total > 0 ? (int) round($attended / $total * 100) : null;
                 $grade = $student->pivot->grade;
 

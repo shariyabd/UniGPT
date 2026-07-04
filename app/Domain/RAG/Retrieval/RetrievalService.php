@@ -7,6 +7,7 @@ use App\Domain\Chat\Support\AiSettings;
 use App\Domain\RAG\Embeddings\EmbeddingService;
 use App\Domain\RAG\Support\CorpusVersion;
 use App\Domain\User\Models\User;
+use App\Models\Document;
 use App\Models\DocumentChunk;
 use App\Models\Embedding;
 use Illuminate\Support\Collection;
@@ -20,6 +21,12 @@ use Illuminate\Support\Facades\Cache;
  */
 class RetrievalService
 {
+    /**
+     * How many candidate embeddings to score per batch. Bounds peak memory to
+     * roughly this many vectors at once, independent of total corpus size.
+     */
+    private const SCORING_BATCH_SIZE = 300;
+
     public function __construct(
         private readonly AIProviderInterface $provider,
         private readonly EmbeddingService $embeddings,
@@ -29,7 +36,7 @@ class RetrievalService
     /**
      * Retrieve the most relevant chunks for a query, visible to the given user.
      *
-     * @return Collection<int, array{chunk: \App\Models\DocumentChunk, document: \App\Models\Document, score: float}>
+     * @return Collection<int, array{chunk: DocumentChunk, document: Document, score: float}>
      */
     public function retrieve(string $query, User $user, ?int $topK = null): Collection
     {
@@ -68,46 +75,64 @@ class RetrievalService
             return [];
         }
 
-        $candidates = Embedding::query()
+        $threshold = $this->threshold();
+
+        // Stream candidate embeddings in batches and keep only a running top-K
+        // (plus the single best, for the fallback). A full corpus can hold tens of
+        // thousands of ~1536-float vectors — loading them all at once exhausts
+        // memory. We rank on the vector alone and let hydrate() resolve/validate
+        // the chunk+document, so no heavy relations are loaded here.
+        $passing = collect();
+        $best = null;
+
+        Embedding::query()
             ->where('model', $this->provider->embeddingModel())
             ->whereHas('document', function ($q) use ($user) {
                 $q->approved()->visibleTo($user);
             })
-            ->with(['chunk', 'document'])
-            ->get();
+            ->select(['id', 'document_chunk_id', 'document_id', 'vector'])
+            ->chunkById(self::SCORING_BATCH_SIZE, function (Collection $batch) use ($queryVector, $threshold, $topK, &$passing, &$best): void {
+                foreach ($batch as $embedding) {
+                    $row = [
+                        'chunk_id' => (int) $embedding->document_chunk_id,
+                        'document_id' => (int) $embedding->document_id,
+                        'score' => $this->cosine($queryVector, $embedding->vector ?? []),
+                    ];
 
-        if ($candidates->isEmpty()) {
-            return [];
-        }
+                    if ($best === null || $row['score'] > $best['score']) {
+                        $best = $row;
+                    }
 
-        $scored = $candidates
-            ->map(fn (Embedding $embedding): array => [
-                'chunk_id' => $embedding->document_chunk_id,
-                'document_id' => $embedding->document_id,
-                'score' => $this->cosine($queryVector, $embedding->vector ?? []),
-                'has_chunk' => $embedding->chunk !== null && $embedding->document !== null,
-            ])
-            ->filter(fn (array $row): bool => $row['has_chunk'])
-            ->sortByDesc('score')
-            ->values();
+                    if ($row['score'] >= $threshold) {
+                        $passing->push($row);
+                    }
+                }
 
-        $threshold = $this->threshold();
-        $passing = $scored->filter(fn (array $row): bool => $row['score'] >= $threshold)->values();
+                // Trim to the global top-K after each batch so memory never grows
+                // with the corpus size.
+                $passing = $passing->sortByDesc('score')->take($topK)->values();
+            });
 
         // Always surface the single best match if nothing clears the threshold
         // but a positive-similarity candidate exists.
         if ($passing->isEmpty()) {
-            $best = $scored->first();
-            if ($best && $best['score'] > 0) {
+            if ($best !== null && $best['score'] > 0) {
                 $passing = collect([$best]);
             }
+
+            return $passing->all();
         }
 
-        return $passing->take($topK)->map(fn (array $row): array => [
-            'chunk_id' => (int) $row['chunk_id'],
-            'document_id' => (int) $row['document_id'],
-            'score' => (float) $row['score'],
-        ])->all();
+        return $passing
+            ->sortByDesc('score')
+            ->take($topK)
+            ->map(fn (array $row): array => [
+                'chunk_id' => (int) $row['chunk_id'],
+                'document_id' => (int) $row['document_id'],
+                'score' => (float) $row['score'],
+            ])
+            ->values()
+            ->all();
     }
 
     /**
@@ -117,7 +142,7 @@ class RetrievalService
      * already implies the ids are still valid.
      *
      * @param  array<int, array{chunk_id: int, document_id: int, score: float}>  $rows
-     * @return Collection<int, array{chunk: \App\Models\DocumentChunk, document: \App\Models\Document, score: float}>
+     * @return Collection<int, array{chunk: DocumentChunk, document: Document, score: float}>
      */
     private function hydrate(array $rows): Collection
     {
@@ -171,7 +196,7 @@ class RetrievalService
 
     /**
      * A stable token describing which documents the user may see, mirroring
-     * {@see \App\Models\Document::scopeVisibleTo()}.
+     * {@see Document::scopeVisibleTo()}.
      */
     private function visibilityScope(User $user): string
     {

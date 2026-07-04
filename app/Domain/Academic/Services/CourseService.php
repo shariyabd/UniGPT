@@ -7,6 +7,7 @@ use App\Models\Course;
 use App\Models\CourseMaterial;
 use App\Models\Section;
 use App\Models\Term;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 
 /**
@@ -25,35 +26,90 @@ class CourseService
         return Course::with(['department', 'sections.faculty', 'sections.term', 'sections.students'])
             ->latest()
             ->get()
-            ->map(fn (Course $course) => [
-                'id' => $course->id,
-                'code' => $course->code,
-                'name' => $course->name,
-                'description' => $course->description,
-                'departmentId' => $course->department_id,
-                'department' => $course->department?->name,
-                'semester' => $course->semester,
-                'credits' => $course->credits,
-                'sections' => $course->sections->map(fn (Section $section) => [
-                    'id' => $section->id,
-                    'label' => $section->label,
-                    'termId' => $section->term_id,
-                    'term' => $section->term?->name,
-                    'facultyId' => $section->faculty_id,
-                    'faculty' => $section->faculty?->name,
-                    'maxEnrollment' => $section->max_enrollment,
-                    'isActive' => $section->is_active,
-                    'schedule' => $section->schedule,
-                    // Reserved seats: confirmed enrolments + pending placements.
-                    'studentCount' => $section->students->whereIn('pivot.status', ['enrolled', 'pending'])->count(),
-                    'roster' => $section->students->map(fn (User $student) => [
-                        'id' => $student->id,
-                        'name' => $student->name,
-                        'studentId' => $student->student_id,
-                        'status' => $student->pivot->status,
-                    ])->values(),
+            ->map(fn (Course $course) => $this->presentCourse($course));
+    }
+
+    /**
+     * The admin course catalog, paginated at the QUERY level with filters applied
+     * in the database — so only the current page's courses (and their rosters) are
+     * hydrated. This keeps memory bounded on large catalogs; loading every course's
+     * full roster at once exhausts PHP's memory_limit on production-sized data.
+     *
+     * @param  array{search?: string|null, department_id?: mixed, semester?: mixed}  $filters
+     * @return LengthAwarePaginator<int, array<string, mixed>>
+     */
+    public function catalogPage(array $filters = [], int $perPage = 25): LengthAwarePaginator
+    {
+        $search = $filters['search'] ?? null;
+        $departmentId = $filters['department_id'] ?? null;
+        $semester = $filters['semester'] ?? null;
+
+        return Course::with(['department', 'sections.faculty', 'sections.term', 'sections.students'])
+            ->when($departmentId, fn ($query, $value) => $query->where('department_id', $value))
+            ->when($semester, fn ($query, $value) => $query->where('semester', $value))
+            ->when($search, fn ($query, $value) => $query->where(fn ($sub) => $sub
+                ->where('code', 'like', "%{$value}%")
+                ->orWhere('name', 'like', "%{$value}%")
+            ))
+            ->latest()
+            ->paginate($perPage)
+            ->withQueryString()
+            ->through(fn (Course $course) => $this->presentCourse($course));
+    }
+
+    /**
+     * Distinct, sorted semester values across the WHOLE catalog (for the filter
+     * dropdown) — a lightweight query that never hydrates course models.
+     *
+     * @return Collection<int, int|string>
+     */
+    public function semesterOptions(): Collection
+    {
+        return Course::query()
+            ->whereNotNull('semester')
+            ->distinct()
+            ->orderBy('semester')
+            ->pluck('semester')
+            ->values();
+    }
+
+    /**
+     * Present a single course (with its sections + rosters) as the array shape the
+     * admin catalog UI consumes. Shared by catalog() and catalogPage().
+     *
+     * @return array<string, mixed>
+     */
+    private function presentCourse(Course $course): array
+    {
+        return [
+            'id' => $course->id,
+            'code' => $course->code,
+            'name' => $course->name,
+            'description' => $course->description,
+            'departmentId' => $course->department_id,
+            'department' => $course->department?->name,
+            'semester' => $course->semester,
+            'credits' => $course->credits,
+            'sections' => $course->sections->map(fn (Section $section) => [
+                'id' => $section->id,
+                'label' => $section->label,
+                'termId' => $section->term_id,
+                'term' => $section->term?->name,
+                'facultyId' => $section->faculty_id,
+                'faculty' => $section->faculty?->name,
+                'maxEnrollment' => $section->max_enrollment,
+                'isActive' => $section->is_active,
+                'schedule' => $section->schedule,
+                // Reserved seats: confirmed enrolments + pending placements.
+                'studentCount' => $section->students->whereIn('pivot.status', ['enrolled', 'pending'])->count(),
+                'roster' => $section->students->map(fn (User $student) => [
+                    'id' => $student->id,
+                    'name' => $student->name,
+                    'studentId' => $student->student_id,
+                    'status' => $student->pivot->status,
                 ])->values(),
-            ]);
+            ])->values(),
+        ];
     }
 
     /**

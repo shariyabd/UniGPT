@@ -8,17 +8,28 @@ use App\Domain\Academic\Services\CourseService;
 use App\Domain\Academic\Services\ExamService;
 use App\Domain\Academic\Services\TranscriptService;
 use App\Domain\Chat\Document\Services\DocumentService;
+use App\Domain\Chat\Support\AiSettings;
 use App\Domain\User\Models\User;
 use App\Enums\TaskPriority;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Student\UpdateProfileRequest;
+use App\Http\Requests\Student\UpdateSettingsRequest;
 use App\Http\Resources\DocumentResource;
 use App\Infrastructure\FileStorage\DocumentStorageService;
 use App\Models\ActivityLog;
 use App\Models\Assignment;
+use App\Models\AssignmentSubmission;
+use App\Models\ChatSession;
+use App\Models\Course;
+use App\Models\CourseMaterial;
 use App\Models\Department;
 use App\Models\Document;
+use App\Models\Section;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -51,7 +62,7 @@ class StudentDashboardController extends Controller
             ->wherePivotNotIn('status', ['dropped', 'completed', 'pending'])
             ->pluck('sections.id');
 
-        $materialsTotal = \App\Models\CourseMaterial::whereIn('section_id', $currentSectionIds)
+        $materialsTotal = CourseMaterial::whereIn('section_id', $currentSectionIds)
             ->where('is_published', true)
             ->count();
         $materialsViewed = $user->completedMaterials()
@@ -195,7 +206,7 @@ class StudentDashboardController extends Controller
         ]);
     }
 
-    public function updateProfile(\App\Http\Requests\Student\UpdateProfileRequest $request): \Illuminate\Http\RedirectResponse
+    public function updateProfile(UpdateProfileRequest $request): RedirectResponse
     {
         $this->user()->update($request->validated());
 
@@ -204,7 +215,7 @@ class StudentDashboardController extends Controller
 
     public function settings(): Response
     {
-        $aiSettings = app(\App\Domain\Chat\Support\AiSettings::class);
+        $aiSettings = app(AiSettings::class);
 
         return Inertia::render('Student/Settings', [
             'preferences' => $this->user()->preferences ?? $this->defaultPreferences(),
@@ -213,7 +224,7 @@ class StudentDashboardController extends Controller
         ]);
     }
 
-    public function updateSettings(\App\Http\Requests\Student\UpdateSettingsRequest $request): \Illuminate\Http\RedirectResponse
+    public function updateSettings(UpdateSettingsRequest $request): RedirectResponse
     {
         $this->user()->update(['preferences' => $request->validated()]);
 
@@ -222,7 +233,7 @@ class StudentDashboardController extends Controller
 
     public function downloadDocument(Document $document)
     {
-        \Illuminate\Support\Facades\Gate::authorize('download', $document);
+        Gate::authorize('download', $document);
 
         // Documents live on the disk owned by DocumentStorageService (the public
         // disk), not the local disk — resolve it through the service so this stays
@@ -240,7 +251,7 @@ class StudentDashboardController extends Controller
 
     public function previewDocument(Document $document)
     {
-        \Illuminate\Support\Facades\Gate::authorize('view', $document);
+        Gate::authorize('view', $document);
 
         $disk = Storage::disk($this->documentStorage->disk());
         abort_unless($document->file_path && $disk->exists($document->file_path), 404);
@@ -256,7 +267,7 @@ class StudentDashboardController extends Controller
         );
     }
 
-    public function downloadMaterial(\App\Models\CourseMaterial $material)
+    public function downloadMaterial(CourseMaterial $material)
     {
         $user = $this->user();
 
@@ -278,7 +289,7 @@ class StudentDashboardController extends Controller
     /**
      * Mark a course material complete/incomplete for the current student.
      */
-    public function toggleMaterialCompletion(Request $request, \App\Models\CourseMaterial $material): \Illuminate\Http\JsonResponse
+    public function toggleMaterialCompletion(Request $request, CourseMaterial $material): JsonResponse
     {
         $user = $this->user();
 
@@ -335,7 +346,7 @@ class StudentDashboardController extends Controller
             ->orderByDesc('last_message_at')
             ->limit(5)
             ->get()
-            ->map(fn (\App\Models\ChatSession $session) => [
+            ->map(fn (ChatSession $session) => [
                 'id' => $session->id,
                 'question' => $session->title ?? 'Untitled conversation',
                 'mode' => $session->mode->value,
@@ -362,7 +373,11 @@ class StudentDashboardController extends Controller
      */
     private function studyStreak(User $user): int
     {
+        // A streak is consecutive days ending today, so only the last year of
+        // activity can ever contribute — scoping the window keeps this bounded
+        // instead of loading the user's entire (unbounded) activity history.
         $days = ActivityLog::where('user_id', $user->id)
+            ->where('created_at', '>=', now()->subDays(366)->startOfDay())
             ->orderByDesc('created_at')
             ->get(['created_at'])
             ->map(fn (ActivityLog $log) => $log->created_at->toDateString())
@@ -420,12 +435,12 @@ class StudentDashboardController extends Controller
 
         // Each enrolment points to the section the student attends; show that
         // section's instructor and only that section's assignments.
-        $sections = \App\Models\Section::with('faculty')
+        $sections = Section::with('faculty')
             ->findMany($courses->pluck('pivot.section_id')->filter()->unique())
             ->keyBy('id');
 
         // Assignment deadlines per course, with this student's submission state.
-        $submittedAssignmentIds = \App\Models\AssignmentSubmission::where('user_id', $user->id)
+        $submittedAssignmentIds = AssignmentSubmission::where('user_id', $user->id)
             ->pluck('assignment_id')
             ->all();
 
@@ -487,7 +502,7 @@ class StudentDashboardController extends Controller
     /**
      * Credit-weighted GPA for a set of enrolled courses, or null when ungraded.
      *
-     * @param  \Illuminate\Support\Collection<int, \App\Models\Course>  $courses
+     * @param  Collection<int, Course>  $courses
      */
     private function gpaFor($courses): ?float
     {
