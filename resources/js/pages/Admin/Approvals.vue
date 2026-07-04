@@ -585,16 +585,45 @@ const downloadDocument = (doc) => {
                         </div>
 
                         <div class="flex-1 bg-bg">
+                            <!-- Inline preview only for browser-renderable types (PDF, images,
+                                 text). Office files (docx/xlsx/pptx) can't render in an iframe —
+                                 the browser would download them and leave this blank — so those
+                                 get a download/open fallback instead. -->
                             <iframe
-                                v-if="selectedDocument?.previewUrl"
+                                v-if="selectedDocument?.previewUrl && selectedDocument?.previewable"
                                 :src="selectedDocument.previewUrl"
                                 class="h-full w-full border-0"
                                 title="Document preview"
                             ></iframe>
-                            <div v-else class="flex h-full items-center justify-center">
-                                <div class="text-center">
+                            <div v-else class="flex h-full items-center justify-center p-6">
+                                <div class="text-center max-w-sm">
                                     <DocumentTextIcon class="w-16 h-16 text-content-faint mx-auto mb-4" />
-                                    <p class="text-content-muted">No preview available for this document.</p>
+                                    <p class="text-content font-semibold mb-1">
+                                        Preview is not available for {{ selectedDocument && selectedDocument.fileType || 'this' }} files
+                                    </p>
+                                    <p class="text-content-muted text-sm mb-5">
+                                        Browsers cannot display this format inline. Open it in a new tab or download it to view.
+                                    </p>
+                                    <div class="flex items-center justify-center gap-2">
+                                        <a
+                                            v-if="selectedDocument?.previewUrl"
+                                            :href="selectedDocument.previewUrl"
+                                            target="_blank"
+                                            rel="noopener"
+                                            class="ui-btn-secondary"
+                                        >
+                                            <ArrowTopRightOnSquareIcon class="w-4 h-4 mr-1" />
+                                            Open in new tab
+                                        </a>
+                                        <button
+                                            v-if="selectedDocument?.downloadUrl"
+                                            @click="downloadDocument(selectedDocument)"
+                                            class="ui-btn-primary"
+                                        >
+                                            <ArrowDownTrayIcon class="w-4 h-4 mr-1" />
+                                            Download
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>

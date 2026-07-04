@@ -189,7 +189,7 @@ const openUserModal = (user = null) => {
         role: 'student',
         department: '',
         department_id: '',
-        semester: '',
+        semester: null,
         student_id: '',
         employee_id: '',
         status: 'active',
@@ -657,12 +657,14 @@ const bulkUpdateRole = (role) => {
 
                             <div>
                                 <label class="ui-label">Semester</label>
-                                <input
-                                    v-model="editingUser.semester"
-                                    type="text"
+                                <select
+                                    v-model.number="editingUser.semester"
                                     class="ui-input"
-                                    placeholder="e.g. Fall 2026"
-                                />
+                                >
+                                    <option :value="null">Not set</option>
+                                    <option v-for="level in 12" :key="level" :value="level">{{ level }}</option>
+                                </select>
+                                <p class="mt-1 text-xs text-content-faint">Curriculum level (1–12), aligned with course semesters.</p>
                                 <p v-if="formErrors.semester" class="mt-1 text-sm text-danger-fg">{{ formErrors.semester }}</p>
                             </div>
                         </div>

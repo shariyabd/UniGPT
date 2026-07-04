@@ -134,6 +134,9 @@ class DocumentController extends Controller
             'approvalHistory' => $history,
             'downloadUrl' => route('admin.documents.download', $document->id),
             'previewUrl' => route('admin.documents.preview', $document->id),
+            'previewable' => $document->file_path
+                ? DocumentStorageService::isBrowserPreviewable($document->file_path)
+                : false,
         ];
     }
 

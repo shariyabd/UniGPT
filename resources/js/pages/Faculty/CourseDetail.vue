@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
@@ -89,6 +89,25 @@ const deleteMaterial = async (materialId) => {
 };
 
 const students = computed(() => props.course.students ?? []);
+
+// Client-side pagination for the (already-loaded) enrolled-student list so the
+// full roster stays accessible without an unwieldy single table.
+const studentsPerPage = 10;
+const studentsPage = ref(1);
+const studentsTotalPages = computed(() =>
+    Math.max(1, Math.ceil(students.value.length / studentsPerPage)),
+);
+const paginatedStudents = computed(() => {
+    const start = (studentsPage.value - 1) * studentsPerPage;
+    return students.value.slice(start, start + studentsPerPage);
+});
+// Keep the current page in range if the roster shrinks (e.g. section switch).
+watch(studentsTotalPages, (total) => {
+    if (studentsPage.value > total) {
+        studentsPage.value = total;
+    }
+});
+
 const materials = computed(() => props.course.materials ?? []);
 const assignments = computed(() => props.course.assignments ?? []);
 const schedule = computed(() => props.course.schedule ?? {});
@@ -318,7 +337,7 @@ const formatDate = (date) => date
                                     </thead>
                                     <tbody>
                                         <tr
-                                            v-for="student in students"
+                                            v-for="student in paginatedStudents"
                                             :key="student.id"
                                             class="border-b border-line hover:bg-bg transition-colors"
                                         >
@@ -344,6 +363,35 @@ const formatDate = (date) => date
                                         </tr>
                                     </tbody>
                                 </table>
+
+                                <!-- Pager: keeps the full roster accessible without one long table. -->
+                                <div
+                                    v-if="studentsTotalPages > 1"
+                                    class="flex items-center justify-between gap-3 border-t border-line px-4 py-3"
+                                >
+                                    <p class="text-xs text-content-muted">
+                                        Showing {{ (studentsPage - 1) * studentsPerPage + 1 }}–{{ Math.min(studentsPage * studentsPerPage, students.length) }} of {{ students.length }}
+                                    </p>
+                                    <div class="flex items-center gap-2">
+                                        <button
+                                            type="button"
+                                            class="ui-btn-ghost px-3 py-1.5 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                                            :disabled="studentsPage === 1"
+                                            @click="studentsPage--"
+                                        >
+                                            Previous
+                                        </button>
+                                        <span class="text-xs text-content-muted">Page {{ studentsPage }} of {{ studentsTotalPages }}</span>
+                                        <button
+                                            type="button"
+                                            class="ui-btn-ghost px-3 py-1.5 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                                            :disabled="studentsPage === studentsTotalPages"
+                                            @click="studentsPage++"
+                                        >
+                                            Next
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 

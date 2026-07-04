@@ -90,4 +90,28 @@ class DocumentStorageService
         return MimeTypes::getDefault()->getMimeTypes($extension)[0]
             ?? 'application/octet-stream';
     }
+
+    /**
+     * File extensions a browser can render inline inside an <iframe>.
+     *
+     * Office formats (docx/xlsx/pptx) are deliberately excluded: browsers cannot
+     * display them natively, so pointing an iframe at one makes the browser
+     * download the file and leaves the frame blank. Those fall back to a
+     * download/"open in new tab" action instead of an empty preview.
+     */
+    private const PREVIEWABLE_EXTENSIONS = [
+        'pdf', 'txt', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg',
+    ];
+
+    /**
+     * Whether this file can be previewed inline in the browser (PDF, images,
+     * plain text). Used to decide between an inline iframe preview and a
+     * download-only fallback.
+     */
+    public static function isBrowserPreviewable(string $path): bool
+    {
+        $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+
+        return in_array($extension, self::PREVIEWABLE_EXTENSIONS, true);
+    }
 }

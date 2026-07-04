@@ -26,7 +26,7 @@ class UpdateUserRequest extends FormRequest
             'name' => ['sometimes', 'string', 'max:255'],
             'email' => ['sometimes', 'email', Rule::unique('users', 'email')->ignore($userId)],
             'department_id' => ['nullable', 'exists:departments,id'],
-            'semester' => ['nullable', 'string', 'max:50'],
+            'semester' => ['nullable', 'integer', 'min:1', 'max:12'],
             'is_active' => ['sometimes', 'boolean'],
         ];
     }

@@ -25,7 +25,7 @@ class StoreUserRequest extends FormRequest
             'department_id' => ['nullable', 'exists:departments,id'],
             'student_id' => ['nullable', 'string', 'max:50'],
             'employee_id' => ['nullable', 'string', 'max:50'],
-            'semester' => ['nullable', 'string', 'max:50'],
+            'semester' => ['nullable', 'integer', 'min:1', 'max:12'],
         ];
     }
 }
