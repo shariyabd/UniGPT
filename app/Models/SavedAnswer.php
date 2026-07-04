@@ -31,6 +31,7 @@ class SavedAnswer extends Model
     protected function casts(): array
     {
         return [
+            'user_id' => 'integer',
             'tags' => 'array',
             'sources' => 'array',
             'starred' => 'boolean',

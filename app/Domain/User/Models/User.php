@@ -2,15 +2,33 @@
 
 namespace App\Domain\User\Models;
 
+use App\Enums\Permission;
 use App\Enums\UserRole;
+use App\Models\AssignmentSubmission;
+use App\Models\AttendanceRecord;
+use App\Models\ChatMessage;
+use App\Models\ChatSession;
+use App\Models\Conversation;
+use App\Models\Course;
+use App\Models\CourseMaterial;
 use App\Models\Department;
+use App\Models\Document;
+use App\Models\Note;
+use App\Models\Notification;
 use App\Models\Role;
+use App\Models\SavedAnswer;
+use App\Models\Section;
+use App\Models\Task;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 
 class User extends Authenticatable
 {
@@ -48,6 +66,10 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
+            // Cast the key to int so ownership checks (e.g. policies comparing
+            // $model->user_id === $user->id) never fail on a string/int mismatch
+            // — PDO can return integer columns as strings under emulated prepares.
+            'id' => 'integer',
             'email_verified_at' => 'datetime',
             'last_login_at' => 'datetime',
             'ai_chat_blocked_at' => 'datetime',
@@ -82,20 +104,20 @@ class User extends Authenticatable
         return $this->belongsTo(Department::class);
     }
 
-    public function chatSessions(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function chatSessions(): HasMany
     {
-        return $this->hasMany(\App\Models\ChatSession::class);
+        return $this->hasMany(ChatSession::class);
     }
 
     /**
      * All chat messages this user has generated, across every session — used to
      * aggregate request counts and token usage for the admin AI-usage monitor.
      */
-    public function chatMessages(): \Illuminate\Database\Eloquent\Relations\HasManyThrough
+    public function chatMessages(): HasManyThrough
     {
         return $this->hasManyThrough(
-            \App\Models\ChatMessage::class,
-            \App\Models\ChatSession::class,
+            ChatMessage::class,
+            ChatSession::class,
             'user_id',          // FK on chat_sessions → users
             'chat_session_id',  // FK on chat_messages → chat_sessions
             'id',
@@ -120,7 +142,7 @@ class User extends Authenticatable
     /**
      * Block the user from the AI chat. A null $until is a permanent block.
      */
-    public function blockAiChat(string $reason, ?\Illuminate\Support\Carbon $until = null): void
+    public function blockAiChat(string $reason, ?Carbon $until = null): void
     {
         $this->forceFill([
             'ai_chat_blocked_at' => now(),
@@ -141,14 +163,14 @@ class User extends Authenticatable
         ])->save();
     }
 
-    public function savedAnswers(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function savedAnswers(): HasMany
     {
-        return $this->hasMany(\App\Models\SavedAnswer::class);
+        return $this->hasMany(SavedAnswer::class);
     }
 
     public function enrolledCourses(): BelongsToMany
     {
-        return $this->belongsToMany(\App\Models\Course::class, 'course_user')
+        return $this->belongsToMany(Course::class, 'course_user')
             ->withPivot(['role', 'status', 'grade', 'progress', 'enrolled_at', 'term_id', 'section_id'])
             ->withTimestamps()
             ->wherePivot('role', 'student');
@@ -159,7 +181,7 @@ class User extends Authenticatable
      */
     public function bookmarkedDocuments(): BelongsToMany
     {
-        return $this->belongsToMany(\App\Models\Document::class, 'document_bookmarks')
+        return $this->belongsToMany(Document::class, 'document_bookmarks')
             ->withTimestamps();
     }
 
@@ -174,7 +196,7 @@ class User extends Authenticatable
      */
     public function enrolledSections(): BelongsToMany
     {
-        return $this->belongsToMany(\App\Models\Section::class, 'course_user', 'user_id', 'section_id')
+        return $this->belongsToMany(Section::class, 'course_user', 'user_id', 'section_id')
             ->withPivot(['role', 'status', 'grade', 'progress', 'enrolled_at', 'term_id', 'course_id'])
             ->withTimestamps()
             ->wherePivot('role', 'student');
@@ -186,9 +208,9 @@ class User extends Authenticatable
      * Completed (past-term) enrolments are retained so the student keeps
      * read access to their finished sections' materials and history.
      *
-     * @return \Illuminate\Support\Collection<int, int>
+     * @return Collection<int, int>
      */
-    public function enrolledSectionIds(): \Illuminate\Support\Collection
+    public function enrolledSectionIds(): Collection
     {
         return $this->enrolledSections()
             ->wherePivotNotIn('status', ['dropped', 'pending'])
@@ -200,9 +222,9 @@ class User extends Authenticatable
     /**
      * IDs of the sections this faculty member teaches.
      *
-     * @return \Illuminate\Support\Collection<int, int>
+     * @return Collection<int, int>
      */
-    public function teachingSectionIds(): \Illuminate\Support\Collection
+    public function teachingSectionIds(): Collection
     {
         return $this->teachingSections()->pluck('id');
     }
@@ -240,23 +262,23 @@ class User extends Authenticatable
      */
     public function conversations(): BelongsToMany
     {
-        return $this->belongsToMany(\App\Models\Conversation::class, 'conversation_user')
+        return $this->belongsToMany(Conversation::class, 'conversation_user')
             ->withPivot('last_read_message_id')
             ->withTimestamps();
     }
 
-    public function teachingCourses(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function teachingCourses(): HasMany
     {
-        return $this->hasMany(\App\Models\Course::class, 'faculty_id');
+        return $this->hasMany(Course::class, 'faculty_id');
     }
 
     /**
      * Sections (offerings) this faculty member teaches. One faculty can teach
      * many sections, across courses and terms.
      */
-    public function teachingSections(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function teachingSections(): HasMany
     {
-        return $this->hasMany(\App\Models\Section::class, 'faculty_id');
+        return $this->hasMany(Section::class, 'faculty_id');
     }
 
     /**
@@ -264,19 +286,19 @@ class User extends Authenticatable
      */
     public function completedMaterials(): BelongsToMany
     {
-        return $this->belongsToMany(\App\Models\CourseMaterial::class, 'material_completions')
+        return $this->belongsToMany(CourseMaterial::class, 'material_completions')
             ->withPivot('completed_at')
             ->withTimestamps();
     }
 
-    public function submissions(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function submissions(): HasMany
     {
-        return $this->hasMany(\App\Models\AssignmentSubmission::class);
+        return $this->hasMany(AssignmentSubmission::class);
     }
 
-    public function attendanceRecords(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function attendanceRecords(): HasMany
     {
-        return $this->hasMany(\App\Models\AttendanceRecord::class, 'user_id');
+        return $this->hasMany(AttendanceRecord::class, 'user_id');
     }
 
     /**
@@ -285,19 +307,19 @@ class User extends Authenticatable
      * Overrides the Notifiable trait's morph relation — this app uses a custom
      * per-recipient notifications table, not Laravel's database channel.
      */
-    public function notifications(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function notifications(): HasMany
     {
-        return $this->hasMany(\App\Models\Notification::class)->latest();
+        return $this->hasMany(Notification::class)->latest();
     }
 
-    public function notes(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function notes(): HasMany
     {
-        return $this->hasMany(\App\Models\Note::class);
+        return $this->hasMany(Note::class);
     }
 
-    public function tasks(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function tasks(): HasMany
     {
-        return $this->hasMany(\App\Models\Task::class);
+        return $this->hasMany(Task::class);
     }
 
     public function roles(): BelongsToMany
@@ -337,9 +359,9 @@ class User extends Authenticatable
         return false;
     }
 
-    public function hasPermission(string|\App\Enums\Permission $permission): bool
+    public function hasPermission(string|Permission $permission): bool
     {
-        $permissionSlug = $permission instanceof \App\Enums\Permission
+        $permissionSlug = $permission instanceof Permission
             ? $permission->getSlug()
             : strtolower($permission);
 

@@ -8,13 +8,16 @@ use App\Domain\Notification\Services\NotificationService;
 use App\Enums\NotificationType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Faculty\GradeSubmissionRequest;
+use App\Infrastructure\FileStorage\DocumentStorageService;
 use App\Models\AssignmentSubmission;
 use App\Services\ActivityLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class GradingController extends Controller
 {
@@ -78,15 +81,16 @@ class GradingController extends Controller
      * Download a student's submitted file. Only the owning faculty (or an admin)
      * may retrieve it.
      */
-    public function downloadSubmission(AssignmentSubmission $submission): \Symfony\Component\HttpFoundation\StreamedResponse
+    public function downloadSubmission(AssignmentSubmission $submission): StreamedResponse
     {
         Gate::authorize('manage', $submission->assignment->course);
 
         abort_if($submission->file_path === null, 404);
 
-        return \Illuminate\Support\Facades\Storage::disk('local')->download(
+        return Storage::disk('local')->download(
             $submission->file_path,
             $submission->original_filename ?? "submission-{$submission->id}",
+            ['Content-Type' => DocumentStorageService::contentType($submission->file_path)],
         );
     }
 

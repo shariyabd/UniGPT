@@ -42,6 +42,8 @@ class Document extends Model
     protected function casts(): array
     {
         return [
+            'uploaded_by' => 'integer',
+            'approved_by' => 'integer',
             'tags' => 'array',
             'visibility' => 'array',
             'status' => DocumentStatus::class,

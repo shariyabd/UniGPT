@@ -175,9 +175,12 @@ class DocumentController extends Controller
 
         $this->documents->recordDownload($document);
 
+        // Pass an explicit Content-Type so Laravel never falls back to finfo
+        // (the fileinfo extension may be disabled on some production hosts).
         return $disk->download(
             $document->file_path,
-            $document->original_filename ?? $document->title
+            $document->original_filename ?? $document->title,
+            ['Content-Type' => DocumentStorageService::contentType($document->file_path)],
         );
     }
 
@@ -189,10 +192,12 @@ class DocumentController extends Controller
         $this->documents->recordView($document);
 
         // Serve inline so PDFs/text render in the browser instead of downloading.
+        // Resolve the type from the stored extension rather than finfo, which
+        // may be unavailable in production.
         return $disk->response(
             $document->file_path,
             $document->original_filename ?? $document->title,
-            ['Content-Type' => $disk->mimeType($document->file_path) ?: 'application/octet-stream'],
+            ['Content-Type' => DocumentStorageService::contentType($document->file_path)],
             'inline'
         );
     }

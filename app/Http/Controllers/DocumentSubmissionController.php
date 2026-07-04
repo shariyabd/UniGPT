@@ -86,7 +86,11 @@ class DocumentSubmissionController extends Controller
         $disk = Storage::disk($this->storage->disk());
         abort_unless($document->file_path && $disk->exists($document->file_path), 404);
 
-        return $disk->download($document->file_path, $document->original_filename ?? $document->title);
+        return $disk->download(
+            $document->file_path,
+            $document->original_filename ?? $document->title,
+            ['Content-Type' => DocumentStorageService::contentType($document->file_path)],
+        );
     }
 
     public function preview(Request $request, Document $document)
@@ -99,7 +103,7 @@ class DocumentSubmissionController extends Controller
         return $disk->response(
             $document->file_path,
             $document->original_filename ?? $document->title,
-            ['Content-Type' => $disk->mimeType($document->file_path) ?: 'application/octet-stream'],
+            ['Content-Type' => DocumentStorageService::contentType($document->file_path)],
             'inline',
         );
     }

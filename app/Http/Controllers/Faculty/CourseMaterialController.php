@@ -4,13 +4,18 @@ namespace App\Http\Controllers\Faculty;
 
 use App\Domain\Academic\Services\CourseManagementService;
 use App\Domain\Notification\Services\NotificationService;
+use App\Domain\User\Models\User;
 use App\Enums\NotificationType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Faculty\StoreMaterialRequest;
+use App\Infrastructure\FileStorage\DocumentStorageService;
 use App\Models\Course;
 use App\Models\CourseMaterial;
+use App\Models\Section;
 use App\Services\ActivityLogger;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -101,6 +106,7 @@ class CourseMaterialController extends Controller
         return Storage::disk('local')->download(
             $material->file_path,
             $material->original_filename ?? $material->title,
+            ['Content-Type' => DocumentStorageService::contentType($material->file_path)],
         );
     }
 
@@ -115,7 +121,7 @@ class CourseMaterialController extends Controller
      * lets a faculty who teaches several sections of one course target the
      * correct one, while never allowing another section to be addressed.
      */
-    private function targetSection(Course $course, \Illuminate\Http\Request $request): ?\App\Models\Section
+    private function targetSection(Course $course, Request $request): ?Section
     {
         $sectionId = $request->integer('section_id') ?: null;
 
@@ -137,9 +143,9 @@ class CourseMaterialController extends Controller
      * The actively-enrolled students of the material's section — the precise
      * recipients for a material notification.
      *
-     * @return \Illuminate\Support\Collection<int, \App\Domain\User\Models\User>
+     * @return Collection<int, User>
      */
-    private function sectionStudents(CourseMaterial $material): \Illuminate\Support\Collection
+    private function sectionStudents(CourseMaterial $material): Collection
     {
         return $material->section
             ? $material->section->students()->wherePivot('status', 'enrolled')->get()

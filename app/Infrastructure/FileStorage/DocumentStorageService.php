@@ -5,6 +5,7 @@ namespace App\Infrastructure\FileStorage;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Symfony\Component\Mime\MimeTypes;
 
 /**
  * Stores uploaded knowledge-base documents on the configured disk and exposes
@@ -72,5 +73,21 @@ class DocumentStorageService
     public function delete(string $path): void
     {
         Storage::disk(self::DISK)->delete($path);
+    }
+
+    /**
+     * Resolve a MIME type from a file's extension using Symfony's static map.
+     *
+     * This deliberately avoids Storage's mimeType()/finfo, which requires the
+     * PHP `fileinfo` extension — often disabled on shared hosting. Passing the
+     * result as an explicit Content-Type header keeps downloads/previews working
+     * in production regardless of whether fileinfo is installed.
+     */
+    public static function contentType(string $path): string
+    {
+        $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+
+        return MimeTypes::getDefault()->getMimeTypes($extension)[0]
+            ?? 'application/octet-stream';
     }
 }

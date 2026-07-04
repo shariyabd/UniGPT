@@ -26,6 +26,7 @@ class ChatSession extends Model
     protected function casts(): array
     {
         return [
+            'user_id' => 'integer',
             'mode' => ChatMode::class,
             'is_pinned' => 'boolean',
             'is_archived' => 'boolean',

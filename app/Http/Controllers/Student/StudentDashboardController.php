@@ -246,6 +246,7 @@ class StudentDashboardController extends Controller
         return $disk->download(
             $document->file_path,
             $document->original_filename ?? $document->title,
+            ['Content-Type' => DocumentStorageService::contentType($document->file_path)],
         );
     }
 
@@ -262,7 +263,7 @@ class StudentDashboardController extends Controller
         return $disk->response(
             $document->file_path,
             $document->original_filename ?? $document->title,
-            ['Content-Type' => $disk->mimeType($document->file_path) ?: 'application/octet-stream'],
+            ['Content-Type' => DocumentStorageService::contentType($document->file_path)],
             'inline',
         );
     }
@@ -283,6 +284,7 @@ class StudentDashboardController extends Controller
         return Storage::disk('local')->download(
             $material->file_path,
             $material->original_filename ?? $material->title,
+            ['Content-Type' => DocumentStorageService::contentType($material->file_path)],
         );
     }
 
