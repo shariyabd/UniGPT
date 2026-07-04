@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAG Engine — End-to-End Visual Simulation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --font-body:'Sora',system-ui,sans-serif;
+  --font-mono:'IBM Plex Mono','SF Mono',Consolas,monospace;
+
+  --bg:#0c1018;
+  --surface:#121826;
+  --surface-2:#171f30;
+  --surface-3:#1d2740;
+  --border:rgba(255,255,255,0.07);
+  --border-bright:rgba(255,255,255,0.14);
+  --text:#e8edf6;
+  --text-dim:#92a0b8;
+  --text-faint:#5e6c84;
+
+  --ink:#cfe3ff;
+  --grid:rgba(120,160,220,0.05);
+
+  /* phase accents */
+  --ingest:#d4a73a;      /* amber  — document ingestion */
+  --ingest-dim:rgba(212,167,58,0.13);
+  --query:#19a7c2;       /* teal   — query / retrieval */
+  --query-dim:rgba(25,167,194,0.13);
+  --augment:#7c9c4b;     /* sage   — augmentation */
+  --augment-dim:rgba(124,156,75,0.14);
+  --generate:#c4607a;    /* rose   — generation */
+  --generate-dim:rgba(196,96,122,0.14);
+
+  --ok:#5fb87a;
+  --warn:#d98c3a;
+}
+@media (prefers-color-scheme:light){
+  :root{
+    --bg:#eef1f6;
+    --surface:#ffffff;
+    --surface-2:#f6f8fc;
+    --surface-3:#eef2f9;
+    --border:rgba(20,35,70,0.10);
+    --border-bright:rgba(20,35,70,0.20);
+    --text:#16202f;
+    --text-dim:#516079;
+    --text-faint:#8493ab;
+    --ink:#1e3a5f;
+    --grid:rgba(40,80,140,0.06);
+    --ingest:#b5810f;--ingest-dim:rgba(181,129,15,0.12);
+    --query:#0c7d95;--query-dim:rgba(12,125,149,0.10);
+    --augment:#5f7d33;--augment-dim:rgba(95,125,51,0.12);
+    --generate:#a83d5c;--generate-dim:rgba(168,61,92,0.10);
+    --ok:#3c8d57;--warn:#b8721f;
+  }
+}
+
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;font-family:var(--font-body);background:var(--bg);color:var(--text);
+  line-height:1.55;-webkit-font-smoothing:antialiased;
+  background-image:
+    linear-gradient(var(--grid) 1px,transparent 1px),
+    linear-gradient(90deg,var(--grid) 1px,transparent 1px),
+    radial-gradient(ellipse at 50% -10%,rgba(25,167,194,0.10) 0%,transparent 55%);
+  background-size:32px 32px,32px 32px,100% 900px;
+}
+.wrap{max-width:1180px;margin:0 auto;padding:0 22px}
+
+/* ---------- header ---------- */
+.masthead{padding:54px 0 30px;border-bottom:1px solid var(--border);position:relative}
+.kicker{font-family:var(--font-mono);font-size:12px;letter-spacing:.32em;text-transform:uppercase;color:var(--query);margin:0 0 14px;display:flex;align-items:center;gap:10px}
+.kicker::before{content:"";width:26px;height:1px;background:var(--query)}
+.masthead h1{font-size:clamp(2.1rem,5vw,3.5rem);line-height:1.04;margin:0 0 16px;font-weight:800;letter-spacing:-.02em}
+.masthead h1 em{font-style:normal;color:var(--query)}
+.masthead .lede{font-size:clamp(1rem,1.6vw,1.18rem);color:var(--text-dim);max-width:60ch;margin:0}
+.masthead .meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:24px}
+.tag{font-family:var(--font-mono);font-size:11px;padding:5px 11px;border:1px solid var(--border-bright);border-radius:40px;color:var(--text-dim);background:var(--surface)}
+
+/* ---------- section scaffolding ---------- */
+section{padding:52px 0;border-bottom:1px solid var(--border)}
+.sec-head{display:flex;align-items:baseline;gap:16px;margin-bottom:6px}
+.sec-num{font-family:var(--font-mono);font-size:13px;color:var(--text-faint);font-weight:500}
+.sec-label{font-family:var(--font-mono);font-size:12px;letter-spacing:.2em;text-transform:uppercase;display:flex;align-items:center;gap:9px}
+.sec-label::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--accent,var(--query));box-shadow:0 0 0 4px color-mix(in srgb,var(--accent,var(--query)) 18%,transparent)}
+.s-ingest{--accent:var(--ingest)} .s-query{--accent:var(--query)} .s-augment{--accent:var(--augment)} .s-generate{--accent:var(--generate)}
+h2.sec-title{font-size:clamp(1.5rem,3vw,2.1rem);margin:8px 0 10px;font-weight:700;letter-spacing:-.01em}
+.sec-sub{color:var(--text-dim);max-width:68ch;margin:0 0 28px}
+
+/* ---------- cards ---------- */
+.ve-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;position:relative}
+.ve-card--elev{background:var(--surface-2);box-shadow:0 4px 18px rgba(0,0,0,.25)}
+.grid{display:grid;gap:16px}
+@media(min-width:760px){.g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:repeat(3,1fr)}.g4{grid-template-columns:repeat(4,1fr)}}
+
+/* ---------- simulator ---------- */
+.sim{background:linear-gradient(180deg,var(--surface-2),var(--surface));border:1px solid var(--border-bright);border-radius:18px;overflow:hidden;box-shadow:0 18px 50px rgba(0,0,0,.35)}
+.sim-bar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:16px 20px;border-bottom:1px solid var(--border);background:var(--surface-3)}
+.sim-title{font-family:var(--font-mono);font-size:12.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim)}
+.sim-ctrls{margin-left:auto;display:flex;gap:9px;flex-wrap:wrap}
+.btn{font-family:var(--font-mono);font-size:12.5px;font-weight:500;border:1px solid var(--border-bright);background:var(--surface);color:var(--text);padding:8px 15px;border-radius:8px;cursor:pointer;transition:.16s;display:inline-flex;align-items:center;gap:7px}
+.btn:hover{border-color:var(--query);color:var(--query);transform:translateY(-1px)}
+.btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.btn--go{background:var(--query);color:#04141a;border-color:var(--query);font-weight:600}
+.btn--go:hover{filter:brightness(1.1);color:#04141a}
+@media(prefers-color-scheme:light){.btn--go{color:#fff}}
+
+/* progress rail */
+.rail{display:flex;align-items:stretch;gap:0;padding:18px 20px 4px;overflow-x:auto;scrollbar-width:thin}
+.rail-step{flex:0 0 auto;display:flex;align-items:center;gap:0;opacity:.4;transition:.3s}
+.rail-step.done{opacity:.85}.rail-step.active{opacity:1}
+.rail-dot{width:30px;height:30px;border-radius:50%;border:1.5px solid var(--border-bright);background:var(--surface);display:grid;place-items:center;font-family:var(--font-mono);font-size:12px;font-weight:600;color:var(--text-dim);flex:0 0 auto;transition:.3s}
+.rail-step.done .rail-dot{background:var(--ph);border-color:var(--ph);color:#06121a}
+.rail-step.active .rail-dot{border-color:var(--ph);color:var(--ph);box-shadow:0 0 0 5px color-mix(in srgb,var(--ph) 22%,transparent)}
+.rail-line{width:30px;height:2px;background:var(--border)}
+.rail-step.done .rail-line{background:var(--ph)}
+.rail-cap{font-family:var(--font-mono);font-size:10px;color:var(--text-faint);text-align:center;padding:0 20px 14px;letter-spacing:.05em}
+
+/* stage */
+.stage{padding:8px 20px 22px;min-height:330px}
+.frame{display:none;animation:fade .4s ease both}
+.frame.show{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.frame-head{display:flex;align-items:center;gap:12px;margin:6px 0 16px}
+.frame-idx{font-family:var(--font-mono);font-size:11px;font-weight:600;padding:4px 10px;border-radius:30px;background:var(--ph-dim);color:var(--ph);border:1px solid color-mix(in srgb,var(--ph) 35%,transparent)}
+.frame-head h3{margin:0;font-size:1.2rem;font-weight:600}
+.frame-desc{color:var(--text-dim);font-size:.95rem;margin:0 0 18px;max-width:72ch}
+
+/* visual primitives inside frames */
+.file-chip{display:inline-flex;align-items:center;gap:10px;background:var(--surface-3);border:1px solid var(--border-bright);border-radius:10px;padding:11px 15px;font-family:var(--font-mono);font-size:13px}
+.file-chip .ic{width:26px;height:26px;border-radius:6px;background:var(--ingest-dim);color:var(--ingest);display:grid;place-items:center;font-weight:700;font-size:11px}
+.file-chip small{color:var(--text-faint);font-size:11px}
+
+.flow-h{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.flow-h .arr{color:var(--ph);font-size:20px;opacity:.7}
+
+.codeblk{background:var(--bg);border:1px solid var(--border);border-radius:10px;overflow:hidden;font-family:var(--font-mono);font-size:12.5px}
+.codeblk .ch{display:flex;justify-content:space-between;padding:8px 14px;background:var(--surface-3);border-bottom:1px solid var(--border);color:var(--text-faint);font-size:11px;letter-spacing:.08em}
+.codeblk pre{margin:0;padding:14px;overflow-x:auto;line-height:1.65;color:var(--ink)}
+.codeblk .cm{color:var(--text-faint)}
+.codeblk .kw{color:var(--query)}
+.codeblk .st{color:var(--augment)}
+.codeblk .nm{color:var(--ingest)}
+
+/* chunk visualisation */
+.doctext{font-family:var(--font-mono);font-size:12.5px;line-height:1.9;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:16px}
+.chk{padding:1px 3px;border-radius:4px;transition:.4s}
+.chk.c0{background:rgba(25,167,194,.16);box-shadow:inset 0 0 0 1px rgba(25,167,194,.4)}
+.chk.c1{background:rgba(212,167,58,.16);box-shadow:inset 0 0 0 1px rgba(212,167,58,.4)}
+.chk.c2{background:rgba(124,156,75,.18);box-shadow:inset 0 0 0 1px rgba(124,156,75,.45)}
+.chk.ov{background:rgba(196,96,122,.28);box-shadow:inset 0 0 0 1px rgba(196,96,122,.6);font-weight:600}
+.legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:14px;font-family:var(--font-mono);font-size:11px;color:var(--text-dim)}
+.legend i{display:inline-block;width:13px;height:13px;border-radius:3px;margin-right:6px;vertical-align:-2px}
+
+/* embedding vector viz */
+.vecrow{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-family:var(--font-mono);font-size:12px}
+.vec{display:flex;gap:3px;flex-wrap:wrap;align-items:flex-end;height:54px}
+.vbar{width:7px;border-radius:2px 2px 0 0;background:var(--ph);opacity:.85}
+.vbrace{color:var(--text-faint);font-size:11px}
+.dimtag{font-family:var(--font-mono);font-size:11px;color:var(--text-faint)}
+
+/* vector DB store */
+.dbgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.vrec{background:var(--surface-2);border:1px solid var(--border);border-left:3px solid var(--ph);border-radius:8px;padding:10px 12px;font-family:var(--font-mono);font-size:11px}
+.vrec b{color:var(--ph);font-size:12px}
+.vrec .v{color:var(--text-faint);font-size:10px;word-break:break-all;display:block;margin-top:5px}
+
+/* tables */
+.tbl-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:540px}
+thead th{position:sticky;top:0;background:var(--surface-3);text-align:left;padding:12px 15px;font-family:var(--font-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);border-bottom:1px solid var(--border-bright);font-weight:500}
+tbody td{padding:11px 15px;border-bottom:1px solid var(--border);vertical-align:top}
+tbody tr:nth-child(even){background:color-mix(in srgb,var(--surface-2) 60%,transparent)}
+tbody tr:hover{background:var(--query-dim)}
+tbody tr:last-child td{border-bottom:none}
+td code,.mono{font-family:var(--font-mono);font-size:12px}
+.num{font-family:var(--font-mono);text-align:right;font-variant-numeric:tabular-nums}
+.bar-cell{display:flex;align-items:center;gap:9px}
+.bar-cell .track{flex:1;height:7px;background:var(--surface-3);border-radius:4px;overflow:hidden;min-width:60px}
+.bar-cell .fill{height:100%;border-radius:4px;background:var(--query)}
+.pill{display:inline-block;font-family:var(--font-mono);font-size:10.5px;padding:3px 9px;border-radius:20px;font-weight:500}
+.pill--top{background:var(--augment-dim);color:var(--augment);border:1px solid color-mix(in srgb,var(--augment) 40%,transparent)}
+.pill--mid{background:var(--ingest-dim);color:var(--ingest)}
+.pill--low{background:rgba(120,130,150,.12);color:var(--text-faint)}
+
+/* prompt builder */
+.prompt-stack{display:grid;gap:10px}
+.pslot{border-radius:10px;padding:13px 16px;font-family:var(--font-mono);font-size:12.5px;line-height:1.7;border:1px solid var(--border)}
+.pslot .lbl{display:block;font-size:10px;letter-spacing:.14em;text-transform:uppercase;margin-bottom:6px;opacity:.85}
+.pslot--sys{background:var(--augment-dim);border-color:color-mix(in srgb,var(--augment) 35%,transparent)}.pslot--sys .lbl{color:var(--augment)}
+.pslot--ctx{background:var(--query-dim);border-color:color-mix(in srgb,var(--query) 35%,transparent)}.pslot--ctx .lbl{color:var(--query)}
+.pslot--usr{background:var(--generate-dim);border-color:color-mix(in srgb,var(--generate) 35%,transparent)}.pslot--usr .lbl{color:var(--generate)}
+.plus{text-align:center;color:var(--text-faint);font-family:var(--font-mono);font-size:14px}
+
+/* token stream */
+.streambox{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:18px;min-height:120px;font-size:14.5px;line-height:1.7}
+.tok{opacity:0;animation:tokin .25s forwards}
+@keyframes tokin{to{opacity:1}}
+.cursor{display:inline-block;width:8px;height:18px;background:var(--generate);vertical-align:-3px;animation:blink 1s steps(2) infinite}
+@keyframes blink{50%{opacity:0}}
+
+/* metric strip per frame */
+.mstrip{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
+.metric{background:var(--surface-3);border:1px solid var(--border);border-radius:9px;padding:9px 14px;min-width:108px}
+.metric .k{font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-faint)}
+.metric .v{font-family:var(--font-mono);font-size:16px;font-weight:600;color:var(--ph);margin-top:2px}
+.metric .v small{font-size:11px;color:var(--text-dim);font-weight:400}
+
+/* KPI hero row */
+.kpis{display:grid;gap:14px;grid-template-columns:repeat(2,1fr)}
+@media(min-width:680px){.kpis{grid-template-columns:repeat(4,1fr)}}
+.kpi{background:var(--surface-2);border:1px solid var(--border);border-radius:14px;padding:18px 20px;position:relative;overflow:hidden}
+.kpi::after{content:"";position:absolute;inset:0 auto 0 0;width:3px;background:var(--kc,var(--query))}
+.kpi .kv{font-family:var(--font-mono);font-size:1.9rem;font-weight:700;letter-spacing:-.02em;color:var(--kc,var(--query))}
+.kpi .kl{font-size:.82rem;color:var(--text-dim);margin-top:4px}
+
+/* mermaid */
+.diagram-shell{margin:6px 0}
+.mermaid-wrap{position:relative;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:10px;overflow:hidden}
+.zoom-controls{position:absolute;top:12px;right:12px;display:flex;gap:6px;z-index:5}
+.zoom-controls button{width:32px;height:32px;border:1px solid var(--border-bright);background:var(--surface-2);color:var(--text);border-radius:7px;cursor:pointer;font-family:var(--font-mono);font-size:15px;display:grid;place-items:center;transition:.15s}
+.zoom-controls button:hover{border-color:var(--query);color:var(--query)}
+.mermaid-viewport{overflow:hidden;cursor:grab;border-radius:10px}
+.mermaid-viewport:active{cursor:grabbing}
+.mermaid-canvas{transform-origin:0 0;transition:transform .08s linear}
+.mermaid{display:flex;justify-content:center}
+.mermaid .nodeLabel{color:var(--text)!important;font-family:var(--font-body)!important;font-size:15px!important}
+.mermaid .edgeLabel{color:var(--text-dim)!important;background-color:var(--bg)!important;font-family:var(--font-mono)!important;font-size:12px!important}
+.mermaid .edgeLabel rect{fill:var(--bg)!important}
+.mermaid .cluster rect{rx:10px}
+.hint{font-family:var(--font-mono);font-size:11px;color:var(--text-faint);text-align:center;margin-top:8px}
+
+/* info callout */
+.note{border-left:3px solid var(--ph,var(--query));background:var(--surface-2);border-radius:0 10px 10px 0;padding:14px 18px;font-size:.92rem;color:var(--text-dim)}
+.note b{color:var(--text)}
+
+/* small caption + lists */
+ul.clean{list-style:none;padding:0;margin:0;display:grid;gap:9px}
+ul.clean li{position:relative;padding-left:22px;color:var(--text-dim);font-size:.93rem}
+ul.clean li::before{content:"";position:absolute;left:0;top:9px;width:8px;height:8px;border-radius:2px;background:var(--ph,var(--query))}
+.cap{font-family:var(--font-mono);font-size:11px;color:var(--text-faint);margin-top:10px}
+
+footer{padding:40px 0 60px;color:var(--text-faint);font-family:var(--font-mono);font-size:12px;text-align:center}
+
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="wrap">
+    <p class="kicker">Retrieval-Augmented Generation · Request → Response</p>
+    <h1>How a <em>RAG engine</em> actually works,<br>from upload to answer</h1>
+    <p class="lede">A driven, step-by-step simulation of a production-grade RAG pipeline — watch three documents become embeddings, a question become a vector, and retrieved context become a grounded answer. Every step shows real sample data, latency, and the API calls behind it.</p>
+    <div class="meta">
+      <span class="tag">employee_handbook.pdf</span>
+      <span class="tag">company_policy.docx</span>
+      <span class="tag">product_manual.pdf</span>
+      <span class="tag">text-embedding-3-small · 1536-d</span>
+      <span class="tag">pgvector / Pinecone</span>
+      <span class="tag">gpt-4o-mini</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+<!-- ============ KPI OVERVIEW ============ -->
+<section>
+  <div class="kpis">
+    <div class="kpi" style="--kc:var(--ingest)"><div class="kv">3</div><div class="kl">Documents → 47 chunks indexed once, queried forever</div></div>
+    <div class="kpi" style="--kc:var(--query)"><div class="kv">1536</div><div class="kl">Embedding dimensions per chunk &amp; per query</div></div>
+    <div class="kpi" style="--kc:var(--augment)"><div class="kv">Top-4</div><div class="kl">Chunks retrieved by cosine similarity</div></div>
+    <div class="kpi" style="--kc:var(--generate)"><div class="kv">~1.4s</div><div class="kl">End-to-end query latency (embed → search → generate)</div></div>
+  </div>
+</section>
+
+<!-- ============ THE SIMULATOR ============ -->
+<section class="s-query" id="simulator">
+  <div class="sec-head"><span class="sec-num">00</span><span class="sec-label">Interactive simulation</span></div>
+  <h2 class="sec-title">Drive the pipeline, one step at a time</h2>
+  <p class="sec-sub">Press <b>Play</b> to auto-advance, or <b>Step</b> to move manually. The pipeline runs in two acts: <span style="color:var(--ingest)">indexing</span> (done once when documents are uploaded) and <span style="color:var(--query)">querying</span> (done every time a user asks something). Watch the rail at the top to see where you are.</p>
+
+  <div class="sim">
+    <div class="sim-bar">
+      <span class="sim-title">rag-engine // live trace</span>
+      <div class="sim-ctrls">
+        <button class="btn" id="bPrev">‹ Step back</button>
+        <button class="btn btn--go" id="bPlay">▶ Play</button>
+        <button class="btn" id="bNext">Step ›</button>
+        <button class="btn" id="bReset">⟲ Reset</button>
+      </div>
+    </div>
+
+    <div class="rail" id="rail"></div>
+    <div class="rail-cap" id="railCap">Ready — press Play to begin the trace</div>
+
+    <div class="stage" id="stage"><!-- frames injected by JS --></div>
+  </div>
+</section>
+
+<!-- ============ PHASE 1: INGESTION ============ -->
+<section class="s-ingest" id="ingestion">
+  <div class="sec-head"><span class="sec-num">01</span><span class="sec-label">Indexing pipeline</span></div>
+  <h2 class="sec-title">Document upload &amp; ingestion</h2>
+  <p class="sec-sub">This runs <b>once per document</b>. The goal is to turn unstructured files into searchable vectors. Nothing here touches the LLM yet — it is pure data preparation.</p>
+
+  <div class="grid g3" style="margin-bottom:18px">
+    <div class="ve-card" style="border-left:3px solid var(--ingest)">
+      <div class="file-chip"><span class="ic">PDF</span><div>employee_handbook.pdf<br><small>312 KB · 24 pages</small></div></div>
+      <p style="color:var(--text-dim);font-size:.88rem;margin:14px 0 0">Leave policy, working hours, code of conduct.</p>
+    </div>
+    <div class="ve-card" style="border-left:3px solid var(--ingest)">
+      <div class="file-chip"><span class="ic" style="background:var(--query-dim);color:var(--query)">DOC</span><div>company_policy.docx<br><small>88 KB · 9 pages</small></div></div>
+      <p style="color:var(--text-dim);font-size:.88rem;margin:14px 0 0">Remote work, expense rules, security policy.</p>
+    </div>
+    <div class="ve-card" style="border-left:3px solid var(--ingest)">
+      <div class="file-chip"><span class="ic">PDF</span><div>product_manual.pdf<br><small>540 KB · 41 pages</small></div></div>
+      <p style="color:var(--text-dim);font-size:.88rem;margin:14px 0 0">Setup, troubleshooting, warranty terms.</p>
+    </div>
+  </div>
+
+  <div class="diagram-shell">
+    <div class="mermaid-wrap">
+      <div class="zoom-controls">
+        <button onclick="zoomDiagram('ingestDiag',0.2)">+</button>
+        <button onclick="zoomDiagram('ingestDiag',-0.2)">−</button>
+        <button onclick="resetDiagram('ingestDiag')">⟲</button>
+        <button onclick="expandDiagram('ingestDiag')">⛶</button>
+      </div>
+      <div class="mermaid-viewport" data-diag="ingestDiag">
+        <div class="mermaid-canvas">
+<pre class="mermaid">
+graph TD
+  U(["User uploads file"]) -->|"multipart POST"| API["Backend API<br/><small>/api/documents</small>"]
+  API --> EX["Text Extractor<br/><small>pdfplumber · python-docx</small>"]
+  EX --> CL["Cleaner / Preprocess<br/><small>strip headers, fix encoding</small>"]
+  CL --> CH["Chunking Engine<br/><small>512 tokens · 64 overlap</small>"]
+  CH --> EMB["Embeddings API<br/><small>text-embedding-3-small</small>"]
+  EMB --> DB[("Vector DB<br/><small>pgvector · HNSW index</small>")]
+  classDef ext fill:none,stroke-dasharray:4 4
+  class EMB ext
+</pre>
+        </div>
+      </div>
+    </div>
+    <p class="hint">Ctrl/⌘ + scroll to zoom · drag to pan · ⛶ opens full-size</p>
+  </div>
+
+  <div class="grid g2" style="margin-top:20px">
+    <div class="ve-card ve-card--elev">
+      <div class="sec-label" style="--accent:var(--ingest);margin-bottom:12px">Text extraction &amp; cleaning</div>
+      <div class="codeblk">
+        <div class="ch"><span>extract.py</span><span>raw → clean</span></div>
+<pre><span class="cm"># PDF → text, page by page</span>
+<span class="kw">import</span> pdfplumber
+text = <span class="st">""</span>
+<span class="kw">with</span> pdfplumber.open(f) <span class="kw">as</span> pdf:
+    <span class="kw">for</span> page <span class="kw">in</span> pdf.pages:
+        text += page.extract_text()
+
+<span class="cm"># cleanup pass</span>
+text = strip_headers_footers(text)
+text = re.sub(<span class="st">r"\s+"</span>, <span class="st">" "</span>, text)
+text = fix_unicode(text)  <span class="cm"># “smart” quotes etc.</span></pre>
+      </div>
+      <p class="cap">DOCX uses python-docx; scanned PDFs need an OCR pass (Tesseract) first.</p>
+    </div>
+    <div class="ve-card ve-card--elev">
+      <div class="sec-label" style="--accent:var(--ingest);margin-bottom:12px">Why chunk at all?</div>
+      <ul class="clean" style="--ph:var(--ingest)">
+        <li><b>Embedding models have a token limit</b> — you cannot embed a 24-page document as one vector.</li>
+        <li><b>Retrieval precision</b> — small chunks let the search return the exact paragraph that answers a question, not the whole file.</li>
+        <li><b>Overlap preserves context</b> — repeating the last ~64 tokens at the start of the next chunk stops sentences being cut mid-thought.</li>
+      </ul>
+      <div class="note" style="--ph:var(--ingest);margin-top:16px"><b>Typical config:</b> 512-token chunks with 64-token (≈12%) overlap. Smaller chunks = sharper retrieval but more vectors; larger chunks = more context but noisier matches.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PHASE 2: QUERY ============ -->
+<section class="s-query" id="query">
+  <div class="sec-head"><span class="sec-num">02</span><span class="sec-label">Retrieval pipeline</span></div>
+  <h2 class="sec-title">Query → embedding → similarity search</h2>
+  <p class="sec-sub">This runs on <b>every question</b>. The query is embedded by the <i>same model</i> used for the documents — that shared vector space is what makes similarity comparison meaningful.</p>
+
+  <div class="ve-card ve-card--elev" style="margin-bottom:20px">
+    <div class="flow-h" style="--ph:var(--query)">
+      <div class="file-chip"><span class="ic" style="background:var(--query-dim);color:var(--query)">Q</span><div>"What is the company's leave policy?"</div></div>
+      <span class="arr">→</span>
+      <span class="dimtag">embed</span>
+      <span class="arr">→</span>
+      <div class="vecrow"><span class="vbrace">[</span><div class="vec" id="qvec" style="--ph:var(--query)"></div><span class="vbrace">] 1536-d</span></div>
+    </div>
+  </div>
+
+  <h3 style="font-size:1.05rem;margin:0 0 6px">Top-K retrieval ranking</h3>
+  <p style="color:var(--text-dim);font-size:.92rem;margin:0 0 16px;max-width:70ch">Every stored chunk's vector is compared to the query vector with <b>cosine similarity</b>. The closer to 1.0, the more semantically aligned. The top 4 are kept — note that chunk #C-07 ranks high even though it never uses the word "leave".</p>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr>
+        <th>Rank</th><th>Chunk</th><th>Source</th><th>Preview</th><th style="text-align:right">Cosine</th><th>Score</th>
+      </tr></thead>
+      <tbody id="rankRows"></tbody>
+    </table>
+  </div>
+  <p class="cap">Cosine similarity = (A · B) / (‖A‖ ‖B‖). Range −1…1; for normalized embeddings, effectively 0…1.</p>
+
+  <div class="grid g2" style="margin-top:22px">
+    <div class="ve-card ve-card--elev">
+      <div class="sec-label" style="--accent:var(--query);margin-bottom:12px">Cosine similarity, concretely</div>
+      <div class="codeblk">
+        <div class="ch"><span>similarity</span><span>pgvector SQL</span></div>
+<pre><span class="cm">-- pgvector: &lt;=&gt; is cosine distance</span>
+<span class="kw">SELECT</span> id, content,
+       <span class="nm">1</span> - (embedding &lt;=&gt; :q) <span class="kw">AS</span> score
+<span class="kw">FROM</span>   chunks
+<span class="kw">ORDER BY</span> embedding &lt;=&gt; :q   <span class="cm">-- nearest first</span>
+<span class="kw">LIMIT</span>  <span class="nm">4</span>;                    <span class="cm">-- top-K</span></pre>
+      </div>
+      <p class="cap">The HNSW index turns this from an O(n) scan into an approximate-nearest-neighbour lookup in ~logarithmic time.</p>
+    </div>
+    <div class="ve-card ve-card--elev">
+      <div class="sec-label" style="--accent:var(--query);margin-bottom:12px">Vector comparison intuition</div>
+      <p style="color:var(--text-dim);font-size:.9rem;margin:0 0 14px">Two vectors pointing the same direction → angle ≈ 0° → cosine ≈ 1.0 → strong match. Direction encodes meaning; magnitude is ignored.</p>
+      <svg viewBox="0 0 260 150" style="width:100%;max-width:300px;display:block;margin:0 auto">
+        <defs><marker id="ah" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="currentColor"/></marker></defs>
+        <g transform="translate(20,128)" font-family="var(--font-mono)" font-size="9">
+          <line x1="0" y1="0" x2="220" y2="0" stroke="var(--border-bright)"/>
+          <line x1="0" y1="0" x2="0" y2="-118" stroke="var(--border-bright)"/>
+          <line x1="0" y1="0" x2="180" y2="-95" stroke="var(--query)" stroke-width="2.5" marker-end="url(#ah)" color="var(--query)"/>
+          <line x1="0" y1="0" x2="165" y2="-78" stroke="var(--augment)" stroke-width="2.5" marker-end="url(#ah)" color="var(--augment)"/>
+          <line x1="0" y1="0" x2="60" y2="-150" stroke="var(--text-faint)" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#ah)" color="var(--text-faint)"/>
+          <text x="150" y="-100" fill="var(--query)">query</text>
+          <text x="135" y="-60" fill="var(--augment)">C-03 ✓ 0.91</text>
+          <text x="20" y="-128" fill="var(--text-faint)">C-31 ✗ 0.42</text>
+          <path d="M 40 -21 A 45 45 0 0 1 47 -10" fill="none" stroke="var(--text-dim)" stroke-width="1"/>
+          <text x="52" y="-14" fill="var(--text-dim)">θ</text>
+        </g>
+      </svg>
+      <p class="cap">Small angle between query and C-03 → high similarity. C-31 points elsewhere → low.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PHASE 3: AUGMENTATION ============ -->
+<section class="s-augment" id="augment">
+  <div class="sec-head"><span class="sec-num">03</span><span class="sec-label">Prompt assembly</span></div>
+  <h2 class="sec-title">Augmentation — stitching context into the prompt</h2>
+  <p class="sec-sub">The retrieved chunks are not sent to the user — they are injected into the prompt as <b>grounding context</b>. This is the "augmented" in Retrieval-Augmented Generation. The structure is always: instructions, then evidence, then the question.</p>
+
+  <div class="ve-card ve-card--elev">
+    <div class="prompt-stack">
+      <div class="pslot pslot--sys"><span class="lbl">System prompt — the rules</span>You are a helpful assistant. Answer the user's question using ONLY the context below. If the answer is not in the context, say you don't know. Cite the source document.</div>
+      <div class="plus">+</div>
+      <div class="pslot pslot--ctx"><span class="lbl">Retrieved context — top-4 chunks</span>[C-03 · employee_handbook.pdf] "Employees accrue 20 days of paid annual leave per year, accrued monthly…"<br>[C-07 · employee_handbook.pdf] "Unused vacation days, up to 5, may be carried into the next calendar year…"<br>[C-12 · company_policy.docx] "Leave requests must be submitted at least 14 days in advance via the HR portal…"<br>[C-19 · employee_handbook.pdf] "Sick leave is separate and capped at 10 days annually…"</div>
+      <div class="plus">+</div>
+      <div class="pslot pslot--usr"><span class="lbl">User question</span>What is the company's leave policy?</div>
+    </div>
+    <div class="note" style="--ph:var(--augment);margin-top:18px"><b>Token budget matters here.</b> Context + question + system prompt must fit the model's window. In this run: ~640 context tokens + 95 system + 9 question = <b>744 input tokens</b>. More chunks = more grounding but more cost and more chance of diluting relevance.</div>
+  </div>
+</section>
+
+<!-- ============ PHASE 4: GENERATION ============ -->
+<section class="s-generate" id="generate">
+  <div class="sec-head"><span class="sec-num">04</span><span class="sec-label">Response generation</span></div>
+  <h2 class="sec-title">The LLM generates a grounded answer</h2>
+  <p class="sec-sub">The assembled prompt goes to the model. It reads the context, reasons over it, and produces tokens one at a time — streamed back through the server to the user's screen. Because the answer is anchored to retrieved text, it is far less likely to hallucinate.</p>
+
+  <div class="grid g2">
+    <div class="ve-card ve-card--elev">
+      <div class="sec-label" style="--accent:var(--generate);margin-bottom:12px">Autoregressive generation</div>
+      <ul class="clean" style="--ph:var(--generate)">
+        <li>The model predicts the next token from the prompt + everything generated so far.</li>
+        <li>Each token is appended and fed back in — that loop is "autoregressive".</li>
+        <li><b>Streaming</b> sends tokens as they're produced (Server-Sent Events), so the user sees words appear instead of waiting for the whole answer.</li>
+        <li>Grounding chunks keep the output faithful — the model paraphrases the evidence rather than inventing facts.</li>
+      </ul>
+    </div>
+    <div class="ve-card ve-card--elev">
+      <div class="sec-label" style="--accent:var(--generate);margin-bottom:12px">Streamed answer</div>
+      <div class="streambox" id="answerBox2"><span style="color:var(--text-faint)">Run the simulator above to stream the answer here →</span></div>
+      <div class="mstrip">
+        <div class="metric" style="--ph:var(--generate)"><div class="k">Output tokens</div><div class="v">86</div></div>
+        <div class="metric" style="--ph:var(--generate)"><div class="k">Time to first token</div><div class="v">310<small>ms</small></div></div>
+        <div class="metric" style="--ph:var(--generate)"><div class="k">Total cost</div><div class="v">$0.0003</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ END-TO-END ARCHITECTURE ============ -->
+<section id="architecture">
+  <div class="sec-head"><span class="sec-num">05</span><span class="sec-label">Full system</span></div>
+  <h2 class="sec-title">End-to-end architecture</h2>
+  <p class="sec-sub">The complete data flow. The <span style="color:var(--ingest)">amber path</span> runs once at indexing time; the <span style="color:var(--query)">teal path</span> runs on every query. They meet at the vector database.</p>
+
+  <div class="diagram-shell">
+    <div class="mermaid-wrap">
+      <div class="zoom-controls">
+        <button onclick="zoomDiagram('archDiag',0.2)">+</button>
+        <button onclick="zoomDiagram('archDiag',-0.2)">−</button>
+        <button onclick="resetDiagram('archDiag')">⟲</button>
+        <button onclick="expandDiagram('archDiag')">⛶</button>
+      </div>
+      <div class="mermaid-viewport" data-diag="archDiag">
+        <div class="mermaid-canvas">
+<pre class="mermaid">
+graph TD
+  USER(["User"]) -->|"asks question"| FE["Frontend UI<br/><small>chat widget</small>"]
+  FE -->|"POST /chat"| BE["Backend Server"]
+
+  subgraph INDEX["① Indexing — once per document"]
+    direction TB
+    DP["Document Processor<br/><small>extract + clean</small>"] --> CHK["Chunking Engine<br/><small>512 / 64 overlap</small>"]
+    CHK --> EMB1["Embeddings API<br/><small>text-embedding-3-small</small>"]
+  end
+
+  subgraph RETR["② Retrieval — every query"]
+    direction TB
+    QEMB["Query Embedding"] --> SIM["Similarity Search<br/><small>cosine · HNSW</small>"]
+    SIM --> TOPK["Top-K Retrieval<br/><small>K = 4</small>"]
+  end
+
+  BE -.->|"new docs"| DP
+  EMB1 --> VDB[("Vector Database<br/><small>pgvector</small>")]
+  BE -->|"query text"| QEMB
+  VDB --> SIM
+  TOPK --> PB["Prompt Builder<br/><small>system + context + Q</small>"]
+  PB --> LLM["OpenAI LLM<br/><small>gpt-4o-mini</small>"]
+  LLM -->|"streamed tokens"| BE2["Backend Server"]
+  BE2 -->|"SSE"| FE2["Frontend"]
+  FE2 --> OUT(["User reads answer"])
+
+  classDef ingest fill:#d4a73a22,stroke:#d4a73a,stroke-width:1.5px
+  classDef query  fill:#19a7c222,stroke:#19a7c2,stroke-width:1.5px
+  classDef gen    fill:#c4607a22,stroke:#c4607a,stroke-width:1.5px
+  classDef store  fill:#7c9c4b22,stroke:#7c9c4b,stroke-width:2px
+  class DP,CHK,EMB1 ingest
+  class QEMB,SIM,TOPK,PB query
+  class LLM,BE2,FE2,OUT gen
+  class VDB store
+</pre>
+        </div>
+      </div>
+    </div>
+    <p class="hint">Ctrl/⌘ + scroll to zoom · drag to pan · ⛶ opens full-size</p>
+  </div>
+</section>
+
+<!-- ============ ADVANCED / LATENCY ============ -->
+<section id="advanced">
+  <div class="sec-head"><span class="sec-num">06</span><span class="sec-label">Per-step breakdown</span></div>
+  <h2 class="sec-title">Latency, tokens &amp; API calls per step</h2>
+  <p class="sec-sub">What actually happens on a single query, measured. Indexing cost is amortised — you pay it once; the query path is what users feel on every request.</p>
+
+  <div class="tbl-wrap" style="margin-bottom:22px">
+    <table>
+      <thead><tr>
+        <th>Step</th><th>Component</th><th>API call</th><th class="num">Latency</th><th class="num">Tokens</th><th>Share of query time</th>
+      </tr></thead>
+      <tbody>
+        <tr><td><span class="pill pill--low">idx</span></td><td>Text extraction + chunk</td><td><code>—</code> local</td><td class="num">~40 ms / pg</td><td class="num">—</td><td><span class="cap">once per doc</span></td></tr>
+        <tr><td><span class="pill pill--low">idx</span></td><td>Document embeddings</td><td><code>POST /embeddings</code> ×47</td><td class="num">~900 ms</td><td class="num">~24k in</td><td><span class="cap">once per doc</span></td></tr>
+        <tr><td><span class="pill pill--mid">1</span></td><td>Query embedding</td><td><code>POST /embeddings</code> ×1</td><td class="num">90 ms</td><td class="num">9 in</td><td><div class="bar-cell"><div class="track"><div class="fill" style="width:6%;background:var(--query)"></div></div><span class="mono">6%</span></div></td></tr>
+        <tr><td><span class="pill pill--mid">2</span></td><td>Vector similarity search</td><td><code>SQL</code> pgvector</td><td class="num">12 ms</td><td class="num">—</td><td><div class="bar-cell"><div class="track"><div class="fill" style="width:1%;background:var(--query)"></div></div><span class="mono">&lt;1%</span></div></td></tr>
+        <tr><td><span class="pill pill--mid">3</span></td><td>Top-K retrieval + prompt build</td><td><code>—</code> local</td><td class="num">8 ms</td><td class="num">744 in</td><td><div class="bar-cell"><div class="track"><div class="fill" style="width:1%;background:var(--query)"></div></div><span class="mono">&lt;1%</span></div></td></tr>
+        <tr><td><span class="pill pill--top">4</span></td><td>LLM generation (streamed)</td><td><code>POST /chat/completions</code></td><td class="num">1,180 ms</td><td class="num">744 in · 86 out</td><td><div class="bar-cell"><div class="track"><div class="fill" style="width:93%;background:var(--generate)"></div></div><span class="mono">93%</span></div></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="grid g3">
+    <div class="ve-card ve-card--elev">
+      <div class="sec-label" style="--accent:var(--query);margin-bottom:10px">Embedding dimensions</div>
+      <p style="color:var(--text-dim);font-size:.9rem;margin:0">Each chunk &amp; query becomes a fixed-length vector of <b>1536 floats</b> (text-embedding-3-small). Larger models (3-large) use 3072-d for finer meaning at higher storage cost. The number must match across documents and queries.</p>
+    </div>
+    <div class="ve-card ve-card--elev">
+      <div class="sec-label" style="--accent:var(--ingest);margin-bottom:10px">Where time goes</div>
+      <p style="color:var(--text-dim);font-size:.9rem;margin:0">The LLM call dominates (<b>~93%</b> of query latency). Embedding + search together are under 110 ms. Optimisation effort belongs at the generation step — smaller models, prompt caching, or streaming for perceived speed.</p>
+    </div>
+    <div class="ve-card ve-card--elev">
+      <div class="sec-label" style="--accent:var(--generate);margin-bottom:10px">Cost per query</div>
+      <p style="color:var(--text-dim);font-size:.9rem;margin:0">Query embed (~$0.0000002) + generation (~$0.0003) ≈ <b>$0.0003</b>. Indexing is a one-time ~$0.0005 for all three documents. RAG is cheap to run; the expense is the LLM tokens, not the retrieval.</p>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="wrap">
+  RAG engine simulation · sample data for illustration · indexing once, retrieving forever
+</footer>
+
+<!-- ===================== MERMAID ===================== -->
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+mermaid.initialize({
+  startOnLoad:true, theme:'base', securityLevel:'loose',
+  flowchart:{ curve:'basis', padding:14, nodeSpacing:46, rankSpacing:54 },
+  themeVariables:{
+    fontFamily:'Sora, system-ui, sans-serif', fontSize:'15px',
+    primaryColor:isDark?'#171f30':'#eef2f9',
+    primaryBorderColor:isDark?'#19a7c2':'#0c7d95',
+    primaryTextColor:isDark?'#e8edf6':'#16202f',
+    lineColor:isDark?'#5e6c84':'#8493ab',
+    clusterBkg:isDark?'#141b29':'#f6f8fc',
+    clusterBorder:isDark?'rgba(255,255,255,0.10)':'rgba(20,35,70,0.14)',
+    tertiaryColor:isDark?'#171f30':'#f6f8fc'
+  }
+});
+</script>
+
+<!-- ===================== ZOOM/PAN ===================== -->
+<script>
+const diagState={};
+function ds(id){ if(!diagState[id])diagState[id]={scale:1,x:0,y:0}; return diagState[id]; }
+function vp(id){ return document.querySelector(`[data-diag="${id}"]`); }
+function apply(id){ const s=ds(id); const c=vp(id).querySelector('.mermaid-canvas'); c.style.transform=`translate(${s.x}px,${s.y}px) scale(${s.scale})`; }
+function zoomDiagram(id,d){ const s=ds(id); s.scale=Math.min(4,Math.max(0.3,s.scale+d)); apply(id); }
+function resetDiagram(id){ diagState[id]={scale:1,x:0,y:0}; apply(id); }
+function expandDiagram(id){
+  const svg=vp(id).querySelector('svg'); if(!svg)return;
+  const w=window.open('','_blank');
+  w.document.write(`<title>diagram</title><body style="margin:0;background:${getComputedStyle(document.body).backgroundColor};display:grid;place-items:center;min-height:100vh">${svg.outerHTML}</body>`);
+  w.document.querySelector('svg').style.maxWidth='96vw';
+}
+document.querySelectorAll('.mermaid-viewport').forEach(v=>{
+  const id=v.dataset.diag; let drag=false,sx,sy,dragged=false;
+  v.addEventListener('wheel',e=>{ if(e.ctrlKey||e.metaKey){e.preventDefault();zoomDiagram(id,e.deltaY<0?0.15:-0.15);} },{passive:false});
+  v.addEventListener('mousedown',e=>{drag=true;dragged=false;sx=e.clientX;sy=e.clientY;});
+  window.addEventListener('mousemove',e=>{ if(!drag)return; const s=ds(id); s.x+=e.clientX-sx; s.y+=e.clientY-sy; sx=e.clientX; sy=e.clientY; dragged=true; apply(id); });
+  window.addEventListener('mouseup',()=>drag=false);
+  v.addEventListener('click',()=>{ if(!dragged)expandDiagram(id); });
+});
+</script>
+
+<!-- ===================== SIMULATOR ENGINE ===================== -->
+<script>
+// ---- sample data ----
+const RANK=[
+  {r:1,id:'C-03',src:'employee_handbook.pdf',prev:'Employees accrue 20 days of paid annual leave per year…',cos:0.913,tier:'top'},
+  {r:2,id:'C-12',src:'company_policy.docx',prev:'Leave requests must be submitted at least 14 days in advance…',cos:0.871,tier:'top'},
+  {r:3,id:'C-07',src:'employee_handbook.pdf',prev:'Unused vacation days, up to 5, may be carried into next year…',cos:0.844,tier:'mid'},
+  {r:4,id:'C-19',src:'employee_handbook.pdf',prev:'Sick leave is separate and capped at 10 days annually…',cos:0.792,tier:'mid'},
+  {r:5,id:'C-31',src:'product_manual.pdf',prev:'The warranty period covers manufacturing defects for…',cos:0.421,tier:'low'},
+  {r:6,id:'C-44',src:'product_manual.pdf',prev:'To reset the device, hold the power button for 10s…',cos:0.318,tier:'low'},
+];
+const ANSWER="Employees receive 20 days of paid annual leave per year, accrued monthly. Up to 5 unused days can be carried into the next year. Sick leave is separate, capped at 10 days. Requests should be submitted at least 14 days ahead via the HR portal. (Source: employee_handbook.pdf, company_policy.docx)";
+
+// ---- build query vector bars ----
+function buildVec(el,seed,n=22){
+  el.innerHTML='';
+  for(let i=0;i<n;i++){ const h=8+Math.abs(Math.sin(seed+i*1.7))*42; const b=document.createElement('div'); b.className='vbar'; b.style.height=h+'px'; el.appendChild(b); }
+}
+buildVec(document.getElementById('qvec'),3.1);
+
+// ---- rank table ----
+const maxCos=RANK[0].cos;
+document.getElementById('rankRows').innerHTML=RANK.map(x=>{
+  const pc=x.tier==='top'?'pill--top':x.tier==='mid'?'pill--mid':'pill--low';
+  const kept=x.r<=4;
+  return `<tr style="${kept?'':'opacity:.5'}">
+    <td><span class="pill ${pc}">${kept?'★ '+x.r:'#'+x.r}</span></td>
+    <td><code>${x.id}</code></td>
+    <td style="font-size:12px">${x.src}</td>
+    <td style="color:var(--text-dim);font-size:12.5px">${x.prev}</td>
+    <td class="num">${x.cos.toFixed(3)}</td>
+    <td><div class="bar-cell"><div class="track"><div class="fill" style="width:${(x.cos/maxCos*100).toFixed(0)}%;background:${x.tier==='low'?'var(--text-faint)':'var(--query)'}"></div></div></div></td>
+  </tr>`;
+}).join('');
+
+// ---- frame definitions ----
+const PH={ingest:['var(--ingest)','var(--ingest-dim)'],query:['var(--query)','var(--query-dim)'],augment:['var(--augment)','var(--augment-dim)'],generate:['var(--generate)','var(--generate-dim)']};
+
+const FRAMES=[
+  {ph:'ingest',cap:'Upload',title:'User uploads documents',
+   desc:'Three files are sent to the backend over a multipart HTTP POST. The server stores the raw bytes and queues each file for processing.',
+   html:`<div class="flow-h" style="--ph:var(--ingest)">
+      <div class="file-chip"><span class="ic">PDF</span>employee_handbook.pdf</div>
+      <div class="file-chip"><span class="ic" style="background:var(--query-dim);color:var(--query)">DOC</span>company_policy.docx</div>
+      <div class="file-chip"><span class="ic">PDF</span>product_manual.pdf</div>
+     </div>
+     <div class="codeblk" style="margin-top:16px"><div class="ch"><span>request</span><span>HTTP</span></div><pre><span class="kw">POST</span> /api/documents  <span class="cm">multipart/form-data</span>
+<span class="cm"># → 200 OK, 3 files queued for indexing</span></pre></div>`,
+   metrics:[['Files',3],['Total size','940 KB'],['Status','queued']]},
+
+  {ph:'ingest',cap:'Extract',title:'Text extraction',
+   desc:'Each file format gets the right parser: pdfplumber for PDFs, python-docx for Word. The output is raw, messy text — page numbers, headers and odd encodings included.',
+   html:`<div class="codeblk"><div class="ch"><span>extracted (raw)</span><span>employee_handbook.pdf · p.4</span></div><pre>Page 4   EMPLOYEE HANDBOOK   v2.3
+4.1  Leave  Policy
+Employees  accrue  20 days  of  paid annual
+leave per  year,  accrued  monthly.  Unused
+vacation days, up  to 5,  may be  carried…</pre></div>`,
+   metrics:[['Pages parsed',74],['Chars extracted','118k'],['Parser','pdfplumber']]},
+
+  {ph:'ingest',cap:'Clean',title:'Cleaning & preprocessing',
+   desc:'Whitespace is collapsed, headers/footers stripped, unicode normalised. Clean text embeds better — noise like "Page 4" would otherwise pollute the vector.',
+   html:`<div class="grid g2"><div class="codeblk"><div class="ch"><span>before</span><span>noisy</span></div><pre><span class="cm">Page 4   EMPLOYEE HANDBOOK</span>
+Employees  accrue  20 days  of
+paid annual  leave per  year…</pre></div>
+   <div class="codeblk"><div class="ch"><span>after</span><span>clean</span></div><pre>Employees accrue 20 days of paid
+annual leave per year, accrued
+monthly. Unused vacation days…</pre></div></div>`,
+   metrics:[['Headers removed',74],['Whitespace fixed','✓'],['Encoding','UTF-8']]},
+
+  {ph:'ingest',cap:'Chunk',title:'Chunking with overlap',
+   desc:'The clean text is split into ~512-token chunks. The last 64 tokens of each chunk repeat at the start of the next (the rose overlap) so no idea is severed at a boundary.',
+   html:`<div class="doctext">
+      <span class="chk c0">Employees accrue 20 days of paid annual leave per year, accrued monthly. </span><span class="chk c0 ov">Unused vacation days, up to 5, may be carried into the next calendar year.</span><span class="chk c1 ov"> Unused vacation days, up to 5, may be carried into the next calendar year.</span><span class="chk c1"> Leave requests must be submitted at least 14 days in advance via the HR portal. </span><span class="chk c1 ov">Sick leave is separate and capped at 10 days annually.</span><span class="chk c2 ov"> Sick leave is separate and capped at 10 days annually.</span><span class="chk c2"> Parental leave follows statutory minimums plus two extra weeks…</span>
+     </div>
+     <div class="legend">
+       <span><i style="background:rgba(25,167,194,.4)"></i>Chunk C-03</span>
+       <span><i style="background:rgba(212,167,58,.4)"></i>Chunk C-07</span>
+       <span><i style="background:rgba(124,156,75,.45)"></i>Chunk C-19</span>
+       <span><i style="background:rgba(196,96,122,.6)"></i>64-token overlap</span>
+     </div>`,
+   metrics:[['Chunks made',47],['Chunk size','512 tok'],['Overlap','64 tok']]},
+
+  {ph:'ingest',cap:'Embed',title:'Embedding generation',
+   desc:'Each chunk is sent to the embedding model, which returns a 1536-dimension vector — a numeric fingerprint of its meaning. Similar meanings produce nearby vectors.',
+   html:`<div class="vecrow" style="margin-bottom:10px"><span style="color:var(--text-dim)">"Employees accrue 20 days of paid annual leave…"</span></div>
+     <div class="flow-h" style="--ph:var(--ingest)"><span class="arr">↓ text-embedding-3-small ↓</span></div>
+     <div class="vecrow" style="margin-top:10px"><span class="vbrace">[</span><div class="vec" id="cvec" style="--ph:var(--ingest)"></div><span class="vbrace">… ] 1536 dims</span></div>
+     <div class="codeblk" style="margin-top:16px"><div class="ch"><span>vector preview</span><span>C-03</span></div><pre>[ 0.0142, -0.0381,  0.0907,  0.0044,
+ -0.0521,  0.1130, -0.0078, … ×1536 ]</pre></div>`,
+   metrics:[['Dimensions',1536],['API calls',47],['Model','emb-3-small']],
+   onShow:()=>{const e=document.getElementById('cvec'); if(e)buildVec(e,7.4);}},
+
+  {ph:'ingest',cap:'Store',title:'Vector storage',
+   desc:'Each chunk + its vector + metadata (source file, position) is written to the vector database and added to an HNSW index for fast approximate nearest-neighbour search.',
+   html:`<div class="dbgrid">
+       ${['C-03','C-07','C-12','C-19','C-31','C-44'].map((c,i)=>`<div class="vrec" style="--ph:var(--ingest)"><b>${c}</b><span class="v">vec[1536] · ${i<4?'handbook.pdf':'manual.pdf'}<br>[0.014, -0.038, …]</span></div>`).join('')}
+     </div>
+     <div class="note" style="--ph:var(--ingest);margin-top:16px"><b>Indexing complete.</b> 47 vectors stored. This whole phase happened once — every future question reuses this index.</div>`,
+   metrics:[['Vectors stored',47],['Index','HNSW'],['DB','pgvector']]},
+
+  {ph:'query',cap:'Ask',title:'User asks a question',
+   desc:'Indexing is done. Now a user types a question into the chat UI. It is sent to the backend as plain text — the query path begins.',
+   html:`<div class="file-chip" style="font-size:14px"><span class="ic" style="background:var(--query-dim);color:var(--query)">Q</span>"What is the company's leave policy?"</div>
+     <div class="codeblk" style="margin-top:16px"><div class="ch"><span>request</span><span>HTTP</span></div><pre><span class="kw">POST</span> /api/chat
+{ <span class="st">"message"</span>: <span class="st">"What is the company's leave policy?"</span> }</pre></div>`,
+   metrics:[['Query tokens',9],['Channel','POST /chat'],['Session','live']]},
+
+  {ph:'query',cap:'Embed Q',title:'Query embedding',
+   desc:'The question is embedded by the SAME model used for the documents. This is essential — both must live in the same 1536-d space for distances to mean anything.',
+   html:`<div class="flow-h" style="--ph:var(--query)"><span style="color:var(--text-dim)">"What is the company's leave policy?"</span><span class="arr">→</span></div>
+     <div class="vecrow" style="margin-top:12px"><span class="vbrace">[</span><div class="vec" id="qvec2" style="--ph:var(--query)"></div><span class="vbrace">… ] 1536-d query vector</span></div>`,
+   metrics:[['Dimensions',1536],['Latency','90 ms'],['Same model','✓']],
+   onShow:()=>{const e=document.getElementById('qvec2'); if(e)buildVec(e,3.1);}},
+
+  {ph:'query',cap:'Search',title:'Similarity search',
+   desc:'The query vector is compared against all 47 stored vectors using cosine similarity. The HNSW index makes this near-instant — no full scan needed.',
+   html:`<div class="tbl-wrap"><table><thead><tr><th>Chunk</th><th>Preview</th><th class="num">Cosine</th><th>Match</th></tr></thead><tbody>
+       ${RANK.map(x=>`<tr style="${x.r<=4?'':'opacity:.5'}"><td><code>${x.id}</code></td><td style="color:var(--text-dim);font-size:12px">${x.prev}</td><td class="num">${x.cos.toFixed(3)}</td><td><div class="bar-cell"><div class="track"><div class="fill" style="width:${(x.cos*100).toFixed(0)}%;background:${x.tier==='low'?'var(--text-faint)':'var(--query)'}"></div></div></div></td></tr>`).join('')}
+     </tbody></table></div>`,
+   metrics:[['Vectors scanned',47],['Latency','12 ms'],['Metric','cosine']]},
+
+  {ph:'query',cap:'Top-K',title:'Top-K retrieval',
+   desc:'Only the 4 highest-scoring chunks are kept. Note C-31 ("warranty") scores 0.42 and is dropped — semantically it has nothing to do with leave, even though both are policy text.',
+   html:`<div class="dbgrid">
+       ${RANK.slice(0,4).map(x=>`<div class="vrec" style="--ph:var(--augment);border-left-color:var(--augment)"><b>★ ${x.id}</b><span class="v">${x.cos.toFixed(3)} · ${x.src}</span></div>`).join('')}
+       ${RANK.slice(4).map(x=>`<div class="vrec" style="--ph:var(--text-faint);opacity:.45"><b>${x.id}</b><span class="v">${x.cos.toFixed(3)} · dropped</span></div>`).join('')}
+     </div>
+     <div class="note" style="--ph:var(--query);margin-top:16px"><b>K = 4.</b> These four chunks become the grounding evidence for the answer.</div>`,
+   metrics:[['Kept','Top-4'],['Dropped',2],['Cutoff','0.79']]},
+
+  {ph:'augment',cap:'Prompt',title:'Prompt assembly',
+   desc:'The retrieved chunks are slotted into a structured prompt: system rules first, then the evidence, then the question. The LLM will answer only from this context.',
+   html:`<div class="prompt-stack">
+       <div class="pslot pslot--sys"><span class="lbl">System</span>Answer using ONLY the context. Cite the source. Say "I don't know" if absent.</div>
+       <div class="plus">+</div>
+       <div class="pslot pslot--ctx"><span class="lbl">Context (4 chunks)</span>[C-03] 20 days paid annual leave… [C-12] submit 14 days ahead… [C-07] carry up to 5 days… [C-19] sick leave capped at 10…</div>
+       <div class="plus">+</div>
+       <div class="pslot pslot--usr"><span class="lbl">User</span>What is the company's leave policy?</div>
+     </div>`,
+   metrics:[['Input tokens',744],['Context',4],['System','95 tok']]},
+
+  {ph:'generate',cap:'Generate',title:'LLM generation (streaming)',
+   desc:'The model reads the prompt and emits tokens one at a time, streamed back to the user. Because it is anchored to the retrieved text, the answer stays faithful and cites its sources.',
+   html:`<div class="streambox" id="answerBox"></div>`,
+   metrics:[['Output tokens',86],['First token','310 ms'],['Cost','$0.0003']],
+   onShow:streamAnswer},
+
+  {ph:'generate',cap:'Deliver',title:'Answer reaches the user',
+   desc:'The completed, grounded answer is rendered in the chat UI. The user got a precise, sourced response — assembled from their own documents, not the model\'s memory.',
+   html:`<div class="ve-card" style="border-left:3px solid var(--generate);background:var(--surface-2)">
+       <div class="sec-label" style="--accent:var(--generate);margin-bottom:10px">Final answer</div>
+       <p style="margin:0;line-height:1.7">${ANSWER}</p>
+     </div>
+     <div class="note" style="--ph:var(--generate);margin-top:16px"><b>Round trip complete.</b> Query → embed (90 ms) → search (12 ms) → build (8 ms) → generate (1,180 ms) ≈ <b>1.3 s</b> total. The full loop, every time, with zero retraining.</div>`,
+   metrics:[['Total latency','~1.3 s'],['Grounded','✓'],['Sources',2]]},
+];
+
+// ---- render rail ----
+const rail=document.getElementById('rail');
+FRAMES.forEach((f,i)=>{
+  const wrap=document.createElement('div'); wrap.className='rail-step'; wrap.dataset.i=i;
+  wrap.style.setProperty('--ph',PH[f.ph][0]);
+  wrap.innerHTML=`${i>0?'<span class="rail-line"></span>':''}<span class="rail-dot">${i+1}</span>`;
+  rail.appendChild(wrap);
+});
+
+// ---- render frames ----
+const stage=document.getElementById('stage');
+FRAMES.forEach((f,i)=>{
+  const fr=document.createElement('div'); fr.className='frame'; fr.dataset.i=i;
+  fr.style.setProperty('--ph',PH[f.ph][0]); fr.style.setProperty('--ph-dim',PH[f.ph][1]);
+  const phn={ingest:'INDEXING',query:'RETRIEVAL',augment:'AUGMENT',generate:'GENERATE'}[f.ph];
+  fr.innerHTML=`<div class="frame-head"><span class="frame-idx">${phn} · ${i+1}/${FRAMES.length}</span><h3>${f.title}</h3></div>
+    <p class="frame-desc">${f.desc}</p>${f.html}
+    <div class="mstrip">${f.metrics.map(m=>`<div class="metric"><div class="k">${m[0]}</div><div class="v">${m[1]}</div></div>`).join('')}</div>`;
+  stage.appendChild(fr);
+});
+
+// ---- streaming answer ----
+let streamTimer=null;
+function streamAnswer(){
+  const box=document.getElementById('answerBox'); if(!box)return;
+  const box2=document.getElementById('answerBox2');
+  box.innerHTML=''; if(box2)box2.innerHTML='';
+  const words=ANSWER.split(' ');
+  let i=0;
+  if(streamTimer)clearInterval(streamTimer);
+  const cur='<span class="cursor"></span>';
+  streamTimer=setInterval(()=>{
+    if(i>=words.length){ clearInterval(streamTimer); box.innerHTML=ANSWER; if(box2)box2.innerHTML=ANSWER; return; }
+    const span=`<span class="tok">${words[i]} </span>`;
+    box.innerHTML=box.innerHTML.replace(cur,'')+span+cur;
+    if(box2)box2.innerHTML=box2.innerHTML.replace(cur,'')+span+cur;
+    i++;
+  },55);
+}
+
+// ---- controller ----
+let cur=-1, playing=false, playTimer=null;
+const bPrev=document.getElementById('bPrev'),bNext=document.getElementById('bNext'),
+      bPlay=document.getElementById('bPlay'),bReset=document.getElementById('bReset'),
+      railCap=document.getElementById('railCap');
+
+function show(idx){
+  cur=Math.max(0,Math.min(FRAMES.length-1,idx));
+  document.querySelectorAll('.frame').forEach(fr=>fr.classList.toggle('show',+fr.dataset.i===cur));
+  document.querySelectorAll('.rail-step').forEach(st=>{
+    const i=+st.dataset.i; st.classList.toggle('active',i===cur); st.classList.toggle('done',i<cur);
+  });
+  const f=FRAMES[cur];
+  railCap.textContent=`Step ${cur+1} of ${FRAMES.length} · ${f.title}`;
+  bPrev.disabled=cur===0; bNext.disabled=cur===FRAMES.length-1;
+  if(f.onShow)setTimeout(f.onShow,80);
+  // scroll active rail step into view
+  const st=document.querySelector(`.rail-step[data-i="${cur}"]`); if(st)st.scrollIntoView({inline:'center',block:'nearest',behavior:'smooth'});
+}
+function next(){ if(cur<FRAMES.length-1)show(cur+1); else stop(); }
+function prev(){ if(cur>0)show(cur-1); }
+function play(){
+  if(cur===-1||cur>=FRAMES.length-1)show(0); else next();
+  playing=true; bPlay.innerHTML='❚❚ Pause'; bPlay.classList.remove('btn--go');
+  clearInterval(playTimer);
+  playTimer=setInterval(()=>{ if(cur>=FRAMES.length-1){stop();return;} next(); }, 2600);
+}
+function stop(){ playing=false; clearInterval(playTimer); bPlay.innerHTML='▶ Play'; bPlay.classList.add('btn--go'); }
+function reset(){ stop(); cur=-1; document.querySelectorAll('.frame').forEach(f=>f.classList.remove('show')); document.querySelectorAll('.rail-step').forEach(s=>s.classList.remove('active','done')); railCap.textContent='Ready — press Play to begin the trace'; bPrev.disabled=true; }
+
+bPlay.addEventListener('click',()=>{ playing?stop():play(); });
+bNext.addEventListener('click',()=>{ stop(); next(); });
+bPrev.addEventListener('click',()=>{ stop(); prev(); });
+bReset.addEventListener('click',reset);
+reset();
+</script>
+
+</body>
+</html>

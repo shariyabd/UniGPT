@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Retrieval-Augmented Generation — A Visual Primer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Source+Code+Pro:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* ============ THEME — Editorial: deep navy + gold ============ */
+  :root {
+    --font-body: 'Fraunces', Georgia, serif;
+    --font-mono: 'Source Code Pro', 'SF Mono', Consolas, monospace;
+
+    --bg: #f7f4ec;
+    --surface: #fffdf8;
+    --surface-2: #fbf8f0;
+    --border: rgba(30, 41, 59, 0.12);
+    --border-bright: rgba(30, 41, 59, 0.2);
+    --text: #1e293b;
+    --text-dim: #6b6256;
+
+    --navy: #1e3a5f;
+    --navy-dim: rgba(30, 58, 95, 0.08);
+    --gold: #b58a2e;
+    --gold-dim: rgba(181, 138, 46, 0.12);
+    --teal: #2c6e6a;
+    --teal-dim: rgba(44, 110, 106, 0.1);
+    --rust: #a3582c;
+    --rust-dim: rgba(163, 88, 44, 0.1);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12161f;
+      --surface: #1a2030;
+      --surface-2: #20283a;
+      --border: rgba(255, 255, 255, 0.09);
+      --border-bright: rgba(255, 255, 255, 0.18);
+      --text: #e8ebf2;
+      --text-dim: #97a0b3;
+
+      --navy: #7aa5d8;
+      --navy-dim: rgba(122, 165, 216, 0.14);
+      --gold: #e0b659;
+      --gold-dim: rgba(224, 182, 89, 0.16);
+      --teal: #5bbfb8;
+      --teal-dim: rgba(91, 191, 184, 0.14);
+      --rust: #d68a5a;
+      --rust-dim: rgba(214, 138, 90, 0.14);
+    }
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background-color: var(--bg);
+    background-image:
+      radial-gradient(ellipse 70% 50% at 50% -10%, var(--gold-dim) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 40% at 90% 10%, var(--navy-dim) 0%, transparent 55%);
+    color: var(--text);
+    font-family: var(--font-body);
+    line-height: 1.65;
+    padding: 56px 24px 80px;
+    min-height: 100vh;
+  }
+
+  .container { max-width: 920px; margin: 0 auto; }
+
+  /* ============ ANIMATION ============ */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(14px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .animate { animation: fadeUp 0.5s cubic-bezier(0.22,1,0.36,1) both; animation-delay: calc(var(--i,0) * 0.07s); }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; animation-delay: 0ms !important; transition-duration: 0.01ms !important; }
+  }
+
+  /* ============ HERO ============ */
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    color: var(--gold);
+    margin-bottom: 18px;
+  }
+  h1 {
+    font-size: clamp(38px, 6.5vw, 66px);
+    font-weight: 600;
+    line-height: 1.02;
+    letter-spacing: -1.5px;
+    margin-bottom: 20px;
+    text-wrap: balance;
+  }
+  h1 em { font-style: italic; color: var(--navy); font-weight: 500; }
+  .lede {
+    font-size: 20px;
+    line-height: 1.6;
+    color: var(--text-dim);
+    max-width: 660px;
+    margin-bottom: 14px;
+  }
+  .lede strong { color: var(--text); font-weight: 600; }
+
+  .rule {
+    height: 1px; border: none;
+    background: linear-gradient(to right, var(--gold), transparent);
+    margin: 48px 0;
+  }
+
+  /* ============ SECTION HEADERS ============ */
+  .section-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--navy);
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 14px;
+  }
+  .section-label::before {
+    content: ''; width: 9px; height: 9px; border-radius: 50%;
+    background: currentColor; flex: none;
+  }
+  h2 {
+    font-size: clamp(26px, 4vw, 36px);
+    font-weight: 600;
+    letter-spacing: -0.6px;
+    line-height: 1.15;
+    margin-bottom: 16px;
+    text-wrap: balance;
+  }
+  h2 em { font-style: italic; color: var(--gold); }
+  section { margin-bottom: 56px; }
+  p { margin-bottom: 16px; max-width: 720px; }
+  p.body { font-size: 17px; }
+  .text-dim { color: var(--text-dim); }
+
+  code {
+    font-family: var(--font-mono);
+    font-size: 0.85em;
+    background: var(--navy-dim);
+    color: var(--navy);
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  /* ============ PROBLEM / SOLUTION SPLIT ============ */
+  .split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-top: 8px;
+  }
+  @media (max-width: 680px) { .split { grid-template-columns: 1fr; } }
+
+  .ve-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px 26px;
+    min-width: 0;
+  }
+  .ve-card--problem { border-top: 3px solid var(--rust); }
+  .ve-card--solution { border-top: 3px solid var(--teal); }
+  .ve-card h3 {
+    font-size: 20px; font-weight: 600; margin-bottom: 6px; letter-spacing: -0.3px;
+  }
+  .ve-card .tag {
+    font-family: var(--font-mono); font-size: 10px; text-transform: uppercase;
+    letter-spacing: 1.5px; font-weight: 600; margin-bottom: 12px; display: block;
+  }
+  .ve-card--problem .tag { color: var(--rust); }
+  .ve-card--solution .tag { color: var(--teal); }
+  .ve-card ul { list-style: none; margin-top: 12px; }
+  .ve-card li {
+    position: relative; padding-left: 20px; margin-bottom: 9px;
+    font-size: 15px; color: var(--text-dim); line-height: 1.5;
+  }
+  .ve-card li::before {
+    content: ''; position: absolute; left: 0; top: 9px;
+    width: 6px; height: 6px; border-radius: 50%; background: var(--gold);
+  }
+  .ve-card li strong { color: var(--text); font-weight: 600; }
+
+  /* ============ MERMAID ============ */
+  .diagram-shell { position: relative; }
+  .diagram-shell__hint {
+    font-family: var(--font-mono); font-size: 11px; color: var(--text-dim);
+    margin-bottom: 10px; opacity: 0.75;
+  }
+  .mermaid-wrap {
+    position: relative; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 14px;
+    padding: 28px 22px; overflow: auto; cursor: grab;
+    display: flex; justify-content: center; align-items: center; min-height: 420px;
+  }
+  .mermaid-wrap.is-panning { cursor: grabbing; user-select: none; }
+  .mermaid-viewport { position: relative; overflow: hidden; width: 100%; height: 100%; min-height: 340px; }
+  .mermaid-canvas { position: absolute; top: 0; left: 0; }
+  .zoom-controls {
+    position: absolute; top: 8px; right: 8px; display: flex; gap: 2px; z-index: 10;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 7px; padding: 3px;
+  }
+  .zoom-controls button {
+    width: 28px; height: 28px; border: none; background: transparent; color: var(--text-dim);
+    font-family: var(--font-mono); font-size: 14px; cursor: pointer; border-radius: 5px;
+    display: flex; align-items: center; justify-content: center; transition: background 0.15s, color 0.15s;
+  }
+  .zoom-controls button:hover { background: var(--border); color: var(--text); }
+  .zoom-label { font-family: var(--font-mono); font-size: 10px; color: var(--text-dim); padding: 0 6px; white-space: nowrap; align-self: center; }
+
+  .mermaid .nodeLabel { font-family: var(--font-body) !important; font-size: 15px !important; color: var(--text) !important; }
+  .mermaid .edgeLabel { font-family: var(--font-mono) !important; font-size: 12px !important; color: var(--text-dim) !important; background-color: var(--bg) !important; }
+  .mermaid .edgeLabel rect { fill: var(--bg) !important; }
+  .mermaid .node rect, .mermaid .node circle, .mermaid .node polygon { stroke-width: 1.5px !important; }
+  .mermaid .cluster rect { rx: 10px; }
+
+  .legend { display: flex; gap: 22px; flex-wrap: wrap; margin-top: 18px; }
+  .legend-item { display: flex; align-items: center; gap: 7px; font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); }
+  .legend-swatch { width: 12px; height: 12px; border-radius: 3px; flex: none; }
+
+  /* ============ STEP CARDS ============ */
+  .steps { display: flex; flex-direction: column; gap: 14px; margin-top: 8px; }
+  .step {
+    display: grid; grid-template-columns: 56px 1fr; gap: 20px; align-items: start;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 20px 24px;
+  }
+  .step__num {
+    font-family: var(--font-mono); font-size: 22px; font-weight: 600;
+    color: var(--gold); line-height: 1.1;
+    border-right: 1px solid var(--border); padding-right: 16px;
+  }
+  .step h3 { font-size: 18px; font-weight: 600; margin-bottom: 4px; letter-spacing: -0.2px; }
+  .step p { font-size: 15px; color: var(--text-dim); margin: 0; max-width: none; }
+
+  /* ============ CONCEPT GRID ============ */
+  .concept-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-top: 8px; }
+  @media (max-width: 680px) { .concept-grid { grid-template-columns: 1fr; } }
+  .concept {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 22px 24px; min-width: 0;
+    border-left: 3px solid var(--accent, var(--navy));
+  }
+  .concept--navy { --accent: var(--navy); }
+  .concept--gold { --accent: var(--gold); }
+  .concept--teal { --accent: var(--teal); }
+  .concept--rust { --accent: var(--rust); }
+  .concept__name {
+    font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent, var(--navy));
+    margin-bottom: 8px;
+  }
+  .concept h3 { font-size: 19px; font-weight: 600; margin-bottom: 8px; letter-spacing: -0.3px; }
+  .concept p { font-size: 14.5px; color: var(--text-dim); margin: 0; line-height: 1.55; max-width: none; }
+  .concept p + p { margin-top: 8px; }
+  .concept .micro {
+    font-family: var(--font-mono); font-size: 11.5px; color: var(--text);
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 10px; margin-top: 12px; display: block;
+    overflow-wrap: break-word;
+  }
+
+  /* ============ TABLES ============ */
+  .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
+  table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+  thead th {
+    text-align: left; font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim);
+    padding: 14px 18px; border-bottom: 1px solid var(--border-bright); background: var(--surface-2);
+    white-space: nowrap;
+  }
+  tbody td { padding: 15px 18px; border-bottom: 1px solid var(--border); vertical-align: top; line-height: 1.5; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--navy-dim); }
+  td .name { font-weight: 600; color: var(--text); }
+  td .meta { color: var(--text-dim); }
+  .pill {
+    font-family: var(--font-mono); font-size: 10.5px; font-weight: 600;
+    padding: 3px 9px; border-radius: 20px; white-space: nowrap; display: inline-block;
+  }
+  .pill--self { background: var(--teal-dim); color: var(--teal); }
+  .pill--managed { background: var(--gold-dim); color: var(--gold); }
+  .pill--hybrid { background: var(--navy-dim); color: var(--navy); }
+  .pill--open { background: var(--teal-dim); color: var(--teal); }
+  .pill--api { background: var(--rust-dim); color: var(--rust); }
+
+  /* ============ CALLOUT ============ */
+  .callout {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--gold);
+    border-radius: 0 12px 12px 0;
+    padding: 20px 24px; margin-top: 8px;
+  }
+  .callout__title {
+    font-family: var(--font-mono); font-size: 11px; text-transform: uppercase;
+    letter-spacing: 1.5px; font-weight: 600; color: var(--gold); margin-bottom: 8px;
+  }
+  .callout p { margin: 0; font-size: 15px; color: var(--text-dim); max-width: none; }
+  .callout strong { color: var(--text); }
+
+  .pullquote {
+    font-size: clamp(22px, 3.4vw, 30px);
+    font-style: italic; font-weight: 500; line-height: 1.3;
+    color: var(--navy); letter-spacing: -0.5px;
+    border-left: 4px solid var(--gold); padding: 4px 0 4px 28px;
+    margin: 8px 0; max-width: 760px; text-wrap: balance;
+  }
+
+  footer {
+    margin-top: 64px; padding-top: 28px; border-top: 1px solid var(--border);
+    font-family: var(--font-mono); font-size: 12px; color: var(--text-dim); line-height: 1.7;
+  }
+
+  @media (max-width: 680px) {
+    body { padding: 36px 16px 56px; }
+    .step { grid-template-columns: 44px 1fr; gap: 14px; padding: 18px; }
+    .mermaid-wrap { padding: 16px 10px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- HERO -->
+  <p class="eyebrow animate" style="--i:0">A Visual Primer · LLM Systems</p>
+  <h1 class="animate" style="--i:1">Retrieval-Augmented <em>Generation</em></h1>
+  <p class="lede animate" style="--i:2">
+    <strong>RAG</strong> lets a language model answer using <em>your</em> documents instead of
+    only what it memorized during training. It looks things up first, then writes — like an
+    open-book exam rather than a closed-book one.
+  </p>
+
+  <hr class="rule animate" style="--i:3">
+
+  <!-- WHAT & WHY -->
+  <section class="animate" style="--i:4">
+    <div class="section-label">01 · What it is &amp; why we use it</div>
+    <h2>The model's memory is fixed. <em>Your knowledge isn't.</em></h2>
+    <p class="body text-dim">
+      A plain LLM only knows what was in its training data, frozen at a cutoff date. It can't see your
+      company wiki, last week's tickets, or a PDF you uploaded an hour ago — and when it doesn't know,
+      it tends to confidently invent an answer. RAG fixes this by fetching relevant text from a
+      knowledge source and handing it to the model as context, so the answer is grounded in real,
+      current, citable material.
+    </p>
+
+    <div class="split">
+      <div class="ve-card ve-card--problem">
+        <span class="tag">Plain LLM</span>
+        <h3>Closed book</h3>
+        <ul>
+          <li><strong>Stale:</strong> knows nothing past its training cutoff</li>
+          <li><strong>No private data:</strong> can't see your docs, DB, or internal wiki</li>
+          <li><strong>Hallucinates:</strong> fills gaps with plausible-sounding fiction</li>
+          <li><strong>No sources:</strong> can't show where an answer came from</li>
+        </ul>
+      </div>
+      <div class="ve-card ve-card--solution">
+        <span class="tag">RAG-powered LLM</span>
+        <h3>Open book</h3>
+        <ul>
+          <li><strong>Fresh:</strong> update the knowledge base, not the model</li>
+          <li><strong>Grounded:</strong> answers cite retrieved passages</li>
+          <li><strong>Private-aware:</strong> reads your own corpus on demand</li>
+          <li><strong>Cheaper than fine-tuning:</strong> no retraining to add facts</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <hr class="rule animate" style="--i:0">
+
+  <!-- WORKFLOW DIAGRAM -->
+  <section class="animate" style="--i:1">
+    <div class="section-label">02 · End-to-end workflow</div>
+    <h2>Two phases: <em>index once,</em> retrieve every time</h2>
+    <p class="body text-dim">
+      RAG splits into an offline <strong>indexing</strong> phase (done ahead of time, repeated only when
+      documents change) and an online <strong>query</strong> phase (runs on every user question). The two
+      meet at the vector database.
+    </p>
+
+    <div class="diagram-shell">
+      <p class="diagram-shell__hint">Ctrl/Cmd + wheel to zoom · drag to pan · double-click to fit · ⛶ opens full size</p>
+      <div class="mermaid-wrap">
+        <div class="zoom-controls">
+          <button type="button" data-action="zoom-in" title="Zoom in">+</button>
+          <button type="button" data-action="zoom-out" title="Zoom out">&minus;</button>
+          <button type="button" data-action="zoom-fit" title="Smart fit">&#8634;</button>
+          <button type="button" data-action="zoom-one" title="1:1 zoom">1:1</button>
+          <button type="button" data-action="zoom-expand" title="Open full size">&#x26F6;</button>
+          <span class="zoom-label">Loading…</span>
+        </div>
+        <div class="mermaid-viewport">
+          <div class="mermaid mermaid-canvas"></div>
+        </div>
+      </div>
+      <script type="text/plain" class="diagram-source">
+        graph TD
+          subgraph IDX["INDEXING  ·  offline, run when docs change"]
+            D["Source documents<br/><small>PDFs, wikis, tickets, DB rows</small>"]
+            CH["Chunking<br/><small>split into passages</small>"]
+            EM1["Embedding model<br/><small>text &rarr; vector</small>"]
+            VDB[("Vector database<br/><small>vectors + metadata</small>")]
+            D --> CH --> EM1 --> VDB
+          end
+
+          subgraph QRY["QUERY  ·  online, run per question"]
+            Q["User question"]
+            EM2["Embedding model<br/><small>same model as indexing</small>"]
+            SS["Similarity search<br/><small>nearest vectors</small>"]
+            TK["Top-k passages"]
+            RR["Rerank<br/><small>optional, sharpen order</small>"]
+            PR["Build prompt<br/><small>question + passages</small>"]
+            LLM["LLM generates<br/><small>grounded answer</small>"]
+            ANS["Answer + citations"]
+            Q --> EM2 --> SS
+            SS --> TK --> RR --> PR --> LLM --> ANS
+          end
+
+          VDB -. "searched by" .-> SS
+
+          classDef store fill:#b58a2e22,stroke:#b58a2e,stroke-width:2px
+          classDef model fill:#1e3a5f22,stroke:#1e3a5f,stroke-width:1.5px
+          classDef out fill:#2c6e6a22,stroke:#2c6e6a,stroke-width:2px
+          class VDB store
+          class EM1,EM2,LLM model
+          class ANS out
+      </script>
+    </div>
+
+    <div class="legend">
+      <div class="legend-item"><span class="legend-swatch" style="background:var(--navy)"></span> Model step (embed / generate)</div>
+      <div class="legend-item"><span class="legend-swatch" style="background:var(--gold)"></span> Vector store</div>
+      <div class="legend-item"><span class="legend-swatch" style="background:var(--teal)"></span> Final answer</div>
+    </div>
+
+    <div class="callout" style="margin-top:24px">
+      <div class="callout__title">The one rule that trips everyone up</div>
+      <p>The <strong>same embedding model</strong> must encode both your documents (indexing) and the user's
+      question (query). Mixing models puts them in incompatible vector spaces, and similarity search returns garbage.</p>
+    </div>
+  </section>
+
+  <hr class="rule animate" style="--i:0">
+
+  <!-- STEP BY STEP -->
+  <section class="animate" style="--i:1">
+    <div class="section-label">03 · What happens behind the scenes</div>
+    <h2>One question, step by step</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step__num">1</div>
+        <div>
+          <h3>Embed the question</h3>
+          <p>The user's question runs through the embedding model and becomes a vector — a list of numbers capturing its meaning.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step__num">2</div>
+        <div>
+          <h3>Search the vector database</h3>
+          <p>That query vector is compared against every stored document vector to find the closest matches by meaning, not keywords.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step__num">3</div>
+        <div>
+          <h3>Retrieve top-k passages</h3>
+          <p>The k nearest chunks (say, the top 5) are pulled out. These are the most relevant snippets from your corpus.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step__num">4</div>
+        <div>
+          <h3>Rerank <span class="text-dim" style="font-size:13px;font-style:italic">(optional)</span></h3>
+          <p>A second, more precise model re-scores those candidates and reorders them, pushing the truly best passages to the top.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step__num">5</div>
+        <div>
+          <h3>Assemble the prompt</h3>
+          <p>The retrieved passages are stitched into the prompt alongside the question, with an instruction like "answer using only this context."</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step__num">6</div>
+        <div>
+          <h3>Generate the answer</h3>
+          <p>The LLM reads question + context and writes a grounded reply — ideally citing which passages it used.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="rule animate" style="--i:0">
+
+  <!-- KEY CONCEPTS -->
+  <section class="animate" style="--i:1">
+    <div class="section-label">04 · Key internal concepts</div>
+    <h2>The vocabulary you'll actually <em>need</em></h2>
+
+    <div class="concept-grid">
+      <div class="concept concept--navy">
+        <div class="concept__name">Chunking</div>
+        <h3>Splitting documents into passages</h3>
+        <p>Long documents get cut into smaller pieces (a few hundred words each) so retrieval returns focused, relevant context instead of an entire 80-page manual. Overlapping chunks avoid cutting an idea in half at a boundary.</p>
+        <span class="micro">"Annual report.pdf" → 240 chunks of ~400 words, 50-word overlap</span>
+      </div>
+
+      <div class="concept concept--gold">
+        <div class="concept__name">Embeddings</div>
+        <h3>Turning text into vectors</h3>
+        <p>An embedding model maps a chunk of text to a list of numbers (e.g. 1,536 dimensions). Text with similar <em>meaning</em> lands close together in this space — "car" and "automobile" end up as neighbors.</p>
+        <span class="micro">"refund policy" → [0.021, −0.44, 0.18, … ] (1536 dims)</span>
+      </div>
+
+      <div class="concept concept--teal">
+        <div class="concept__name">Vector database</div>
+        <h3>Where vectors live</h3>
+        <p>A store built to hold millions of vectors and find nearest neighbors fast, using indexes like HNSW or IVF. It keeps each vector's original text and metadata (source, page, date) alongside it for filtering and citation.</p>
+        <span class="micro">stores: vector + text + {source, page, tenant_id}</span>
+      </div>
+
+      <div class="concept concept--rust">
+        <div class="concept__name">Similarity search</div>
+        <h3>Finding the closest meaning</h3>
+        <p>Comparing the query vector to stored vectors by distance — usually <em>cosine similarity</em>. Smaller distance means closer meaning. This is semantic, so it matches paraphrases that keyword search would miss.</p>
+        <span class="micro">cosine(query, chunk) → score between −1 and 1</span>
+      </div>
+
+      <div class="concept concept--navy">
+        <div class="concept__name">Top-k retrieval</div>
+        <h3>Keep only the best handful</h3>
+        <p>Rather than dumping everything, retrieval returns the <em>k</em> highest-scoring chunks (commonly 3–10). Small k keeps the prompt focused and cheap; too small risks missing the answer; too large adds noise.</p>
+        <span class="micro">k = 5 → 5 passages fed to the model</span>
+      </div>
+
+      <div class="concept concept--gold">
+        <div class="concept__name">Reranking</div>
+        <h3>A second, sharper opinion</h3>
+        <p>Vector search is fast but coarse. A cross-encoder reranker reads each candidate <em>together with</em> the question and re-scores them precisely — so you can retrieve top-20 cheaply, then rerank down to the best top-5.</p>
+        <span class="micro">retrieve 20 → rerank → keep 5 best</span>
+      </div>
+    </div>
+  </section>
+
+  <hr class="rule animate" style="--i:0">
+
+  <!-- MUST-KNOW COMPONENTS -->
+  <section class="animate" style="--i:1">
+    <div class="section-label">05 · Building a RAG system</div>
+    <h2>The components you'll wire together</h2>
+    <p class="body text-dim">A working RAG pipeline is these moving parts in sequence. Get the first three right and most quality problems disappear.</p>
+    <div class="table-wrap" style="margin-top:8px">
+      <table>
+        <thead>
+          <tr><th>Component</th><th>Job</th><th>Watch out for</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="name">Loader / parser</span></td>
+            <td>Pull text out of PDFs, HTML, docs, databases</td>
+            <td class="meta">Bad extraction (broken tables, OCR noise) poisons everything downstream</td>
+          </tr>
+          <tr>
+            <td><span class="name">Chunker</span></td>
+            <td>Split text into retrievable passages</td>
+            <td class="meta">Chunk size + overlap is the biggest quality lever — tune it</td>
+          </tr>
+          <tr>
+            <td><span class="name">Embedding model</span></td>
+            <td>Encode chunks &amp; queries into vectors</td>
+            <td class="meta">Use one model everywhere; re-embed everything if you switch</td>
+          </tr>
+          <tr>
+            <td><span class="name">Vector database</span></td>
+            <td>Store vectors, run fast nearest-neighbor search</td>
+            <td class="meta">Add metadata filters early (tenant, date, permissions)</td>
+          </tr>
+          <tr>
+            <td><span class="name">Retriever</span></td>
+            <td>Turn a query into top-k passages</td>
+            <td class="meta">Hybrid (vector + keyword) beats pure vector for exact terms &amp; IDs</td>
+          </tr>
+          <tr>
+            <td><span class="name">Reranker</span> <span class="meta">(optional)</span></td>
+            <td>Reorder candidates for precision</td>
+            <td class="meta">Adds latency &amp; cost — worth it when recall is high but ranking is messy</td>
+          </tr>
+          <tr>
+            <td><span class="name">Prompt builder</span></td>
+            <td>Combine context + question + instructions</td>
+            <td class="meta">Tell the model to say "I don't know" when context is missing</td>
+          </tr>
+          <tr>
+            <td><span class="name">LLM (generator)</span></td>
+            <td>Write the grounded answer</td>
+            <td class="meta">Mind the context window — too many chunks get ignored or truncated</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <hr class="rule animate" style="--i:0">
+
+  <!-- TOOLS -->
+  <section class="animate" style="--i:1">
+    <div class="section-label">06 · Practical tools</div>
+    <h2>What people actually <em>reach for</em></h2>
+
+    <h3 style="font-size:18px;font-weight:600;margin:8px 0 12px;color:var(--text-dim);font-family:var(--font-mono);font-size:12px;text-transform:uppercase;letter-spacing:1.5px">Vector databases</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Tool</th><th>Style</th><th>Best when…</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="name">pgvector</span><br><span class="meta">Postgres extension</span></td>
+            <td><span class="pill pill--self">Self-hosted</span></td>
+            <td class="meta">You already run Postgres and want vectors next to your relational data — no new system to operate. Great for small-to-mid scale and per-tenant isolation.</td>
+          </tr>
+          <tr>
+            <td><span class="name">Qdrant</span><br><span class="meta">Purpose-built, open source</span></td>
+            <td><span class="pill pill--hybrid">Self / Cloud</span></td>
+            <td class="meta">You want a dedicated vector engine with rich metadata filtering and good performance, self-hosted or as managed cloud.</td>
+          </tr>
+          <tr>
+            <td><span class="name">Pinecone</span><br><span class="meta">Fully managed SaaS</span></td>
+            <td><span class="pill pill--managed">Managed</span></td>
+            <td class="meta">You'd rather not run infrastructure at all — scales to billions of vectors with low ops overhead, billed as a service.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 style="margin:24px 0 12px;color:var(--text-dim);font-family:var(--font-mono);font-size:12px;text-transform:uppercase;letter-spacing:1.5px;font-weight:600">Embedding models</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Model / family</th><th>Type</th><th>Notes</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="name">OpenAI embeddings</span><br><span class="meta">text-embedding-3-small / -large</span></td>
+            <td><span class="pill pill--api">API</span></td>
+            <td class="meta">Strong quality, dead simple to call, pay per token. No GPU to manage, but data leaves your machine and you pay per request.</td>
+          </tr>
+          <tr>
+            <td><span class="name">Open-source / local</span><br><span class="meta">e.g. BGE, E5, GTE, Nomic, via sentence-transformers or Ollama</span></td>
+            <td><span class="pill pill--open">Self-hosted</span></td>
+            <td class="meta">Run on your own hardware — free at inference, fully private, no per-call cost. Needs some compute and setup; top open models now rival API quality.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout" style="margin-top:24px">
+      <div class="callout__title">Rule of thumb</div>
+      <p>Prototyping on a stack you already run? <strong>pgvector + a local embedding model</strong> gets you a private RAG system with zero new services. Need scale or zero ops? Reach for <strong>Pinecone + an API embedding model</strong>. Most teams land somewhere between, often on <strong>Qdrant</strong>.</p>
+    </div>
+  </section>
+
+  <hr class="rule animate" style="--i:0">
+
+  <section class="animate" style="--i:1">
+    <p class="pullquote">RAG doesn't make the model smarter — it makes the model <em>better informed.</em></p>
+    <p class="body text-dim" style="margin-top:20px">
+      That's the whole idea. You don't retrain a giant model every time a fact changes; you update a
+      searchable knowledge base and let retrieval feed the model exactly what it needs, when it needs it.
+      Everything else — chunking strategy, which vector DB, whether to rerank — is tuning around that core loop.
+    </p>
+  </section>
+
+  <footer>
+    Retrieval-Augmented Generation · a visual primer<br>
+    Index once → retrieve per query · chunk → embed → store → search → rerank → generate
+  </footer>
+
+</div>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  import elkLayouts from 'https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk/dist/mermaid-layout-elk.esm.min.mjs';
+
+  const config = {
+    fitPadding: 28, minHeight: 380, maxHeightPx: 1000, maxHeightVh: 0.84,
+    maxInitialZoom: 1.6, minZoom: 0.08, maxZoom: 6.5, zoomStep: 0.14, readabilityFloor: 0.55
+  };
+  const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
+  let activeDrag = null;
+  addEventListener('mousemove', (e) => activeDrag?.onMove(e));
+  addEventListener('mouseup', () => { activeDrag?.onEnd(); activeDrag = null; });
+
+  const isDark = matchMedia('(prefers-color-scheme: dark)').matches;
+
+  mermaid.registerLayoutLoaders(elkLayouts);
+  mermaid.initialize({
+    startOnLoad: false, theme: 'base', look: 'classic', layout: 'elk',
+    themeVariables: {
+      fontFamily: "'Fraunces', Georgia, serif",
+      fontSize: '15px',
+      primaryColor: isDark ? '#20283a' : '#fffdf8',
+      primaryBorderColor: isDark ? '#7aa5d8' : '#1e3a5f',
+      primaryTextColor: isDark ? '#e8ebf2' : '#1e293b',
+      secondaryColor: isDark ? '#1a2030' : '#fbf8f0',
+      secondaryBorderColor: isDark ? '#5bbfb8' : '#2c6e6a',
+      secondaryTextColor: isDark ? '#e8ebf2' : '#1e293b',
+      tertiaryColor: isDark ? '#241d12' : '#fbf6e8',
+      tertiaryBorderColor: isDark ? '#e0b659' : '#b58a2e',
+      tertiaryTextColor: isDark ? '#e8ebf2' : '#1e293b',
+      lineColor: isDark ? '#97a0b3' : '#8a8170',
+      clusterBkg: isDark ? 'rgba(122,165,216,0.06)' : 'rgba(30,58,95,0.04)',
+      clusterBorder: isDark ? 'rgba(255,255,255,0.14)' : 'rgba(30,41,59,0.18)',
+      noteBkgColor: isDark ? '#241d12' : '#fbf6e8',
+      noteTextColor: isDark ? '#e8ebf2' : '#1e293b',
+      noteBorderColor: isDark ? '#e0b659' : '#b58a2e',
+    }
+  });
+
+  function initDiagram(shell) {
+    const wrap = shell.querySelector('.mermaid-wrap');
+    const viewport = shell.querySelector('.mermaid-viewport');
+    const canvas = shell.querySelector('.mermaid-canvas');
+    const source = shell.querySelector('.diagram-source');
+    const label = shell.querySelector('.zoom-label');
+    if (!wrap || !viewport || !canvas || !source || !label) return;
+
+    let zoom = 1, fitMode = 'contain', panX = 0, panY = 0, svgW = 0, svgH = 0;
+    let sx = 0, sy = 0, spx = 0, spy = 0, touchDist = 0, touchCx = 0, touchCy = 0;
+
+    function constrainPan() {
+      const vpW = viewport.clientWidth, vpH = viewport.clientHeight;
+      const rW = svgW * zoom, rH = svgH * zoom, pad = config.fitPadding;
+      panX = (rW + pad * 2 <= vpW) ? (vpW - rW) / 2 : clamp(panX, vpW - rW - pad, pad);
+      panY = (rH + pad * 2 <= vpH) ? (vpH - rH) / 2 : clamp(panY, vpH - rH - pad, pad);
+    }
+    function applyTransform() {
+      const svg = canvas.querySelector('svg');
+      if (!svg || !svgW) return;
+      constrainPan();
+      svg.style.width = (svgW * zoom) + 'px';
+      svg.style.height = (svgH * zoom) + 'px';
+      canvas.style.transform = `translate(${panX}px, ${panY}px)`;
+      label.textContent = Math.round(zoom * 100) + '% \u2014 ' + fitMode;
+    }
+    function canPan() {
+      const rW = svgW * zoom, rH = svgH * zoom;
+      return rW + config.fitPadding * 2 > viewport.clientWidth || rH + config.fitPadding * 2 > viewport.clientHeight;
+    }
+    function computeSmartFit() {
+      const vpW = viewport.clientWidth, vpH = viewport.clientHeight;
+      const aW = Math.max(80, vpW - config.fitPadding * 2), aH = Math.max(80, vpH - config.fitPadding * 2);
+      const contain = Math.min(aW / svgW, aH / svgH);
+      let z = contain, mode = 'contain';
+      if (contain < config.readabilityFloor) {
+        const chartR = svgH / svgW, vpR = vpH / Math.max(vpW, 1);
+        if (chartR >= vpR) { z = aW / svgW; mode = 'width-priority'; }
+        else { z = aH / svgH; mode = 'height-priority'; }
+      }
+      return { zoom: clamp(z, config.minZoom, config.maxInitialZoom), mode };
+    }
+    function fitDiagram() {
+      if (!svgW) return;
+      const fit = computeSmartFit();
+      zoom = fit.zoom; fitMode = fit.mode;
+      panX = (viewport.clientWidth - svgW * zoom) / 2;
+      panY = (viewport.clientHeight - svgH * zoom) / 2;
+      applyTransform();
+    }
+    function setOneToOne() {
+      zoom = clamp(1, config.minZoom, config.maxZoom); fitMode = '1:1';
+      panX = (viewport.clientWidth - svgW * zoom) / 2;
+      panY = (viewport.clientHeight - svgH * zoom) / 2;
+      applyTransform();
+    }
+    function zoomAround(factor, cx, cy) {
+      const next = clamp(zoom * factor, config.minZoom, config.maxZoom);
+      const ratio = next / zoom;
+      panX = cx - ratio * (cx - panX);
+      panY = cy - ratio * (cy - panY);
+      zoom = next; fitMode = 'custom'; applyTransform();
+    }
+    function readSvgNaturalSize(svg) {
+      let w = 0, h = 0;
+      if (svg.viewBox?.baseVal?.width > 0) { w = svg.viewBox.baseVal.width; h = svg.viewBox.baseVal.height; }
+      if (!w) { w = parseFloat(svg.getAttribute('width')) || 0; h = parseFloat(svg.getAttribute('height')) || 0; }
+      if (!w) { const b = svg.getBBox(); w = b.width; h = b.height; }
+      if (!w) { const r = svg.getBoundingClientRect(); w = r.width || 1000; h = r.height || 700; }
+      if (!svg.getAttribute('viewBox')) svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+      return { w, h };
+    }
+    function setAdaptiveHeight() {
+      if (!svgW) return;
+      const usableW = Math.max(280, wrap.getBoundingClientRect().width - 2);
+      const idealH = (svgH / svgW) * usableW + config.fitPadding * 2;
+      const maxVp = Math.floor(innerHeight * config.maxHeightVh);
+      const hardMax = Math.min(config.maxHeightPx, Math.max(config.minHeight + 40, maxVp));
+      wrap.style.height = Math.round(clamp(idealH, config.minHeight, hardMax)) + 'px';
+    }
+    function openInNewTab() {
+      const svg = canvas.querySelector('svg');
+      if (!svg) return;
+      const clone = svg.cloneNode(true);
+      clone.style.width = ''; clone.style.height = '';
+      const bg = isDark ? '#12161f' : '#f7f4ec';
+      const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>RAG pipeline</title><style>
+      body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:${bg};padding:40px;box-sizing:border-box}
+      svg{max-width:100%;max-height:90vh;height:auto}</style></head><body>${clone.outerHTML}</body></html>`;
+      open(URL.createObjectURL(new Blob([html], { type: 'text/html' })), '_blank');
+    }
+    async function render() {
+      try {
+        const code = source.textContent.trim();
+        if (!code) { label.textContent = 'Error: empty'; return; }
+        const id = 'diagram-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+        const { svg } = await mermaid.render(id, code);
+        canvas.innerHTML = svg;
+        const svgNode = canvas.querySelector('svg');
+        if (!svgNode) { label.textContent = 'Error: no SVG'; return; }
+        const size = readSvgNaturalSize(svgNode);
+        svgW = size.w; svgH = size.h;
+        svgNode.removeAttribute('width'); svgNode.removeAttribute('height');
+        svgNode.style.maxWidth = 'none'; svgNode.style.display = 'block';
+        setAdaptiveHeight(); fitDiagram();
+      } catch (err) {
+        console.error('Mermaid render failed:', err);
+        label.textContent = 'Error: ' + (err.message || 'render failed');
+      }
+    }
+    const actions = {
+      'zoom-in': () => zoomAround(1 + config.zoomStep, viewport.clientWidth / 2, viewport.clientHeight / 2),
+      'zoom-out': () => zoomAround(1 / (1 + config.zoomStep), viewport.clientWidth / 2, viewport.clientHeight / 2),
+      'zoom-fit': fitDiagram, 'zoom-one': setOneToOne, 'zoom-expand': openInNewTab
+    };
+    Object.entries(actions).forEach(([action, handler]) => {
+      wrap.querySelector(`[data-action="${action}"]`)?.addEventListener('click', handler);
+    });
+    viewport.addEventListener('dblclick', fitDiagram);
+    viewport.addEventListener('wheel', (e) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        const rect = viewport.getBoundingClientRect();
+        const factor = e.deltaY < 0 ? 1 + config.zoomStep : 1 / (1 + config.zoomStep);
+        zoomAround(factor, e.clientX - rect.left, e.clientY - rect.top);
+        return;
+      }
+      if (canPan()) { e.preventDefault(); panX -= e.deltaX; panY -= e.deltaY; applyTransform(); }
+    }, { passive: false });
+    viewport.addEventListener('mousedown', (e) => {
+      if (e.target.closest('.zoom-controls') || !canPan()) return;
+      wrap.classList.add('is-panning');
+      sx = e.clientX; sy = e.clientY; spx = panX; spy = panY; e.preventDefault();
+      activeDrag = {
+        onMove: (ev) => { panX = spx + (ev.clientX - sx); panY = spy + (ev.clientY - sy); applyTransform(); },
+        onEnd: () => { wrap.classList.remove('is-panning'); }
+      };
+    });
+    viewport.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 1) { sx = e.touches[0].clientX; sy = e.touches[0].clientY; spx = panX; spy = panY; }
+      else if (e.touches.length === 2) {
+        const dx = e.touches[0].clientX - e.touches[1].clientX, dy = e.touches[0].clientY - e.touches[1].clientY;
+        touchDist = Math.sqrt(dx * dx + dy * dy);
+        const r = viewport.getBoundingClientRect();
+        touchCx = (e.touches[0].clientX + e.touches[1].clientX) / 2 - r.left;
+        touchCy = (e.touches[0].clientY + e.touches[1].clientY) / 2 - r.top;
+      }
+    }, { passive: true });
+    viewport.addEventListener('touchmove', (e) => {
+      if (e.touches.length === 1 && canPan()) {
+        if (touchDist > 0) { sx = e.touches[0].clientX; sy = e.touches[0].clientY; spx = panX; spy = panY; touchDist = 0; }
+        e.preventDefault();
+        panX = spx + (e.touches[0].clientX - sx); panY = spy + (e.touches[0].clientY - sy); applyTransform();
+      } else if (e.touches.length === 2 && touchDist > 0) {
+        e.preventDefault();
+        const dx = e.touches[0].clientX - e.touches[1].clientX, dy = e.touches[0].clientY - e.touches[1].clientY;
+        const d = Math.sqrt(dx * dx + dy * dy);
+        zoomAround(d / touchDist, touchCx, touchCy); touchDist = d;
+      }
+    }, { passive: false });
+    new ResizeObserver(() => { if (svgW) { setAdaptiveHeight(); fitDiagram(); } }).observe(wrap);
+    render();
+  }
+  document.querySelectorAll('.diagram-shell').forEach(initDiagram);
+</script>
+</body>
+</html>

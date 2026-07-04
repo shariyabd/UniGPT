@@ -34,3 +34,6 @@ yarn-error.log
 .playwright-mcp/
 skills-lock.json
 faculty-courses-evidence.png
+
+# LibreOffice lock files
+.~lock.*#

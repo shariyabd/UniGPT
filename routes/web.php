@@ -32,6 +32,7 @@ use App\Http\Controllers\LegalController;
 use App\Http\Controllers\Messenger\MessageController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PresenceController;
+use App\Http\Controllers\PublicDocsController;
 use App\Http\Controllers\Student\AssignmentController as StudentAssignmentController;
 use App\Http\Controllers\Student\ChatController;
 use App\Http\Controllers\Student\ClassTestController as StudentClassTestController;
@@ -50,6 +51,13 @@ Route::get('/', fn () => Inertia::render('Landing'))->name('home');
 // Standalone product presentation / pitch deck. Renders full-screen with no
 // app chrome — the Presentation page is self-contained (no AppLayout).
 Route::get('/presentation', fn () => Inertia::render('Presentation'))->name('presentation');
+
+// Public, browsable library for the shared documents under public/docs
+// (reports, architecture & model, RAG question bank). Directories render a
+// listing; files stream inline (or ?download=1 to force download).
+Route::get('/docs/{path?}', [PublicDocsController::class, 'browse'])
+    ->where('path', '.*')
+    ->name('docs.browse');
 
 // Authentication Routes
 Route::middleware('guest')->group(function () {});
