@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\ExamController as AdminExamController;
 use App\Http\Controllers\Admin\MonitorController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\SectionController as AdminSectionController;
+use App\Http\Controllers\Admin\ExamSecurityController;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\TermController as AdminTermController;
 use App\Http\Controllers\Admin\UserManagementController;
@@ -175,6 +176,9 @@ Route::middleware(['auth'])->group(function () {
             Route::post('/class-tests/{classTest}/start', [StudentClassTestController::class, 'start'])->name('class-tests.start');
             Route::get('/class-tests/{classTest}/take', [StudentClassTestController::class, 'take'])->name('class-tests.take');
             Route::post('/class-tests/{classTest}/violation', [StudentClassTestController::class, 'violation'])->name('class-tests.violation');
+            Route::post('/class-tests/{classTest}/fingerprint', [StudentClassTestController::class, 'fingerprint'])->name('class-tests.fingerprint');
+            Route::post('/class-tests/{classTest}/events', [StudentClassTestController::class, 'events'])->name('class-tests.events');
+            Route::post('/class-tests/{classTest}/recording', [StudentClassTestController::class, 'recording'])->name('class-tests.recording');
             Route::post('/class-tests/{classTest}/submit', [StudentClassTestController::class, 'submit'])->name('class-tests.submit');
             Route::get('/class-tests/{classTest}/result', [StudentClassTestController::class, 'result'])->name('class-tests.result');
         });
@@ -268,6 +272,8 @@ Route::middleware(['auth'])->group(function () {
             Route::patch('/class-tests/{classTest}/status', [FacultyClassTestController::class, 'toggleStatus'])->name('class-tests.status');
             Route::delete('/class-tests/{classTest}', [FacultyClassTestController::class, 'destroy'])->name('class-tests.destroy');
             Route::get('/class-tests/{classTest}/results', [FacultyClassTestController::class, 'results'])->name('class-tests.results');
+            Route::get('/class-tests/{classTest}/attempts/{attempt}', [FacultyClassTestController::class, 'attempt'])->name('class-tests.attempt');
+            Route::get('/class-tests/{classTest}/attempts/{attempt}/recordings/{recording}', [FacultyClassTestController::class, 'recording'])->name('class-tests.recording');
         });
 
         // Learning analytics & academic reporting
@@ -362,6 +368,10 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/exams', [AdminExamController::class, 'store'])->middleware('permission:manage_exams')->name('exams.store');
         Route::patch('/exams/{exam}', [AdminExamController::class, 'update'])->middleware('permission:manage_exams')->name('exams.update');
         Route::delete('/exams/{exam}', [AdminExamController::class, 'destroy'])->middleware('permission:manage_exams')->name('exams.destroy');
+
+        // Exam security — global gate over which proctoring layers faculty may use
+        Route::get('/exam-security', [ExamSecurityController::class, 'index'])->middleware('permission:manage_exams')->name('exam-security');
+        Route::patch('/exam-security', [ExamSecurityController::class, 'update'])->middleware('permission:manage_exams')->name('exam-security.update');
 
         // AI settings
         Route::get('/settings', [SettingsController::class, 'index'])->middleware('permission:configure_ai')->name('settings');

@@ -54,6 +54,7 @@ current MVP.
 | Course materials (persisted completion, gated download) | ✅ | `CourseService::studentMaterials` |
 | Assignments + submissions | ✅ | `Student/AssignmentController`, `SubmissionService` |
 | Timed quizzes / class tests (take + auto-grade + instant result) | ✅ | `Student/ClassTestController`, `ClassTestService` |
+| Layered proctoring (fullscreen/tab/clipboard/watermark/fingerprint/behaviour/webcam+screen recording) | ✅ | `ExamSecurityService`, `config/exam_security.php`, `class_test_events`/`class_test_recordings` |
 | Attendance · Transcript · Exams · Calendar | ✅ | Attendance/Transcript/Exam/Calendar services |
 | Notes · Tasks (owner-scoped) | ✅ | `NoteController`, `TaskController` |
 | Notifications (bell + index) | ✅ | `NotificationService`, `NotificationController` |
@@ -66,6 +67,7 @@ current MVP.
 | Material management (upload/download) | ✅ | `CourseMaterialController` |
 | AI teaching assistant (chat + quiz/assignment gen + publish) | ✅ | `AIAssistantController`, `TeachingAssistantService` |
 | Timed quizzes / class tests (author manually or AI-generated, timer, marks, auto-grade) | ✅ | `Faculty/ClassTestController`, `ClassTestService` |
+| Per-test proctoring layer selection + attempt review dossier (timeline, risk score, recordings) | ✅ | `Faculty/ClassTestController::attempt`, `ClassTestService::attemptReview` |
 | Grading (rubric) + **AI-drafted feedback** | ✅ | `GradingController`, `GradingService` |
 | Attendance management | ✅ | `Faculty/AttendanceController` |
 | Learning analytics & at-risk flagging | ✅ | `FacultyAnalyticsService` |
@@ -83,6 +85,7 @@ current MVP.
 | Exam/timetable CRUD | ✅ | `Admin/ExamController` |
 | Announcements / broadcast | ✅ | `Admin/AnnouncementController` |
 | Analytics · AI settings · System monitor | ✅ | `AnalyticsController`, `SettingsController`, `MonitorController` |
+| Exam Security settings (global layer availability + defaults) | ✅ | `Admin/ExamSecurityController`, `exam_security` setting |
 | Activity log / audit trail | ✅ | `ActivityLog`, `ActivityLogger` |
 | Admin transcript editing | ⬜ | not started (low priority; grades flow via grading/enrolment) |
 
@@ -117,6 +120,30 @@ warn once then disqualify), and answer within the allotted time. On submit (or w
 expires) the system **auto-grades** the objective questions and returns an instant score and
 answer review; a disqualified attempt scores 0. Publishing a quiz notifies the section
 roster via the existing `NotificationService`.
+
+### Layered exam-security / proctoring (per-test, admin-gated)
+Proctoring is a **config-driven layer system**, not a fixed set of hard-coded checks.
+`config/exam_security.php` declares 14 independent layers; `ExamSecurityService` resolves the
+*effective* set for a test as **config default → admin global gate → per-test faculty
+selection**. Layers: fullscreen enforcement, tab-switch / focus-loss detection, clipboard &
+context-menu block, one-question-at-a-time, disable-going-back, randomise question order,
+randomise answer options, identity watermark, browser fingerprint, behaviour logging, risk
+scoring, AI assessment-integrity notice, **webcam recording** and **screen recording**.
+
+- **Faculty** tick the layers per test on the authoring form (stored in
+  `class_tests.security_config` JSON); an **admin** decides which layers are available at all
+  and which are on by default (Admin → **Exam Security**, persisted to the `exam_security`
+  setting).
+- **Evidence trail:** typed events land in `class_test_events` (replacing the old bare counter);
+  the attempt carries the fingerprint, session, IP, user-agent and a computed 0–100 **risk
+  score** with contributing factors. Webcam/screen are captured with `MediaRecorder`, uploaded
+  in chunks to the private disk, and indexed in `class_test_recordings`.
+- **Review:** the faculty results screen adds risk / flagged columns and a per-student **Review**
+  dossier (`faculty.class-tests.attempt`) — identity + fingerprint, risk factors, a behaviour
+  timeline, and in-browser recording playback (chunks are stitched client-side because
+  `MediaRecorder` timeslices are only valid webm when concatenated in order).
+- Media layers require explicit student consent before the exam starts; the integrity notice is
+  pinned in the exam's sticky header for the whole attempt.
 
 ### Admin-assigned → student-confirmed registration (P2.6)
 The enrollment model was redesigned: **students no longer self-pick** courses. The admin

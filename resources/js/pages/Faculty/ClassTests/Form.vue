@@ -1,5 +1,5 @@
 <script setup>
-import { computed, reactive, ref } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { useToast } from 'vue-toastification';
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -11,6 +11,7 @@ import {
     PlusIcon,
     TrashIcon,
     SparklesIcon,
+    ShieldCheckIcon,
 } from '@heroicons/vue/24/outline';
 
 const toast = useToast();
@@ -19,9 +20,50 @@ const props = defineProps({
     mode: { type: String, default: 'create' },
     test: { type: Object, default: null },
     sections: { type: Array, default: () => [] },
+    // Globally-available security layers (admin-gated) + the pre-ticked state
+    // for a new test, and the default warning threshold.
+    securityLayers: { type: Array, default: () => [] },
+    defaultSecurity: { type: Object, default: () => ({}) },
+    maxWarningsDefault: { type: Number, default: 3 },
 });
 
 const isEdit = computed(() => props.mode === 'edit');
+
+// --- Security layers --------------------------------------------------------
+const CATEGORY_META = {
+    lockdown: { label: 'Lockdown', hint: 'Restrict what the student can do in the browser.' },
+    integrity: { label: 'Question integrity', hint: 'Make each paper harder to share.' },
+    monitoring: { label: 'Monitoring & evidence', hint: 'Record behaviour for later review.' },
+    media: { label: 'Media recording', hint: 'Requires the student to grant camera / screen access before starting.' },
+};
+const CATEGORY_ORDER = ['lockdown', 'integrity', 'monitoring', 'media'];
+
+// Every available layer gets an entry: the saved value when editing, otherwise
+// the server-provided default. Keeps the checkbox map complete + reactive.
+const initialSecurity = () => {
+    const saved = props.test?.securityConfig ?? null;
+    const out = {};
+    for (const layer of props.securityLayers) {
+        out[layer.key] = saved
+            ? !!saved[layer.key]
+            : (props.defaultSecurity?.[layer.key] ?? layer.default);
+    }
+    return out;
+};
+
+const groupedLayers = computed(() => {
+    const groups = {};
+    for (const layer of props.securityLayers) {
+        if (!groups[layer.category]) groups[layer.category] = [];
+        groups[layer.category].push(layer);
+    }
+    return CATEGORY_ORDER
+        .filter((c) => groups[c]?.length)
+        .map((c) => ({ key: c, ...CATEGORY_META[c], layers: groups[c] }));
+});
+
+// "Disable going back" is meaningless without "one question at a time".
+const layerDisabled = (key) => key === 'lock_back' && !form.security_config.sequential;
 
 const OPTION_KEYS = ['A', 'B', 'C', 'D', 'E', 'F'];
 
@@ -45,7 +87,8 @@ const form = useForm({
     status: props.test?.status === 'closed' ? 'published' : (props.test?.status ?? 'draft'),
     available_from: props.test?.availableFrom ?? '',
     available_until: props.test?.availableUntil ?? '',
-    shuffle_questions: props.test?.shuffleQuestions ?? true,
+    max_warnings: props.test?.maxWarnings ?? props.maxWarningsDefault,
+    security_config: initialSecurity(),
     questions: props.test?.questions?.length
         ? props.test.questions.map((q) => ({
             type: q.type,
@@ -59,6 +102,15 @@ const form = useForm({
 
 const totalMarks = computed(() =>
     form.questions.reduce((sum, q) => sum + (Number(q.marks) || 0), 0)
+);
+
+// Clear the dependent "disable going back" layer whenever "one question at a
+// time" is switched off, so the saved selection never contradicts itself.
+watch(
+    () => form.security_config.sequential,
+    (on) => {
+        if (!on && form.security_config.lock_back) form.security_config.lock_back = false;
+    },
 );
 
 // --- AI generation (optional) ----------------------------------------------
@@ -259,11 +311,6 @@ const sectionLabel = (s) => `${s.courseCode} — ${s.courseName} · Section ${s.
                                 <p v-if="form.errors.available_until" class="mt-1 text-xs text-danger-fg">{{ form.errors.available_until }}</p>
                             </div>
 
-                            <div class="flex items-center gap-2">
-                                <input id="shuffle" v-model="form.shuffle_questions" type="checkbox" class="h-4 w-4 rounded border-line" />
-                                <label for="shuffle" class="text-sm text-content">Shuffle question order per student</label>
-                            </div>
-
                             <div>
                                 <label class="ui-label">Status</label>
                                 <select v-model="form.status" class="ui-input">
@@ -271,6 +318,69 @@ const sectionLabel = (s) => `${s.courseCode} — ${s.courseName} · Section ${s.
                                     <option value="published">Published (visible to students)</option>
                                 </select>
                             </div>
+                        </div>
+                    </Card>
+
+                    <!-- Security layers (independent, per-test) -->
+                    <Card
+                        title="Exam security"
+                        :icon="ShieldCheckIcon"
+                        subtitle="Pick the proctoring layers that apply to this test. Each is independent."
+                    >
+                        <template #actions>
+                            <div class="flex items-center gap-2">
+                                <label class="text-sm text-content-muted">Warnings before disqualify</label>
+                                <input
+                                    v-model.number="form.max_warnings"
+                                    type="number"
+                                    min="0"
+                                    max="20"
+                                    class="ui-input w-20"
+                                />
+                            </div>
+                        </template>
+
+                        <p v-if="securityLayers.length === 0" class="text-sm text-content-muted">
+                            No security layers are enabled by your administrator.
+                        </p>
+
+                        <div v-else class="space-y-6">
+                            <div v-for="group in groupedLayers" :key="group.key">
+                                <h4 class="text-sm font-semibold text-content">{{ group.label }}</h4>
+                                <p class="mb-3 text-xs text-content-faint">{{ group.hint }}</p>
+
+                                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                    <label
+                                        v-for="layer in group.layers"
+                                        :key="layer.key"
+                                        class="flex items-start gap-3 rounded-card border border-line p-3"
+                                        :class="layerDisabled(layer.key)
+                                            ? 'cursor-not-allowed opacity-50'
+                                            : 'cursor-pointer hover:border-primary/40'"
+                                    >
+                                        <input
+                                            v-model="form.security_config[layer.key]"
+                                            type="checkbox"
+                                            :disabled="layerDisabled(layer.key)"
+                                            class="mt-0.5 h-4 w-4 rounded border-line"
+                                        />
+                                        <span class="min-w-0">
+                                            <span class="flex items-center gap-2 text-sm font-medium text-content">
+                                                {{ layer.label }}
+                                                <span v-if="layer.media" class="ui-badge bg-warning-soft text-warning-fg">
+                                                    consent
+                                                </span>
+                                            </span>
+                                            <span class="mt-0.5 block text-xs text-content-muted">{{ layer.description }}</span>
+                                        </span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <p class="text-xs text-content-faint">
+                                “Consent” layers ask the student to grant camera/screen access before the exam
+                                and record for the whole session — recordings are visible only to faculty and admins.
+                            </p>
                         </div>
                     </Card>
 

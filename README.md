@@ -40,11 +40,15 @@ UniGPT gives a university a single, governed AI layer over its own academic cont
 - **Faculty** manage the sections they teach, upload materials, grade submissions
   (with AI-drafted feedback), generate quizzes/assignments with an AI teaching
   assistant, author and run **timed online quizzes/class tests** — writing questions
-  manually or **generating them with AI**, with auto-grading — **message their
-  students in real time**, and view learning analytics.
+  manually or **generating them with AI**, with auto-grading — apply **per-test
+  proctoring layers** (fullscreen, tab/clipboard guards, watermark, fingerprint,
+  behaviour logging, risk scoring, **webcam + screen recording**) and review a
+  per-student evidence dossier, **message their students in real time**, and view
+  learning analytics.
 - **Administrators** govern users and the RBAC matrix, own the course catalog,
   sections, terms and departments, curate the document knowledge base (upload →
-  approve → embed), configure the AI provider, broadcast announcements, and monitor
+  approve → embed), configure the AI provider, **gate the exam-security layers**,
+  broadcast announcements, and monitor
   the system.
 
 The differentiator: AI answers are **grounded in institution-approved documents

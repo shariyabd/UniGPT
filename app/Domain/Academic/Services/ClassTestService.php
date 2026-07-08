@@ -10,11 +10,14 @@ use App\Domain\User\Models\User;
 use App\Enums\NotificationType;
 use App\Models\ClassTest;
 use App\Models\ClassTestAttempt;
+use App\Models\ClassTestEvent;
 use App\Models\ClassTestQuestion;
+use App\Models\ClassTestRecording;
 use App\Models\Section;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * Faculty-authored interactive class tests / quizzes: authoring, attempt
@@ -29,6 +32,7 @@ class ClassTestService
     public function __construct(
         private readonly NotificationService $notifications,
         private readonly TeachingAssistantService $assistant,
+        private readonly ExamSecurityService $security,
     ) {}
 
     /**
@@ -197,6 +201,7 @@ class ClassTestService
     {
         return DB::transaction(function () use ($data, $faculty): ClassTest {
             $section = Section::findOrFail($data['section_id']);
+            $security = $this->security->sanitizeSelection($data['security_config'] ?? null);
 
             $test = ClassTest::create([
                 'course_id' => $section->course_id,
@@ -208,7 +213,11 @@ class ClassTestService
                 'status' => $data['status'] ?? 'draft',
                 'available_from' => $data['available_from'] ?? null,
                 'available_until' => $data['available_until'] ?? null,
-                'shuffle_questions' => $data['shuffle_questions'] ?? true,
+                // Question shuffling is now a security layer; keep the column in
+                // sync so it stays truthful for callers that still read it.
+                'shuffle_questions' => $security['shuffle_questions'] ?? true,
+                'max_warnings' => $data['max_warnings'] ?? (int) config('exam_security.max_warnings_default'),
+                'security_config' => $security,
                 'created_by' => $faculty->id,
             ]);
 
@@ -229,6 +238,7 @@ class ClassTestService
     {
         return DB::transaction(function () use ($test, $data): ClassTest {
             $wasPublished = $test->status === 'published';
+            $security = $this->security->sanitizeSelection($data['security_config'] ?? null);
 
             $test->update([
                 'title' => $data['title'],
@@ -238,7 +248,9 @@ class ClassTestService
                 'status' => $data['status'] ?? $test->status,
                 'available_from' => $data['available_from'] ?? null,
                 'available_until' => $data['available_until'] ?? null,
-                'shuffle_questions' => $data['shuffle_questions'] ?? true,
+                'shuffle_questions' => $security['shuffle_questions'] ?? true,
+                'max_warnings' => $data['max_warnings'] ?? $test->max_warnings,
+                'security_config' => $security,
             ]);
 
             $this->syncQuestions($test, $data['questions']);
@@ -288,7 +300,8 @@ class ClassTestService
             'status' => $test->status,
             'availableFrom' => $test->available_from?->format('Y-m-d\TH:i'),
             'availableUntil' => $test->available_until?->format('Y-m-d\TH:i'),
-            'shuffleQuestions' => $test->shuffle_questions,
+            'maxWarnings' => $test->max_warnings,
+            'securityConfig' => $this->security->selectionFor($test),
             'course' => ['code' => $test->course?->code, 'name' => $test->course?->name],
             'section' => $test->section?->label,
             'questions' => $test->questions->map(fn (ClassTestQuestion $q) => [
@@ -311,6 +324,7 @@ class ClassTestService
         $test->loadCount('questions');
         $attempts = $test->attempts()
             ->with('student')
+            ->withCount(['events', 'recordings'])
             ->orderByDesc('submitted_at')
             ->get();
 
@@ -325,13 +339,94 @@ class ClassTestService
                 'score' => $a->score,
                 'totalMarks' => $a->total_marks,
                 'violationCount' => $a->violation_count,
+                'riskScore' => $a->risk_score,
+                'eventCount' => $a->events_count,
+                'recordingCount' => $a->recordings_count,
                 'submittedAt' => $a->submitted_at?->toDayDateTimeString(),
+                'reviewUrl' => route('faculty.class-tests.attempt', [$test->id, $a->id]),
             ])->values(),
             'stats' => [
                 'attempts' => $attempts->count(),
                 'disqualified' => $attempts->where('status', 'disqualified')->count(),
                 'averageScore' => $graded->isNotEmpty() ? round((float) $graded->avg('score'), 1) : null,
+                'flagged' => $attempts->filter(fn (ClassTestAttempt $a) => ($a->risk_score ?? 0) >= 50 || $a->violation_count > 0)->count(),
             ],
+        ];
+    }
+
+    /**
+     * The full proctoring dossier for one attempt: identity, fingerprint, the
+     * behaviour/violation timeline, risk breakdown, media recordings and the
+     * per-question answer review. Faculty-only.
+     *
+     * @return array<string, mixed>
+     */
+    public function attemptReview(ClassTest $test, ClassTestAttempt $attempt): array
+    {
+        $attempt->load([
+            'student',
+            'events' => fn ($q) => $q->orderBy('occurred_at')->orderBy('id'),
+            'recordings' => fn ($q) => $q->orderBy('kind')->orderBy('sequence'),
+        ]);
+
+        $recordings = $attempt->recordings
+            ->groupBy('kind')
+            ->map(fn ($chunks, string $kind) => [
+                'kind' => $kind,
+                'chunkCount' => $chunks->count(),
+                'sizeBytes' => (int) $chunks->sum('size_bytes'),
+                'chunks' => $chunks->map(fn (ClassTestRecording $r) => [
+                    'id' => $r->id,
+                    'sequence' => $r->sequence,
+                    'url' => route('faculty.class-tests.recording', [$test->id, $attempt->id, $r->id]),
+                ])->values(),
+            ])
+            ->values();
+
+        return [
+            'test' => [
+                'id' => $test->id,
+                'title' => $test->title,
+                'course' => ['code' => $test->course?->code, 'name' => $test->course?->name],
+                'section' => $test->section?->label,
+                'maxWarnings' => $test->max_warnings,
+            ],
+            'attempt' => [
+                'id' => $attempt->id,
+                'status' => $attempt->status,
+                'score' => $attempt->score,
+                'totalMarks' => $attempt->total_marks,
+                'violationCount' => $attempt->violation_count,
+                'riskScore' => $attempt->risk_score,
+                'riskFactors' => $attempt->risk_factors ?? [],
+                'startedAt' => $attempt->started_at?->toDayDateTimeString(),
+                'submittedAt' => $attempt->submitted_at?->toDayDateTimeString(),
+                'student' => [
+                    'id' => $attempt->student?->id,
+                    'name' => $attempt->student?->name,
+                    'studentId' => $attempt->student?->student_id,
+                    'email' => $attempt->student?->email,
+                ],
+                'ip' => $attempt->ip_address,
+                'userAgent' => $attempt->user_agent,
+                'sessionId' => $attempt->session_id,
+                'fingerprintHash' => $attempt->fingerprint_hash,
+                'fingerprint' => $attempt->fingerprint,
+            ],
+            'events' => $attempt->events->map(fn (ClassTestEvent $e) => [
+                'type' => $e->type,
+                'severity' => $e->severity,
+                'occurredAt' => $e->occurred_at?->toDateTimeString(),
+                'durationMs' => $e->duration_ms,
+                'questionId' => $e->question_id,
+                'meta' => $e->meta,
+            ])->values(),
+            'eventCounts' => [
+                'violation' => $attempt->events->where('severity', 'violation')->count(),
+                'warning' => $attempt->events->where('severity', 'warning')->count(),
+                'info' => $attempt->events->where('severity', 'info')->count(),
+            ],
+            'recordings' => $recordings,
         ];
     }
 
@@ -386,6 +481,8 @@ class ClassTestService
                 'status' => 'in_progress',
                 'started_at' => now(),
                 'total_marks' => (int) $test->questions()->sum('marks'),
+                // Stable per-attempt identity used by the watermark + evidence trail.
+                'session_id' => (string) Str::uuid(),
             ],
         );
 
@@ -406,9 +503,13 @@ class ClassTestService
      */
     public function takePayload(ClassTest $test, ClassTestAttempt $attempt): array
     {
-        $questions = $test->questions->map(fn (ClassTestQuestion $q) => $this->presentQuestionForStudent($q));
+        $shuffleOptions = $this->security->isEnabled($test, 'shuffle_options');
 
-        if ($test->shuffle_questions) {
+        $questions = $test->questions->map(
+            fn (ClassTestQuestion $q) => $this->presentQuestionForStudent($q, $shuffleOptions),
+        );
+
+        if ($this->security->isEnabled($test, 'shuffle_questions')) {
             $questions = $questions->shuffle();
         }
 
@@ -429,6 +530,9 @@ class ClassTestService
                 'remainingSeconds' => $this->remainingSeconds($test, $attempt),
             ],
             'questions' => $questions->values(),
+            // Which proctoring layers are live for this attempt + their runtime
+            // settings (warning threshold, watermark identity, recording, notice).
+            'security' => $this->security->clientConfig($test, $attempt),
         ];
     }
 
@@ -475,6 +579,12 @@ class ClassTestService
                 'submitted_at' => now(),
             ]);
 
+            // Derive the suspicion score from the logged behaviour, when the test
+            // opted into risk analysis. Best-effort; never blocks submission.
+            if ($this->security->isEnabled($test, 'risk_analysis')) {
+                $this->security->computeRisk($attempt);
+            }
+
             $this->notifyFaculty($test, $attempt);
 
             return $attempt->fresh();
@@ -489,7 +599,7 @@ class ClassTestService
     {
         $attempt->increment('violation_count');
 
-        $max = $attempt->classTest?->max_warnings ?? 1;
+        $max = $attempt->classTest?->max_warnings ?? (int) config('exam_security.max_warnings_default');
 
         return $attempt->violation_count > $max;
     }
@@ -671,11 +781,18 @@ class ClassTestService
      *
      * @return array<string, mixed>
      */
-    private function presentQuestionForStudent(ClassTestQuestion $question): array
+    private function presentQuestionForStudent(ClassTestQuestion $question, bool $shuffleOptions = false): array
     {
         $options = $question->type === 'true_false'
             ? [['key' => 'true', 'text' => 'True'], ['key' => 'false', 'text' => 'False']]
             : ($question->options ?? []);
+
+        // Only MCQ options are shuffled; the option KEYS travel with the text so
+        // grading (which matches on the stored key) stays correct regardless of
+        // display order. True/False keeps its natural order.
+        if ($shuffleOptions && $question->type !== 'true_false' && count($options) > 1) {
+            $options = collect($options)->shuffle()->values()->all();
+        }
 
         return [
             'id' => $question->id,

@@ -5,22 +5,28 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Faculty;
 
 use App\Domain\Academic\Services\ClassTestService;
+use App\Domain\Academic\Services\ExamSecurityService;
 use App\Domain\User\Models\User;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Faculty\GenerateClassTestRequest;
 use App\Http\Requests\Faculty\StoreClassTestRequest;
 use App\Http\Requests\Faculty\UpdateClassTestRequest;
 use App\Models\ClassTest;
+use App\Models\ClassTestAttempt;
+use App\Models\ClassTestRecording;
 use App\Services\ActivityLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ClassTestController extends Controller
 {
     public function __construct(
         private readonly ClassTestService $classTests,
+        private readonly ExamSecurityService $security,
         private readonly ActivityLogger $activity,
     ) {}
 
@@ -39,6 +45,9 @@ class ClassTestController extends Controller
         return Inertia::render('Faculty/ClassTests/Form', [
             'mode' => 'create',
             'sections' => $this->classTests->sectionOptions($this->user()),
+            'securityLayers' => $this->security->availableLayers(),
+            'defaultSecurity' => $this->security->defaultSelection(),
+            'maxWarningsDefault' => (int) config('exam_security.max_warnings_default'),
         ]);
     }
 
@@ -70,6 +79,9 @@ class ClassTestController extends Controller
             'mode' => 'edit',
             'test' => $this->classTests->authoringPayload($classTest),
             'sections' => $this->classTests->sectionOptions($this->user()),
+            'securityLayers' => $this->security->availableLayers(),
+            'defaultSecurity' => $this->security->defaultSelection(),
+            'maxWarningsDefault' => (int) config('exam_security.max_warnings_default'),
         ]);
     }
 
@@ -111,6 +123,38 @@ class ClassTestController extends Controller
         $this->authorizeTest($classTest);
 
         return Inertia::render('Faculty/ClassTests/Results', $this->classTests->resultsFor($classTest));
+    }
+
+    /**
+     * The full proctoring dossier for one student's attempt (timeline, risk,
+     * fingerprint, recordings, answers).
+     */
+    public function attempt(ClassTest $classTest, ClassTestAttempt $attempt): Response
+    {
+        $this->authorizeTest($classTest);
+        abort_unless($attempt->class_test_id === $classTest->id, 404);
+
+        return Inertia::render('Faculty/ClassTests/Attempt', $this->classTests->attemptReview($classTest, $attempt));
+    }
+
+    /**
+     * Stream one recording chunk from the private disk. Faculty/admin only, and
+     * strictly scoped to a chunk belonging to this test's attempt.
+     */
+    public function recording(ClassTest $classTest, ClassTestAttempt $attempt, ClassTestRecording $recording): StreamedResponse
+    {
+        $this->authorizeTest($classTest);
+        abort_unless(
+            $attempt->class_test_id === $classTest->id && $recording->attempt_id === $attempt->id,
+            404,
+        );
+
+        $disk = Storage::disk($recording->disk);
+        abort_unless($disk->exists($recording->path), 404);
+
+        return $disk->response($recording->path, null, [
+            'Content-Type' => $recording->mime ?: 'video/webm',
+        ]);
     }
 
     /**

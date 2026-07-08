@@ -112,7 +112,9 @@ The AI core → Proof (grounded answers, live demo) → Governance → Metrics �
 ## Slide 14 — Proctored Class Tests
 - **Kicker:** Proctored class tests
 - **Title:** "Real exam integrity, in the browser"
-- **Four integrity controls:** Fullscreen enforcement (tab-switch/exit detection) · Auto-disqualify (over the warning limit) · Per-student timer (starts on start, fair) · Server-authoritative grading (client answers never trusted).
+- **Layered, per-test proctoring:** faculty pick from 14 admin-approved layers — fullscreen, tab-switch/exit detection, clipboard block, question/option randomisation, identity watermark, browser fingerprint, behaviour logging, **webcam + screen recording**.
+- **Server-authoritative:** per-student timer, client answers never trusted, auto-disqualify over the warning limit.
+- **Evidence + review:** every attempt yields a behaviour timeline, a 0–100 risk score, and a per-student review dossier with recording playback.
 
 ## Slide 15 — Real-Time Messaging
 - **Kicker:** Real-time messaging

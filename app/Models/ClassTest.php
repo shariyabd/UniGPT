@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 /**
  * A faculty-authored, in-browser, auto-graded class test / quiz bound to a single
@@ -25,10 +26,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int $total_marks
  * @property int|null $pass_marks
  * @property string $status
- * @property \Illuminate\Support\Carbon|null $available_from
- * @property \Illuminate\Support\Carbon|null $available_until
+ * @property Carbon|null $available_from
+ * @property Carbon|null $available_until
  * @property bool $shuffle_questions
  * @property int $max_warnings
+ * @property array<string, bool>|null $security_config
  * @property int|null $created_by
  */
 class ClassTest extends Model
@@ -49,6 +51,7 @@ class ClassTest extends Model
         'available_until',
         'shuffle_questions',
         'max_warnings',
+        'security_config',
         'created_by',
     ];
 
@@ -62,6 +65,7 @@ class ClassTest extends Model
             'available_until' => 'datetime',
             'shuffle_questions' => 'boolean',
             'max_warnings' => 'integer',
+            'security_config' => 'array',
         ];
     }
 

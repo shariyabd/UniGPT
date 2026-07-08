@@ -133,6 +133,7 @@ const navByRole = {
             { label: 'Documents', route: 'admin.documents', icon: DocumentTextIcon, permission: 'view_documents' },
             { label: 'Approvals', route: 'admin.approvals', icon: CheckBadgeIcon, permission: 'approve_document' },
             { label: 'Exams', route: 'admin.exams', icon: PencilSquareIcon, permission: 'manage_exams' },
+            { label: 'Exam Security', route: 'admin.exam-security', icon: ShieldCheckIcon, permission: 'manage_exams' },
         ] },
         { section: 'System', items: [
             { label: 'Analytics', route: 'admin.analytics', icon: ChartBarIcon, permission: 'view_all_analytics' },

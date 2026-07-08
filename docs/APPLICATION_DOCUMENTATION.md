@@ -209,6 +209,16 @@ instructions. If no specific section is chosen, the exam is scheduled for every 
 course at once. Scheduling an exam notifies the affected students, and the exam appears on both
 faculty and student timetables.
 
+### 3.12a Exam Security ⭐
+The global gate over the class-test proctoring layers. For each layer (fullscreen, tab-switch,
+clipboard block, one-at-a-time, disable-back, shuffle questions, shuffle options, watermark,
+integrity notice, fingerprint, behaviour logging, risk scoring, webcam recording, screen
+recording) the admin controls two switches: whether it is **available** to faculty at all, and
+whether it is **on by default** on a new test. Turning a layer off removes it from the faculty
+authoring form and stops any existing test from applying it. Faculty still choose, per test, which
+of the available layers actually run. The heavier "consent" layers (webcam / screen) are clearly
+marked because they prompt the student for camera / screen access before the exam begins.
+
 ### 3.13 AI Settings ⭐
 The control panel for the AI itself. Admins choose the AI provider (the real OpenAI service or a
 built-in offline "demo" mode), the models used, how creative vs. precise answers should be, how
@@ -274,10 +284,24 @@ A read-only timetable of the teacher's upcoming and past exams (exams are schedu
 ### 4.9 Class Tests (Quizzes)
 Teachers create interactive multiple-choice / true-false quizzes — by hand or by accepting an
 AI-generated draft — for a class they teach. Publishing notifies students. A results screen shows
-every attempt (student, score, status, and any cheating-warning count) plus summary statistics.
-The quiz is **fully server-controlled**: correct answers never reach the student's browser during
-a live attempt, the timer can't be tampered with, and proctoring violations can disqualify an
-attempt.
+every attempt (student, score, status, warning count, **risk score**, and whether it was flagged)
+plus summary statistics. The quiz is **fully server-controlled**: correct answers never reach the
+student's browser during a live attempt, the timer can't be tampered with, and proctoring
+violations can disqualify an attempt.
+
+**Per-test security layers.** When authoring a test the teacher picks which proctoring layers
+apply, from a set of independent, configurable options: fullscreen enforcement, tab-switch
+detection, clipboard/right-click blocking, one-question-at-a-time, disable-going-back, randomise
+question order, randomise answer options, identity watermark, browser fingerprint, behaviour
+logging, risk scoring, an AI assessment-integrity notice, and **webcam** / **screen recording**.
+An administrator decides globally which layers are available and which are pre-ticked (see 3.x
+Exam Security). The exam's runtime and the server both apply only the layers that test enabled.
+
+**Attempt review.** From the results screen a teacher opens a per-student **Review** dossier:
+the student's identity and device fingerprint, a computed 0–100 risk score with its contributing
+factors, a full behaviour timeline (focus loss, clipboard attempts, answer timing, idle spans),
+and — when recording layers were on — in-browser playback of the webcam and screen recordings.
+Recordings are stored privately and are only ever visible to faculty and admins.
 
 ### 4.10 Analytics
 Insights for the teacher's classes: students, attendance, grading backlog, grade distribution,

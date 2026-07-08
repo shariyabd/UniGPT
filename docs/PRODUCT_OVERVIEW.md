@@ -98,7 +98,8 @@ prep, research — keep responses on-task.
 | **Document knowledge base** | Upload, review and approve. Approved docs are chunked, embedded and made searchable automatically. |
 | **Role-based dashboards** | Students, faculty and admins each get a tailored home with the tools and data that matter to them. |
 | **Teaching automation** | Generate quizzes, assignments and rubrics, and draft grading feedback with an AI teaching assistant. |
-| **Timed quizzes & class tests** | Faculty set up online quizzes/class tests with rules, a duration timer, questions and marks — writing questions by hand or **generating them with AI**, then editing. Students take them in-panel (fullscreen, anti-cheat) with a live countdown and get auto-graded results the moment they submit. |
+| **Timed quizzes & class tests** | Faculty set up online quizzes/class tests with rules, a duration timer, questions and marks — writing questions by hand or **generating them with AI**, then editing. Students take them in-panel with a live countdown and get auto-graded results the moment they submit. |
+| **Layered exam proctoring** | Faculty pick, per test, which security layers apply from an admin-approved set — fullscreen, tab-switch detection, clipboard block, one-at-a-time, randomisation, identity watermark, browser fingerprint, behaviour logging, risk scoring, and **webcam / screen recording**. Every attempt gets an evidence trail and a per-student review dossier (timeline, 0–100 risk score, recording playback). |
 | **Attendance & analytics** | Mark attendance in seconds; track rates, grades, GPA and engagement across every course. |
 | **Granular RBAC** | Roles map to fine-grained permissions with time-limited grants — every action is gated and logged. |
 | **Announcements & alerts** | Broadcast to any audience and notify the right people on exams, grades and new materials. |

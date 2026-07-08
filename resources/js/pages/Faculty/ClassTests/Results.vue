@@ -12,6 +12,8 @@ import {
     UsersIcon,
     NoSymbolIcon,
     AcademicCapIcon,
+    FlagIcon,
+    VideoCameraIcon,
 } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
@@ -33,6 +35,14 @@ const statusLabel = (status) => ({
     disqualified: 'Disqualified',
     in_progress: 'In progress',
 }[status] ?? status);
+
+// Risk score → traffic-light badge. Null means the test didn't run risk analysis.
+const riskVariant = (score) => {
+    if (score == null) return 'slate';
+    if (score >= 70) return 'danger';
+    if (score >= 40) return 'warning';
+    return 'success';
+};
 </script>
 
 <template>
@@ -51,8 +61,9 @@ const statusLabel = (status) => ({
                     :icon="ChartBarIcon"
                 />
 
-                <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
                     <StatCard variant="filled" color="primary" label="Attempts" :value="stats.attempts ?? 0" :icon="UsersIcon" />
+                    <StatCard variant="filled" color="warning" label="Flagged" :value="stats.flagged ?? 0" :icon="FlagIcon" />
                     <StatCard variant="filled" color="danger" label="Disqualified" :value="stats.disqualified ?? 0" :icon="NoSymbolIcon" />
                     <StatCard variant="filled" color="success" label="Average score" :value="stats.averageScore ?? '—'" :icon="AcademicCapIcon" />
                 </div>
@@ -72,7 +83,9 @@ const statusLabel = (status) => ({
                                     <th class="px-4 py-3 font-medium">Status</th>
                                     <th class="px-4 py-3 font-medium">Score</th>
                                     <th class="px-4 py-3 font-medium">Warnings</th>
+                                    <th class="px-4 py-3 font-medium">Risk</th>
                                     <th class="px-4 py-3 font-medium">Submitted</th>
+                                    <th class="px-4 py-3 font-medium"></th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-line">
@@ -88,7 +101,20 @@ const statusLabel = (status) => ({
                                         {{ attempt.score }} / {{ attempt.totalMarks }}
                                     </td>
                                     <td class="px-4 py-3 text-content-muted">{{ attempt.violationCount }}</td>
-                                    <td class="px-4 py-3 text-content-muted">{{ attempt.submittedAt ?? '—' }}</td>
+                                    <td class="px-4 py-3">
+                                        <Badge :variant="riskVariant(attempt.riskScore)">
+                                            {{ attempt.riskScore == null ? '—' : attempt.riskScore }}
+                                        </Badge>
+                                    </td>
+                                    <td class="px-4 py-3 text-content-muted">
+                                        <div class="flex items-center gap-2">
+                                            <span>{{ attempt.submittedAt ?? '—' }}</span>
+                                            <VideoCameraIcon v-if="attempt.recordingCount > 0" class="h-4 w-4 text-content-faint" title="Has recordings" />
+                                        </div>
+                                    </td>
+                                    <td class="px-4 py-3 text-right">
+                                        <Link :href="attempt.reviewUrl" class="ui-btn-ghost">Review</Link>
+                                    </td>
                                 </tr>
                             </tbody>
                         </table>

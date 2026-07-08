@@ -44,7 +44,13 @@ class StoreClassTestRequest extends FormRequest
             'status' => ['required', Rule::in(['draft', 'published'])],
             'available_from' => ['nullable', 'date'],
             'available_until' => ['nullable', 'date', 'after_or_equal:available_from'],
-            'shuffle_questions' => ['boolean'],
+
+            // Warning threshold + the per-test security-layer selection. The map
+            // is a { layerKey: bool }; the ExamSecurityService normalises it to
+            // the globally-available layers on save, so no key allow-list here.
+            'max_warnings' => ['nullable', 'integer', 'min:0', 'max:20'],
+            'security_config' => ['nullable', 'array'],
+            'security_config.*' => ['boolean'],
 
             'questions' => ['required', 'array', 'min:1'],
             'questions.*.type' => ['required', Rule::in(['mcq', 'true_false'])],

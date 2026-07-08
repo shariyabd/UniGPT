@@ -5,9 +5,13 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Student;
 
 use App\Domain\Academic\Services\ClassTestService;
+use App\Domain\Academic\Services\ExamSecurityService;
 use App\Domain\User\Models\User;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Student\CaptureFingerprintRequest;
+use App\Http\Requests\Student\LogClassTestEventsRequest;
 use App\Http\Requests\Student\SubmitClassTestRequest;
+use App\Http\Requests\Student\UploadClassTestRecordingRequest;
 use App\Models\ClassTest;
 use App\Models\ClassTestAttempt;
 use App\Services\ActivityLogger;
@@ -20,6 +24,7 @@ class ClassTestController extends Controller
 {
     public function __construct(
         private readonly ClassTestService $classTests,
+        private readonly ExamSecurityService $security,
         private readonly ActivityLogger $activity,
     ) {}
 
@@ -58,6 +63,7 @@ class ClassTestController extends Controller
                 'course' => ['code' => $classTest->course?->code, 'name' => $classTest->course?->name],
                 'section' => $classTest->section?->label,
             ],
+            'security' => $this->security->clientConfig($classTest),
             'inProgress' => (bool) $attempt,
         ]);
     }
@@ -122,6 +128,73 @@ class ClassTestController extends Controller
             'disqualified' => $disqualified,
             'violationCount' => $attempt->violation_count,
         ]);
+    }
+
+    /**
+     * Store the browser fingerprint for the live attempt (fired once on load).
+     */
+    public function fingerprint(CaptureFingerprintRequest $request, ClassTest $classTest): JsonResponse
+    {
+        $this->ensureEnrolled($classTest);
+
+        $attempt = $this->attemptFor($classTest);
+
+        if ($attempt && ! $attempt->isFinalised()) {
+            $this->security->captureFingerprint($attempt, $request->components());
+        }
+
+        return response()->json(['ok' => true]);
+    }
+
+    /**
+     * Ingest a batch of proctoring/behaviour events. Violation-severity events
+     * bump the warning counter; the response tells the client whether the
+     * threshold has now been crossed (client then auto-submits as disqualified).
+     */
+    public function events(LogClassTestEventsRequest $request, ClassTest $classTest): JsonResponse
+    {
+        $this->ensureEnrolled($classTest);
+
+        $attempt = $this->attemptFor($classTest);
+
+        if (! $attempt || $attempt->isFinalised()) {
+            return response()->json(['disqualified' => true, 'violationCount' => $attempt?->violation_count ?? 0]);
+        }
+
+        $result = $this->security->recordEvents($attempt, $request->events());
+
+        return response()->json([
+            'disqualified' => $result['disqualified'],
+            'violationCount' => $result['violationCount'],
+        ]);
+    }
+
+    /**
+     * Store one webcam/screen recording chunk. Rejected unless that media layer
+     * is actually enabled for the test, so stray uploads never hit disk.
+     */
+    public function recording(UploadClassTestRecordingRequest $request, ClassTest $classTest): JsonResponse
+    {
+        $this->ensureEnrolled($classTest);
+
+        $kind = $request->string('kind')->value();
+        $layer = $kind === 'screen' ? 'screen_record' : 'webcam';
+        abort_unless($this->security->isEnabled($classTest, $layer), 403, 'Recording is not enabled for this test.');
+
+        $attempt = $this->attemptFor($classTest);
+
+        if (! $attempt || $attempt->isFinalised()) {
+            return response()->json(['ok' => false], 409);
+        }
+
+        $this->security->storeRecordingChunk(
+            attempt: $attempt,
+            kind: $kind,
+            sequence: (int) $request->integer('sequence'),
+            file: $request->file('chunk'),
+        );
+
+        return response()->json(['ok' => true]);
     }
 
     public function submit(SubmitClassTestRequest $request, ClassTest $classTest): RedirectResponse
