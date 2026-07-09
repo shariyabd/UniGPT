@@ -8,7 +8,7 @@ Administrators**. Built with **Laravel 11 + Inertia 2 + Vue 3 + Tailwind**, back
 mock AI provider.
 
 > **Trust code over docs.** Where any document disagrees with the source, the code
-> wins. These docs are kept current as of **2026-06-18**.
+> wins. These docs are kept current as of **2026-07-09**.
 
 ---
 
@@ -36,19 +36,25 @@ UniGPT gives a university a single, governed AI layer over its own academic cont
   with **citations + a confidence score**, follow a course roadmap, track attendance,
   grades, exams, and a calendar, register for admin-assigned course sections, submit
   assignments, take **timed quizzes/class tests** with instant auto-graded results,
-  **message their faculty in real time**, and keep personal notes/tasks/saved answers.
+  **message their faculty in real time**, keep personal notes/tasks/saved answers,
+  and use the newer study suite: an **AI Study Planner** (turns deadlines into a
+  saveable study schedule), **Flashcards** (manual or AI-generated, with SM-2 spaced
+  repetition), a **Learning Analytics / "My Progress"** dashboard (GPA, attendance,
+  test/assignment trends), an opt-in **Leaderboard** (gamified XP by department /
+  semester / section), **course/section Discussions** (post/comment/like), and
+  **OCR of handwritten notes** (photo → transcribed text → saved note, via gpt-4o vision).
 - **Faculty** manage the sections they teach, upload materials, grade submissions
   (with AI-drafted feedback), generate quizzes/assignments with an AI teaching
   assistant, author and run **timed online quizzes/class tests** — writing questions
   manually or **generating them with AI**, with auto-grading — apply **per-test
   proctoring layers** (fullscreen, tab/clipboard guards, watermark, fingerprint,
   behaviour logging, risk scoring, **webcam + screen recording**) and review a
-  per-student evidence dossier, **message their students in real time**, and view
-  learning analytics.
+  per-student evidence dossier, **message their students in real time**, moderate
+  their sections' **discussion feed**, and view learning analytics.
 - **Administrators** govern users and the RBAC matrix, own the course catalog,
   sections, terms and departments, curate the document knowledge base (upload →
   approve → embed), configure the AI provider, **gate the exam-security layers**,
-  broadcast announcements, and monitor
+  broadcast announcements, **moderate reported discussion posts/comments**, and monitor
   the system.
 
 The differentiator: AI answers are **grounded in institution-approved documents
@@ -153,9 +159,11 @@ php artisan optimize:clear
 | Visibility | Own roadmap, attendance, exams, calendar | Per-course learning analytics | Platform analytics, system monitor, audit log |
 | Knowledge base | Read/download approved docs | Upload course materials | Upload + approve/reject documents (→ RAG) |
 | Messaging | Real-time chat with their faculty | Real-time chat with their students | — |
+| Community | Discussions, opt-in leaderboard | Discussions (moderate own sections) | Discussion moderation queue |
+| Study suite | Study Planner, Flashcards (SM-2), My Progress analytics, OCR notes | — | — |
 | Governance | — | Department-scoped | User & RBAC management, announcements |
 
-Access is enforced by **role middleware + 40 fine-grained permissions** (with
+Access is enforced by **role middleware + 46 fine-grained permissions** (with
 temporal role assignment via `role_user.expires_at`). See **PROJECT_ANALYSIS.md §3**.
 
 ---
@@ -186,10 +194,12 @@ Browser (Vue 3 page) ──Inertia──▶ routes/web.php ──▶ Controller 
 
 ## 7. What's next
 
-Real-time student↔faculty chat has now **shipped** (see Roles at a Glance above). The
-completion tracker, the list of **incomplete tasks**, and the remaining **Future Plans /
-Upcoming Features** (Telegram/WhatsApp notifications and an AI-assisted digital library)
-live in **[PROJECT_STATUS.md](PROJECT_STATUS.md)**.
+Real-time student↔faculty chat, the **AI Study Planner**, **Flashcards**, **Learning
+Analytics**, the **Leaderboard**, **Discussions**, and **OCR handwritten notes** have all
+**shipped** (see Roles at a Glance above). The completion tracker, the list of
+**incomplete tasks**, and the remaining **Future Plans / Upcoming Features**
+(Telegram/WhatsApp notifications and an AI-assisted digital library) live in
+**[PROJECT_STATUS.md](PROJECT_STATUS.md)**.
 
 ---
 

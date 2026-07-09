@@ -42,6 +42,41 @@ class OpenAiProvider implements AIProviderInterface
         );
     }
 
+    public function extractText(string $imagePath, string $mimeType): string
+    {
+        $config = config('ai.providers.openai');
+        // gpt-4o is multimodal — the configured chat model reads the image directly.
+        $model = $config['model'];
+
+        $dataUrl = 'data:'.$mimeType.';base64,'.base64_encode((string) file_get_contents($imagePath));
+
+        $response = $this->client()->post(self::BASE_URL.'/chat/completions', [
+            'model' => $model,
+            'max_tokens' => (int) $config['max_tokens'],
+            'temperature' => 0,
+            'messages' => [
+                [
+                    'role' => 'system',
+                    'content' => 'You are an OCR engine. Transcribe the handwritten or printed text in the image exactly, '
+                        .'preserving line breaks and structure. Output only the transcribed text with no commentary.',
+                ],
+                [
+                    'role' => 'user',
+                    'content' => [
+                        ['type' => 'text', 'text' => 'Transcribe all text in this image.'],
+                        ['type' => 'image_url', 'image_url' => ['url' => $dataUrl]],
+                    ],
+                ],
+            ],
+        ]);
+
+        if ($response->failed()) {
+            throw new RuntimeException('OpenAI OCR request failed: '.$response->body());
+        }
+
+        return trim((string) ($response->json('choices.0.message.content') ?? ''));
+    }
+
     public function embed(array $texts): array
     {
         $response = $this->client()->post(self::BASE_URL.'/embeddings', [

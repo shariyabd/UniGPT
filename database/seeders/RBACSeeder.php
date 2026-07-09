@@ -100,6 +100,9 @@ class RBACSeeder extends Seeder
             PermissionEnum::VIEW_ATTENDANCE,
             PermissionEnum::VIEW_EXAMS,
             PermissionEnum::TAKE_CLASS_TEST,
+            // Community discussion feed — students read and post in their sections.
+            PermissionEnum::VIEW_DISCUSSIONS,
+            PermissionEnum::POST_DISCUSSION,
         ];
 
         foreach ($studentPermissions as $permission) {
@@ -118,6 +121,8 @@ class RBACSeeder extends Seeder
             PermissionEnum::MARK_ATTENDANCE,
             PermissionEnum::VIEW_DEPARTMENT_ANALYTICS,
             PermissionEnum::MANAGE_CLASS_TESTS,
+            // Faculty moderate discussions in the sections they teach.
+            PermissionEnum::MODERATE_DISCUSSIONS,
         ]);
 
         foreach ($facultyPermissions as $permission) {
@@ -158,7 +163,7 @@ class RBACSeeder extends Seeder
                 'updated_at' => now(),
             ];
 
-            \App\Models\Department::firstOrCreate(
+            Department::firstOrCreate(
                 ['name' => $departmentName],
                 $data
             );

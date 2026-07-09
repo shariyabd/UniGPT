@@ -31,9 +31,13 @@ class DatabaseSeeder extends Seeder
             CourseMaterialSeeder::class,
             ExamSeeder::class,
             ClassTestSeeder::class,      // faculty-authored, section-isolated class tests
+            ClassTestAttemptSeeder::class, // submitted attempts (feeds Learning Analytics + Leaderboard XP)
             AttendanceSeeder::class,
             NoteSeeder::class,
             TaskSeeder::class,
+            FlashcardSeeder::class,      // personal flashcard decks (demo student + sample cohort)
+            LeaderboardSeeder::class,    // leaderboard opt-ins + aliases (XP derived from data above)
+            DiscussionSeeder::class,     // section discussion feed: posts, replies, likes, reports
             AnnouncementSeeder::class, // admin broadcasts → per-recipient notifications
 
             // AI provider config (OpenAI key from .env) — must precede the

@@ -26,6 +26,8 @@ import {
     PencilIcon,
     SparklesIcon,
     ChartBarIcon,
+    RectangleStackIcon,
+    TrophyIcon,
     CpuChipIcon,
     UsersIcon,
     BuildingOffice2Icon,
@@ -70,6 +72,7 @@ const navByRole = {
             { label: 'Registration', route: 'register', icon: PlusCircleIcon, permission: 'enroll_course' },
             { label: 'Roadmap', route: 'roadmap', icon: MapIcon, permission: 'view_courses' },
             { label: 'Transcript', route: 'transcript', icon: AcademicCapIcon, permission: 'view_courses' },
+            { label: 'My Progress', route: 'progress', icon: ChartBarIcon, permission: 'view_own_analytics' },
             { label: 'Materials', route: 'materials', icon: BookOpenIcon, permission: 'view_courses' },
             { label: 'Assignments', route: 'assignments', icon: ClipboardDocumentListIcon, permission: 'view_assignments' },
             { label: 'Class Tests', route: 'class-tests', icon: ClipboardDocumentCheckIcon, permission: 'take_class_test' },
@@ -78,13 +81,19 @@ const navByRole = {
         ] },
         { section: 'AI Copilot', items: [
             { label: 'AI Chat', route: 'chat', icon: ChatBubbleLeftRightIcon, permission: 'use_ai_chat' },
+            { label: 'Flashcards', route: 'flashcards.index', icon: RectangleStackIcon },
             { label: 'Saved Answers', route: 'saved', icon: BookmarkIcon, permission: 'view_chat_history' },
         ] },
         { section: 'Connect', items: [
             { label: 'My Faculty', route: 'my-faculty', icon: UsersIcon },
             { label: 'Messages', route: 'messages', icon: ChatBubbleLeftEllipsisIcon },
         ] },
+        { section: 'Community', items: [
+            { label: 'Discussions', route: 'discussions.index', icon: ChatBubbleLeftRightIcon, permission: 'view_discussions' },
+            { label: 'Leaderboard', route: 'leaderboard', icon: TrophyIcon },
+        ] },
         { section: 'Planner', items: [
+            { label: 'Study Planner', route: 'study-planner', icon: SparklesIcon },
             { label: 'Calendar', route: 'calendar', icon: CalendarIcon },
             { label: 'Tasks', route: 'tasks', icon: CheckCircleIcon },
             { label: 'Notes', route: 'notes', icon: PencilIcon },
@@ -107,6 +116,9 @@ const navByRole = {
         { section: 'Connect', items: [
             { label: 'My Students', route: 'faculty.students', icon: UsersIcon },
             { label: 'Messages', route: 'faculty.messages', icon: ChatBubbleLeftEllipsisIcon },
+        ] },
+        { section: 'Community', items: [
+            { label: 'Discussions', route: 'discussions.index', icon: ChatBubbleLeftRightIcon, permission: 'view_discussions' },
         ] },
         { section: 'Documents', items: [
             { label: 'My Documents', route: 'faculty.my-documents', icon: DocumentArrowUpIcon, permission: 'upload_document' },
@@ -134,6 +146,7 @@ const navByRole = {
             { label: 'Approvals', route: 'admin.approvals', icon: CheckBadgeIcon, permission: 'approve_document' },
             { label: 'Exams', route: 'admin.exams', icon: PencilSquareIcon, permission: 'manage_exams' },
             { label: 'Exam Security', route: 'admin.exam-security', icon: ShieldCheckIcon, permission: 'manage_exams' },
+            { label: 'Discussion Reports', route: 'admin.discussions.reports', icon: ChatBubbleLeftRightIcon, permission: 'moderate_discussions' },
         ] },
         { section: 'System', items: [
             { label: 'Analytics', route: 'admin.analytics', icon: ChartBarIcon, permission: 'view_all_analytics' },

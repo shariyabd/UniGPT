@@ -1,13 +1,15 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { Head, useForm, router } from '@inertiajs/vue3';
+import axios from 'axios';
+import { useToast } from 'vue-toastification';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
 import Card from '@/components/ui/Card.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import Pagination from '@/components/ui/Pagination.vue';
 import { useConfirm } from '@/composables/useConfirm';
-import { PencilIcon, TrashIcon, PlusIcon, BookmarkIcon } from '@heroicons/vue/24/outline';
+import { PencilIcon, TrashIcon, PlusIcon, BookmarkIcon, CameraIcon } from '@heroicons/vue/24/outline';
 import { BookmarkIcon as BookmarkSolid } from '@heroicons/vue/24/solid';
 
 const props = defineProps({
@@ -16,10 +18,41 @@ const props = defineProps({
 });
 
 const { confirm } = useConfirm();
+const toast = useToast();
 
 const noteItems = computed(() => props.notes.data ?? []);
 
 const editingId = ref(null);
+
+// --- OCR: scan a handwritten note into the editor -------------------------
+const fileInput = ref(null);
+const scanning = ref(false);
+
+const pickImage = () => fileInput.value?.click();
+
+const scanImage = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    scanning.value = true;
+    const data = new FormData();
+    data.append('image', file);
+
+    try {
+        const { data: result } = await axios.post(route('notes.ocr'), data, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        // Append to any existing content so a scan never wipes what's typed.
+        form.content = form.content ? `${form.content}\n\n${result.text}` : result.text;
+        if (!form.title) form.title = 'Scanned note';
+        toast.success('Note transcribed — review and edit before saving.');
+    } catch (error) {
+        toast.error(error.response?.data?.message ?? 'Could not read that image. Try a clearer photo.');
+    } finally {
+        scanning.value = false;
+        event.target.value = '';
+    }
+};
 
 const form = useForm({
     title: '',
@@ -106,6 +139,17 @@ const togglePin = (note) => {
                             </template>
 
                             <form @submit.prevent="submit" class="space-y-4">
+                                <input ref="fileInput" type="file" accept="image/*" class="hidden" @change="scanImage" />
+                                <button
+                                    type="button"
+                                    :disabled="scanning"
+                                    class="ui-btn-secondary w-full"
+                                    @click="pickImage"
+                                >
+                                    <CameraIcon class="h-4 w-4" />
+                                    {{ scanning ? 'Transcribing…' : 'Scan handwritten note' }}
+                                </button>
+
                                 <div>
                                     <label class="ui-label" for="note-title">Title</label>
                                     <input

@@ -105,6 +105,59 @@ class TeachingAssistantService
     }
 
     /**
+     * Generate front/back flashcards for a topic. Falls back to deterministic
+     * synthesis so the feature works without any API key.
+     *
+     * @param  array<string, mixed>  $params
+     * @return array<int, array{front: string, back: string}>
+     */
+    public function generateFlashcards(array $params): array
+    {
+        $topic = trim((string) ($params['topic'] ?? 'General Knowledge'));
+        $count = max(1, min(30, (int) ($params['count'] ?? 10)));
+        $difficulty = (string) ($params['difficulty'] ?? 'medium');
+
+        $prompt = "Generate {$count} {$difficulty} study flashcards on \"{$topic}\". "
+            .'Each card has a concise question/term on the front and a clear, correct answer on the back. '
+            .'Respond ONLY with JSON: {"cards":[{"front","back"}]}';
+
+        $parsed = $this->tryJson($this->provider->chat([
+            ['role' => 'system', 'content' => 'You are an expert tutor who writes concise, accurate study flashcards.'],
+            ['role' => 'user', 'content' => $prompt],
+        ])->content);
+
+        $cards = $parsed['cards'] ?? $this->synthesizeFlashcards($topic, $count);
+
+        return collect($cards)
+            ->map(fn ($card) => [
+                'front' => trim((string) ($card['front'] ?? '')),
+                'back' => trim((string) ($card['back'] ?? '')),
+            ])
+            ->filter(fn (array $card) => $card['front'] !== '' && $card['back'] !== '')
+            ->take($count)
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Deterministic fallback flashcards when no LLM is configured.
+     *
+     * @return array<int, array{front: string, back: string}>
+     */
+    private function synthesizeFlashcards(string $topic, int $count): array
+    {
+        $cards = [];
+        for ($i = 1; $i <= $count; $i++) {
+            $cards[] = [
+                'front' => "Key concept #{$i} of {$topic}",
+                'back' => "Review your course materials on {$topic} to complete this card.",
+            ];
+        }
+
+        return $cards;
+    }
+
+    /**
      * @param  array<string, mixed>  $params
      * @return array<string, mixed>
      */

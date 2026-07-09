@@ -47,6 +47,18 @@ return [
     'notes_per_student' => (int) env('SEED_NOTES', 2),
     'tasks_per_student' => (int) env('SEED_TASKS', 3),
 
+    // Engagement / new-feature content.
+    // Fraction (0–100) of a class test's enrolled students who have a submitted
+    // attempt — backs the leaderboard XP and learning-analytics score trends.
+    'class_test_attempt_rate' => (int) env('SEED_ATTEMPT_RATE', 70),
+    // How many bulk students (beyond the demo student) get a flashcard deck.
+    'flashcard_students' => (int) env('SEED_FLASHCARD_STUDENTS', 60),
+    // Fraction (0–100) of students opted in to the leaderboard.
+    'leaderboard_opt_in_rate' => (int) env('SEED_LEADERBOARD_OPT_IN', 60),
+    // Discussion feed volume.
+    'discussion_sections' => (int) env('SEED_DISCUSSION_SECTIONS', 40),
+    'posts_per_section' => (int) env('SEED_POSTS_PER_SECTION', 4),
+
     // Shared password for all bulk (non-demo) accounts. Hashed once and reused.
     // Applies to every seeded student / faculty / admin (via the SeedsUsers
     // trait). The canonical demo accounts in RBACSeeder keep their own creds.

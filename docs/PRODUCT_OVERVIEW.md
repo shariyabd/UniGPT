@@ -101,6 +101,12 @@ prep, research — keep responses on-task.
 | **Timed quizzes & class tests** | Faculty set up online quizzes/class tests with rules, a duration timer, questions and marks — writing questions by hand or **generating them with AI**, then editing. Students take them in-panel with a live countdown and get auto-graded results the moment they submit. |
 | **Layered exam proctoring** | Faculty pick, per test, which security layers apply from an admin-approved set — fullscreen, tab-switch detection, clipboard block, one-at-a-time, randomisation, identity watermark, browser fingerprint, behaviour logging, risk scoring, and **webcam / screen recording**. Every attempt gets an evidence trail and a per-student review dossier (timeline, 0–100 risk score, recording playback). |
 | **Attendance & analytics** | Mark attendance in seconds; track rates, grades, GPA and engagement across every course. |
+| **My Progress analytics** | Every student gets a personal insight dashboard — GPA, attendance, test, assignment and activity trends visualised in one place. |
+| **AI Study Planner** | Feed in your deadlines and UniGPT drafts a realistic study schedule, then saves each session straight to your tasks. |
+| **Flashcards with spaced repetition** | Build decks by hand or generate them with AI, then review on an SM-2 spaced-repetition schedule that surfaces cards right before you'd forget. |
+| **OCR handwritten notes** | Snap a photo of handwritten notes and gpt-4o vision transcribes them into a clean, searchable saved note. |
+| **Discussion feed** | Course and section discussion groups where students and faculty post, comment, like and report — faculty moderate their own sections and admins run a moderation queue. |
+| **Leaderboard** | Opt-in, gamified XP rankings by department, semester or section — students choose an alias and compete on their own terms. |
 | **Granular RBAC** | Roles map to fine-grained permissions with time-limited grants — every action is gated and logged. |
 | **Announcements & alerts** | Broadcast to any audience and notify the right people on exams, grades and new materials. |
 | **Real-time messaging** | Students and faculty chat live in-app — online presence, typing indicators, unread counts and instant delivery, separate from the AI tutor. |
@@ -121,6 +127,12 @@ planner that keeps the term on track.
 - Personal dashboard: courses, CGPA & deadlines
 - One-click registration for assigned course sections
 - Timed quizzes & class tests with instant auto-graded results
+- "My Progress" analytics: GPA, attendance, test & assignment trends
+- AI Study Planner: turn deadlines into a saved study schedule
+- Flashcards — manual or AI-generated, with SM-2 spaced repetition
+- OCR handwritten notes: photo → gpt-4o transcription → saved note
+- Course discussion feeds: post, comment, like & report
+- Opt-in gamified leaderboard with XP ranked by department, semester or section
 - Attendance, transcript & GPA tracking
 - Course roadmap, materials & document library
 - Exam schedule, calendar, notes & tasks
@@ -136,6 +148,7 @@ feedback in seconds.
 - One-click attendance with live class stats
 - Grading workspace with AI-drafted feedback
 - Per-course analytics & grade distributions
+- Join & moderate discussion feeds in your own sections
 - Real-time messaging with your students
 - *Sample dashboard metrics:* 4 courses · 128 students · 12 to grade
 
@@ -148,6 +161,7 @@ academic health.
 - Institution-wide analytics & top queries
 - AI provider settings, prompts & retrieval tuning
 - System monitor, departments & announcements
+- Discussion moderation queue for reported posts & comments
 - *Sample dashboard metrics:* 2.4k users · 860 docs · 99.9% uptime
 
 > *Dashboard metrics are illustrative.*
@@ -260,7 +274,7 @@ How modules, services and roles connect — the platform is one loop, not isolat
 | Metric | Meaning |
 |---|---|
 | **12h** | Saved per week, per faculty member |
-| **42+** | Fine-grained access permissions |
+| **46+** | Fine-grained access permissions |
 | **3** | Tailored role experiences |
 | **100%** | Answers traced to a source |
 
@@ -292,6 +306,11 @@ How modules, services and roles connect — the platform is one loop, not isolat
 **Flagship upcoming features**
 
 > ✅ **Real-time student–faculty chat has shipped** — see the Core platform & Roles sections above.
+>
+> ✅ **Recently shipped for students** — AI Study Planner, "My Progress" learning analytics,
+> AI-generated Flashcards with SM-2 spaced repetition, an opt-in gamified Leaderboard,
+> OCR handwritten-note transcription, and course Discussion feeds (with faculty section
+> moderation and an admin moderation queue). All live — see §4 Features & §5 Roles.
 
 | Feature | Stage | What it adds |
 |---|---|---|

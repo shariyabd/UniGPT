@@ -6,18 +6,20 @@ use App\Http\Controllers\Admin\AnalyticsController;
 use App\Http\Controllers\Admin\AnnouncementController;
 use App\Http\Controllers\Admin\CourseController as AdminCourseController;
 use App\Http\Controllers\Admin\DepartmentController as AdminDepartmentController;
+use App\Http\Controllers\Admin\DiscussionModerationController;
 use App\Http\Controllers\Admin\DocumentController as AdminDocumentController;
 use App\Http\Controllers\Admin\EmailSettingsController;
 use App\Http\Controllers\Admin\ExamController as AdminExamController;
+use App\Http\Controllers\Admin\ExamSecurityController;
 use App\Http\Controllers\Admin\MonitorController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\SectionController as AdminSectionController;
-use App\Http\Controllers\Admin\ExamSecurityController;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\TermController as AdminTermController;
 use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\Auth\AuthenticationController;
 use App\Http\Controllers\Auth\PasswordResetController;
+use App\Http\Controllers\Community\DiscussionController;
 use App\Http\Controllers\DocumentSubmissionController;
 use App\Http\Controllers\Faculty\AIAssistantController as FacultyAIAssistantController;
 use App\Http\Controllers\Faculty\AnalyticsController as FacultyAnalyticsController;
@@ -38,10 +40,14 @@ use App\Http\Controllers\Student\AssignmentController as StudentAssignmentContro
 use App\Http\Controllers\Student\ChatController;
 use App\Http\Controllers\Student\ClassTestController as StudentClassTestController;
 use App\Http\Controllers\Student\FacultyDirectoryController as StudentFacultyDirectoryController;
+use App\Http\Controllers\Student\FlashcardController;
+use App\Http\Controllers\Student\LeaderboardController;
+use App\Http\Controllers\Student\LearningAnalyticsController;
 use App\Http\Controllers\Student\NoteController;
 use App\Http\Controllers\Student\RegistrationController as StudentRegistrationController;
 use App\Http\Controllers\Student\SavedAnswerController;
 use App\Http\Controllers\Student\StudentDashboardController;
+use App\Http\Controllers\Student\StudyPlannerController;
 use App\Http\Controllers\Student\TaskController;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
@@ -115,6 +121,21 @@ Route::middleware(['auth'])->group(function () {
     // Presence heartbeat — pinged from every authenticated page (any role/route).
     Route::post('/heartbeat', [PresenceController::class, 'ping'])->name('heartbeat');
 
+    // Course/section discussion feed — shared by students and faculty. Access is
+    // relationship-based (enrolment / teaching), enforced in the controller, so
+    // both roles use one route set (like the messenger routes above).
+    Route::prefix('discussions')->name('discussions.')->group(function () {
+        Route::get('/', [DiscussionController::class, 'index'])->middleware('permission:view_discussions')->name('index');
+        Route::post('/sections/{section}/posts', [DiscussionController::class, 'storePost'])->middleware('permission:post_discussion')->name('posts.store');
+        Route::patch('/posts/{post}/pin', [DiscussionController::class, 'togglePin'])->middleware('permission:moderate_discussions')->name('posts.pin');
+        Route::delete('/posts/{post}', [DiscussionController::class, 'destroyPost'])->name('posts.destroy');
+        Route::post('/posts/{post}/like', [DiscussionController::class, 'toggleLike'])->name('posts.like');
+        Route::post('/posts/{post}/comments', [DiscussionController::class, 'storeComment'])->middleware('permission:post_discussion')->name('comments.store');
+        Route::delete('/comments/{comment}', [DiscussionController::class, 'destroyComment'])->name('comments.destroy');
+        Route::post('/posts/{post}/report', [DiscussionController::class, 'reportPost'])->name('posts.report');
+        Route::post('/comments/{comment}/report', [DiscussionController::class, 'reportComment'])->name('comments.report');
+    });
+
     Route::middleware('role:student')->prefix('')->name('')->group(function () {
         Route::get('/dashboard', [StudentDashboardController::class, 'index'])->name('dashboard');
 
@@ -128,6 +149,21 @@ Route::middleware(['auth'])->group(function () {
         Route::patch('/chat/sessions/{session}/archive', [ChatController::class, 'archive'])->middleware('permission:use_ai_chat')->name('chat.session.archive');
         Route::patch('/chat/sessions/{session}/unarchive', [ChatController::class, 'unarchive'])->middleware('permission:use_ai_chat')->name('chat.session.unarchive');
         Route::delete('/chat/sessions/{session}', [ChatController::class, 'destroy'])->middleware('permission:delete_chat')->name('chat.session.destroy');
+
+        // Flashcards — personal decks with SM-2 spaced repetition. Manual CRUD is
+        // student self-service; AI generation reuses the AI-chat access gate.
+        Route::prefix('flashcards')->name('flashcards.')->group(function () {
+            Route::get('/', [FlashcardController::class, 'index'])->name('index');
+            Route::post('/', [FlashcardController::class, 'store'])->name('store');
+            Route::post('/generate', [FlashcardController::class, 'generate'])->middleware(['permission:use_ai_chat', 'ai.chat.access'])->name('generate');
+            Route::get('/{deck}', [FlashcardController::class, 'show'])->name('show');
+            Route::patch('/{deck}', [FlashcardController::class, 'update'])->name('update');
+            Route::delete('/{deck}', [FlashcardController::class, 'destroy'])->name('destroy');
+            Route::post('/{deck}/cards', [FlashcardController::class, 'storeCard'])->name('cards.store');
+            Route::patch('/cards/{card}', [FlashcardController::class, 'updateCard'])->name('cards.update');
+            Route::delete('/cards/{card}', [FlashcardController::class, 'destroyCard'])->name('cards.destroy');
+            Route::post('/cards/{card}/review', [FlashcardController::class, 'review'])->name('cards.review');
+        });
 
         // Saved answers
         Route::get('/saved', [SavedAnswerController::class, 'index'])->middleware('permission:view_chat_history')->name('saved');
@@ -156,6 +192,7 @@ Route::middleware(['auth'])->group(function () {
         Route::patch('/materials/{material}/completion', [StudentDashboardController::class, 'toggleMaterialCompletion'])->middleware('permission:view_courses')->name('materials.completion');
         Route::get('/attendance', [StudentDashboardController::class, 'attendance'])->middleware('permission:view_attendance')->name('attendance');
         Route::get('/transcript', [StudentDashboardController::class, 'transcript'])->middleware('permission:view_courses')->name('transcript');
+        Route::get('/progress', [LearningAnalyticsController::class, 'index'])->middleware('permission:view_own_analytics')->name('progress');
         Route::get('/exams', [StudentDashboardController::class, 'exams'])->middleware('permission:view_exams')->name('exams');
         Route::get('/calendar', [StudentDashboardController::class, 'calendar'])->name('calendar');
 
@@ -186,8 +223,17 @@ Route::middleware(['auth'])->group(function () {
         // Personal productivity (self-service; scoped to the owner) — Notes
         Route::get('/notes', [NoteController::class, 'index'])->name('notes');
         Route::post('/notes', [NoteController::class, 'store'])->name('notes.store');
+        // OCR handwritten notes — gpt-4o vision transcription (behind the AI gate)
+        Route::post('/notes/ocr', [NoteController::class, 'ocr'])->middleware(['permission:use_ai_chat', 'ai.chat.access'])->name('notes.ocr');
         Route::patch('/notes/{note}', [NoteController::class, 'update'])->name('notes.update');
         Route::delete('/notes/{note}', [NoteController::class, 'destroy'])->name('notes.destroy');
+
+        // AI Study Planner — builds a study schedule from upcoming deadlines and
+        // saves chosen sessions as personal Tasks. Generation reuses the AI-chat
+        // access gate so admin AI-blocking covers it too.
+        Route::get('/study-planner', [StudyPlannerController::class, 'index'])->name('study-planner');
+        Route::post('/study-planner/generate', [StudyPlannerController::class, 'generate'])->middleware(['permission:use_ai_chat', 'ai.chat.access'])->name('study-planner.generate');
+        Route::post('/study-planner/tasks', [StudyPlannerController::class, 'storeTasks'])->name('study-planner.tasks');
 
         // Personal productivity — Tasks
         Route::get('/tasks', [TaskController::class, 'index'])->name('tasks');
@@ -195,6 +241,10 @@ Route::middleware(['auth'])->group(function () {
         Route::patch('/tasks/{task}', [TaskController::class, 'update'])->name('tasks.update');
         Route::patch('/tasks/{task}/toggle', [TaskController::class, 'toggle'])->name('tasks.toggle');
         Route::delete('/tasks/{task}', [TaskController::class, 'destroy'])->name('tasks.destroy');
+
+        // Leaderboard — opt-in, gamified XP ranking (department / semester / section)
+        Route::get('/leaderboard', [LeaderboardController::class, 'index'])->name('leaderboard');
+        Route::patch('/leaderboard/settings', [LeaderboardController::class, 'updateSettings'])->name('leaderboard.settings');
 
         // My Faculty — directory of the student's instructors, plus a dedicated
         // messenger view (real-time chat is live; see the Messenger controllers).
@@ -355,6 +405,11 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/departments', [AdminDepartmentController::class, 'store'])->middleware('permission:manage_departments')->name('departments.store');
         Route::patch('/departments/{department}', [AdminDepartmentController::class, 'update'])->middleware('permission:manage_departments')->name('departments.update');
         Route::delete('/departments/{department}', [AdminDepartmentController::class, 'destroy'])->middleware('permission:manage_departments')->name('departments.destroy');
+
+        // Discussion moderation queue — reported posts/comments across all sections
+        Route::get('/discussions/reports', [DiscussionModerationController::class, 'index'])->middleware('permission:moderate_discussions')->name('discussions.reports');
+        Route::post('/discussions/reports/{report}/resolve', [DiscussionModerationController::class, 'resolve'])->middleware('permission:moderate_discussions')->name('discussions.reports.resolve');
+        Route::post('/discussions/reports/{report}/remove', [DiscussionModerationController::class, 'removeContent'])->middleware('permission:moderate_discussions')->name('discussions.reports.remove');
 
         Route::get('/monitor', [MonitorController::class, 'index'])->middleware('permission:manage_system')->name('monitor');
 

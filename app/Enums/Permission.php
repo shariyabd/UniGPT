@@ -54,6 +54,11 @@ enum Permission: string
     case DELETE_CHAT = 'delete_chat';
     case CONFIGURE_AI = 'configure_ai';
 
+    // Community (discussion feed)
+    case VIEW_DISCUSSIONS = 'view_discussions';
+    case POST_DISCUSSION = 'post_discussion';
+    case MODERATE_DISCUSSIONS = 'moderate_discussions';
+
     // Analytics
     case VIEW_OWN_ANALYTICS = 'view_own_analytics';
     case VIEW_DEPARTMENT_ANALYTICS = 'view_department_analytics';
@@ -101,6 +106,9 @@ enum Permission: string
 
             self::USE_AI_CHAT, self::VIEW_CHAT_HISTORY, self::DELETE_CHAT,
             self::CONFIGURE_AI => 'AI & Chat',
+
+            self::VIEW_DISCUSSIONS, self::POST_DISCUSSION,
+            self::MODERATE_DISCUSSIONS => 'Community',
 
             self::VIEW_OWN_ANALYTICS, self::VIEW_DEPARTMENT_ANALYTICS,
             self::VIEW_ALL_ANALYTICS => 'Analytics',

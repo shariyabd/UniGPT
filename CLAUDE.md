@@ -29,6 +29,19 @@ Stack:
 
 **Trust code over docs.**
 
+### Recently added feature suite (all live)
+
+Student study/community features layered on the same domain/RBAC/Inertia patterns:
+
+* **AI Study Planner** — `Domain/Academic/StudyPlannerService`, `Student/StudyPlannerController` (`study-planner*` routes). Generates a schedule from deadlines, saves as `Task`s.
+* **Learning Analytics** — `Domain/Analytics/LearningAnalyticsService`, `Student/LearningAnalyticsController` (`progress` route). Charts via `components/charts/StatChart.vue` (Chart.js/vue-chartjs).
+* **Flashcards** — `Domain/Academic/FlashcardService`, `Student/FlashcardController`; models `FlashcardDeck`/`Flashcard`; SM-2 review; `TeachingAssistantService::generateFlashcards()`.
+* **Leaderboard** — `Domain/Analytics/LeaderboardService`, `Student/LeaderboardController`; opt-in via `users.leaderboard_opt_in`/`leaderboard_alias`; XP computed at read time.
+* **Discussions** — `Domain/Community/DiscussionService`, `Community/DiscussionController` (shared student+faculty, `discussions.*`), `Admin/DiscussionModerationController`; models `Post`/`PostComment`/`PostReaction`/`PostReport`; a **Section is the group**.
+* **OCR notes** — `AIProviderInterface::extractText()` (gpt-4o vision + mock fallback), `Domain/Chat/OcrService`, `NoteController::ocr` (`notes.ocr`).
+
+New permissions (Community category): `view_discussions`, `post_discussion`, `moderate_discussions`. AI-backed endpoints reuse the `use_ai_chat` + `ai.chat.access` gate. Demo data for all of these is seeded — see `docs/seeder-plan.md`.
+
 ---
 
 ## Response Style

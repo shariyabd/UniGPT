@@ -36,7 +36,7 @@ current MVP.
 | Feature | Status | Evidence |
 |---|---|---|
 | Auth + login/role-selection + rate limit | ✅ | `Auth/AuthenticationController`, `RoleMiddleware` |
-| RBAC (40 perms, pivots, `expires_at`) | ✅ | `Enums/Permission`, `RBACSeeder`, `PermissionMiddleware` |
+| RBAC (46 perms, pivots, `expires_at`) | ✅ | `Enums/Permission`, `RBACSeeder`, `PermissionMiddleware` |
 | AI Chat (sessions, messages, modes, pin/archive) | ✅ | `Domain/Chat/Services/ChatService` |
 | RAG (chunk→embed→cosine retrieve→cite) | ✅ | `Domain/RAG/*`, MySQL vector store |
 | Multi-LLM provider (OpenAI + mock fallback) | ✅ | `Infrastructure/AI/*`; mock = zero-key default |
@@ -59,6 +59,12 @@ current MVP.
 | Notes · Tasks (owner-scoped) | ✅ | `NoteController`, `TaskController` |
 | Notifications (bell + index) | ✅ | `NotificationService`, `NotificationController` |
 | **Real-time chat with faculty** (presence, typing, unread) | ✅ | `Messenger/MessageController`, `Conversation`/`Message`, `Events/MessageSent` (Ably) |
+| **AI Study Planner** (deadlines → schedule → save as tasks) | ✅ | `StudyPlannerController`, `Domain/Academic/StudyPlannerService` |
+| **Learning Analytics / My Progress** (GPA/attendance/test/assignment/activity charts) | ✅ | `LearningAnalyticsController`, `Domain/Analytics/LearningAnalyticsService`, Chart.js |
+| **Flashcards** (manual + AI-generated, SM-2 spaced repetition) | ✅ | `FlashcardController`, `Domain/Academic/FlashcardService`, `FlashcardDeck`/`Flashcard` |
+| **Leaderboard** (opt-in XP; dept/semester/section) | ✅ | `LeaderboardController`, `Domain/Analytics/LeaderboardService` |
+| **Discussions** (section feed: post/comment/like/report) | ✅ | `Community/DiscussionController`, `Domain/Community/DiscussionService` |
+| **OCR handwritten notes** (photo → transcribe → save note) | ✅ | `NoteController::ocr`, `Domain/Chat/OcrService`, gpt-4o vision |
 
 ### Faculty
 | Feature | Status | Evidence |
@@ -73,6 +79,7 @@ current MVP.
 | Learning analytics & at-risk flagging | ✅ | `FacultyAnalyticsService` |
 | Exam timetable (read) | ✅ | `ExamService::forFaculty` |
 | **Real-time chat with students** (presence, typing, unread) | ✅ | `Messenger/MessageController`, `Conversation`/`Message`, `Events/MessageSent` (Ably) |
+| **Discussions** (participate + moderate own sections: pin/delete) | ✅ | `Community/DiscussionController`, `DiscussionService::canModerate` |
 
 ### Admin
 | Feature | Status | Evidence |
@@ -86,12 +93,33 @@ current MVP.
 | Announcements / broadcast | ✅ | `Admin/AnnouncementController` |
 | Analytics · AI settings · System monitor | ✅ | `AnalyticsController`, `SettingsController`, `MonitorController` |
 | Exam Security settings (global layer availability + defaults) | ✅ | `Admin/ExamSecurityController`, `exam_security` setting |
+| **Discussion moderation queue** (reported posts/comments → dismiss/remove) | ✅ | `Admin/DiscussionModerationController`, `PostReport` |
 | Activity log / audit trail | ✅ | `ActivityLog`, `ActivityLogger` |
 | Admin transcript editing | ⬜ | not started (low priority; grades flow via grading/enrolment) |
 
 ---
 
 ## Recently shipped
+
+### Study & community suite (Planner · Analytics · Flashcards · Leaderboard · Discussions · OCR)
+Six student-facing features layered on the existing domain/RBAC/Inertia patterns:
+- **AI Study Planner** (`StudyPlannerService`) turns the student's real deadlines
+  (assignments/exams/class tests) into a schedule and saves chosen sessions as `Task`s.
+- **Learning Analytics / "My Progress"** (`LearningAnalyticsService` + Chart.js
+  `StatChart.vue`) charts GPA, attendance, class-test & assignment trends, activity.
+- **Flashcards** (`flashcard_decks`/`flashcards`, `FlashcardService`, `generateFlashcards()`
+  on `TeachingAssistantService`) — manual or AI-generated decks with **SM-2** review.
+- **Leaderboard** (`LeaderboardService`, `users.leaderboard_opt_in/alias`) — **opt-in**,
+  aliasable, gamified XP (from tests/assignments/attendance) scoped by department /
+  semester / section.
+- **Discussions** (`Domain/Community`, `posts`/`post_comments`/`post_reactions`/`post_reports`)
+  — a section = a group (membership from enrolment/teaching); faculty moderate their
+  sections, admins work a global report queue.
+- **OCR handwritten notes** — extends `AIProviderInterface` with `extractText()`
+  (gpt-4o vision, mock fallback); the Notes page scans a photo → editable text → saved note.
+
+New permissions: `view_discussions`, `post_discussion`, `moderate_discussions` (Community
+category). Demo data for all of the above is seeded (see `docs/seeder-plan.md`).
 
 ### Real-time student↔faculty messaging
 A direct, **real-time chat** between a student and a faculty member they share a section

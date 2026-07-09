@@ -20,6 +20,12 @@ interface AIProviderInterface
     public function chat(array $messages, array $options = []): ChatResult;
 
     /**
+     * Transcribe the text contained in an image (e.g. a photo of a handwritten
+     * note) using a vision-capable model. Returns the transcribed plain text.
+     */
+    public function extractText(string $imagePath, string $mimeType): string;
+
+    /**
      * Embed one or more texts into vectors.
      *
      * @param  array<int, string>  $texts

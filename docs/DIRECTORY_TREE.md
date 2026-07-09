@@ -13,7 +13,7 @@ uni-chat/
 │   ├── Console/Commands/                 ✅ SendAssignmentReminders (assignments:remind)
 │   │
 │   ├── Enums/                            ✅ Type-safe constants
-│   │   ├── Permission.php                ✅ 40 permission slugs (categorized + helpers)
+│   │   ├── Permission.php                ✅ 46 permission slugs (categorized + helpers; +view/post/moderate discussions)
 │   │   ├── UserRole.php                  ✅ admin | faculty | student (lowercase-backed)
 │   │   ├── ChatMode.php                  ✅ general/academic/research/exam_prep/assignment_help/career_guidance
 │   │   ├── NotificationType.php          ✅ grade/material/assignment/submission/enrollment/exam/announcement/system
@@ -25,12 +25,14 @@ uni-chat/
 │   │   └── Language.php                  ✅ en/ar/es/fr/de/zh/ja
 │   │
 │   ├── Http/
-│   │   ├── Controllers/                  ✅ Thin controllers (31 total)
+│   │   ├── Controllers/                  ✅ Thin controllers (38 total)
 │   │   │   ├── Auth/                      AuthenticationController, PasswordResetController
-│   │   │   ├── Student/                   Dashboard, Chat, SavedAnswer, Registration, Assignment, Note, Task
+│   │   │   ├── Student/                   Dashboard, Chat, SavedAnswer, Registration, Assignment, Note (+ocr()), Task,
+│   │   │   │                              StudyPlanner, LearningAnalytics, Flashcard, Leaderboard
 │   │   │   ├── Faculty/                   Dashboard, Course, CourseMaterial, AIAssistant, Attendance, Analytics, Assignment, Grading
+│   │   │   ├── Community/                 DiscussionController (course/section discussion feed)
 │   │   │   ├── Admin/                     Dashboard, UserManagement, Role, Document, Analytics, Monitor, Settings,
-│   │   │   │                              Course, Section, Term, Department, Exam, Announcement
+│   │   │   │                              Course, Section, Term, Department, Exam, Announcement, DiscussionModeration
 │   │   │   ├── Api/                       ⬜ effectively empty (no separate REST API)
 │   │   │   ├── NotificationController.php ✅ in-app notifications (poll/read/delete)
 │   │   │   └── LegalController.php        ✅ terms / privacy pages
@@ -47,10 +49,12 @@ uni-chat/
 │   │   │   ├── Services/UserManagementService.php  ✅
 │   │   │   ├── Contracts/ Policies/ Providers/     ✅
 │   │   ├── Academic/Services/             ✅ Course, CourseManagement, Enrollment, Grading, Submission,
-│   │   │   │                                 Attendance, Exam, Transcript, Calendar, Term services
+│   │   │   │                                 Attendance, Exam, Transcript, Calendar, Term,
+│   │   │   │                                 StudyPlanner, Flashcard services
 │   │   │   ├── Rules/ ValueObjects/       ⬜ empty (logic inlined in services)
+│   │   ├── Community/Services/DiscussionService.php  ✅ NEW — course/section discussion feed (posts/comments/reactions/reports)
 │   │   ├── Chat/
-│   │   │   ├── Services/                  ✅ ChatService, RagChatService, TeachingAssistantService
+│   │   │   ├── Services/                  ✅ ChatService, RagChatService, TeachingAssistantService, OcrService
 │   │   │   ├── Document/                  ✅ DocumentService, DocumentProcessingService, ChunkingService
 │   │   │   ├── Contracts/ DataObjects/ Support/  ✅ AIProviderInterface, ChatResult DTO, AIProviderManager
 │   │   │   ├── Models/                    ⬜ (chat models live in app/Models)
@@ -62,7 +66,8 @@ uni-chat/
 │   │   │   ├── Contracts/                 ✅
 │   │   │   └── Prompts/                   ⬜ empty
 │   │   ├── Notification/Services/NotificationService.php  ✅
-│   │   └── Analytics/Services/            ✅ AnalyticsService, FacultyAnalyticsService
+│   │   └── Analytics/Services/            ✅ AnalyticsService, FacultyAnalyticsService,
+│   │       │                                 LearningAnalyticsService, LeaderboardService
 │   │
 │   ├── Infrastructure/                   🔌 External-edge adapters
 │   │   ├── AI/                            ✅ OpenAiProvider, MockProvider, AIProviderManager
@@ -78,6 +83,8 @@ uni-chat/
 │   │   ├── ChatSession, ChatMessage, MessageCitation, SavedAnswer
 │   │   ├── Role, Permission, RoleUser, PermissionRole
 │   │   ├── Notification, Note, Task, ActivityLog, Setting
+│   │   ├── FlashcardDeck, Flashcard              ✅ spaced-repetition study decks
+│   │   ├── Post, PostComment, PostReaction, PostReport  ✅ Community discussion feed
 │   │   └── Concerns/BelongsToSection.php  ✅ shared trait (section-scoped models)
 │   │
 │   ├── Jobs/ProcessDocumentJob.php       ✅ queued RAG ingest (extract→chunk→embed)
@@ -96,7 +103,8 @@ uni-chat/
 │
 ├── database/
 │   ├── migrations/                       ✅ ~40 migrations (RBAC, academic, RAG, terms/sections, etc.)
-│   ├── seeders/                          ✅ DatabaseSeeder → RBACSeeder, AcademicSeeder, KnowledgeBaseSeeder
+│   ├── seeders/                          ✅ DatabaseSeeder → RBACSeeder, AcademicSeeder, KnowledgeBaseSeeder,
+│   │                                        ClassTestAttemptSeeder, FlashcardSeeder, LeaderboardSeeder, DiscussionSeeder
 │   └── factories/
 │
 ├── resources/
@@ -105,16 +113,20 @@ uni-chat/
 │   │   ├── pages/                        ✅ Inertia pages (~45)
 │   │   │   ├── Landing.vue, Dashboard.vue
 │   │   │   ├── Auth/Login.vue
-│   │   │   ├── Admin/                     14 pages (Users, Roles, Courses, Terms, Departments,
+│   │   │   ├── Admin/                     15 pages (Users, Roles, Courses, Terms, Departments,
 │   │   │   │                              Documents, Approvals, Analytics, Monitor, AISettings,
-│   │   │   │                              Announcements, Exams, …)
+│   │   │   │                              Announcements, Exams, DiscussionReports, …)
 │   │   │   ├── Faculty/                   8 pages (Dashboard, CourseDetail, AIAssistant,
 │   │   │   │                              Attendance, Analytics, Exams, Grading, ArchivedChats)
-│   │   │   ├── Student/                   17 pages (Dashboard, Chat, Materials, Registration,
+│   │   │   ├── Student/                   22 pages (Dashboard, Chat, Materials, Registration,
 │   │   │   │                              Assignments, Attendance, Transcript, Exams, Calendar,
-│   │   │   │                              Notes, Tasks, Roadmap, SavedAnswers, Documents, …)
+│   │   │   │                              Notes, Tasks, Roadmap, SavedAnswers, Documents,
+│   │   │   │                              StudyPlanner, LearningAnalytics, Flashcards/{Index,Study},
+│   │   │   │                              Leaderboard, …)
+│   │   │   ├── Community/Discussions.vue   ✅ course/section discussion feed
 │   │   │   └── Notifications/Index.vue
-│   │   ├── components/                    ✅ ui/ (Badge, Card, …), Chat/, landing/, shared widgets
+│   │   ├── components/                    ✅ ui/ (Badge, Card, …), Chat/, landing/, shared widgets,
+│   │   │                                     charts/StatChart.vue (Chart.js/vue-chartjs)
 │   │   ├── Layouts/AppLayout.vue          ✅ authenticated shell + role-aware nav
 │   │   ├── composables/                   ✅ usePermissions, useConfirm, useReveal, useTheme
 │   │   └── tests/                         ✅ Vitest specs

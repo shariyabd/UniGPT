@@ -58,9 +58,9 @@ The AI core → Proof (grounded answers, live demo) → Governance → Metrics �
 
 ## Slide 6 — Role-Based Access Control (RBAC)
 - **Kicker:** Role-based access control
-- **Title:** "Three roles, 40+ fine-grained permissions"
+- **Title:** "Three roles, 46 fine-grained permissions"
 - **Subtitle:** Every route guarded. Every action audited. Role assignments can even expire.
-- **Student** ("Learn & get answers"): AI chat with citations/confidence/saved answers · dashboard with courses, CGPA & deadlines · one-click registration for assigned sections · timed quizzes with instant auto-grade · attendance, transcript & GPA · roadmap, materials & document library · exam schedule, calendar, notes & tasks · real-time messaging with faculty.
+- **Student** ("Learn & get answers"): AI chat with citations/confidence/saved answers · dashboard with courses, CGPA & deadlines · one-click registration for assigned sections · timed quizzes with instant auto-grade · attendance, transcript & GPA · roadmap, materials & document library · exam schedule, calendar, notes & tasks · AI study planner, learning analytics & flashcards · opt-in leaderboard & course discussions · real-time messaging with faculty.
 - **Faculty** ("Teach & assess"): AI teaching assistant (quizzes, assignments, rubrics) · build timed auto-graded quizzes · manage sections & publish materials · one-click attendance with live stats · grading workspace with AI-drafted feedback · per-course analytics & grade distributions · real-time messaging with students.
 - **Admin** ("Govern & monitor"): user, role & permission matrix · course catalog, sections, terms & student assignment · document approval workflow & knowledge base · institution-wide analytics & top queries · AI provider settings, prompts & retrieval tuning · system monitor, departments & announcements.
 
@@ -92,7 +92,8 @@ The AI core → Proof (grounded answers, live demo) → Governance → Metrics �
 ## Slide 10 — Student Experience (Feature Grid)
 - **Kicker:** Student experience
 - **Title:** "Everything a student needs, in one place"
-- **Six features:** AI Tutor (grounded chat, history, pin/archive) · Class Tests (timed, proctored, auto-graded) · Assignments (submit, track, rubrics) · Materials & Roadmap (completion tracking) · Transcript & Attendance · Notes & Tasks (+ saved AI answers).
+- **Six core features:** AI Tutor (grounded chat, history, pin/archive) · Class Tests (timed, proctored, auto-graded) · Assignments (submit, track, rubrics) · Materials & Roadmap (completion tracking) · Transcript & Attendance · Notes & Tasks (+ saved AI answers).
+- **Six newer features:** AI Study Planner (deadlines → AI schedule → saved as tasks) · My Progress (personal GPA/attendance/test/assignment/activity charts) · Flashcards (manual or AI-generated, SM-2 spaced repetition) · Leaderboard (opt-in, aliasable, gamified XP by department/semester/section) · Discussions (course/section groups: post/comment/like/report) · OCR Notes (photo → gpt-4o vision transcription → saved note).
 
 ## Slide 11 — Student Workflow (Asking the AI)
 - **Kicker:** Workflow · Student asks the AI
@@ -103,6 +104,7 @@ The AI core → Proof (grounded answers, live demo) → Governance → Metrics �
 - **Kicker:** Faculty experience
 - **Title:** "An AI co-teacher for every instructor"
 - **Six features:** AI Assistant (course-aware) · AI Quiz Generator (MCQ/TF + explanations) · Assignment Generator (description, tasks, rubric) · AI-Assisted Grading (draft feedback) · Learning Analytics (at-risk flags) · Courses & Attendance (per section).
+- **Plus:** moderate their own sections' Discussion Feed (review reported posts/comments, keep the conversation on-topic).
 
 ## Slide 13 — Faculty Workflow (Creating an Exam)
 - **Kicker:** Workflow · Faculty creates an exam
@@ -133,7 +135,7 @@ The AI core → Proof (grounded answers, live demo) → Governance → Metrics �
 ## Slide 17 — Admin Experience (Feature Grid)
 - **Kicker:** Admin experience
 - **Title:** "Govern the platform end-to-end"
-- **Six features:** User & Role Matrix · Document Approval (→ auto-embed into RAG) · AI Usage Monitor (per-user tokens, block/unblock) · Catalog & Terms (courses, sections, rollover) · Announcements (broadcast) · AI Settings (temperature, top-K, threshold, prompts).
+- **Seven features:** User & Role Matrix · Document Approval (→ auto-embed into RAG) · AI Usage Monitor (per-user tokens, block/unblock) · Catalog & Terms (courses, sections, rollover) · Announcements (broadcast) · Discussion Moderation (queue of reported posts/comments) · AI Settings (temperature, top-K, threshold, prompts).
 
 ## Slide 18 — Governed AI (Control)
 - **Kicker:** Governed AI
@@ -144,7 +146,7 @@ The AI core → Proof (grounded answers, live demo) → Governance → Metrics �
 ## Slide 19 — Metrics (By the Numbers)
 - **Kicker:** By the numbers
 - **Title:** "A mature, demonstrable MVP"
-- **Four stats:** **3** role dashboards · **40+** permissions (fine-grained RBAC) · **100%** core workflows (wired end-to-end) · **0** external AI dependencies (no vector DB, no LLM SDK).
+- **Four stats:** **3** role dashboards · **46** permissions (fine-grained RBAC) · **100%** core workflows (wired end-to-end) · **0** external AI dependencies (no vector DB, no LLM SDK).
 
 ## Slide 20 — Pluggable AI (No Lock-In)
 - **Kicker:** No lock-in
@@ -188,20 +190,20 @@ The AI core → Proof (grounded answers, live demo) → Governance → Metrics �
 | 3 | Stakes | Trust, accountability, speed at scale |
 | 4 | Solution | Grounded AI · three experiences · full academic loop |
 | 5 | Architecture | 4 layers: Presentation → Application → Domain → Data |
-| 6 | RBAC | Three roles + 40+ permissions, with per-role feature lists |
+| 6 | RBAC | Three roles + 46 permissions, with per-role feature lists |
 | 7 | AI Core | RAG pipeline: upload → chunk → embed → retrieve → cite |
 | 8 | Grounded Answers | Sample cited Q&A + confidence/sources/multi-language |
 | 9 | Core Platform | 9 capability cards across the whole product |
-| 10 | Student Features | 6 student feature cards |
+| 10 | Student Features | 6 core + 6 newer student feature cards |
 | 11 | Student Workflow | Ask → Retrieve → Ground → Cite & save |
 | 12 | Faculty Features | 6 faculty feature cards |
 | 13 | Faculty Workflow | Generate → Refine → Publish → Auto-grade |
 | 14 | Proctored Tests | 4 exam-integrity controls |
 | 15 | Messaging | 4 real-time messaging points |
 | 16 | Realtime Architecture | Constraint, mitigation, path to scale (honest) |
-| 17 | Admin Features | 6 admin feature cards |
+| 17 | Admin Features | 7 admin feature cards |
 | 18 | Governed AI | Approve before index · measure tokens · audit |
-| 19 | Metrics | 3 · 40+ · 100% · 0 |
+| 19 | Metrics | 3 · 46 · 100% · 0 |
 | 20 | Pluggable AI | Mock · OpenAI · future providers |
 | 21 | Live Demo | Screenshot carousel: 8 student · 6 faculty · 8 admin screens |
 | 22 | Roadmap | Shipped vs. upcoming |

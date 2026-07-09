@@ -2,9 +2,12 @@
 
 namespace App\Http\Controllers\Student;
 
+use App\Domain\Chat\Services\OcrService;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Student\NoteRequest;
+use App\Http\Requests\Student\OcrNoteRequest;
 use App\Models\Note;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -35,6 +38,17 @@ class NoteController extends Controller
         $request->user()->notes()->create($request->validated());
 
         return back()->with('success', 'Note saved.');
+    }
+
+    /**
+     * Transcribe an uploaded handwritten-note image to editable text. The
+     * student reviews/edits the result before saving it as a note.
+     */
+    public function ocr(OcrNoteRequest $request, OcrService $ocr): JsonResponse
+    {
+        return response()->json([
+            'text' => $ocr->extractFromUpload($request->file('image')),
+        ]);
     }
 
     public function update(NoteRequest $request, Note $note): RedirectResponse

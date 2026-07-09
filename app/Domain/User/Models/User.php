@@ -8,11 +8,13 @@ use App\Models\AssignmentSubmission;
 use App\Models\AttendanceRecord;
 use App\Models\ChatMessage;
 use App\Models\ChatSession;
+use App\Models\ClassTestAttempt;
 use App\Models\Conversation;
 use App\Models\Course;
 use App\Models\CourseMaterial;
 use App\Models\Department;
 use App\Models\Document;
+use App\Models\FlashcardDeck;
 use App\Models\Note;
 use App\Models\Notification;
 use App\Models\Role;
@@ -51,6 +53,8 @@ class User extends Authenticatable
         'bio',
         'avatar',
         'preferences',
+        'leaderboard_opt_in',
+        'leaderboard_alias',
         'is_active',
         'last_login_at',
         'ai_chat_blocked_at',
@@ -75,6 +79,7 @@ class User extends Authenticatable
             'ai_chat_blocked_at' => 'datetime',
             'ai_chat_blocked_until' => 'datetime',
             'is_active' => 'boolean',
+            'leaderboard_opt_in' => 'boolean',
             'last_seen_at' => 'datetime',
             'preferences' => 'array',
             'password' => 'hashed',
@@ -294,6 +299,16 @@ class User extends Authenticatable
     public function submissions(): HasMany
     {
         return $this->hasMany(AssignmentSubmission::class);
+    }
+
+    public function classTestAttempts(): HasMany
+    {
+        return $this->hasMany(ClassTestAttempt::class);
+    }
+
+    public function flashcardDecks(): HasMany
+    {
+        return $this->hasMany(FlashcardDeck::class);
     }
 
     public function attendanceRecords(): HasMany

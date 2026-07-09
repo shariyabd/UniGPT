@@ -47,9 +47,10 @@ developer most often gets wrong.
 - The **`User` model lives at `app/Domain/User/Models/User.php`** — *not* `app/Models`.
   It owns all RBAC helpers: `hasRole`, `hasPermission`, `assignRole`, `syncRoles`,
   `isStudent`/`isFaculty`/`isAdmin`, `getPrimaryRole`, `getDashboardRoute`.
-- **Roles ↔ Permissions** are many-to-many. **40 fine-grained permission slugs**
+- **Roles ↔ Permissions** are many-to-many. **46 fine-grained permission slugs**
   (`app/Enums/Permission.php`) are the source of truth — `config/permissions.php` is a
-  legacy soft map.
+  legacy soft map. (The three newest slugs are the **Community** set: `view_discussions`,
+  `post_discussion`, `moderate_discussions`.)
 - **Temporal roles:** `role_user.expires_at` lets a role assignment expire.
 - **Role slug casing:** the canonical slug is the **lowercase** DB value (`admin`,
   `faculty`, `student`). Never compare against an uppercase enum name.
@@ -155,6 +156,30 @@ retrievable in chat. Visibility is scoped; downloads are logged. Documents soft-
   assignment; admins can **broadcast** announcements.
 - **Calendar** (`CalendarService`) merges assignment deadlines + exams + personal tasks.
 - **Notes/Tasks** are personal and **owner-scoped** (a user only ever sees their own).
+- **AI Study Planner:** `StudyPlannerService` (`app/Domain/Academic/`) builds a study schedule
+  from the student's upcoming deadlines and **persists chosen sessions as `Task` records**;
+  surfaced via `Student/StudyPlannerController`.
+- **Flashcards:** `FlashcardService` (`app/Domain/Academic/`) with `FlashcardDeck` / `Flashcard`
+  models. Each card carries its own **SM-2 spaced-repetition state**; decks can be **AI-generated**
+  via `TeachingAssistantService::generateFlashcards()`.
+- **Learning Analytics (student):** `LearningAnalyticsService` (`app/Domain/Analytics/`) drives
+  the student **progress** page (`Student/LearningAnalyticsController`, route name `progress`).
+  It **reuses `TranscriptService` + `AttendanceService`**; charts render through
+  `components/charts/StatChart.vue` (Chart.js / vue-chartjs, newly added deps).
+- **Leaderboard:** `LeaderboardService` (`app/Domain/Analytics/`). **Opt-in** via
+  `users.leaderboard_opt_in` / `leaderboard_alias`. **XP** (derived from class-test, assignment,
+  and attendance data) is **computed at read time — never materialised** — and scoped by
+  department / semester / section.
+- **Discussions (Community):** section-scoped forum where **a `Section` *is* the discussion
+  group** (membership derived from enrolment / teaching). Logic lives in the **new
+  `DiscussionService` (`app/Domain/Community/`)** over `Post` / `PostComment` / `PostReaction` /
+  `PostReport` models (posts + comments soft-deleted). Served by a shared
+  `Community/DiscussionController` (student + faculty, **relationship-based access like the
+  messenger routes**) with `Admin/DiscussionModerationController` handling the report queue.
+- **OCR notes:** `AIProviderInterface` gained **`extractText(imagePath, mimeType)`**, implemented
+  in `OpenAiProvider` (gpt-4o vision) with a `MockProvider` fallback. `OcrService`
+  (`app/Domain/Chat/`) backs the `NoteController::ocr` endpoint (route `notes.ocr`), gated by
+  `use_ai_chat` + `ai.chat.access`.
 - **Auditing:** `ActivityLogger` writes to `activity_logs` for key actions.
 
 ---
@@ -189,7 +214,7 @@ Controller (thin: orchestrate + respond)
 - **Controllers stay thin.** Business logic belongs in `app/Domain/{Context}/Services/`.
 - **Authorization is layered:** route middleware (role + permission) → Form Request
   `authorize()` → Policy for record ownership.
-- **Bounded contexts:** User, Academic, Chat, RAG, Notification, Analytics.
+- **Bounded contexts:** User, Academic, Chat, RAG, Notification, Analytics, Community.
 
 ### 3.3 Authentication & middleware
 
@@ -215,11 +240,12 @@ Controller (thin: orchestrate + respond)
 | Context | State |
 |---|---|
 | User (RBAC, service, repository) | ✅ Implemented |
-| Academic (Course/Section/Term/Enrollment/Grading/Attendance/Exam/Transcript/Calendar/Submission) | ✅ Implemented |
-| Chat (`ChatService`, `RagChatService`, `TeachingAssistantService`) | ✅ Implemented |
+| Academic (Course/Section/Term/Enrollment/Grading/Attendance/Exam/Transcript/Calendar/Submission/**StudyPlanner**/**Flashcard**) | ✅ Implemented |
+| Chat (`ChatService`, `RagChatService`, `TeachingAssistantService`, **`OcrService`**) | ✅ Implemented |
 | RAG (Embedding/Retrieval/Citation, MySQL-native) | ✅ Implemented |
 | Document (Service, Processing, Chunking) | ✅ Implemented |
-| Notification, Analytics (platform + faculty) | ✅ Implemented |
+| Notification, Analytics (platform + faculty + **student `LearningAnalyticsService`** + **`LeaderboardService`**) | ✅ Implemented |
+| Community (`DiscussionService` — section-scoped forum + moderation) | ✅ Implemented |
 | AI Infrastructure (OpenAI + Mock + Manager) | ✅ Implemented |
 | Chat/Memory, RAG/Prompts, Academic/Rules+ValueObjects | ⬜ Empty (inlined or unneeded) |
 | VectorDB, Speech infrastructure | ⬜ Empty (MySQL store; no speech) |
@@ -233,7 +259,7 @@ A high-level map lives here; the **fully annotated tree** is in
 
 ```
 app/
-  Domain/{User,Academic,Chat,RAG,Notification,Analytics}/   business logic
+  Domain/{User,Academic,Chat,RAG,Notification,Analytics,Community}/  business logic
   Infrastructure/{AI,FileStorage,Repositories}/             external adapters
   Http/{Controllers,Requests,Middleware}/                   thin HTTP layer
   Models/                                                    Eloquent entities

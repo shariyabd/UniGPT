@@ -38,6 +38,14 @@ class MockProvider implements AIProviderInterface
         );
     }
 
+    public function extractText(string $imagePath, string $mimeType): string
+    {
+        // Keyless fallback — no real OCR. Returns a deterministic placeholder so
+        // the upload → transcribe → save-as-note flow works end to end in demos.
+        return "[Demo OCR] Handwritten note transcription is unavailable without a vision-capable AI provider.\n\n"
+            .'Set OPENAI_API_KEY and AI_DEFAULT_PROVIDER=openai to transcribe real images, then edit this text and save it as a note.';
+    }
+
     public function embed(array $texts): array
     {
         return array_map(fn (string $text) => $this->hashVector($text), $texts);

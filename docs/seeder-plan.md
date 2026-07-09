@@ -70,11 +70,31 @@ sections                                                ← SectionSeeder (new) 
 course_user                                             ← EnrollmentSeeder (new) + AcademicSeeder (demo)
 course_materials, exams, attendance_records            ← CourseMaterial/Exam/Attendance seeders (new) + demo
 notes, tasks                                            ← Note/Task seeders (new)
+class_test_attempts                                     ← ClassTestAttemptSeeder (feeds analytics + leaderboard)
+flashcard_decks, flashcards                             ← FlashcardSeeder (demo student + sample cohort)
+users.leaderboard_opt_in / leaderboard_alias           ← LeaderboardSeeder (opt-ins; XP derived at read time)
+posts, post_comments, post_reactions, post_reports     ← DiscussionSeeder (section feed + moderation queue)
 documents, document_chunks, embeddings                 ← KnowledgeBaseSeeder (kept)
 ```
 
 User-driven data is intentionally **not** seeded: chat sessions/messages, saved
 answers, assignment submissions (beyond the single demo one), document approvals.
+
+**Engagement seeders (new-feature demo data).** These layer on top of the academic
+population so the newer features (Learning Analytics, Leaderboard, Flashcards,
+Discussions) are populated on the demo login rather than empty:
+
+- `ClassTestAttemptSeeder` — submitted attempts (with plausible scores) for a share
+  (`class_test_attempt_rate`) of each published test's enrolled students. Idempotent
+  via the `(class_test_id, user_id)` unique index + `insertOrIgnore`.
+- `FlashcardSeeder` — three hand-crafted CS decks for the demo student, plus one
+  generic deck for a sample of bulk students (`flashcard_students`).
+- `LeaderboardSeeder` — opts the demo student + a share (`leaderboard_opt_in_rate`)
+  of bulk students in; a third get a playful alias. XP itself is computed at read
+  time from class-test / attendance data, so nothing is materialised.
+- `DiscussionSeeder` — posts/comments/likes across the demo student's sections first,
+  then other current-term sections (`discussion_sections` × `posts_per_section`),
+  plus three open `post_reports` for the admin moderation queue.
 
 ## Dependency graph / insert order (`DatabaseSeeder`)
 
@@ -88,13 +108,17 @@ answers, assignment submissions (beyond the single demo one), document approvals
 7.  StudentSeeder       ~500 students, weighted across departments & semesters
 8.  SectionSeeder       sections sized to student demand; guarantees ≥1 per course
 9.  EnrollmentSeeder    enroll each student into their dept+semester current-term sections
-10. CourseMaterialSeeder / ExamSeeder / AttendanceSeeder  per section (all section_id-safe)
-11. NoteSeeder / TaskSeeder                               per bulk student
-12. KnowledgeBaseSeeder RAG documents (kept)
+10. CourseMaterialSeeder / ExamSeeder                    per section (all section_id-safe)
+11. ClassTestSeeder / ClassTestAttemptSeeder             tests, then submitted attempts
+12. AttendanceSeeder                                     per section
+13. NoteSeeder / TaskSeeder                              per bulk student
+14. FlashcardSeeder / LeaderboardSeeder / DiscussionSeeder  engagement / new-feature data
+15. KnowledgeBaseSeeder RAG documents (kept)
 ```
 
 Child records never precede parents: terms → courses → faculty → sections →
-students → enrollments → attendance/materials/exams → notes/tasks.
+students → enrollments → attendance/materials/exams → tests → attempts →
+notes/tasks → flashcards/leaderboard/discussions.
 
 ## Volume (config/seeder.php, env-overridable)
 
@@ -110,6 +134,11 @@ students → enrollments → attendance/materials/exams → notes/tasks.
 | `notes_per_student` | 2 |
 | `tasks_per_student` | 3 |
 | `max_courses_per_student` | 6 |
+| `class_test_attempt_rate` | 70 (%) |
+| `flashcard_students` | 60 |
+| `leaderboard_opt_in_rate` | 60 (%) |
+| `discussion_sections` | 40 |
+| `posts_per_section` | 4 |
 
 Set e.g. `SEED_STUDENTS=2000` to scale up without code changes.
 

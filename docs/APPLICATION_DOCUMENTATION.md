@@ -73,7 +73,7 @@ A person also belongs to a **department** (e.g. Computer Science) and, for stude
 
 ### 2.2 Permissions — who's allowed to do what
 
-Each role comes with a set of **permissions** — fine-grained "can do this" switches (for
+Each role comes with a set of **permissions** — 46 fine-grained "can do this" switches (for
 example, "can approve documents", "can grade assignments", "can configure the AI"). Admins can
 adjust which permissions each role has from a visual editor, so the university can tailor
 access to its own policies.
@@ -203,6 +203,13 @@ Send a broadcast notification to an audience (everyone, or just students/faculty
 Admins can see past announcements with how many people received each, and edit an announcement
 after sending.
 
+### 3.11a Discussion Moderation
+A moderation queue for the course discussion feeds (see 4.13 / 5.19). When a member reports a
+post or comment, it lands here for an admin to work: the item is shown with its reported content
+and the reason, and the admin can **dismiss** the report (leaving the content in place) or
+**remove** the content. Faculty already moderate their own sections; this queue is the
+university-wide backstop for anything escalated to admins.
+
 ### 3.12 Exams & Timetable
 Schedule exams for a course — with a date, time, duration, location, total marks, and
 instructions. If no specific section is chosen, the exam is scheduled for every section of the
@@ -318,6 +325,15 @@ enters a grade and feedback (optionally using **AI-suggested feedback** — stre
 improve, and a draft comment they can edit first), and the student is notified. Grades flow
 straight into the student's transcript and progress views.
 
+### 4.13 Discussion Feed
+Each section the teacher runs has its own **discussion group**, with the teacher and the section's
+enrolled students as members. Teachers **take part** like everyone else — posting, commenting,
+liking — and also **moderate their own sections:** they can **pin** an important post to the top or
+**delete** an off-topic or inappropriate post or comment. Members can **report** anything they
+think breaks the rules; reports the teacher doesn't handle can be escalated to the admin
+moderation queue (see 3.11a). Teachers only ever see and moderate the feeds for the sections they
+personally teach.
+
 ---
 
 ## 5. What Students Can Do
@@ -413,6 +429,10 @@ Students take their teachers' interactive quizzes under **fullscreen proctoring*
 Personal productivity tools. **Notes** can be tagged to a course and pinned. **Tasks** have a due
 date, priority, and optional course, can be ticked off, and show up on the calendar.
 
+On the Notes page, a student can also **snap handwritten notes into text**: they upload a photo of
+a handwritten page and the AI (gpt-4o vision) transcribes it into editable text, which is saved as
+an ordinary note they can then tidy up, tag, and pin like any other.
+
 ### 5.17 My Faculty & Messages
 A directory of the student's actual teachers (drawn automatically from their enrolments), with a
 messaging view to chat with any of them. Because teachers stay within their own department, a
@@ -421,6 +441,38 @@ student only ever sees faculty from their own programme.
 ### 5.18 Profile & Settings
 Edit name, bio, and avatar; and set preferences — light/dark theme, notifications on/off, and the
 preferred answer language for the AI tutor.
+
+### 5.19 AI Study Planner
+Looks at the student's **upcoming deadlines** — assignments, exams, and class tests — and turns
+them into a suggested **study schedule**, spreading the work across the days before each deadline.
+The student reviews the plan and saves the sessions they want as their own personal **Tasks**, so
+they show up on the calendar and in the to-do list alongside everything else.
+
+### 5.20 My Progress (Learning Analytics)
+A personal analytics dashboard that charts how the student is doing over time: their **GPA trend**,
+**attendance**, **class-test and assignment score trends**, and **weekly activity** (rendered as
+graphs with Chart.js). It's a private, self-reflection view built only from the student's own data
+— nothing here is shared with anyone else.
+
+### 5.21 Flashcards
+The student builds study **decks** — either by hand, card by card, or by asking the AI to
+**generate** a deck from a topic. Reviewing a deck uses **spaced repetition (the SM-2 method)**:
+after each card the student rates how well they knew it, and the system schedules that card to come
+back sooner or later so the material sticks with less cramming.
+
+### 5.22 Leaderboard
+An **opt-in**, gamified ranking. A student who joins earns **XP** for study activity — completing
+class tests, submitting assignments, and keeping up attendance. This XP is a separate motivation
+score, **deliberately decoupled from official grades**, so competing never affects academic
+records. Players can use an **alias** instead of their real name, and the board can be ranked by
+**department, semester, or section**. Students who don't opt in simply don't appear.
+
+### 5.23 Discussion Feed
+Every course/section the student is enrolled in has its own **discussion group** (membership comes
+straight from enrolment). Members **post, comment, and like**, and can **report** anything
+inappropriate. The section's teacher takes part and moderates (pinning or removing posts), and
+serious reports can reach the admin moderation queue. A student only sees the feeds for the classes
+they're actually in.
 
 ---
 
