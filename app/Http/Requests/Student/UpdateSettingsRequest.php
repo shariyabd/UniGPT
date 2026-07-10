@@ -23,6 +23,7 @@ class UpdateSettingsRequest extends FormRequest
         return [
             'theme' => ['required', 'in:light,dark,system'],
             'notifications' => ['required', 'boolean'],
+            'email_digest' => ['required', 'boolean'],
             'language' => ['required', 'string', Rule::in($languageCodes)],
         ];
     }

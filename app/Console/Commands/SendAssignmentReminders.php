@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Domain\Notification\Services\EmailDigestService;
 use App\Domain\Notification\Services\NotificationService;
 use App\Enums\NotificationType;
+use App\Mail\AssignmentDueMail;
 use App\Models\Assignment;
 use App\Models\AssignmentSubmission;
 use App\Models\Notification;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Mail;
 
 class SendAssignmentReminders extends Command
 {
@@ -19,7 +22,7 @@ class SendAssignmentReminders extends Command
 
     private const REMINDER_TITLE = 'Assignment due soon';
 
-    public function handle(NotificationService $notifications): int
+    public function handle(NotificationService $notifications, EmailDigestService $digests): int
     {
         $hours = (int) $this->option('hours');
         $now = now();
@@ -61,6 +64,12 @@ class SendAssignmentReminders extends Command
                     link: route('assignments.show', $assignment->id),
                     data: ['assignment_id' => $assignment->id, 'course_id' => $assignment->course_id, 'reminder' => true],
                 );
+
+                // Email twin of the in-app nudge — the dedupe above already
+                // guarantees at most one per student per assignment.
+                if ($digests->wantsEmails($student)) {
+                    Mail::to($student->email)->queue(new AssignmentDueMail($student, $assignment));
+                }
 
                 $sent++;
             }

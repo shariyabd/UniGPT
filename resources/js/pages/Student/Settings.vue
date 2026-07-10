@@ -4,7 +4,7 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
 import Card from '@/components/ui/Card.vue';
 import { useTheme } from '@/composables/useTheme';
-import { Cog6ToothIcon, SunIcon, MoonIcon, ComputerDesktopIcon, BellIcon, LanguageIcon, SwatchIcon } from '@heroicons/vue/24/outline';
+import { Cog6ToothIcon, SunIcon, MoonIcon, ComputerDesktopIcon, BellIcon, EnvelopeIcon, LanguageIcon, SwatchIcon } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
     preferences: { type: Object, default: () => ({ theme: 'light', notifications: true, language: 'en' }) },
@@ -16,6 +16,7 @@ const { setTheme } = useTheme();
 const form = useForm({
     theme: props.preferences.theme ?? 'light',
     notifications: props.preferences.notifications ?? true,
+    email_digest: props.preferences.email_digest ?? true,
     language: props.preferences.language ?? (props.supportedLanguages[0]?.code ?? 'en'),
 });
 
@@ -85,6 +86,29 @@ const submit = () => {
                                 <span :class="[
                                     'absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow-sm transition-transform',
                                     form.notifications ? 'translate-x-6' : ''
+                                ]"></span>
+                            </button>
+                        </div>
+
+                        <div class="flex items-center justify-between gap-4 mt-6 pt-6 border-t border-line">
+                            <div class="flex items-center gap-3">
+                                <span class="ui-icon-tile bg-primary-soft text-primary">
+                                    <EnvelopeIcon class="w-5 h-5" />
+                                </span>
+                                <div>
+                                    <p class="font-semibold text-content">Email digest</p>
+                                    <p class="text-sm text-content-muted">Weekly summary and deadline reminder emails</p>
+                                </div>
+                            </div>
+                            <button type="button" @click="form.email_digest = !form.email_digest"
+                                role="switch" :aria-checked="form.email_digest" aria-label="Toggle email digest"
+                                :class="[
+                                    'relative w-14 h-8 shrink-0 rounded-full transition-colors',
+                                    form.email_digest ? 'bg-primary' : 'bg-neutral-bg'
+                                ]">
+                                <span :class="[
+                                    'absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow-sm transition-transform',
+                                    form.email_digest ? 'translate-x-6' : ''
                                 ]"></span>
                             </button>
                         </div>
