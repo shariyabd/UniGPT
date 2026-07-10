@@ -27,7 +27,19 @@ const props = defineProps({
     today: { type: String, default: '' },
     courses: { type: Array, default: () => [] },
     priorities: { type: Array, default: () => [] },
+    ics: { type: Object, default: () => ({}) },
 });
+
+// Copy the signed feed URL so the student can paste it into Google/Outlook/
+// Apple Calendar's "subscribe by URL" and stay auto-synced.
+const copyFeedUrl = async () => {
+    try {
+        await navigator.clipboard.writeText(props.ics.feedUrl);
+        toast.success('Subscribe URL copied — paste it into your calendar app.');
+    } catch {
+        toast.error('Could not copy the URL.');
+    }
+};
 
 const toast = useToast();
 const { confirm } = useConfirm();
@@ -40,6 +52,7 @@ const typeStyle = {
     assignment: { dot: 'bg-warning-fg', label: 'Deadline', badge: 'warning', icon: ClipboardDocumentCheckIcon, accent: 'border-warning-fg', tile: 'bg-warning-bg text-warning-fg' },
     exam: { dot: 'bg-danger-fg', label: 'Exam', badge: 'danger', icon: AcademicCapIcon, accent: 'border-danger-fg', tile: 'bg-danger-bg text-danger-fg' },
     task: { dot: 'bg-primary', label: 'Task', badge: 'primary', icon: CheckCircleIcon, accent: 'border-primary', tile: 'bg-primary-soft text-primary' },
+    office_hours: { dot: 'bg-success-fg', label: 'Office Hours', badge: 'success', icon: ClockIcon, accent: 'border-success-fg', tile: 'bg-success-bg text-success-fg' },
 };
 
 const cursor = ref(new Date(props.today ? props.today + 'T00:00:00' : Date.now()));
@@ -184,9 +197,18 @@ const removeTask = async (event) => {
             <div class="page-container py-8 space-y-6 sm:space-y-8">
                 <PageHeader
                     title="Calendar"
-                    subtitle="Deadlines, exams and your tasks in one place."
+                    subtitle="Deadlines, exams, office hours and your tasks in one place."
                     :icon="CalendarIcon"
-                />
+                >
+                    <template #actions>
+                        <a v-if="ics.exportUrl" :href="ics.exportUrl" class="ui-btn-secondary">
+                            Export .ics
+                        </a>
+                        <button v-if="ics.feedUrl" type="button" @click="copyFeedUrl" class="ui-btn-secondary">
+                            Copy subscribe URL
+                        </button>
+                    </template>
+                </PageHeader>
 
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <!-- Month grid -->

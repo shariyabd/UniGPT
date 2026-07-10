@@ -31,6 +31,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -186,6 +187,12 @@ class StudentDashboardController extends Controller
                 fn (TaskPriority $priority) => ['value' => $priority->value, 'label' => $priority->getLabel()],
                 TaskPriority::cases(),
             ),
+            // iCalendar sync: one-off download plus a signed subscription URL
+            // for Google/Outlook/Apple Calendar (no session needed to fetch).
+            'ics' => [
+                'exportUrl' => route('calendar.export'),
+                'feedUrl' => URL::signedRoute('calendar.feed', ['user' => $user->id]),
+            ],
         ]);
     }
 

@@ -30,13 +30,16 @@ use App\Http\Controllers\Faculty\CourseController as FacultyCourseController;
 use App\Http\Controllers\Faculty\CourseMaterialController as FacultyCourseMaterialController;
 use App\Http\Controllers\Faculty\FacultyDashboardController;
 use App\Http\Controllers\Faculty\GradingController as FacultyGradingController;
+use App\Http\Controllers\Faculty\OfficeHoursController as FacultyOfficeHoursController;
 use App\Http\Controllers\Faculty\StudentDirectoryController as FacultyStudentDirectoryController;
 use App\Http\Controllers\LegalController;
 use App\Http\Controllers\Messenger\MessageController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PresenceController;
 use App\Http\Controllers\PublicDocsController;
+use App\Http\Controllers\SearchController;
 use App\Http\Controllers\Student\AssignmentController as StudentAssignmentController;
+use App\Http\Controllers\Student\CalendarExportController;
 use App\Http\Controllers\Student\ChatController;
 use App\Http\Controllers\Student\ClassTestController as StudentClassTestController;
 use App\Http\Controllers\Student\FacultyDirectoryController as StudentFacultyDirectoryController;
@@ -44,10 +47,13 @@ use App\Http\Controllers\Student\FlashcardController;
 use App\Http\Controllers\Student\LeaderboardController;
 use App\Http\Controllers\Student\LearningAnalyticsController;
 use App\Http\Controllers\Student\NoteController;
+use App\Http\Controllers\Student\OfficeHoursController as StudentOfficeHoursController;
+use App\Http\Controllers\Student\PracticeQuizController;
 use App\Http\Controllers\Student\RegistrationController as StudentRegistrationController;
 use App\Http\Controllers\Student\SavedAnswerController;
 use App\Http\Controllers\Student\StudentDashboardController;
 use App\Http\Controllers\Student\StudyPlannerController;
+use App\Http\Controllers\Student\StudyRoomController;
 use App\Http\Controllers\Student\TaskController;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
@@ -63,6 +69,13 @@ Route::get('/clear-cache', function () {
 
     return response('<pre>'.e(Artisan::output()).'</pre>');
 })->name('cache.clear');
+
+// Signed iCalendar feed — no session auth (Google/Outlook/Apple Calendar
+// fetch it server-to-server); the URL signature is the credential and is
+// minted per-user on the Calendar page.
+Route::get('/calendar/feed/{user}', [CalendarExportController::class, 'feed'])
+    ->middleware(['signed', 'throttle:30,1'])
+    ->name('calendar.feed');
 
 // Public marketing landing page.
 Route::get('/', fn () => Inertia::render('Landing'))->name('home');
@@ -99,6 +112,10 @@ Route::post('/logout', [AuthenticationController::class, 'destroy'])
     ->name('logout');
 
 Route::middleware(['auth'])->group(function () {
+    // Global ⌘K search — available to every authenticated role; results are
+    // scoped inside the service to what the user can access.
+    Route::get('/search', SearchController::class)->name('search.global');
+
     // In-app notifications — available to every authenticated role.
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::get('/notifications/poll', [NotificationController::class, 'poll'])->name('notifications.poll');
@@ -143,6 +160,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/chat', [ChatController::class, 'index'])->middleware('permission:use_ai_chat')->name('chat');
         Route::get('/chat/archived', [ChatController::class, 'archived'])->middleware('permission:view_chat_history')->name('chat.archived');
         Route::post('/chat', [ChatController::class, 'store'])->middleware(['permission:use_ai_chat', 'ai.chat.access'])->name('chat.send');
+        Route::post('/chat/stream', [ChatController::class, 'stream'])->middleware(['permission:use_ai_chat', 'ai.chat.access'])->name('chat.stream');
         Route::get('/chat/sessions/{session}', [ChatController::class, 'show'])->middleware('permission:view_chat_history')->name('chat.session');
         Route::patch('/chat/sessions/{session}', [ChatController::class, 'rename'])->middleware('permission:use_ai_chat')->name('chat.session.rename');
         Route::patch('/chat/sessions/{session}/pin', [ChatController::class, 'togglePin'])->middleware('permission:view_chat_history')->name('chat.session.pin');
@@ -163,6 +181,33 @@ Route::middleware(['auth'])->group(function () {
             Route::patch('/cards/{card}', [FlashcardController::class, 'updateCard'])->name('cards.update');
             Route::delete('/cards/{card}', [FlashcardController::class, 'destroyCard'])->name('cards.destroy');
             Route::post('/cards/{card}/review', [FlashcardController::class, 'review'])->name('cards.review');
+        });
+
+        // Office hours — browse the student's faculty's slots and book/cancel.
+        Route::get('/office-hours', [StudentOfficeHoursController::class, 'index'])->name('office-hours');
+        Route::post('/office-hours/{slot}/book', [StudentOfficeHoursController::class, 'book'])->name('office-hours.book');
+        Route::post('/office-hours/{slot}/cancel', [StudentOfficeHoursController::class, 'cancel'])->name('office-hours.cancel');
+
+        // Group study rooms — section-scoped group chats between classmates.
+        // The chat itself uses the shared messenger endpoints (membership-based
+        // auth); these routes manage the rooms and their membership.
+        Route::prefix('study-rooms')->name('study-rooms.')->group(function () {
+            Route::get('/', [StudyRoomController::class, 'index'])->name('index');
+            Route::post('/', [StudyRoomController::class, 'store'])->name('store');
+            Route::post('/{room}/join', [StudyRoomController::class, 'join'])->name('join');
+            Route::post('/{room}/leave', [StudyRoomController::class, 'leave'])->name('leave');
+            Route::get('/{room}/members', [StudyRoomController::class, 'members'])->name('members');
+        });
+
+        // Practice quizzes — self-quizzing with AI generation and instant
+        // server-side grading; generation reuses the AI-chat access gate.
+        Route::prefix('practice')->name('practice.')->group(function () {
+            Route::get('/', [PracticeQuizController::class, 'index'])->name('index');
+            Route::post('/generate', [PracticeQuizController::class, 'generate'])->middleware(['permission:use_ai_chat', 'ai.chat.access'])->name('generate');
+            Route::get('/{quiz}', [PracticeQuizController::class, 'show'])->name('show');
+            Route::post('/{quiz}/submit', [PracticeQuizController::class, 'submit'])->name('submit');
+            Route::post('/{quiz}/attempts/{attempt}/flashcards', [PracticeQuizController::class, 'toFlashcards'])->name('flashcards');
+            Route::delete('/{quiz}', [PracticeQuizController::class, 'destroy'])->name('destroy');
         });
 
         // Saved answers
@@ -195,6 +240,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/progress', [LearningAnalyticsController::class, 'index'])->middleware('permission:view_own_analytics')->name('progress');
         Route::get('/exams', [StudentDashboardController::class, 'exams'])->middleware('permission:view_exams')->name('exams');
         Route::get('/calendar', [StudentDashboardController::class, 'calendar'])->name('calendar');
+        Route::get('/calendar/export', [CalendarExportController::class, 'download'])->name('calendar.export');
 
         // Assignments + submissions — `{assignment}` is numeric so order is safe
         // Course self-registration (offered sections for the student's semester)
@@ -278,6 +324,12 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('/courses/{course}/materials/{material}', [FacultyCourseMaterialController::class, 'destroy'])->middleware('permission:manage_materials')->name('courses.materials.destroy');
         Route::get('/courses/{course}/materials/{material}/download', [FacultyCourseMaterialController::class, 'download'])->middleware('permission:view_courses')->name('courses.materials.download');
 
+        // Office hours — publish/remove bookable slots, manage bookings.
+        Route::get('/office-hours', [FacultyOfficeHoursController::class, 'index'])->name('office-hours');
+        Route::post('/office-hours', [FacultyOfficeHoursController::class, 'store'])->name('office-hours.store');
+        Route::delete('/office-hours/{slot}', [FacultyOfficeHoursController::class, 'destroy'])->name('office-hours.destroy');
+        Route::post('/office-hours/{slot}/cancel-booking', [FacultyOfficeHoursController::class, 'cancelBooking'])->name('office-hours.cancel-booking');
+
         // My Documents — faculty-submitted documents that flow into the admin
         // approval queue. Owner-scoped upload / edit / delete.
         Route::middleware('permission:upload_document')->group(function () {
@@ -293,6 +345,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/ai-assistant', [FacultyAIAssistantController::class, 'index'])->middleware('permission:use_ai_chat')->name('ai-assistant');
         Route::get('/ai-assistant/archived', [FacultyAIAssistantController::class, 'archived'])->middleware('permission:view_chat_history')->name('ai-assistant.archived');
         Route::post('/ai-assistant/chat', [FacultyAIAssistantController::class, 'chat'])->middleware('permission:use_ai_chat')->name('ai-assistant.chat');
+        Route::post('/ai-assistant/chat/stream', [FacultyAIAssistantController::class, 'stream'])->middleware('permission:use_ai_chat')->name('ai-assistant.stream');
         Route::get('/ai-assistant/sessions/{session}', [FacultyAIAssistantController::class, 'show'])->middleware('permission:view_chat_history')->name('ai-assistant.session');
         Route::patch('/ai-assistant/sessions/{session}', [FacultyAIAssistantController::class, 'rename'])->middleware('permission:use_ai_chat')->name('ai-assistant.session.rename');
         Route::patch('/ai-assistant/sessions/{session}/pin', [FacultyAIAssistantController::class, 'togglePin'])->middleware('permission:view_chat_history')->name('ai-assistant.session.pin');
