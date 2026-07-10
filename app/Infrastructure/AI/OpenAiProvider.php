@@ -42,6 +42,83 @@ class OpenAiProvider implements AIProviderInterface
         );
     }
 
+    public function chatStream(array $messages, callable $onDelta, array $options = []): ChatResult
+    {
+        $config = config('ai.providers.openai');
+        $model = $options['model'] ?? $config['model'];
+
+        $response = $this->client()
+            ->withOptions(['stream' => true])
+            ->post(self::BASE_URL.'/chat/completions', [
+                'model' => $model,
+                'messages' => $messages,
+                'max_tokens' => (int) ($options['max_tokens'] ?? $config['max_tokens']),
+                'temperature' => (float) ($options['temperature'] ?? $config['temperature']),
+                'stream' => true,
+                // The final stream chunk then carries token usage, keeping
+                // per-user AI usage accounting intact on the streaming path.
+                'stream_options' => ['include_usage' => true],
+            ]);
+
+        if ($response->failed()) {
+            throw new RuntimeException('OpenAI chat stream request failed: '.$response->body());
+        }
+
+        $body = $response->toPsrResponse()->getBody();
+
+        $content = '';
+        $modelUsed = $model;
+        $promptTokens = 0;
+        $completionTokens = 0;
+        $buffer = '';
+
+        while (! $body->eof()) {
+            $buffer .= $body->read(1024);
+
+            // The SSE payload arrives as "data: {json}\n" lines; process every
+            // complete line and keep the remainder buffered.
+            while (($newline = strpos($buffer, "\n")) !== false) {
+                $line = trim(substr($buffer, 0, $newline));
+                $buffer = substr($buffer, $newline + 1);
+
+                if (! str_starts_with($line, 'data:')) {
+                    continue;
+                }
+
+                $payload = trim(substr($line, 5));
+                if ($payload === '' || $payload === '[DONE]') {
+                    continue;
+                }
+
+                $chunk = json_decode($payload, true);
+                if (! is_array($chunk)) {
+                    continue;
+                }
+
+                $modelUsed = (string) ($chunk['model'] ?? $modelUsed);
+
+                $delta = (string) ($chunk['choices'][0]['delta']['content'] ?? '');
+                if ($delta !== '') {
+                    $content .= $delta;
+                    $onDelta($delta);
+                }
+
+                if (isset($chunk['usage'])) {
+                    $promptTokens = (int) ($chunk['usage']['prompt_tokens'] ?? 0);
+                    $completionTokens = (int) ($chunk['usage']['completion_tokens'] ?? 0);
+                }
+            }
+        }
+
+        return new ChatResult(
+            content: $content,
+            model: $modelUsed,
+            promptTokens: $promptTokens,
+            completionTokens: $completionTokens,
+            raw: ['provider' => 'openai', 'streamed' => true],
+        );
+    }
+
     public function extractText(string $imagePath, string $mimeType): string
     {
         $config = config('ai.providers.openai');

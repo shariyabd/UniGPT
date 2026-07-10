@@ -20,6 +20,17 @@ interface AIProviderInterface
     public function chat(array $messages, array $options = []): ChatResult;
 
     /**
+     * Run a chat completion, emitting partial assistant text as it is
+     * generated. Returns the same completed result as chat() once the stream
+     * ends, so callers can persist/report identically on either path.
+     *
+     * @param  array<int, array{role: string, content: string}>  $messages
+     * @param  callable(string): void  $onDelta  Receives each new fragment of assistant text.
+     * @param  array<string, mixed>  $options  Optional overrides (temperature, max_tokens, model).
+     */
+    public function chatStream(array $messages, callable $onDelta, array $options = []): ChatResult;
+
+    /**
      * Transcribe the text contained in an image (e.g. a photo of a handwritten
      * note) using a vision-capable model. Returns the transcribed plain text.
      */

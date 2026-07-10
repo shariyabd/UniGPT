@@ -10,6 +10,7 @@ use App\Domain\Chat\Services\TeachingAssistantService;
 use App\Domain\Notification\Services\NotificationService;
 use App\Enums\ChatMode;
 use App\Enums\NotificationType;
+use App\Http\Concerns\StreamsServerSentEvents;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Faculty\AssistantChatRequest;
 use App\Http\Requests\Faculty\GenerateAssignmentRequest;
@@ -23,11 +24,16 @@ use App\Services\ActivityLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+use Throwable;
 
 class AIAssistantController extends Controller
 {
+    use StreamsServerSentEvents;
+
     public function __construct(
         private readonly ChatService $chat,
         private readonly TeachingAssistantService $assistant,
@@ -77,6 +83,43 @@ class AIAssistantController extends Controller
             'userMessage' => $this->presentMessage($result['userMessage']),
             'assistantMessage' => $this->presentMessage($result['assistantMessage']),
         ]);
+    }
+
+    /**
+     * Streaming variant of chat(): emits `delta` events with assistant text as
+     * it is generated, then a final `done` event carrying the same payload
+     * chat() returns.
+     */
+    public function stream(AssistantChatRequest $request): StreamedResponse
+    {
+        $validated = $request->validated();
+        $user = $request->user();
+
+        $session = null;
+        if (! empty($validated['session_id'])) {
+            $session = ChatSession::where('user_id', $user->id)->find($validated['session_id']);
+        }
+
+        return $this->sseResponse(function () use ($user, $session, $validated) {
+            try {
+                $result = $this->chat->sendMessage(
+                    user: $user,
+                    session: $session,
+                    content: $validated['message'],
+                    mode: ChatMode::RESEARCH,
+                    onDelta: fn (string $text) => $this->sseSend('delta', ['text' => $text]),
+                );
+
+                $this->sseSend('done', [
+                    'session' => $this->presentSession($result['session']),
+                    'userMessage' => $this->presentMessage($result['userMessage']),
+                    'assistantMessage' => $this->presentMessage($result['assistantMessage']),
+                ]);
+            } catch (Throwable $e) {
+                Log::error('Assistant stream failed: '.$e->getMessage());
+                $this->sseSend('error', ['message' => 'Something went wrong while generating a response. Please try again.']);
+            }
+        });
     }
 
     public function show(ChatSession $session): JsonResponse

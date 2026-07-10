@@ -8,6 +8,7 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog.vue';
 import { useConfirm } from '@/composables/useConfirm';
 import { useTheme } from '@/composables/useTheme';
 import { renderMarkdown } from '@/lib/markdown';
+import { postEventStream } from '@/lib/sse';
 import {
     SparklesIcon,
     PaperAirplaneIcon,
@@ -185,6 +186,41 @@ const upsertSession = (session) => {
     else chatHistory.value[idx] = { ...chatHistory.value[idx], ...entry, pinned: chatHistory.value[idx].pinned };
 };
 
+// The in-flight streaming assistant message (reactive entry in `messages`).
+// Non-null hides the "thinking" indicator once live text is rendering.
+const streamingDraft = ref(null);
+
+const appendStreamDelta = (text) => {
+    if (!streamingDraft.value) {
+        messages.value.push({
+            id: 's' + Date.now(),
+            role: 'assistant',
+            content: '',
+            streaming: true,
+            timestamp: new Date().toISOString(),
+            followUpSuggestions: [],
+        });
+        // Grab the reactive proxy of the entry we just pushed so content
+        // mutations re-render as deltas arrive.
+        streamingDraft.value = messages.value[messages.value.length - 1];
+    }
+    streamingDraft.value.content += text;
+};
+
+const pushAssistantError = (content) => {
+    if (streamingDraft.value) {
+        messages.value = messages.value.filter((m) => m !== streamingDraft.value);
+        streamingDraft.value = null;
+    }
+    messages.value.push({
+        id: 'e' + Date.now(),
+        role: 'assistant',
+        content,
+        timestamp: new Date().toISOString(),
+        followUpSuggestions: [],
+    });
+};
+
 const sendMessage = async () => {
     if (!messageInput.value.trim() || isTyping.value) return;
 
@@ -194,25 +230,46 @@ const sendMessage = async () => {
     isTyping.value = true;
     scrollToBottom();
 
+    let finalized = false;
+    let streamError = null;
+
     try {
-        const { data } = await axios.post(route('faculty.ai-assistant.chat'), {
+        await postEventStream(route('faculty.ai-assistant.stream'), {
             message: text,
             session_id: currentSessionId.value,
+        }, {
+            onEvent: (event, data) => {
+                if (event === 'delta') {
+                    appendStreamDelta(data.text);
+                    scrollToBottom();
+                } else if (event === 'done') {
+                    finalized = true;
+                    currentSessionId.value = data.session.id;
+                    selectedChatHistory.value = data.session.id;
+                    upsertSession(data.session);
+
+                    const assistant = normalizeMessage(data.assistantMessage);
+                    if (streamingDraft.value) {
+                        const idx = messages.value.indexOf(streamingDraft.value);
+                        messages.value.splice(idx === -1 ? messages.value.length : idx, idx === -1 ? 0 : 1, assistant);
+                        streamingDraft.value = null;
+                    } else {
+                        messages.value.push(assistant);
+                    }
+                } else if (event === 'error') {
+                    streamError = data.message;
+                }
+            },
         });
-        currentSessionId.value = data.session.id;
-        selectedChatHistory.value = data.session.id;
-        upsertSession(data.session);
-        messages.value.push(normalizeMessage(data.assistantMessage));
+
+        if (!finalized) {
+            pushAssistantError(streamError || 'Sorry, something went wrong while generating a response. Please try again.');
+        }
     } catch (e) {
-        messages.value.push({
-            id: 'e' + Date.now(),
-            role: 'assistant',
-            content: 'Sorry, something went wrong while generating a response. Please try again.',
-            timestamp: new Date().toISOString(),
-            followUpSuggestions: [],
-        });
+        pushAssistantError('Sorry, something went wrong while generating a response. Please try again.');
     } finally {
         isTyping.value = false;
+        streamingDraft.value = null;
         scrollToBottom();
     }
 };
@@ -930,6 +987,7 @@ watch(() => messages.value.length, scrollToBottom);
                                         <div class="p-5">
                                             <div class="prose prose-sm max-w-none">
                                                 <div v-html="parseMessageContent(message.content)" class="text-content-muted leading-relaxed"></div>
+                                                <span v-if="message.streaming" class="inline-block w-2 text-primary animate-pulse" aria-hidden="true">▍</span>
                                             </div>
 
                                             <div v-if="message.followUpSuggestions && message.followUpSuggestions.length > 0" class="mt-5">
@@ -953,8 +1011,8 @@ watch(() => messages.value.length, scrollToBottom);
                                 </div>
                             </div>
 
-                            <!-- Typing indicator -->
-                            <div v-if="isTyping" class="flex justify-start">
+                            <!-- Typing indicator (until the first streamed token renders) -->
+                            <div v-if="isTyping && !streamingDraft" class="flex justify-start">
                                 <div class="ui-card px-5 py-3.5">
                                     <div class="flex items-center gap-3">
                                         <div class="ui-icon-tile h-8 w-8 bg-primary-soft text-primary flex-shrink-0">

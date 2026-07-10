@@ -38,6 +38,27 @@ class MockProvider implements AIProviderInterface
         );
     }
 
+    public function chatStream(array $messages, callable $onDelta, array $options = []): ChatResult
+    {
+        $result = $this->chat($messages, $options);
+
+        // Emit the deterministic answer word by word so the demo experience
+        // shows a believable live-typing stream without an external API.
+        foreach (preg_split('/(?<=\s)/u', $result->content) ?: [] as $piece) {
+            if ($piece === '') {
+                continue;
+            }
+
+            $onDelta($piece);
+
+            if (! app()->runningUnitTests()) {
+                usleep(15_000);
+            }
+        }
+
+        return $result;
+    }
+
     public function extractText(string $imagePath, string $mimeType): string
     {
         // Keyless fallback — no real OCR. Returns a deterministic placeholder so

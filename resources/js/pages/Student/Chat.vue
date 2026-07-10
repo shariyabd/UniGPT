@@ -4,6 +4,7 @@ import { Head, Link } from '@inertiajs/vue3';
 import axios from 'axios';
 import { useToast } from 'vue-toastification';
 import { renderMarkdown } from '@/lib/markdown';
+import { postEventStream } from '@/lib/sse';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import {
     ChatBubbleLeftRightIcon,
@@ -417,6 +418,48 @@ const upsertSession = (session) => {
     else chatHistory.value[idx] = { ...chatHistory.value[idx], ...entry, pinned: chatHistory.value[idx].pinned };
 };
 
+// The in-flight streaming assistant message (reactive entry in `messages`).
+// Non-null hides the "thinking" indicator once live text is rendering.
+const streamingDraft = ref(null);
+
+const appendStreamDelta = (text) => {
+    if (!streamingDraft.value) {
+        messages.value.push({
+            id: 's' + Date.now(),
+            role: 'assistant',
+            content: '',
+            streaming: true,
+            timestamp: new Date().toISOString(),
+            confidence: null,
+            contextRelevance: null,
+            sources: [],
+            followUpSuggestions: [],
+            saved: false,
+        });
+        // Grab the reactive proxy of the entry we just pushed so content
+        // mutations re-render as deltas arrive.
+        streamingDraft.value = messages.value[messages.value.length - 1];
+    }
+    streamingDraft.value.content += text;
+};
+
+const pushAssistantError = (content) => {
+    if (streamingDraft.value) {
+        messages.value = messages.value.filter((m) => m !== streamingDraft.value);
+        streamingDraft.value = null;
+    }
+    messages.value.push({
+        id: 'e' + Date.now(),
+        role: 'assistant',
+        content,
+        timestamp: new Date().toISOString(),
+        confidence: 0,
+        sources: [],
+        followUpSuggestions: [],
+        saved: false,
+    });
+};
+
 const sendMessage = async () => {
     if (!messageInput.value.trim() || isTyping.value) return;
 
@@ -431,41 +474,55 @@ const sendMessage = async () => {
     isTyping.value = true;
     scrollToBottom();
 
+    let finalized = false;
+    let streamError = null;
+
     try {
-        const { data } = await axios.post(route('chat.send'), {
+        await postEventStream(route('chat.stream'), {
             message: text,
             session_id: currentSessionId.value,
             mode: backendMode.value,
             language: selectedLanguage.value,
+        }, {
+            onEvent: (event, data) => {
+                if (event === 'delta') {
+                    appendStreamDelta(data.text);
+                    scrollToBottom();
+                } else if (event === 'done') {
+                    finalized = true;
+                    currentSessionId.value = data.session.id;
+                    selectedChatHistory.value = data.session.id;
+                    upsertSession(data.session);
+
+                    const assistant = normalizeMessage(data.assistantMessage);
+                    if (streamingDraft.value) {
+                        const idx = messages.value.indexOf(streamingDraft.value);
+                        messages.value.splice(idx === -1 ? messages.value.length : idx, idx === -1 ? 0 : 1, assistant);
+                        streamingDraft.value = null;
+                    } else {
+                        messages.value.push(assistant);
+                    }
+                    currentSources.value = assistant.sources;
+                    currentMessageId.value = assistant.id;
+                } else if (event === 'error') {
+                    streamError = data.message;
+                }
+            },
         });
 
-        currentSessionId.value = data.session.id;
-        selectedChatHistory.value = data.session.id;
-        upsertSession(data.session);
-
-        const assistant = normalizeMessage(data.assistantMessage);
-        messages.value.push(assistant);
-        currentSources.value = assistant.sources;
-        currentMessageId.value = assistant.id;
+        if (!finalized) {
+            pushAssistantError(streamError || 'Sorry, something went wrong while generating a response. Please try again.');
+        }
     } catch (e) {
         // A 403 means an admin has blocked this user's AI chat access — surface
         // the reason note they left instead of the generic error.
-        const blocked = e?.response?.status === 403;
-        const content = blocked
-            ? (e.response?.data?.message || 'Your access to the AI chat has been blocked. Please contact an administrator.')
-            : 'Sorry, something went wrong while generating a response. Please try again.';
-        messages.value.push({
-            id: 'e' + Date.now(),
-            role: 'assistant',
-            content,
-            timestamp: new Date().toISOString(),
-            confidence: 0,
-            sources: [],
-            followUpSuggestions: [],
-            saved: false,
-        });
+        const blocked = e?.status === 403;
+        pushAssistantError(blocked
+            ? (e.body?.message || 'Your access to the AI chat has been blocked. Please contact an administrator.')
+            : 'Sorry, something went wrong while generating a response. Please try again.');
     } finally {
         isTyping.value = false;
+        streamingDraft.value = null;
         scrollToBottom();
     }
 };
@@ -991,8 +1048,8 @@ watch(() => messages.value.length, () => {
                                                 </div>
                                             </div>
 
-                                            <!-- Confidence Score & Actions -->
-                                            <div class="flex items-center gap-2 flex-shrink-0">
+                                            <!-- Confidence Score & Actions (hidden while the answer streams) -->
+                                            <div v-if="!message.streaming" class="flex items-center gap-2 flex-shrink-0">
                                                 <span :class="`hidden sm:inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-full border ${answerConfidenceTier(message.confidence).class}`">
                                                     <CheckCircleIcon class="w-3.5 h-3.5 mr-1" />
                                                     {{ answerConfidenceTier(message.confidence).label }}
@@ -1039,6 +1096,7 @@ watch(() => messages.value.length, () => {
                                                     v-html="parseMessageContent(message.content)"
                                                     class="text-content-muted leading-relaxed"
                                                 ></div>
+                                                <span v-if="message.streaming" class="inline-block w-2 text-primary animate-pulse" aria-hidden="true">▍</span>
                                             </div>
 
                                             <!-- Sources Preview -->
@@ -1116,8 +1174,8 @@ watch(() => messages.value.length, () => {
                                 </div>
                             </div>
 
-                            <!-- Enhanced Typing Indicator -->
-                            <div v-if="isTyping" class="flex justify-start">
+                            <!-- Enhanced Typing Indicator (until the first streamed token renders) -->
+                            <div v-if="isTyping && !streamingDraft" class="flex justify-start">
                                 <div class="ui-card px-5 py-3.5">
                                     <div class="flex items-center gap-3">
                                         <div class="ui-icon-tile h-8 w-8 bg-primary-soft text-primary flex-shrink-0">

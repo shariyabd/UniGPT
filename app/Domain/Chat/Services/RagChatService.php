@@ -34,11 +34,41 @@ class RagChatService
      */
     public function answer(string $question, User $user, ChatMode $mode = ChatMode::ACADEMIC, array $history = [], string $language = 'en'): array
     {
+        return $this->respond($question, $user, $mode, $history, $language, null);
+    }
+
+    /**
+     * Answer a question, streaming partial assistant text through $onDelta as
+     * it is generated. Returns the same completed payload as answer().
+     *
+     * @param  array<int, array{role: string, content: string}>  $history
+     * @param  callable(string): void  $onDelta
+     * @return array{content: string, confidence: ?int, confidence_level: ?string, sources: array, follow_ups: array, model: string, tokens: int}
+     */
+    public function answerStream(string $question, User $user, callable $onDelta, ChatMode $mode = ChatMode::ACADEMIC, array $history = [], string $language = 'en'): array
+    {
+        return $this->respond($question, $user, $mode, $history, $language, $onDelta);
+    }
+
+    /**
+     * Shared answer pipeline; with $onDelta the provider call streams, without
+     * it the call is a single completion.
+     *
+     * @param  array<int, array{role: string, content: string}>  $history
+     * @return array{content: string, confidence: ?int, confidence_level: ?string, sources: array, follow_ups: array, model: string, tokens: int}
+     */
+    private function respond(string $question, User $user, ChatMode $mode, array $history, string $language, ?callable $onDelta): array
+    {
         // Fast path: greetings, thanks and "what can you do" never need retrieval
         // or an LLM call. Answer them deterministically at zero API cost.
         $intent = $this->classifier->classify($question);
         if ($intent !== QueryIntent::ACADEMIC) {
-            return $this->cannedAnswer($this->classifier->reply($question, $user->name) ?? '', $mode);
+            $content = $this->classifier->reply($question, $user->name) ?? '';
+            if ($onDelta !== null && $content !== '') {
+                $onDelta($content);
+            }
+
+            return $this->cannedAnswer($content, $mode);
         }
 
         $retrieved = $this->retrieval->retrieve($question, $user);
@@ -47,7 +77,9 @@ class RagChatService
         $score = $this->citations->overallConfidence($retrieved);
 
         $messages = $this->buildMessages($question, $mode, $context, $history, $language, $user);
-        $result = $this->provider->chat($messages, $this->settings->chatOptions());
+        $result = $onDelta !== null
+            ? $this->provider->chatStream($messages, $onDelta, $this->settings->chatOptions())
+            : $this->provider->chat($messages, $this->settings->chatOptions());
 
         return [
             'content' => $result->content,

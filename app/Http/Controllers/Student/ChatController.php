@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Student;
 
 use App\Domain\Chat\Services\ChatService;
 use App\Domain\Chat\Support\AiSettings;
+use App\Domain\User\Models\User;
 use App\Enums\ChatMode;
+use App\Http\Concerns\StreamsServerSentEvents;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Student\SendMessageRequest;
 use App\Models\ChatMessage;
@@ -12,11 +14,16 @@ use App\Models\ChatSession;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+use Throwable;
 
 class ChatController extends Controller
 {
+    use StreamsServerSentEvents;
+
     public function __construct(
         private readonly ChatService $chat,
         private readonly AiSettings $aiSettings,
@@ -60,6 +67,65 @@ class ChatController extends Controller
 
     public function store(SendMessageRequest $request): JsonResponse
     {
+        [$session, $mode, $language, $message] = $this->resolveSendContext($request);
+
+        $result = $this->chat->sendMessage(
+            user: $request->user(),
+            session: $session,
+            content: $message,
+            mode: $mode,
+            language: $language,
+        );
+
+        return response()->json([
+            'session' => $this->presentSession($result['session']),
+            'userMessage' => $this->presentMessage($result['userMessage']),
+            'assistantMessage' => $this->presentMessage($result['assistantMessage']),
+        ]);
+    }
+
+    /**
+     * Streaming variant of store(): emits `delta` events with assistant text
+     * as it is generated, then a final `done` event carrying the same payload
+     * store() returns. Errors mid-stream become an `error` event (the HTTP
+     * status is already sent by then).
+     */
+    public function stream(SendMessageRequest $request): StreamedResponse
+    {
+        [$session, $mode, $language, $message] = $this->resolveSendContext($request);
+        $user = $request->user();
+
+        return $this->sseResponse(function () use ($user, $session, $mode, $language, $message) {
+            try {
+                $result = $this->chat->sendMessage(
+                    user: $user,
+                    session: $session,
+                    content: $message,
+                    mode: $mode,
+                    language: $language,
+                    onDelta: fn (string $text) => $this->sseSend('delta', ['text' => $text]),
+                );
+
+                $this->sseSend('done', [
+                    'session' => $this->presentSession($result['session']),
+                    'userMessage' => $this->presentMessage($result['userMessage']),
+                    'assistantMessage' => $this->presentMessage($result['assistantMessage']),
+                ]);
+            } catch (Throwable $e) {
+                Log::error('Chat stream failed: '.$e->getMessage());
+                $this->sseSend('error', ['message' => 'Something went wrong while generating a response. Please try again.']);
+            }
+        });
+    }
+
+    /**
+     * Session/mode/language/message resolution shared by the JSON and SSE
+     * send endpoints.
+     *
+     * @return array{0: ?ChatSession, 1: ChatMode, 2: string, 3: string}
+     */
+    private function resolveSendContext(SendMessageRequest $request): array
+    {
         $validated = $request->validated();
 
         $session = null;
@@ -74,19 +140,7 @@ class ChatController extends Controller
             $language = $this->aiSettings->defaultLanguageCode();
         }
 
-        $result = $this->chat->sendMessage(
-            user: $request->user(),
-            session: $session,
-            content: $validated['message'],
-            mode: $mode,
-            language: $language,
-        );
-
-        return response()->json([
-            'session' => $this->presentSession($result['session']),
-            'userMessage' => $this->presentMessage($result['userMessage']),
-            'assistantMessage' => $this->presentMessage($result['assistantMessage']),
-        ]);
+        return [$session, $mode, $language, $validated['message']];
     }
 
     public function show(ChatSession $session): JsonResponse
@@ -162,7 +216,7 @@ class ChatController extends Controller
      * The student's saved language preference when it is still an enabled
      * language, otherwise the admin-configured default.
      */
-    private function preferredLanguage(\App\Domain\User\Models\User $user): string
+    private function preferredLanguage(User $user): string
     {
         $preferred = $user->preferences['language'] ?? null;
 

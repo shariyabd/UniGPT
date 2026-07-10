@@ -22,8 +22,11 @@ class ChatService
     ) {}
 
     /**
-     * Send a user message and generate the assistant reply.
+     * Send a user message and generate the assistant reply. When $onDelta is
+     * given, assistant text is streamed through it while being generated; the
+     * persisted result is identical on both paths.
      *
+     * @param  (callable(string): void)|null  $onDelta
      * @return array{session: ChatSession, userMessage: ChatMessage, assistantMessage: ChatMessage}
      */
     public function sendMessage(
@@ -32,6 +35,7 @@ class ChatService
         string $content,
         ChatMode $mode = ChatMode::ACADEMIC,
         string $language = 'en',
+        ?callable $onDelta = null,
     ): array {
         $session ??= $this->startSession($user, $mode, $language);
 
@@ -58,7 +62,9 @@ class ChatService
             ->values()
             ->all();
 
-        $answer = $this->rag->answer($content, $user, $mode, $history, $language);
+        $answer = $onDelta !== null
+            ? $this->rag->answerStream($content, $user, $onDelta, $mode, $history, $language)
+            : $this->rag->answer($content, $user, $mode, $history, $language);
 
         $assistantMessage = $session->messages()->create([
             'role' => ChatMessage::ROLE_ASSISTANT,
