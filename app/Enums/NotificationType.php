@@ -12,6 +12,7 @@ enum NotificationType: string
     case EXAM = 'exam';
     case CLASS_TEST = 'class_test';
     case ANNOUNCEMENT = 'announcement';
+    case OFFICE_HOURS = 'office_hours';
     case SYSTEM = 'system';
 
     public function getLabel(): string
@@ -33,6 +34,7 @@ enum NotificationType: string
             self::EXAM => 'CalendarDaysIcon',
             self::CLASS_TEST => 'PencilSquareIcon',
             self::ANNOUNCEMENT => 'MegaphoneIcon',
+            self::OFFICE_HOURS => 'ClockIcon',
             self::SYSTEM => 'BellIcon',
         };
     }

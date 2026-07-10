@@ -5,12 +5,14 @@ namespace App\Domain\Academic\Services;
 use App\Domain\User\Models\User;
 use App\Models\Assignment;
 use App\Models\Exam;
+use App\Models\OfficeHourSlot;
 use App\Models\Task;
 use Illuminate\Support\Collection;
 
 /**
- * Unified academic calendar: merges assignment deadlines, scheduled exams and
- * a student's personal tasks into a single date-keyed event stream.
+ * Unified academic calendar: merges assignment deadlines, scheduled exams,
+ * a student's personal tasks and their booked office-hours meetings into a
+ * single date-keyed event stream.
  */
 class CalendarService
 {
@@ -27,6 +29,7 @@ class CalendarService
             ->merge($this->assignmentEvents($sectionIds))
             ->merge($this->examEvents($sectionIds))
             ->merge($this->taskEvents($student))
+            ->merge($this->officeHourEvents($student))
             ->sortBy('date')
             ->values();
 
@@ -104,6 +107,27 @@ class CalendarService
                 'course' => $t->course?->code,
                 'priority' => $t->priority->value,
                 'completed' => $t->is_completed,
+            ]);
+    }
+
+    /**
+     * The student's booked office-hours meetings.
+     *
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function officeHourEvents(User $student): Collection
+    {
+        return OfficeHourSlot::where('booked_by', $student->id)
+            ->with('faculty:id,name')
+            ->get()
+            ->map(fn (OfficeHourSlot $slot) => [
+                'id' => 'office-hours-'.$slot->id,
+                'type' => 'office_hours',
+                'title' => 'Office hours — '.($slot->faculty?->name ?? 'Faculty'),
+                'date' => $slot->starts_at->toDateString(),
+                'time' => $slot->starts_at->format('H:i'),
+                'course' => null,
+                'location' => $slot->location,
             ]);
     }
 }
