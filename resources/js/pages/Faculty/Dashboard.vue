@@ -17,6 +17,7 @@ import {
     ClockIcon,
     ArrowRightIcon,
     PlusIcon,
+    ExclamationTriangleIcon,
 } from '@heroicons/vue/24/outline';
 
 const { can } = usePermissions();
@@ -35,6 +36,7 @@ const statIconMap = {
     DocumentTextIcon,
     SparklesIcon,
     ChartBarIcon,
+    ExclamationTriangleIcon,
 };
 
 const statColors = ['success', 'primary', 'primary', 'warning'];

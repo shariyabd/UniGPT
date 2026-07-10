@@ -5,7 +5,6 @@ namespace App\Domain\Analytics\Services;
 use App\Domain\Academic\Services\AttendanceService;
 use App\Domain\User\Models\User;
 use App\Models\AssignmentSubmission;
-use App\Models\AttendanceRecord;
 use App\Models\Course;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -19,14 +18,9 @@ use Illuminate\Support\Facades\DB;
  */
 class FacultyAnalyticsService
 {
-    /** Attendance rate below which a student is flagged at-risk. */
-    private const AT_RISK_ATTENDANCE = 75;
-
-    /** Grade letters that flag a student at-risk. */
-    private const AT_RISK_GRADES = ['D+', 'D', 'D-', 'F'];
-
     public function __construct(
         private readonly AttendanceService $attendance,
+        private readonly EarlyWarningService $earlyWarning,
     ) {}
 
     /**
@@ -160,7 +154,7 @@ class FacultyAnalyticsService
                 'pending' => $submissionStats['pending'],
                 'completionRate' => $submissionStats['completionRate'],
             ],
-            'atRisk' => $this->atRiskStudents($sectionIds, $students),
+            'atRisk' => $this->earlyWarning->flag($sectionIds, $students),
         ];
     }
 
@@ -217,55 +211,6 @@ class FacultyAnalyticsService
                 : null,
             'averageScore' => $averageScore === null ? null : (int) round((float) $averageScore),
         ];
-    }
-
-    /**
-     * Students flagged for low attendance or a poor grade.
-     *
-     * @param  Collection<int, int>  $sectionIds
-     * @param  Collection<int, User>  $students
-     * @return array<int, array<string, mixed>>
-     */
-    private function atRiskStudents(Collection $sectionIds, Collection $students): array
-    {
-        // Aggregate attendance per student in SQL (one row per student) instead of
-        // loading every attendance record into memory. "Present" is any status
-        // other than absent, mirroring AttendanceStatus::countsAsPresent().
-        $stats = AttendanceRecord::query()
-            ->whereIn('section_id', $sectionIds)
-            ->selectRaw('user_id, COUNT(*) as total, SUM(CASE WHEN status <> ? THEN 1 ELSE 0 END) as attended', ['absent'])
-            ->groupBy('user_id')
-            ->get()
-            ->keyBy('user_id');
-
-        return $students
-            ->map(function (User $student) use ($stats) {
-                $row = $stats->get($student->id);
-                $total = (int) ($row->total ?? 0);
-                $attended = (int) ($row->attended ?? 0);
-                $rate = $total > 0 ? (int) round($attended / $total * 100) : null;
-                $grade = $student->pivot->grade;
-
-                $reasons = [];
-                if ($rate !== null && $rate < self::AT_RISK_ATTENDANCE) {
-                    $reasons[] = "Attendance {$rate}%";
-                }
-                if ($grade !== null && in_array($grade, self::AT_RISK_GRADES, true)) {
-                    $reasons[] = "Grade {$grade}";
-                }
-
-                return [
-                    'id' => $student->id,
-                    'name' => $student->name,
-                    'studentId' => $student->student_id,
-                    'attendanceRate' => $rate,
-                    'grade' => $grade,
-                    'reasons' => $reasons,
-                ];
-            })
-            ->filter(fn (array $row) => $row['reasons'] !== [])
-            ->values()
-            ->all();
     }
 
     private function pendingGradingCount(User $faculty): int

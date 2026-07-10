@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue';
-import { Head, router } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
 import Card from '@/components/ui/Card.vue';
@@ -16,6 +16,7 @@ import {
     ClipboardDocumentCheckIcon,
     PresentationChartLineIcon,
     ClockIcon,
+    ChatBubbleLeftEllipsisIcon,
 } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
@@ -179,7 +180,8 @@ const completionRate = computed(() => formatPercent(props.report?.submissions?.c
                             </div>
                         </Card>
 
-                        <!-- At-risk students -->
+                        <!-- At-risk students (early-warning signals: attendance,
+                             missed deadlines, test average, grade) -->
                         <Card title="At-Risk Students" :icon="ExclamationTriangleIcon">
                             <div v-if="report.atRisk.length === 0" class="flex items-center gap-2 text-sm text-content-muted py-4">
                                 <span class="h-2 w-2 rounded-full bg-success-fg" />
@@ -189,14 +191,32 @@ const completionRate = computed(() => formatPercent(props.report?.submissions?.c
                                 <div
                                     v-for="s in report.atRisk"
                                     :key="s.id"
-                                    class="flex items-center justify-between gap-3 p-3 rounded-card bg-warning-bg"
+                                    class="flex items-center justify-between gap-3 p-3 rounded-card"
+                                    :class="s.riskLevel === 'high' ? 'bg-danger-bg' : 'bg-warning-bg'"
                                 >
-                                    <div>
-                                        <p class="text-sm font-medium text-content">{{ s.name }}</p>
+                                    <div class="min-w-0">
+                                        <div class="flex items-center gap-2">
+                                            <p class="text-sm font-medium text-content truncate">{{ s.name }}</p>
+                                            <Badge :variant="s.riskLevel === 'high' ? 'danger' : 'warning'">
+                                                {{ s.riskLevel === 'high' ? 'High risk' : 'Watch' }}
+                                            </Badge>
+                                        </div>
                                         <p class="text-xs text-content-muted">{{ s.studentId }}</p>
                                     </div>
-                                    <div class="flex flex-wrap gap-1 justify-end">
-                                        <Badge v-for="reason in s.reasons" :key="reason" variant="warning">{{ reason }}</Badge>
+                                    <div class="flex items-center gap-2 flex-shrink-0">
+                                        <div class="flex flex-wrap gap-1 justify-end">
+                                            <Badge v-for="reason in s.reasons" :key="reason" :variant="s.riskLevel === 'high' ? 'danger' : 'warning'">
+                                                {{ reason }}
+                                            </Badge>
+                                        </div>
+                                        <Link
+                                            :href="route('faculty.messages', { to: s.id })"
+                                            class="p-1.5 rounded-control text-content-muted hover:text-primary hover:bg-primary-soft transition-colors"
+                                            title="Message student"
+                                            aria-label="Message student"
+                                        >
+                                            <ChatBubbleLeftEllipsisIcon class="w-4 h-4" />
+                                        </Link>
                                     </div>
                                 </div>
                             </div>

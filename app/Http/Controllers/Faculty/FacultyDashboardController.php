@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Faculty;
 
 use App\Domain\Academic\Services\CourseService;
 use App\Domain\Academic\Services\ExamService;
+use App\Domain\Analytics\Services\EarlyWarningService;
 use App\Domain\User\Models\User;
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
@@ -17,6 +18,7 @@ class FacultyDashboardController extends Controller
     public function __construct(
         private readonly CourseService $courses,
         private readonly ExamService $exams,
+        private readonly EarlyWarningService $earlyWarning,
     ) {}
 
     public function exams(): Response
@@ -44,6 +46,7 @@ class FacultyDashboardController extends Controller
                 ['label' => 'Active Courses', 'value' => $courses->count(), 'icon' => 'BookOpenIcon', 'gradient' => 'from-blue-500 to-indigo-600'],
                 ['label' => 'Total Students', 'value' => $totalStudents, 'icon' => 'UsersIcon', 'gradient' => 'from-green-500 to-emerald-600'],
                 ['label' => 'Pending Grading', 'value' => $pendingGrading, 'icon' => 'DocumentTextIcon', 'gradient' => 'from-orange-500 to-red-600'],
+                ['label' => 'At-Risk Students', 'value' => $this->earlyWarning->countForFaculty($user), 'icon' => 'ExclamationTriangleIcon', 'gradient' => 'from-amber-500 to-red-600'],
                 ['label' => 'AI Queries', 'value' => $user->chatSessions()->count(), 'icon' => 'SparklesIcon', 'gradient' => 'from-purple-500 to-pink-600'],
             ],
             'activeCourses' => $courses,
