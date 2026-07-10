@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Academic\Services;
 
 use App\Domain\User\Models\User;
+use App\Jobs\ScreenSubmissionSimilarityJob;
 use App\Models\Assignment;
 use App\Models\AssignmentSubmission;
 use Illuminate\Http\UploadedFile;
@@ -69,6 +70,7 @@ class SubmissionService
                 'dueLabel' => $assignment->due_at?->format('M j, Y g:i A'),
                 'isPastDue' => $assignment->due_at !== null && $assignment->due_at->isPast(),
                 'rubric' => $assignment->rubric ?? [],
+                'peerReviewEnabled' => (bool) $assignment->peer_review_enabled,
                 'course' => [
                     'id' => $assignment->course?->id,
                     'code' => $assignment->course?->code,
@@ -115,6 +117,10 @@ class SubmissionService
         ]);
 
         $submission->save();
+
+        // Similarity screening runs off-cycle; the grading screen picks up
+        // any flags once the job completes.
+        ScreenSubmissionSimilarityJob::dispatch($submission->id);
 
         return $submission;
     }

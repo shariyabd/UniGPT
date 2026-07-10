@@ -47,4 +47,19 @@ return [
         'enabled' => env('RAG_CACHE_ENABLED', true),
         'ttl' => env('RAG_CACHE_TTL', 3600), // seconds
     ],
+
+    'submission_screening' => [
+        // Similarity screening of assignment submissions (plagiarism signal
+        // on the faculty grading screen). Reuses the embedding provider.
+        'enabled' => env('SUBMISSION_SCREENING_ENABLED', true),
+        // Flag a pair when any chunk pair reaches this cosine similarity.
+        // Near-duplicate text scores >0.9 with text-embedding-3-small;
+        // independent answers to the same prompt typically stay below 0.8.
+        'flag_threshold' => env('SUBMISSION_SCREENING_THRESHOLD', 0.82),
+        // Keep at most this many excerpt pairs per flagged match for review.
+        'top_pairs' => env('SUBMISSION_SCREENING_TOP_PAIRS', 3),
+        // Cost bound: only the first N chunks of very long submissions are
+        // embedded/compared (~150 tokens each).
+        'max_chunks' => env('SUBMISSION_SCREENING_MAX_CHUNKS', 40),
+    ],
 ];
