@@ -110,8 +110,8 @@ current MVP.
 
 ## Recently shipped
 
-### July 2026 wave — copilot depth & connection (8 features)
-Shipped 2026-07-10 on the existing domain-service → thin-controller → Inertia patterns,
+### Latest wave — copilot depth & connection (8 features)
+Shipped on the existing domain-service → thin-controller → Inertia patterns,
 all with feature tests (suite: 209 passing):
 
 1. **Personal-corpus RAG — "chat with my materials."** Student notes (incl. OCR'd)
@@ -295,7 +295,7 @@ library** so students get answers grounded specifically in the available library
   library resources. Builds directly on the current RAG engine and `ChatMode`.
 
 ### B. P3 advanced band (deferred, infra-dependent)
-- ✅ **Streaming chat** — **shipped** (July 2026 wave): token-by-token SSE on the
+- ✅ **Streaming chat** — **shipped** (latest wave): token-by-token SSE on the
   student chat and faculty assistant.
 - **Voice I/O + TTS/STT** — browser mic capture + speech APIs (the voice UI is a mock).
 - **Predictive analytics / recommendation engine** — ML over the now-rich academic data

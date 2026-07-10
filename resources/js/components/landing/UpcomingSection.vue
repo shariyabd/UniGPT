@@ -12,16 +12,10 @@ import {
 } from '@heroicons/vue/24/outline';
 
 // Flagship roadmap items — features in active design, building on the platform that ships today.
-// (Real-time student–faculty chat has shipped — see the Core platform section above.)
+// (Real-time chat, token-by-token streaming, personal-corpus RAG, practice quizzes,
+// at-risk early warning, ⌘K search, study rooms, office hours and .ics calendar sync
+// have all shipped — see the Core platform section above.)
 const upcoming = [
-    {
-        icon: BoltIcon,
-        tile: 'bg-accent-sky-soft text-accent-sky-fg',
-        phase: 'In design',
-        title: 'Token-by-token streaming',
-        body: 'Watch grounded answers generate live, word by word — faster perceived responses and a more natural tutoring feel, over a streaming transport.',
-        tags: ['Live tokens', 'Streaming transport', 'Lower latency'],
-    },
     {
         icon: DevicePhoneMobileIcon,
         tile: 'bg-accent-mint-soft text-accent-mint-fg',
@@ -38,12 +32,20 @@ const upcoming = [
         body: 'A library of academic books and resources with an AI assistant that answers strictly from the library’s own content — grounded, cited, and on-syllabus.',
         tags: ['Resource library', 'Grounded AI', 'Citations'],
     },
+    {
+        icon: BoltIcon,
+        tile: 'bg-accent-sky-soft text-accent-sky-fg',
+        phase: 'Shipped ✓',
+        title: 'Latest feature wave',
+        body: 'Streaming answers, "chat with my materials", AI practice quizzes, at-risk early warning, semantic ⌘K search, group study rooms, office-hours booking and .ics calendar sync — all live today.',
+        tags: ['8 features', 'Live now', 'Fully tested'],
+    },
 ];
 
 // Deeper platform/engineering work — planned for later phases, mostly infra-dependent.
 const engineering = [
     { icon: MicrophoneIcon, title: 'Voice I/O', body: 'Speak to the assistant with speech-to-text & text-to-speech.' },
-    { icon: PresentationChartLineIcon, title: 'Predictive analytics', body: 'Early-risk signals & recommendations from academic data.' },
+    { icon: PresentationChartLineIcon, title: 'Predictive analytics', body: 'ML-driven recommendations, building on the shipped rule-based at-risk signals.' },
     { icon: CpuChipIcon, title: 'More AI providers', body: 'Gemini and self-hosted models alongside OpenAI.' },
     { icon: ClockIcon, title: 'Versioning & memory', body: 'Document version history and longer conversation memory.' },
 ];

@@ -12,6 +12,11 @@ import {
     CalendarDaysIcon,
     PencilSquareIcon,
     ChatBubbleLeftRightIcon,
+    MagnifyingGlassIcon,
+    ExclamationTriangleIcon,
+    UserGroupIcon,
+    ClockIcon,
+    BoltIcon,
 } from '@heroicons/vue/24/outline';
 </script>
 
@@ -32,16 +37,18 @@ import {
                         <span class="ui-icon-tile bg-primary text-white"><SparklesIcon class="h-5 w-5" /></span>
                         <h3 class="mt-5 text-xl font-bold text-content">Grounded RAG assistant</h3>
                         <p class="mt-2 max-w-md text-sm leading-relaxed text-content-muted">
-                            Ask anything. UniGPT retrieves passages from your approved documents, answers with inline
-                            citations and a confidence score, and suggests follow-ups. Multiple modes — academic,
-                            exam prep, research — keep responses on-task.
+                            Ask anything. UniGPT retrieves passages from your approved documents — and from your own
+                            notes and your courses' materials — then answers live, streaming word by word, with inline
+                            citations and a confidence score. Multiple modes — academic, exam prep, research — keep
+                            responses on-task.
                         </p>
                         <div class="mt-6 flex flex-wrap gap-2">
+                            <span class="ui-status-primary">Streaming answers</span>
                             <span class="ui-status-primary">Citations</span>
+                            <span class="ui-status-primary">Chat with my materials</span>
                             <span class="ui-status-primary">Confidence scoring</span>
                             <span class="ui-status-primary">Chat modes</span>
                             <span class="ui-status-primary">Saved answers</span>
-                            <span class="ui-status-primary">Session history</span>
                         </div>
                     </div>
                 </div>
@@ -103,7 +110,37 @@ import {
                 <div v-reveal="120" class="reveal ui-card ui-card-hover p-6">
                     <span class="ui-icon-tile bg-accent-yellow-soft text-accent-yellow-fg"><CalendarDaysIcon class="h-5 w-5" /></span>
                     <h3 class="mt-4 font-semibold text-content">Exams, transcripts & calendar</h3>
-                    <p class="mt-1.5 text-sm text-content-muted">Schedule exams, auto-build transcripts with GPA & CGPA, and merge every deadline into one calendar.</p>
+                    <p class="mt-1.5 text-sm text-content-muted">Schedule exams, auto-build transcripts with GPA & CGPA, and merge every deadline into one calendar — exportable and subscribable as .ics from Google, Outlook or Apple Calendar.</p>
+                </div>
+
+                <div v-reveal class="reveal ui-card ui-card-hover p-6">
+                    <span class="ui-icon-tile bg-accent-mint-soft text-accent-mint-fg"><BoltIcon class="h-5 w-5" /></span>
+                    <h3 class="mt-4 font-semibold text-content">AI practice quizzes</h3>
+                    <p class="mt-1.5 text-sm text-content-muted">Students generate their own quizzes on any topic, get instant server-graded results with explanations, retake freely — and turn missed questions into flashcards.</p>
+                </div>
+
+                <div v-reveal="60" class="reveal ui-card ui-card-hover p-6">
+                    <span class="ui-icon-tile bg-warning-bg text-warning-fg"><ExclamationTriangleIcon class="h-5 w-5" /></span>
+                    <h3 class="mt-4 font-semibold text-content">At-risk early warning</h3>
+                    <p class="mt-1.5 text-sm text-content-muted">Faculty see struggling students flagged on four live signals — attendance, missed deadlines, test average, grade — with a one-click message to intervene.</p>
+                </div>
+
+                <div v-reveal="120" class="reveal ui-card ui-card-hover p-6">
+                    <span class="ui-icon-tile bg-accent-lilac-soft text-accent-lilac-fg"><MagnifyingGlassIcon class="h-5 w-5" /></span>
+                    <h3 class="mt-4 font-semibold text-content">Semantic global search</h3>
+                    <p class="mt-1.5 text-sm text-content-muted">One ⌘K palette searches documents, notes, materials, courses, assignments, discussions and past AI chats — by meaning, scoped to what you can access.</p>
+                </div>
+
+                <div v-reveal class="reveal ui-card ui-card-hover p-6">
+                    <span class="ui-icon-tile bg-accent-sky-soft text-accent-sky-fg"><UserGroupIcon class="h-5 w-5" /></span>
+                    <h3 class="mt-4 font-semibold text-content">Group study rooms</h3>
+                    <p class="mt-1.5 text-sm text-content-muted">Section-scoped live group chats — classmates create a room per topic, join in one click, and message in real time.</p>
+                </div>
+
+                <div v-reveal="60" class="reveal ui-card ui-card-hover p-6">
+                    <span class="ui-icon-tile bg-accent-peach-soft text-accent-peach-fg"><ClockIcon class="h-5 w-5" /></span>
+                    <h3 class="mt-4 font-semibold text-content">Office-hours booking</h3>
+                    <p class="mt-1.5 text-sm text-content-muted">Faculty publish bookable slots; students book atomically — no double-booking, both sides notified, meetings land on the calendar.</p>
                 </div>
             </div>
         </div>

@@ -326,7 +326,7 @@ How modules, services and roles connect — the platform is one loop, not isolat
 > OCR handwritten-note transcription, and course Discussion feeds (with faculty section
 > moderation and an admin moderation queue). All live — see §4 Features & §5 Roles.
 >
-> ✅ **July 2026 wave — all shipped:** token-by-token **streaming answers**, **"chat with my
+> ✅ **Latest wave — all shipped:** token-by-token **streaming answers**, **"chat with my
 > materials"** personal-corpus RAG, self-serve **AI practice quizzes** (missed → flashcards),
 > the **at-risk early-warning** system for faculty, **⌘K semantic global search**, **group
 > study rooms**, **office-hours booking**, and **.ics calendar export/subscribe**.

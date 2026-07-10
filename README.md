@@ -210,7 +210,7 @@ Browser (Vue 3 page) ──Inertia──▶ routes/web.php ──▶ Controller 
 
 ## 7. What's next
 
-The July 2026 feature wave has **shipped** (see Roles at a Glance above):
+The latest feature wave has **shipped** (see Roles at a Glance above):
 **personal-corpus RAG** ("chat with my materials"), **streaming AI responses
 (SSE)**, **AI practice quizzes** (missed → flashcards), the **at-risk early-warning
 system**, **semantic ⌘K global search**, **group study rooms**, **office-hours

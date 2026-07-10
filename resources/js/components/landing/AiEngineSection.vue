@@ -10,15 +10,15 @@ import {
 } from '@heroicons/vue/24/outline';
 
 const pipeline = [
-    { icon: DocumentTextIcon, title: 'Chunk', body: 'Approved documents are split into overlapping passages on approval.' },
+    { icon: DocumentTextIcon, title: 'Chunk', body: 'Approved documents — and your own notes & course materials — are split into overlapping passages on ingest.' },
     { icon: CircleStackIcon, title: 'Embed', body: 'Each passage becomes a vector and is stored alongside its source.' },
     { icon: MagnifyingGlassCircleIcon, title: 'Retrieve', body: 'Your question is embedded and matched by cosine similarity, top-K.' },
-    { icon: ChatBubbleLeftRightIcon, title: 'Answer', body: 'The model reasons over retrieved context and cites every claim.' },
+    { icon: ChatBubbleLeftRightIcon, title: 'Answer', body: 'The model reasons over retrieved context, streams the answer live, and cites every claim.' },
 ];
 
 const highlights = [
-    { icon: BoltIcon, title: 'Pluggable providers', body: 'OpenAI gpt-4o + text-embedding-3-small in production, with a built-in mock provider for offline development.' },
-    { icon: LockClosedIcon, title: 'Scoped to what you can see', body: 'Retrieval only ever touches approved documents the current user is permitted to read — answers never leak.' },
+    { icon: BoltIcon, title: 'Pluggable providers', body: 'OpenAI gpt-4o + text-embedding-3-small in production, with a built-in mock provider for offline development — both streaming-capable.' },
+    { icon: LockClosedIcon, title: 'Scoped to what you can see', body: 'Retrieval only ever touches approved documents you may read, your own notes, and your own sections’ materials — answers never leak.' },
 ];
 </script>
 
