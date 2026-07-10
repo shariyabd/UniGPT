@@ -63,7 +63,7 @@ class CalendarExportTest extends TestCase
 
         $body = $this->actingAs($student)->get('/calendar/export')->getContent();
 
-        $this->assertStringContainsString('UID:office-hours-'.$slot->id.'@unigpt', $body);
+        $this->assertStringContainsString('UID:office-hours-'.$slot->id.'@uninexus', $body);
         $this->assertStringContainsString('LOCATION:Room 101', $body);
     }
 

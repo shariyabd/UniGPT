@@ -43,11 +43,11 @@ const submit = () => {
 
         <AppLayout>
             <div class="page-container py-8 space-y-6 sm:space-y-8">
-                <PageHeader title="Settings" subtitle="Customize your UniGPT experience" :icon="Cog6ToothIcon" />
+                <PageHeader title="Settings" subtitle="Customize your UniNexus experience" :icon="Cog6ToothIcon" />
 
                 <form @submit.prevent="submit" class="space-y-6 sm:space-y-8">
                     <!-- Appearance -->
-                    <Card title="Appearance" subtitle="Choose how UniGPT looks to you" :icon="SwatchIcon">
+                    <Card title="Appearance" subtitle="Choose how UniNexus looks to you" :icon="SwatchIcon">
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                             <button v-for="theme in themes" :key="theme.value" type="button" @click="chooseTheme(theme.value)"
                                 :aria-label="theme.label"

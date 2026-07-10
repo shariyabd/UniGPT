@@ -19,10 +19,10 @@ import LandingFooter from '@/components/landing/LandingFooter.vue';
 </script>
 
 <template>
-    <Head title="UniGPT — AI Academic Copilot for Universities">
+    <Head title="UniNexus — AI Academic Copilot for Universities">
         <meta
             name="description"
-            content="UniGPT is an AI academic copilot for universities. Grounded, cited answers from your own documents, automated teaching tools and live operational insight — for students, faculty and administrators."
+            content="UniNexus is an AI academic copilot for universities. Grounded, cited answers from your own documents, automated teaching tools and live operational insight — for students, faculty and administrators."
         />
     </Head>
 

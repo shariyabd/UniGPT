@@ -1,4 +1,4 @@
-# UniGPT — Project Status, Backlog & Roadmap
+# UniNexus — Project Status, Backlog & Roadmap
 
 > The live status tracker. **Source of truth = code.** For architecture and logic see
 > [PROJECT_ANALYSIS.md](PROJECT_ANALYSIS.md); for layout see [DIRECTORY_TREE.md](DIRECTORY_TREE.md).

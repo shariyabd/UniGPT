@@ -1,4 +1,4 @@
-# UniGPT — RAG Test Question Bank
+# UniNexus — RAG Test Question Bank
 **Institution:** Northern University Bangladesh
 **Dataset:** 10 documents (5 PDF + 5 DOCX)
 **Purpose:** Retrieval testing, semantic search validation, end-to-end answer-quality evaluation

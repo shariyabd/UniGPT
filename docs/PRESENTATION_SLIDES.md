@@ -1,4 +1,4 @@
-# UniGPT — Presentation Deck: Slide-by-Slide Breakdown
+# UniNexus — Presentation Deck: Slide-by-Slide Breakdown
 
 > A map of the product presentation (the `/presentation` page). It lists **every slide in
 > order**, what each one is about, and the exact points shown on it — so you can reuse the
@@ -7,7 +7,7 @@
 > Source: the live deck. **26 slides** total. Each slide has a *kicker* (the small label at
 > the top) and a *title*, followed by its content.
 
-**Deck identity:** UniGPT — "AI Academic Copilot for Universities" · Laravel 11 · Inertia 2 · Vue 3 · MySQL
+**Deck identity:** UniNexus — "AI Academic Copilot for Universities" · Laravel 11 · Inertia 2 · Vue 3 · MySQL
 
 **Narrative arc:** Hook → Problem → Stakes → Solution → How it's built → What each role gets →
 The AI core → Proof (grounded answers, agentic actions, live demo) → Governance → Metrics → Roadmap → Close.
@@ -39,7 +39,7 @@ The AI core → Proof (grounded answers, agentic actions, live demo) → Governa
 
 ## Slide 4 — The Solution
 - **Kicker:** The solution
-- **Title:** "UniGPT — one AI platform for the whole campus"
+- **Title:** "UniNexus — one AI platform for the whole campus"
 - **Subtitle:** Grounded intelligence, role-aware dashboards, end-to-end academic workflows.
 - **Three pillars:**
   1. **Grounded AI** — every answer cited from your approved documents, with a confidence score.
@@ -198,7 +198,7 @@ The AI core → Proof (grounded answers, agentic actions, live demo) → Governa
 - **Three outcomes:** Instant, trusted answers (24/7 self-serve from cited knowledge) · Faculty multiplied (AI drafts; humans review, not author) · Administration in control (full visibility & governance).
 
 ## Slide 26 — Closing
-- **Title:** UniGPT
+- **Title:** UniNexus
 - **Subtitle:** "The AI academic copilot your campus can actually trust."
 - **Three closing pills:** 100% core workflows · end-to-end · 0 external AI dependencies · Grounded · Governed · Proctored
 - **Call to action:** "Ready to pilot on your campus this term →"

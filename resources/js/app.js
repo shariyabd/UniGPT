@@ -9,7 +9,7 @@ import Toast, { POSITION, useToast } from "vue-toastification";
 import "vue-toastification/dist/index.css";
 import { reveal } from '@/composables/useReveal';
 
-const appName = import.meta.env.VITE_APP_NAME || 'UniGPT';
+const appName = import.meta.env.VITE_APP_NAME || 'UniNexus';
 const toastOptions = {
     position: POSITION.TOP_RIGHT,
     timeout: 3000,

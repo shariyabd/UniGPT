@@ -25,7 +25,7 @@ const problems = [
             <SectionHeading
                 eyebrow="The problem"
                 title="Campuses run on busywork the AI era should have ended"
-                subtitle="Every role loses hours to tasks software should handle. UniGPT was built to remove them."
+                subtitle="Every role loses hours to tasks software should handle. UniNexus was built to remove them."
             />
 
             <div class="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">

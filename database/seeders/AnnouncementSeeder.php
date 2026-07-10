@@ -36,7 +36,7 @@ class AnnouncementSeeder extends Seeder
             ['Library Extended Hours During Exams', 'The central library will remain open until midnight throughout the examination period. Plan your study sessions accordingly.', 'student', 12],
             ['Midterm Examination Schedule Published', 'Midterm examinations begin in two weeks. Review your personalised timetable on the Exams page.', 'student', 7],
             ['Faculty Meeting — Curriculum Review', 'All faculty members are requested to attend the curriculum review meeting this Thursday at 3:00 PM in the conference hall.', 'faculty', 5],
-            ['Scheduled System Maintenance', 'UniGPT will undergo scheduled maintenance this weekend. Brief downtime is expected on Saturday night.', 'all', 2],
+            ['Scheduled System Maintenance', 'UniNexus will undergo scheduled maintenance this weekend. Brief downtime is expected on Saturday night.', 'all', 2],
         ];
 
         $link = route('notifications.index');

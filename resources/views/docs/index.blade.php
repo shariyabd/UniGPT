@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex">
-    <title>UniGPT — Shared Documents</title>
+    <title>UniNexus — Shared Documents</title>
     <link rel="icon" href="{{ asset('favicon.ico') }}">
     <style>
         :root { color-scheme: light; }
@@ -40,7 +40,7 @@
     <div class="wrap">
         <header>
             <h1>Shared Documents</h1>
-            <div class="sub">UniGPT — reports, architecture &amp; model, and the RAG question bank.</div>
+            <div class="sub">UniNexus — reports, architecture &amp; model, and the RAG question bank.</div>
         </header>
 
         <nav class="crumbs">
@@ -80,7 +80,7 @@
             @endif
         </div>
 
-        <footer>© {{ date('Y') }} UniGPT</footer>
+        <footer>© {{ date('Y') }} UniNexus</footer>
     </div>
 </body>
 </html>

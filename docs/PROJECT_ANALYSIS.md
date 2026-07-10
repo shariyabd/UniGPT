@@ -1,4 +1,4 @@
-# UniGPT — Architecture & Developer Reference
+# UniNexus — Architecture & Developer Reference
 
 > **Updated:** 2026-07-10. The deep reference for the whole system — read this after
 > [README.md](README.md) to build a complete mental model.
@@ -14,14 +14,14 @@
 
 ## 1. Overview / Abstract
 
-**UniGPT** (repo folder `uni-chat`) is a **university AI academic copilot**: a web app
+**UniNexus** (repo folder `uni-chat`) is a **university AI academic copilot**: a web app
 that gives **Students, Faculty, and Administrators** a single AI-assisted platform for
 academic work. Its core is a **RAG-backed (Retrieval-Augmented Generation) chat
 assistant** grounded in the university's own approved documents (handbooks, syllabi,
 policies, lecture notes), wrapped in **role-based dashboards** and a real **academic
 domain** (terms, courses, sections, enrollment, grading, attendance, exams).
 
-**Why it exists:** generic LLMs hallucinate. UniGPT answers from *institution-approved*
+**Why it exists:** generic LLMs hallucinate. UniNexus answers from *institution-approved*
 content and returns **citations + a confidence score**, so academic guidance is
 traceable and auditable. Around that core it layers role-specific productivity tools.
 

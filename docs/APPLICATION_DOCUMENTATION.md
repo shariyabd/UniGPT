@@ -1,12 +1,12 @@
-# UniGPT — Complete Application Guide
+# UniNexus — Complete Application Guide
 
-> A plain-language guide to everything UniGPT does. It explains every feature for each
+> A plain-language guide to everything UniNexus does. It explains every feature for each
 > type of user (Student, Faculty, Admin), how each feature works from start to finish,
 > what it connects to, and how information flows through the system.
 >
 > No technical background needed — if you can use a website, you can follow this guide.
 
-**What UniGPT is:** an AI-powered academic assistant for a university. It gives students,
+**What UniNexus is:** an AI-powered academic assistant for a university. It gives students,
 teachers, and administrators their own dashboards, and adds an AI helper that answers
 questions using the university's *own* documents — and always shows where each answer came from.
 
@@ -27,7 +27,7 @@ questions using the university's *own* documents — and always shows where each
 
 ## 1. The Big Picture
 
-UniGPT is built around **three types of users**, each with their own dashboard:
+UniNexus is built around **three types of users**, each with their own dashboard:
 
 | User | Who they are | What they mainly do |
 |---|---|---|
@@ -612,7 +612,7 @@ update their response while the feedback window is open.
 These systems work quietly behind every portal.
 
 ### 6.1 The AI tutor and how it stays grounded
-UniGPT's AI can run in two modes, switchable by an admin:
+UniNexus's AI can run in two modes, switchable by an admin:
 
 - **Live mode** uses the real OpenAI service for the smartest answers (requires an API key).
 - **Demo mode** is a built-in, offline stand-in that needs no API key at all — so the entire
@@ -637,7 +637,7 @@ a bell that updates automatically and can be muted in settings. Notifications ab
 activity always go to exactly the right class's students (or the class's teacher) — never the
 whole university by accident.
 
-Beyond the in-app bell, UniGPT also reaches people by **email**: a **weekly digest** every
+Beyond the in-app bell, UniNexus also reaches people by **email**: a **weekly digest** every
 Monday morning summarising what's ahead, and **due-soon reminder emails** for assignments,
 sent alongside the in-app nudge (with the same de-duplication, so nobody is reminded twice
 about the same deadline). Both are optional — a single "email digest" switch in Settings turns
@@ -753,5 +753,5 @@ into the new semester.
 
 ---
 
-*This guide describes how UniGPT behaves for the people who use it. For developer-level detail
+*This guide describes how UniNexus behaves for the people who use it. For developer-level detail
 (code structure, data design, conventions), see the technical documents in the project root.*

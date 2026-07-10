@@ -1,4 +1,4 @@
-# UniGPT — Directory Structure
+# UniNexus — Directory Structure
 
 > Annotated map of the codebase as it actually exists (2026-07-10). Legend:
 > ✅ implemented · ⬜ empty/scaffold-only · ⚠️ present but unused.

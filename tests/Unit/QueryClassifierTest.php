@@ -51,7 +51,7 @@ class QueryClassifierTest extends TestCase
     public static function metaProvider(): array
     {
         return [
-            ['who are you'], ['what can you do'], ['what is UniGPT?'], ['How can you help me?'],
+            ['who are you'], ['what can you do'], ['what is UniNexus?'], ['How can you help me?'],
         ];
     }
 

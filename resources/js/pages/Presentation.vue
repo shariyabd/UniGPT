@@ -1,6 +1,6 @@
 <script setup>
 /**
- * UniGPT — standalone product presentation / pitch deck.
+ * UniNexus — standalone product presentation / pitch deck.
  *
  * Self-contained: does NOT use AppLayout, so there is no navbar / sidebar /
  * footer. Renders full-screen, viewport-fit (no scrolling). Slides are

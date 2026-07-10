@@ -7,7 +7,7 @@
     {{-- Consumed by Laravel Echo to authorize private broadcast channels. --}}
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title inertia>{{ config('app.name', 'UniGPT') }}</title>
+    <title inertia>{{ config('app.name', 'UniNexus') }}</title>
 
     {{-- Apply theme before paint to avoid a flash. The app defaults to LIGHT for
          every portal; dark mode is opt-in and only applies when the user has

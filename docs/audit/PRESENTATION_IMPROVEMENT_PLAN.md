@@ -1,4 +1,4 @@
-# UniGPT — Presentation Improvement Plan
+# UniNexus — Presentation Improvement Plan
 
 > Companion to `APPLICATION_AUDIT_REPORT.md`. Evaluates the pitch deck
 > (`resources/js/presentation/deck.js`, 23 slides, rendered by `Presentation.vue`)
@@ -36,7 +36,7 @@ A tightened ~16–18 slide cut with one reorder and a stronger open/close would 
 - ✅ **Strong tagline.** "Intelligence, not paperwork" is sharp and memorable.
 - ✅ Problem/stakes framing is correct and academia-specific ("a wrong answer is worse than no answer" is an excellent line).
 - ⚠️ **Hook is a statement, not a demonstration.** The most arresting asset — a *cited, confidence-scored answer* — doesn't appear until slide 08. The audience is told "no hallucinations" three times before they're *shown* it once.
-- **Recommendation:** Move a single, live, cited-answer moment to **slide 02 or 03** ("Watch ChatGPT guess this policy — now watch UniGPT cite it"). Show the differentiator before explaining it.
+- **Recommendation:** Move a single, live, cited-answer moment to **slide 02 or 03** ("Watch ChatGPT guess this policy — now watch UniNexus cite it"). Show the differentiator before explaining it.
 
 ## 4.2 Ordering / Flow
 
@@ -77,7 +77,7 @@ Roadmap → Impact → Close.
 
 ## 4.6 Ending
 
-- ⚠️ **Soft close.** Slide 20 = "UniGPT / The AI academic copilot your campus can actually trust / Thank you." Competent but generic; no quantified takeaway, no clear ask.
+- ⚠️ **Soft close.** Slide 20 = "UniNexus / The AI academic copilot your campus can actually trust / Thank you." Competent but generic; no quantified takeaway, no clear ask.
 - **Recommendation:** End on **one number + one ask**. E.g. "100% of core academic workflows, wired end-to-end, with zero external AI dependencies — ready to pilot on your campus this term. [contact]." Leave a single memorable stat on screen, not "Thank you."
 
 ## 4.7 Factual integrity (from the audit)

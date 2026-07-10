@@ -38,7 +38,7 @@ function go(href) {
                         <span class="flex h-9 w-9 items-center justify-center rounded-control bg-primary">
                             <AcademicCapIcon class="h-5 w-5 text-white" />
                         </span>
-                        <span class="text-lg font-bold tracking-tight text-content">UniGPT</span>
+                        <span class="text-lg font-bold tracking-tight text-content">UniNexus</span>
                     </div>
                     <p class="mt-4 max-w-xs text-sm text-content-muted">
                         The AI academic copilot for universities — grounded answers, automated teaching
@@ -72,7 +72,7 @@ function go(href) {
             </div>
 
             <div class="mt-12 flex flex-col items-center justify-between gap-3 border-t border-line pt-6 sm:flex-row">
-                <p class="text-sm text-content-faint">© {{ new Date().getFullYear() }} UniGPT. Built by Mohammad Shariya.</p>
+                <p class="text-sm text-content-faint">© {{ new Date().getFullYear() }} UniNexus. Built by Mohammad Shariya.</p>
                 <p class="text-sm text-content-faint">Reimagining university management with AI.</p>
             </div>
         </div>

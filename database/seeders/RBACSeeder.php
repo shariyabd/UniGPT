@@ -220,7 +220,7 @@ class RBACSeeder extends Seeder
                 'password' => Hash::make('demo123'),
                 'department_id' => $demoDepartmentId,
                 'employee_id' => 'ADM001',
-                'bio' => 'System Administrator managing UniGPT platform and all technical operations.',
+                'bio' => 'System Administrator managing UniNexus platform and all technical operations.',
                 'role' => UserRole::ADMIN,
             ],
         ];

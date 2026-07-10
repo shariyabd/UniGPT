@@ -13,7 +13,7 @@
                 </div>
 
                 <h1 class="text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 mb-4">
-                    UniGPT
+                    UniNexus
                 </h1>
                 <p class="text-2xl text-gray-700 dark:text-gray-300 mb-2">
                     University Academic Copilot

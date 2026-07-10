@@ -1,5 +1,5 @@
 /**
- * UniGPT — product presentation deck (config-driven).
+ * UniNexus — product presentation deck (config-driven).
  *
  * The presentation is generated from this data model, NOT hardcoded markup.
  * Each slide declares a `layout` (rendered by Presentation.vue) plus
@@ -15,7 +15,7 @@
  */
 
 export const meta = {
-    name: 'UniGPT',
+    name: 'UniNexus',
     tagline: 'AI Academic Copilot for Universities',
     repo: 'Laravel 11 · Inertia 2 · Vue 3 · MySQL',
 };
@@ -70,7 +70,7 @@ export const slides = [
         id: 'solution',
         layout: 'pillars',
         kicker: 'The solution',
-        title: 'UniGPT — one AI platform for the whole campus',
+        title: 'UniNexus — one AI platform for the whole campus',
         subtitle: 'Grounded intelligence, role-aware dashboards, end-to-end academic workflows.',
         items: [
             { icon: 'SparklesIcon', title: 'Grounded AI', desc: 'Every answer cited from your approved documents, with a confidence score.' },
@@ -597,7 +597,7 @@ export const slides = [
     {
         id: 'closing',
         layout: 'closing',
-        title: 'UniGPT',
+        title: 'UniNexus',
         subtitle: 'The AI academic copilot your campus can actually trust.',
         points: ['100% core workflows · end-to-end', '0 external AI dependencies', 'Grounded · Governed · Proctored'],
         cta: 'Ready to pilot on your campus this term →',

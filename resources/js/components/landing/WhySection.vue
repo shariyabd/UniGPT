@@ -17,9 +17,9 @@ const rows = [
     <section class="relative py-24">
         <div class="page-container">
             <SectionHeading
-                eyebrow="Why UniGPT"
+                eyebrow="Why UniNexus"
                 title="The difference is grounding"
-                subtitle="Traditional systems digitise paperwork. UniGPT removes it."
+                subtitle="Traditional systems digitise paperwork. UniNexus removes it."
             />
 
             <div v-reveal class="reveal mx-auto mt-14 max-w-4xl overflow-hidden rounded-card border border-line bg-surface shadow-card">
@@ -27,7 +27,7 @@ const rows = [
                 <div class="grid grid-cols-3 border-b border-line bg-bg">
                     <div class="p-4 text-sm font-semibold text-content-muted">Capability</div>
                     <div class="p-4 text-center text-sm font-semibold text-content-muted">Traditional systems</div>
-                    <div class="p-4 text-center text-sm font-bold text-primary">UniGPT</div>
+                    <div class="p-4 text-center text-sm font-bold text-primary">UniNexus</div>
                 </div>
 
                 <div

@@ -176,7 +176,7 @@ onBeforeUnmount(() => observer?.disconnect());
                                     </span>
                                     <div>
                                         <p class="text-sm font-semibold text-content">{{ current.label }} dashboard</p>
-                                        <p class="text-xs text-content-faint">UniGPT workspace</p>
+                                        <p class="text-xs text-content-faint">UniNexus workspace</p>
                                     </div>
                                 </div>
                                 <span class="ui-status-success">live</span>

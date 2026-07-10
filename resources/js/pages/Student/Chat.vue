@@ -205,7 +205,7 @@ const buildWelcomeContent = () => {
 
     return `Hello **${studentContext.value.name}**! 👋
 
-I'm your **UniGPT Academic Assistant**, and I'm here to help you excel in your studies.
+I'm your **UniNexus Academic Assistant**, and I'm here to help you excel in your studies.
 
 **What I can help you with:**
 • Course-specific questions and explanations
@@ -775,13 +775,13 @@ const newChat = () => {
 
 const exportChat = () => {
     const text = messages.value
-        .map(m => `${m.role === 'user' ? 'You' : 'UniGPT'}: ${m.content}`)
+        .map(m => `${m.role === 'user' ? 'You' : 'UniNexus'}: ${m.content}`)
         .join('\n\n');
     const blob = new Blob([text], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'unigpt-chat.txt';
+    a.download = 'uninexus-chat.txt';
     a.click();
     URL.revokeObjectURL(url);
 };
@@ -851,7 +851,7 @@ watch(() => messages.value.length, () => {
                         <SparklesIcon class="h-5 w-5" />
                     </div>
                     <div class="hidden min-w-0 sm:block">
-                        <p class="truncate text-sm font-bold leading-tight text-content">UniGPT Assistant</p>
+                        <p class="truncate text-sm font-bold leading-tight text-content">UniNexus Assistant</p>
                         <p class="truncate text-xs text-content-faint">
                             {{ studentContext.name }}<span v-if="studentContext.department"> • {{ studentContext.department }}</span><span v-if="studentContext.semester"> • {{ studentContext.semester }}</span>
                         </p>
@@ -1128,7 +1128,7 @@ watch(() => messages.value.length, () => {
                                                 </div>
                                                 <div class="min-w-0">
                                                     <p class="font-semibold text-content text-sm flex items-center gap-2">
-                                                        UniGPT Assistant
+                                                        UniNexus Assistant
                                                         <span class="ui-badge bg-neutral-bg text-neutral-fg">AI</span>
                                                         <span
                                                             v-if="message.toolActivity && message.toolActivity.length"
@@ -1310,7 +1310,7 @@ watch(() => messages.value.length, () => {
                                                 <div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 300ms"></div>
                                             </div>
                                             <span class="text-sm text-content-muted font-medium">
-                                                UniGPT is thinking...
+                                                UniNexus is thinking...
                                             </span>
                                         </div>
                                     </div>
@@ -1563,7 +1563,7 @@ watch(() => messages.value.length, () => {
                             <EmptyState
                                 v-else
                                 title="No sources selected"
-                                description="Ask a question to see the academic sources and references UniGPT uses for accurate answers."
+                                description="Ask a question to see the academic sources and references UniNexus uses for accurate answers."
                                 :icon="DocumentTextIcon"
                             />
 

@@ -6,7 +6,7 @@ return [
     | Permissions Configuration
     |--------------------------------------------------------------------------
     |
-    | Role-based permissions for the UniGPT system
+    | Role-based permissions for the UniNexus system
     |
     */
 
@@ -49,5 +49,5 @@ return [
 
     'default_role' => 'student',
 
-    'super_admin_email' => env('SUPER_ADMIN_EMAIL', 'admin@unigpt.edu'),
+    'super_admin_email' => env('SUPER_ADMIN_EMAIL', 'admin@uninexus.edu'),
 ];

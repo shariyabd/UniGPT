@@ -36,7 +36,7 @@ import {
             <SectionHeading
                 eyebrow="Core platform"
                 title="One platform, every academic workflow"
-                subtitle="Real, shipped capabilities — not roadmap promises. Here is what UniGPT does today."
+                subtitle="Real, shipped capabilities — not roadmap promises. Here is what UniNexus does today."
             />
 
             <div class="mt-14 grid auto-rows-[minmax(0,1fr)] gap-5 md:grid-cols-3">
@@ -47,7 +47,7 @@ import {
                         <span class="ui-icon-tile bg-primary text-white"><SparklesIcon class="h-5 w-5" /></span>
                         <h3 class="mt-5 text-xl font-bold text-content">Grounded RAG assistant — that acts</h3>
                         <p class="mt-2 max-w-md text-sm leading-relaxed text-content-muted">
-                            Ask anything. UniGPT retrieves passages from your approved documents — and from your own
+                            Ask anything. UniNexus retrieves passages from your approved documents — and from your own
                             notes and your courses' materials — then answers live, streaming word by word, with inline
                             citations and a confidence score. And it doesn't just answer: ask it to book office hours,
                             check your deadlines, build a practice quiz or plan your week, and it does it — showing a
@@ -165,7 +165,7 @@ import {
                 <div v-reveal="120" class="reveal ui-card ui-card-hover p-6">
                     <span class="ui-icon-tile bg-accent-yellow-soft text-accent-yellow-fg"><SparklesIcon class="h-5 w-5" /></span>
                     <h3 class="mt-4 font-semibold text-content">AI Study Planner</h3>
-                    <p class="mt-1.5 text-sm text-content-muted">Feed in your deadlines and UniGPT drafts a realistic study schedule, then saves each session straight to your tasks.</p>
+                    <p class="mt-1.5 text-sm text-content-muted">Feed in your deadlines and UniNexus drafts a realistic study schedule, then saves each session straight to your tasks.</p>
                 </div>
 
                 <div v-reveal class="reveal ui-card ui-card-hover p-6">

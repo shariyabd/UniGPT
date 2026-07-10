@@ -1,10 +1,10 @@
-# UniGPT — Product Overview & Landing Page Content
+# UniNexus — Product Overview & Landing Page Content
 
 > A single, slide-ready source of the full landing-page narrative. Sections follow the
 > **landing page order** (top → bottom) so each `##` heading maps to one section / slide.
 > Content mirrors the live marketing copy in `resources/js/components/landing/`.
 
-**One-liner:** UniGPT is an **AI academic copilot for universities** — grounded, cited
+**One-liner:** UniNexus is an **AI academic copilot for universities** — grounded, cited
 answers from your own documents, automated teaching tools, and live operational insight,
 for **students, faculty and administrators** on one platform.
 
@@ -18,7 +18,7 @@ for **students, faculty and administrators** on one platform.
 7. [Intelligence Layer](#7-intelligence-layer)
 8. [Workflow](#8-workflow)
 9. [System Connections](#9-system-connections)
-10. [Why UniGPT — the differentiator](#10-why-unigpt--the-differentiator)
+10. [Why UniNexus — the differentiator](#10-why-uninexus--the-differentiator)
 11. [Impact / Proof](#11-impact--proof)
 12. [Technology Stack](#12-technology-stack)
 13. [Roadmap](#13-roadmap)
@@ -34,11 +34,11 @@ for **students, faculty and administrators** on one platform.
 
 **Headline:** Run your university on **intelligence**, not paperwork.
 
-**Sub-headline:** UniGPT unifies students, faculty and administrators on one AI platform —
+**Sub-headline:** UniNexus unifies students, faculty and administrators on one AI platform —
 grounded answers from your own academic documents, automated teaching tools, and live
 operational insight. **One login, three tailored experiences.**
 
-**Primary actions:** *Launch UniGPT* · *See how it works*
+**Primary actions:** *Launch UniNexus* · *See how it works*
 
 **Built for everyone on campus:** Students · Faculty · Administrators · Departments
 
@@ -54,7 +54,7 @@ operational insight. **One login, three tailored experiences.**
 ## 2. Problems
 
 > **Eyebrow:** The problem · **Title:** Campuses run on busywork the AI era should have ended
-> **Subtitle:** Every role loses hours to tasks software should handle. UniGPT was built to remove them.
+> **Subtitle:** Every role loses hours to tasks software should handle. UniNexus was built to remove them.
 
 | # | Pain point | What goes wrong |
 |---|---|---|
@@ -70,12 +70,12 @@ operational insight. **One login, three tailored experiences.**
 ## 3. Solutions
 
 > **Eyebrow:** The solution · **Title:** From question to grounded answer in one flow
-> **Subtitle:** UniGPT turns your institutional knowledge into an assistant that cites its sources.
+> **Subtitle:** UniNexus turns your institutional knowledge into an assistant that cites its sources.
 
 | Step | Stage | What happens |
 |---|---|---|
 | 1 | **Ask** — Ask in plain language | A student, lecturer or admin asks a question — about a policy, a deadline, a grade, or campus data. |
-| 2 | **Ground** — Retrieve & reason | UniGPT searches your approved documents, pulls the most relevant passages, and reasons over them — never guessing. |
+| 2 | **Ground** — Retrieve & reason | UniNexus searches your approved documents, pulls the most relevant passages, and reasons over them — never guessing. |
 | 3 | **Answer** — Answer with proof | You get a precise answer with citations, a confidence score, and suggested follow-ups you can trust and save. |
 
 ---
@@ -83,10 +83,10 @@ operational insight. **One login, three tailored experiences.**
 ## 4. Features
 
 > **Eyebrow:** Core platform · **Title:** One platform, every academic workflow
-> **Subtitle:** Real, shipped capabilities — not roadmap promises. Here is what UniGPT does today.
+> **Subtitle:** Real, shipped capabilities — not roadmap promises. Here is what UniNexus does today.
 
 **Flagship — Grounded RAG assistant**
-Ask anything. UniGPT retrieves passages from your approved documents — **and from your own
+Ask anything. UniNexus retrieves passages from your approved documents — **and from your own
 notes and your courses' materials** — answers **streaming live, token by token**, with inline
 citations and a confidence score, and suggests follow-ups. Multiple modes — academic, exam
 prep, research — keep responses on-task. And it doesn't just answer — **it acts**: the
@@ -112,7 +112,7 @@ to the model.
 | **Attendance & analytics** | Mark attendance in seconds; track rates, grades, GPA and engagement across every course. |
 | **My Progress analytics** | Every student gets a personal insight dashboard — GPA, attendance, test, assignment and activity trends visualised in one place. |
 | **Concept mastery map** | A deterministic per-topic mastery score on My Progress, blended from class-test scores, practice-quiz accuracy and flashcard recall. Tier-coloured tiles sort weakest-first, and weak concepts offer one-click "Practice this" / "Make flashcards" straight into the AI generators. |
-| **AI Study Planner** | Feed in your deadlines and UniGPT drafts a realistic study schedule, then saves each session straight to your tasks. |
+| **AI Study Planner** | Feed in your deadlines and UniNexus drafts a realistic study schedule, then saves each session straight to your tasks. |
 | **Flashcards with spaced repetition** | Build decks by hand or generate them with AI, then review on an SM-2 spaced-repetition schedule that surfaces cards right before you'd forget. |
 | **OCR handwritten notes** | Snap a photo of handwritten notes and gpt-4o vision transcribes them into a clean, searchable saved note — automatically indexed so the AI tutor can answer from it. |
 | **Chat with my materials** | Personal-corpus RAG: the tutor answers from your own notes and your sections' course materials, not just the library — each strictly scoped to its owner/class. |
@@ -212,7 +212,7 @@ academic health.
 ## 6. AI Engine
 
 > **Eyebrow:** The intelligence · **Title:** Retrieval-augmented, not just a chatbot
-> **Subtitle:** UniGPT grounds every answer in your institution's own documents — so responses are accurate, attributable and auditable.
+> **Subtitle:** UniNexus grounds every answer in your institution's own documents — so responses are accurate, attributable and auditable.
 
 **The RAG pipeline**
 
@@ -233,7 +233,7 @@ academic health.
 
 ## 7. Intelligence Layer
 
-How UniGPT turns raw activity into decisions, automation and trustworthy answers.
+How UniNexus turns raw activity into decisions, automation and trustworthy answers.
 
 - **Grounded reasoning, not guessing** — answers are constructed from retrieved,
   approved passages; if it isn't in your documents, it isn't asserted.
@@ -297,12 +297,12 @@ How modules, services and roles connect — the platform is one loop, not isolat
 
 ---
 
-## 10. Why UniGPT — the differentiator
+## 10. Why UniNexus — the differentiator
 
-> **Eyebrow:** Why UniGPT · **Title:** The difference is grounding
-> **Subtitle:** Traditional systems digitise paperwork. UniGPT removes it.
+> **Eyebrow:** Why UniNexus · **Title:** The difference is grounding
+> **Subtitle:** Traditional systems digitise paperwork. UniNexus removes it.
 
-| Capability | Traditional systems | UniGPT |
+| Capability | Traditional systems | UniNexus |
 |---|---|---|
 | Answers to policy questions | Email staff and wait | Instant, cited from source docs |
 | Attendance | Paper sheets & spreadsheets | One-click marking with live stats |
@@ -388,11 +388,11 @@ How modules, services and roles connect — the platform is one loop, not isolat
 
 ## 14. Creator
 
-**Mohammad Shariya** — Full-stack engineer · Builder of UniGPT
+**Mohammad Shariya** — Full-stack engineer · Builder of UniNexus
 
-> "I built UniGPT because campuses are rich with knowledge but poor at making it reachable.
+> "I built UniNexus because campuses are rich with knowledge but poor at making it reachable.
 > Students wait on answers their handbook already holds; faculty lose evenings to busywork;
-> admins fly blind until term's end. UniGPT is my attempt to put a single, trustworthy AI
+> admins fly blind until term's end. UniNexus is my attempt to put a single, trustworthy AI
 > copilot behind every academic interaction — one that cites its sources, respects
 > permissions, and gives each role exactly what they need."
 
@@ -405,13 +405,13 @@ Contact: shariya873@gmail.com
 > **Eyebrow:** FAQ · **Title:** Questions, answered
 > **Subtitle:** Everything you need to know before you sign in.
 
-**What exactly is UniGPT?**
-UniGPT is an AI academic copilot for universities. It combines role-based dashboards for
+**What exactly is UniNexus?**
+UniNexus is an AI academic copilot for universities. It combines role-based dashboards for
 students, faculty and admins with a retrieval-augmented assistant that answers questions
 using your institution's own approved documents.
 
 **How is it different from ChatGPT?**
-Generic chatbots answer from general training data and can hallucinate. UniGPT only answers
+Generic chatbots answer from general training data and can hallucinate. UniNexus only answers
 from documents your institution has uploaded and approved, attaches citations and a
 confidence score to every response, and respects each user's permissions.
 
@@ -429,7 +429,7 @@ is logged, and document retrieval is scoped so answers never surface content a u
 allowed to see.
 
 **Can we use our own AI provider?**
-Yes. UniGPT ships with an OpenAI integration (gpt-4o and text-embedding-3-small) and a
+Yes. UniNexus ships with an OpenAI integration (gpt-4o and text-embedding-3-small) and a
 pluggable provider layer, plus a built-in mock provider for offline development and testing.
 
 ---

@@ -75,7 +75,7 @@ onBeforeUnmount(() => { alive = false; timers.forEach(clearTimeout); });
     <div class="ac">
         <div class="ac__head">
             <span class="ac__avatar"><SparklesIcon class="h-4 w-4" /></span>
-            UniGPT · Academic mode
+            UniNexus · Academic mode
             <span class="ac__online"><i></i>online</span>
         </div>
 

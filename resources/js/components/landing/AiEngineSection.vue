@@ -31,7 +31,7 @@ const highlights = [
             <SectionHeading
                 eyebrow="The intelligence"
                 title="Retrieval-augmented, not just a chatbot"
-                subtitle="UniGPT grounds every answer in your institution's own documents — so responses are accurate, attributable and auditable."
+                subtitle="UniNexus grounds every answer in your institution's own documents — so responses are accurate, attributable and auditable."
             />
 
             <!-- Pipeline -->

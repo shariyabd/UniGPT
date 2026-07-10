@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 /* ==========================================================================
-   UniGPT design system — SEMANTIC TOKENS (single source of truth)
+   UniNexus design system — SEMANTIC TOKENS (single source of truth)
    Acadify-style light theme. Channels are space-separated RGB so Tailwind
    can apply opacity via `rgb(var(--token) / <alpha-value>)`.
    Components must consume these via Tailwind classes — never raw hex.
@@ -74,7 +74,7 @@
 }
 
 /* ==========================================================================
-   UniGPT design system — base (lightweight / soft-pastel)
+   UniNexus design system — base (lightweight / soft-pastel)
    ========================================================================== */
 @layer base {
     html {

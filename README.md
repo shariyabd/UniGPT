@@ -1,6 +1,6 @@
-# UniGPT — University Academic Copilot
+# UniNexus — University Academic Copilot
 
-UniGPT is an **AI-powered academic platform** for a university. It pairs a
+UniNexus is an **AI-powered academic platform** for a university. It pairs a
 **RAG-grounded AI assistant** (answers cited from the institution's own approved
 documents) with **role-based dashboards** for **Students, Faculty, and
 Administrators**. Built with **Laravel 11 + Inertia 2 + Vue 3 + Tailwind**, backed by
@@ -30,7 +30,7 @@ New here? Read this page, then **PROJECT_ANALYSIS.md** for the full mental model
 
 ## 1. What it does (Abstract)
 
-UniGPT gives a university a single, governed AI layer over its own academic content:
+UniNexus gives a university a single, governed AI layer over its own academic content:
 
 - **Students** chat with an AI tutor that **streams answers token-by-token**,
   answers from *approved* university documents **plus their own notes and course

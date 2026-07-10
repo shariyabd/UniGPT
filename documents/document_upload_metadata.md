@@ -1,4 +1,4 @@
-# UniGPT — Document Upload Metadata Grouping
+# UniNexus — Document Upload Metadata Grouping
 **Institution:** Northern University Bangladesh
 **Dataset:** 10 documents (5 PDF + 5 DOCX)
 **Purpose:** Upload-time metadata assignment (category, department, scope, visibility, priority, tags)

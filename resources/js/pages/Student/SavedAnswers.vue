@@ -395,9 +395,9 @@ const exportToPDF = () => {
             ${a.notes ? `<p style="margin-top:8px;border-left:3px solid #f59e0b;padding-left:8px;color:#92400e;">Notes: ${esc(a.notes)}</p>` : ''}
         </section>`).join('');
 
-    const html = `<!doctype html><html><head><meta charset="utf-8"><title>UniGPT — Saved Answers</title></head>
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>UniNexus — Saved Answers</title></head>
         <body style="font-family:Inter,Arial,sans-serif;max-width:760px;margin:24px auto;padding:0 16px;color:#111;">
-            <h1 style="font-size:20px;">UniGPT — Saved Answers (${answers.length})</h1>
+            <h1 style="font-size:20px;">UniNexus — Saved Answers (${answers.length})</h1>
             ${body}
         </body></html>`;
 

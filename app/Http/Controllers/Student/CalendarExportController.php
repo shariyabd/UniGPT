@@ -36,7 +36,7 @@ class CalendarExportController extends Controller
     {
         return response($body, 200, [
             'Content-Type' => 'text/calendar; charset=utf-8',
-            'Content-Disposition' => $disposition.'; filename="unigpt-calendar.ics"',
+            'Content-Disposition' => $disposition.'; filename="uninexus-calendar.ics"',
             'Cache-Control' => 'no-cache',
         ]);
     }

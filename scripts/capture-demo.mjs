@@ -1,5 +1,5 @@
 /**
- * Captures real screenshots of UniGPT's core pages for the presentation demo
+ * Captures real screenshots of UniNexus's core pages for the presentation demo
  * carousel. Drives the installed Google Chrome headlessly via puppeteer-core,
  * logging in through the /demo-login buttons (creds: demo123) for each role.
  *

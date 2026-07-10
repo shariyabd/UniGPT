@@ -171,7 +171,7 @@ const navByRole = {
 
 // Lightweight per-role identity + a contextual sidebar promo CTA.
 const roleMeta = {
-    student: { label: 'Student', promoTitle: 'Ask UniGPT anything', promoCta: 'New Chat', promoRoute: 'chat' },
+    student: { label: 'Student', promoTitle: 'Ask UniNexus anything', promoCta: 'New Chat', promoRoute: 'chat' },
     faculty: { label: 'Faculty', promoTitle: 'AI Teaching Assistant', promoCta: 'Open Assistant', promoRoute: 'faculty.ai-assistant' },
     admin: { label: 'Admin', promoTitle: 'Manage your campus', promoCta: 'Add User', promoRoute: 'admin.users' },
 };
@@ -354,7 +354,7 @@ if (typeof window !== 'undefined') {
                     <div class="flex h-9 w-9 items-center justify-center rounded-control bg-primary text-white">
                         <AcademicCapIcon class="h-5 w-5" />
                     </div>
-                    <span class="text-lg font-bold tracking-tight text-content">UniGPT</span>
+                    <span class="text-lg font-bold tracking-tight text-content">UniNexus</span>
                 </Link>
                 <button type="button" class="rounded-control p-1.5 text-content-faint hover:bg-primary-soft lg:hidden" @click="closeSidebar" aria-label="Close menu">
                     <XMarkIcon class="h-5 w-5" />

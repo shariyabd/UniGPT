@@ -64,7 +64,7 @@ import { ref } from 'vue';
 const messages = ref([
     {
         type: 'assistant',
-        content: 'Hello! I\'m your UniGPT assistant. How can I help you today?',
+        content: 'Hello! I\'m your UniNexus assistant. How can I help you today?',
         timestamp: new Date()
     }
 ]);

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>UniGPT — RAG Pipeline, End to End</title>
+<title>UniNexus — RAG Pipeline, End to End</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -303,7 +303,7 @@
 
 <nav class="topnav">
   <div class="topnav__inner">
-    <div class="topnav__brand"><b>UniGPT</b> · RAG Engine</div>
+    <div class="topnav__brand"><b>UniNexus</b> · RAG Engine</div>
     <div class="topnav__links">
       <a href="#overview">Overview</a>
       <a href="#upload">1·Upload</a>
@@ -322,7 +322,7 @@
   <div class="hero__kicker animate" style="--i:0">Retrieval-Augmented Generation · Engineering Walkthrough</div>
   <h1 class="animate" style="--i:1">How a document becomes a cited AI answer</h1>
   <p class="hero__sub animate" style="--i:2">
-    A precise, end-to-end map of UniGPT's RAG pipeline — Laravel 11 domain services, OpenAI embeddings &amp;
+    A precise, end-to-end map of UniNexus's RAG pipeline — Laravel 11 domain services, OpenAI embeddings &amp;
     chat, MySQL-backed vector storage, and in-PHP cosine search. Every box below is a real file, table, or
     column in your codebase. The same engine powers both the <strong>Student AI Chat</strong> and the
     <strong>Faculty AI Assistant</strong>.
@@ -895,7 +895,7 @@ flowchart TD
   R["top chunks + scores"] --> CTX["CitationService::buildContext<br/>[1] Title (p.3): text…<br/>[2] Title (p.5): text…<br/>truncated to ~6000 chars"]
   R --> SRC["CitationService::toSources<br/>id · title · page · excerpt · confidence"]
   CTX --> BM["RagChatService::buildMessages"]
-  BM --> SYS["system: UniGPT persona +<br/>language rule + cite-by-[n] rule +<br/>admin override + Context block"]
+  BM --> SYS["system: UniNexus persona +<br/>language rule + cite-by-[n] rule +<br/>admin override + Context block"]
   BM --> HIST["+ last 6 history turns"]
   BM --> Q["+ user question"]
   SYS --> CALL["OpenAiProvider::chat"]
@@ -922,7 +922,7 @@ flowchart TD
         <h4>Exactly what GPT receives</h4>
         <p style="color:var(--text);margin-bottom:10px">A single <code>messages[]</code> in this order:</p>
         <ul style="list-style:none;padding:0;font-size:13px;line-height:1.9;color:var(--text-dim)">
-          <li><code>system</code> — UniGPT persona + the mode prompt + “write entirely in {language}” + citation rules + optional admin override + the <b>Context:</b> block of numbered chunks</li>
+          <li><code>system</code> — UniNexus persona + the mode prompt + “write entirely in {language}” + citation rules + optional admin override + the <b>Context:</b> block of numbered chunks</li>
           <li><code>user</code>/<code>assistant</code> … — up to 6 prior turns for continuity</li>
           <li><code>user</code> — the current question, last</li>
         </ul>
@@ -941,7 +941,7 @@ flowchart TD
 
     <div class="code-file animate">
       <div class="code-file__header"><span class="dot"></span>System prompt — the grounding instruction (when context exists)</div>
-      <pre class="code-file__body"><span class="s">"You are UniGPT, a university academic copilot for students and faculty."</span>
+      <pre class="code-file__body"><span class="s">"You are UniNexus, a university academic copilot for students and faculty."</span>
 <span class="s">" Always write your entire response in {languageName} …"</span>
 
 <span class="c">// context present:</span>
@@ -1176,7 +1176,7 @@ erDiagram
 
 <hr class="sep">
 <footer>
-  UniGPT RAG pipeline · generated from a live read of app/Domain/Chat, app/Domain/RAG, app/Infrastructure/AI, config/{rag,ai}.php and database/migrations.
+  UniNexus RAG pipeline · generated from a live read of app/Domain/Chat, app/Domain/RAG, app/Infrastructure/AI, config/{rag,ai}.php and database/migrations.
   Box labels map 1:1 to real files, tables, and columns. Trust code over docs.
 </footer>
 

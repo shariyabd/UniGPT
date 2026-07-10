@@ -214,7 +214,7 @@ class RagChatService
     private function buildMessages(string $question, ChatMode $mode, string $context, array $history, string $language, User $user, bool $withTools = false): array
     {
         $system = $mode->systemPrompt()
-            ."\n\nYou are UniGPT, a university academic copilot for students and faculty.";
+            ."\n\nYou are UniNexus, a university academic copilot for students and faculty.";
 
         if ($profile = $this->userContext($user)) {
             $system .= "\n\n".$profile;

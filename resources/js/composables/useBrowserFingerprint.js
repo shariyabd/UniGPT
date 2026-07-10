@@ -29,7 +29,7 @@ const canvasFingerprint = () => {
         ctx.fillStyle = '#f60';
         ctx.fillRect(10, 10, 100, 30);
         ctx.fillStyle = '#069';
-        ctx.fillText('UniGPT-proctor', 12, 18);
+        ctx.fillText('UniNexus-proctor', 12, 18);
         ctx.strokeStyle = 'rgba(0,120,200,0.6)';
         ctx.arc(60, 30, 20, 0, Math.PI * 2);
         ctx.stroke();

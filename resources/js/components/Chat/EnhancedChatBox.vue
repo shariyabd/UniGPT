@@ -11,7 +11,7 @@
             </svg>
           </div>
           <div>
-            <h2 class="text-xl font-bold text-white">UniGPT Assistant</h2>
+            <h2 class="text-xl font-bold text-white">UniNexus Assistant</h2>
             <p class="text-sm text-white/80">Your Academic Copilot</p>
           </div>
         </div>
@@ -235,7 +235,7 @@ const messages = ref([
   {
     id: 1,
     role: 'assistant',
-    content: 'Hello! I\'m your UniGPT Assistant. I can help you with questions about your courses, syllabus, exam schedules, and university policies. What would you like to know?',
+    content: 'Hello! I\'m your UniNexus Assistant. I can help you with questions about your courses, syllabus, exam schedules, and university policies. What would you like to know?',
     time: '10:30 AM',
     confidence: 100,
     saved: false,

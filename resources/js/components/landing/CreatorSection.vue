@@ -31,12 +31,12 @@ const email = 'shariya873@gmail.com';
                             <SparklesIcon class="h-3.5 w-3.5" /> Creator
                         </span>
                         <h2 class="mt-4 text-2xl font-bold tracking-tight text-content">Mohammad Shariya</h2>
-                        <p class="mt-1 text-sm font-medium text-content-muted">Full-stack engineer · Builder of UniGPT</p>
+                        <p class="mt-1 text-sm font-medium text-content-muted">Full-stack engineer · Builder of UniNexus</p>
 
                         <p class="mt-5 text-content-muted">
-                            I built UniGPT because campuses are rich with knowledge but poor at making it
+                            I built UniNexus because campuses are rich with knowledge but poor at making it
                             reachable. Students wait on answers their handbook already holds; faculty lose
-                            evenings to busywork; admins fly blind until term's end. UniGPT is my attempt to
+                            evenings to busywork; admins fly blind until term's end. UniNexus is my attempt to
                             put a single, trustworthy AI copilot behind every academic interaction — one that
                             cites its sources, respects permissions, and gives each role exactly what they need.
                         </p>

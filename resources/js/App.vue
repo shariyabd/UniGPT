@@ -9,7 +9,7 @@
                     </svg>
                 </div>
                 <h1 class="text-4xl font-bold text-gray-900 dark:text-white mb-4">
-                    UniGPT
+                    UniNexus
                 </h1>
                 <p class="text-xl text-gray-600 dark:text-gray-300 mb-2">
                     University Academic Copilot

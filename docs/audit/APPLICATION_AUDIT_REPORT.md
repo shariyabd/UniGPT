@@ -1,6 +1,6 @@
-# UniGPT — Application Audit Report
+# UniNexus — Application Audit Report
 
-> **Single source of truth** for what UniGPT actually implements today, and how its
+> **Single source of truth** for what UniNexus actually implements today, and how its
 > Landing page and Presentation deck compare against that reality.
 > Method: static code-trace (Vue page → route → controller → domain service → migration),
 > evidence-backed status labels, cross-checked against `.env` / `config/*`.
@@ -20,7 +20,7 @@ Every feature is labelled:
 | **NOT_STARTED** | Static stub / placeholder only. |
 | **BLOCKED** | Depends on a missing/broken dependency. |
 
-**Headline:** UniGPT is a **genuinely implemented system, not scaffolding.** All three
+**Headline:** UniNexus is a **genuinely implemented system, not scaffolding.** All three
 portals are prop-driven with real persistence and real RBAC enforcement. The RAG pipeline
 (upload → approve → chunk → embed → retrieve → cite) is wired end-to-end. The defects that
 exist are **few and minor** — the most material is a configuration/marketing gap, not a
@@ -162,7 +162,7 @@ Source: `resources/js/pages/Admin/*`, `app/Http/Controllers/Admin/*`.
 **Modes & languages:** academic / exam-prep / assignment / research modes; English + Bangla.
 **Access control:** gated by `permission:use_ai_chat` + `EnsureAiChatAccess` (admin can block a user).
 
-**Engineering reference:** `unigpt-rag-pipeline.html` (root) is a standalone technical
+**Engineering reference:** `uninexus-rag-pipeline.html` (root) is a standalone technical
 walkthrough mapping every pipeline box to a real file/table/column — accurate to the code
 (8 tables, 1536 dims, top-K 6, threshold 0.35, temp 0.3, gpt-4o).
 

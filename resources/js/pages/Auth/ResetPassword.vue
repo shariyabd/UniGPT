@@ -70,7 +70,7 @@ const submit = () => {
                     <div class="bg-brand-gradient mb-3 flex h-14 w-14 items-center justify-center rounded-card shadow-card-hover">
                         <AcademicCapIcon class="h-8 w-8 text-white" />
                     </div>
-                    <h1 class="text-2xl font-bold text-content">UniGPT</h1>
+                    <h1 class="text-2xl font-bold text-content">UniNexus</h1>
                     <p class="text-sm text-content-muted">AI Academic Assistant</p>
                 </div>
 
@@ -184,7 +184,7 @@ const submit = () => {
                 </div>
 
                 <p class="mt-6 text-center text-xs text-content-faint">
-                    © {{ new Date().getFullYear() }} UniGPT. Empowering education through AI.
+                    © {{ new Date().getFullYear() }} UniNexus. Empowering education through AI.
                 </p>
             </div>
         </div>

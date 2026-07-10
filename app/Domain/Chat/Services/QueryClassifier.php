@@ -63,7 +63,7 @@ class QueryClassifier
     private const META = [
         'who are you', 'what are you', 'what is your name', 'whats your name',
         'what can you do', 'what do you do', 'how can you help', 'how do you work',
-        'what is unigpt', 'whats unigpt', 'who made you', 'are you a bot',
+        'what is uninexus', 'whats uninexus', 'who made you', 'are you a bot',
         'are you ai', 'are you an ai', 'help', 'what are your features',
     ];
 
@@ -104,7 +104,7 @@ class QueryClassifier
         $normalized = $this->normalize($message);
 
         return match ($intent) {
-            QueryIntent::META => 'I\'m UniGPT, your university academic copilot. I can answer questions about '
+            QueryIntent::META => 'I\'m UniNexus, your university academic copilot. I can answer questions about '
                 .'your courses and university documents (grounded in approved materials with citations), '
                 .'explain academic concepts, help you prepare for exams and assignments, and point you to '
                 .'study resources. What would you like help with today?',
@@ -127,7 +127,7 @@ class QueryClassifier
             return "Great{$name}! Let me know if there's anything about your courses, assignments or exams I can help with.";
         }
 
-        return "Hello{$name}! I'm UniGPT, your academic assistant. I can help with your courses, "
+        return "Hello{$name}! I'm UniNexus, your academic assistant. I can help with your courses, "
             .'explain concepts, summarise university documents, and prep you for exams and assignments. '
             .'What can I help you with?';
     }

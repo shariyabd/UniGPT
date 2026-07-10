@@ -16,7 +16,7 @@ return [
         'pinecone' => [
             'api_key' => env('PINECONE_API_KEY'),
             'environment' => env('PINECONE_ENVIRONMENT'),
-            'index_name' => env('PINECONE_INDEX_NAME', 'unigpt'),
+            'index_name' => env('PINECONE_INDEX_NAME', 'uninexus'),
             'namespace' => env('PINECONE_NAMESPACE', 'default'),
         ],
 
@@ -28,7 +28,7 @@ return [
         'chroma' => [
             'host' => env('CHROMA_HOST', 'localhost'),
             'port' => env('CHROMA_PORT', 8000),
-            'collection_name' => env('CHROMA_COLLECTION', 'unigpt'),
+            'collection_name' => env('CHROMA_COLLECTION', 'uninexus'),
         ],
     ],
 

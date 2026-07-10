@@ -20,7 +20,7 @@ const steps = [
         tone: 'sky',
         step: 'Ground',
         title: 'Retrieve & reason',
-        body: 'UniGPT searches your approved documents, pulls the most relevant passages, and reasons over them — never guessing.',
+        body: 'UniNexus searches your approved documents, pulls the most relevant passages, and reasons over them — never guessing.',
     },
     {
         icon: SparklesIcon,
@@ -39,7 +39,7 @@ const steps = [
             <SectionHeading
                 eyebrow="The solution"
                 title="From question to grounded answer in one flow"
-                subtitle="UniGPT turns your institutional knowledge into an assistant that cites its sources."
+                subtitle="UniNexus turns your institutional knowledge into an assistant that cites its sources."
             />
 
             <div class="mt-14 grid items-stretch gap-5 lg:grid-cols-3">

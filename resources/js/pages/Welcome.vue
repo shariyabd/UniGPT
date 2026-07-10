@@ -29,7 +29,7 @@ import {
                     <AcademicCapIcon class="h-11 w-11 text-white" />
                 </div>
 
-                <h1 class="mt-8 text-5xl font-bold tracking-tight text-content sm:text-7xl">UniGPT</h1>
+                <h1 class="mt-8 text-5xl font-bold tracking-tight text-content sm:text-7xl">UniNexus</h1>
                 <p class="mt-4 text-lg text-content-muted sm:text-2xl">
                     Your university academic copilot — for students, faculty and administrators.
                 </p>

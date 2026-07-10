@@ -254,7 +254,7 @@ const sendTest = async () => {
                                 <input
                                     v-model="form.from_name"
                                     type="text"
-                                    placeholder="UniGPT"
+                                    placeholder="UniNexus"
                                     class="ui-input"
                                 />
                                 <p v-if="form.errors.from_name" class="mt-1 text-xs text-danger-fg">{{ form.errors.from_name }}</p>

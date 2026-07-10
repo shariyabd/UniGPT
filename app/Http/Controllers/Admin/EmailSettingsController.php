@@ -92,10 +92,10 @@ class EmailSettingsController extends Controller
 
         try {
             Mail::raw(
-                "This is a test email from UniGPT.\n\nIf you received this, your email configuration is working correctly.",
+                "This is a test email from UniNexus.\n\nIf you received this, your email configuration is working correctly.",
                 function ($message) use ($validated) {
                     $message->to($validated['to'])
-                        ->subject('UniGPT — Email configuration test');
+                        ->subject('UniNexus — Email configuration test');
                 }
             );
 

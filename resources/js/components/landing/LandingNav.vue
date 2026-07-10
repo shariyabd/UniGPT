@@ -44,7 +44,7 @@ onMounted(() => {
                 <span class="flex h-9 w-9 items-center justify-center rounded-control bg-primary shadow-card">
                     <AcademicCapIcon class="h-5 w-5 text-white" />
                 </span>
-                <span class="text-lg font-bold tracking-tight text-content">UniGPT</span>
+                <span class="text-lg font-bold tracking-tight text-content">UniNexus</span>
             </a>
 
             <!-- Desktop links -->

@@ -42,7 +42,7 @@ onBeforeUnmount(() => clearTimeout(timer));
             <div class="dc__browser">
                 <div class="dc__bar">
                     <span class="dc__traffic"><i></i><i></i><i></i></span>
-                    <span class="dc__url">unigpt.app<span class="dc__path">{{ frame.path }}</span></span>
+                    <span class="dc__url">uninexus.app<span class="dc__path">{{ frame.path }}</span></span>
                     <span class="dc__live"><span class="dc__livedot"></span>live</span>
                 </div>
                 <div class="dc__viewport">

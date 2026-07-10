@@ -1,4 +1,4 @@
-# UniGPT — Final QA Report
+# UniNexus — Final QA Report
 
 **Tester:** SQA Agent (Playwright MCP, real browser)
 **Build:** branch `dev`, served at `http://127.0.0.1:8001`

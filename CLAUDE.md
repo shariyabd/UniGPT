@@ -6,7 +6,7 @@ I intentionally **did not bloat it** with the project audit workflow. This versi
 
 ## Project
 
-**UniGPT** — AI-powered university academic copilot with role-based dashboards (**Student / Faculty / Admin**).
+**UniNexus** — AI-powered university academic copilot with role-based dashboards (**Student / Faculty / Admin**).
 
 Stack:
 

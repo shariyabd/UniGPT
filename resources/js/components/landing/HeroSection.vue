@@ -34,14 +34,14 @@ const trustedBy = ['Students', 'Faculty', 'Administrators', 'Departments'];
                     </h1>
 
                     <p class="mt-6 max-w-xl text-lg text-content-muted">
-                        UniGPT unifies students, faculty and administrators on one AI platform —
+                        UniNexus unifies students, faculty and administrators on one AI platform —
                         grounded answers from your own academic documents, automated teaching tools,
                         and live operational insight. One login, three tailored experiences.
                     </p>
 
                     <div class="mt-9 flex flex-col gap-3 sm:flex-row">
                         <Link href="/login" class="ui-btn-primary gap-2 px-7 py-3.5 text-base">
-                            Launch UniGPT
+                            Launch UniNexus
                             <ArrowRightIcon class="h-5 w-5" />
                         </Link>
                         <a href="#solution" class="ui-btn-secondary gap-2 px-7 py-3.5 text-base">
@@ -77,7 +77,7 @@ const trustedBy = ['Students', 'Faculty', 'Administrators', 'Departments'];
                                     <span class="flex h-7 w-7 items-center justify-center rounded-full bg-primary">
                                         <SparklesIcon class="h-4 w-4 text-white" />
                                     </span>
-                                    <span class="text-sm font-semibold text-content">UniGPT · Academic mode</span>
+                                    <span class="text-sm font-semibold text-content">UniNexus · Academic mode</span>
                                     <span class="ml-auto ui-status-success">online</span>
                                 </div>
 

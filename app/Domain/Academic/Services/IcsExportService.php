@@ -24,10 +24,10 @@ class IcsExportService
         $lines = [
             'BEGIN:VCALENDAR',
             'VERSION:2.0',
-            'PRODID:-//UniGPT//Academic Calendar//EN',
+            'PRODID:-//UniNexus//Academic Calendar//EN',
             'CALSCALE:GREGORIAN',
             'METHOD:PUBLISH',
-            'X-WR-CALNAME:UniGPT — '.$this->escape($student->name),
+            'X-WR-CALNAME:UniNexus — '.$this->escape($student->name),
         ];
 
         foreach ($events as $event) {
@@ -62,7 +62,7 @@ class IcsExportService
 
         $lines = [
             'BEGIN:VEVENT',
-            'UID:'.$event['id'].'@unigpt',
+            'UID:'.$event['id'].'@uninexus',
             'DTSTAMP:'.now()->utc()->format('Ymd\THis\Z'),
             'SUMMARY:'.$this->escape($summary),
         ];
