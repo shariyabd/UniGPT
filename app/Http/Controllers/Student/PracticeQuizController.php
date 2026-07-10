@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Student;
 
 use App\Domain\Academic\Services\PracticeQuizService;
+use App\Domain\Academic\Services\QuestionBankService;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Student\PracticeGenerateRequest;
 use App\Models\PracticeAttempt;
@@ -21,7 +22,9 @@ use Inertia\Response;
  */
 class PracticeQuizController extends Controller
 {
-    public function __construct(private readonly PracticeQuizService $practice) {}
+    public function __construct(private readonly PracticeQuizService $practice,
+        private readonly QuestionBankService $questionBank,
+    ) {}
 
     public function index(Request $request): Response
     {
@@ -42,6 +45,28 @@ class PracticeQuizController extends Controller
         return redirect()
             ->route('practice.show', $quiz)
             ->with('success', 'Practice quiz generated — good luck!');
+    }
+
+    /**
+     * Deterministic self-quiz sampled from the course's question bank (no AI
+     * involved — so no AI gate). Reuses the normal take/grade flow.
+     */
+    public function fromBank(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'course_id' => ['required', 'integer', 'exists:courses,id'],
+            'question_count' => ['nullable', 'integer', 'min:3', 'max:20'],
+        ]);
+
+        $quiz = $this->questionBank->practiceQuizFromBank(
+            student: $request->user(),
+            courseId: (int) $data['course_id'],
+            count: (int) ($data['question_count'] ?? 10),
+        );
+
+        return redirect()
+            ->route('practice.show', $quiz)
+            ->with('success', 'Practice quiz built from the question bank — good luck!');
     }
 
     public function show(Request $request, PracticeQuiz $quiz): Response

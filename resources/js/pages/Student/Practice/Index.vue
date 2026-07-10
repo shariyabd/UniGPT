@@ -32,6 +32,16 @@ const generate = () => {
     generateForm.post(route('practice.generate'), { preserveScroll: true });
 };
 
+// Deterministic quiz sampled from the course's faculty question bank.
+const bankForm = useForm({
+    course_id: null,
+    question_count: 10,
+});
+
+const generateFromBank = () => {
+    bankForm.post(route('practice.from-bank'), { preserveScroll: true });
+};
+
 const removeQuiz = async (quiz) => {
     const ok = await confirm({
         title: 'Delete practice quiz',
@@ -122,6 +132,24 @@ const scoreLabel = (quiz) => quiz.lastScore === null || quiz.lastScore === undef
                             <button type="submit" class="ui-btn-primary w-full" :disabled="generateForm.processing || !generateForm.topic.trim()">
                                 <SparklesIcon class="w-4 h-4" />
                                 {{ generateForm.processing ? 'Generating…' : 'Generate quiz' }}
+                            </button>
+                        </form>
+
+                        <!-- From the faculty question bank (no AI) -->
+                        <form @submit.prevent="generateFromBank" class="mt-6 border-t border-line pt-5 space-y-3">
+                            <p class="text-sm font-semibold text-content">From the question bank</p>
+                            <p class="text-xs text-content-muted -mt-1">Real questions your instructors curated for the course.</p>
+                            <select v-model="bankForm.course_id" class="ui-input" required>
+                                <option :value="null" disabled>Select course…</option>
+                                <option v-for="course in courses" :key="course.id" :value="course.id">{{ course.code }} — {{ course.name }}</option>
+                            </select>
+                            <select v-model.number="bankForm.question_count" class="ui-input">
+                                <option :value="5">5 questions</option>
+                                <option :value="10">10 questions</option>
+                                <option :value="15">15 questions</option>
+                            </select>
+                            <button type="submit" class="ui-btn-secondary w-full" :disabled="bankForm.processing || !bankForm.course_id">
+                                {{ bankForm.processing ? 'Building…' : 'Practice from bank' }}
                             </button>
                         </form>
                     </Card>
