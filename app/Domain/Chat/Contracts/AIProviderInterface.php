@@ -14,8 +14,14 @@ interface AIProviderInterface
     /**
      * Run a chat completion.
      *
-     * @param  array<int, array{role: string, content: string}>  $messages
-     * @param  array<string, mixed>  $options  Optional overrides (temperature, max_tokens, model).
+     * Messages may additionally include assistant turns carrying `tool_calls`
+     * and `tool`-role turns with `tool_call_id`, when replaying a function-
+     * calling exchange back to the model.
+     *
+     * @param  array<int, array<string, mixed>>  $messages  Chat turns ({role, content, ...}).
+     * @param  array<string, mixed>  $options  Optional overrides (temperature, max_tokens, model);
+     *                                         `tools` (OpenAI-format definitions) enables function
+     *                                         calling — requested calls come back in ChatResult::$toolCalls.
      */
     public function chat(array $messages, array $options = []): ChatResult;
 
@@ -24,9 +30,10 @@ interface AIProviderInterface
      * generated. Returns the same completed result as chat() once the stream
      * ends, so callers can persist/report identically on either path.
      *
-     * @param  array<int, array{role: string, content: string}>  $messages
+     * @param  array<int, array<string, mixed>>  $messages  Chat turns ({role, content, ...}).
      * @param  callable(string): void  $onDelta  Receives each new fragment of assistant text.
-     * @param  array<string, mixed>  $options  Optional overrides (temperature, max_tokens, model).
+     * @param  array<string, mixed>  $options  Optional overrides (temperature, max_tokens, model);
+     *                                         `tools` enables function calling as in chat().
      */
     public function chatStream(array $messages, callable $onDelta, array $options = []): ChatResult;
 

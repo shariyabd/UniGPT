@@ -67,7 +67,7 @@ class ChatController extends Controller
 
     public function store(SendMessageRequest $request): JsonResponse
     {
-        [$session, $mode, $language, $message] = $this->resolveSendContext($request);
+        [$session, $mode, $language, $message, $agent] = $this->resolveSendContext($request);
 
         $result = $this->chat->sendMessage(
             user: $request->user(),
@@ -75,6 +75,7 @@ class ChatController extends Controller
             content: $message,
             mode: $mode,
             language: $language,
+            withTools: $agent,
         );
 
         return response()->json([
@@ -86,16 +87,17 @@ class ChatController extends Controller
 
     /**
      * Streaming variant of store(): emits `delta` events with assistant text
-     * as it is generated, then a final `done` event carrying the same payload
-     * store() returns. Errors mid-stream become an `error` event (the HTTP
-     * status is already sent by then).
+     * as it is generated — plus `tool_start`/`tool_result` events while the
+     * assistant runs agentic tools — then a final `done` event carrying the
+     * same payload store() returns. Errors mid-stream become an `error` event
+     * (the HTTP status is already sent by then).
      */
     public function stream(SendMessageRequest $request): StreamedResponse
     {
-        [$session, $mode, $language, $message] = $this->resolveSendContext($request);
+        [$session, $mode, $language, $message, $agent] = $this->resolveSendContext($request);
         $user = $request->user();
 
-        return $this->sseResponse(function () use ($user, $session, $mode, $language, $message) {
+        return $this->sseResponse(function () use ($user, $session, $mode, $language, $message, $agent) {
             try {
                 $result = $this->chat->sendMessage(
                     user: $user,
@@ -104,6 +106,8 @@ class ChatController extends Controller
                     mode: $mode,
                     language: $language,
                     onDelta: fn (string $text) => $this->sseSend('delta', ['text' => $text]),
+                    onToolEvent: fn (string $event, array $payload) => $this->sseSend($event, $payload),
+                    withTools: $agent,
                 );
 
                 $this->sseSend('done', [
@@ -122,7 +126,7 @@ class ChatController extends Controller
      * Session/mode/language/message resolution shared by the JSON and SSE
      * send endpoints.
      *
-     * @return array{0: ?ChatSession, 1: ChatMode, 2: string, 3: string}
+     * @return array{0: ?ChatSession, 1: ChatMode, 2: string, 3: string, 4: bool}
      */
     private function resolveSendContext(SendMessageRequest $request): array
     {
@@ -140,7 +144,11 @@ class ChatController extends Controller
             $language = $this->aiSettings->defaultLanguageCode();
         }
 
-        return [$session, $mode, $language, $validated['message']];
+        // Agent mode (default ON): whether the assistant may take actions via
+        // tools this turn, or must answer-only.
+        $agent = array_key_exists('agent', $validated) ? (bool) $validated['agent'] : true;
+
+        return [$session, $mode, $language, $validated['message'], $agent];
     }
 
     public function show(ChatSession $session): JsonResponse
@@ -257,6 +265,7 @@ class ChatController extends Controller
             'confidenceLevel' => $message->confidence_level,
             'sources' => $message->sources ?? [],
             'followUpSuggestions' => $message->follow_ups ?? [],
+            'toolActivity' => $message->tool_activity ?? [],
             'saved' => false,
         ];
     }

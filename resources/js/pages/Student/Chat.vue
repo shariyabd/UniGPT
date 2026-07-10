@@ -46,7 +46,8 @@ import {
     MapPinIcon,
     EllipsisHorizontalIcon,
     ArchiveBoxIcon,
-    TrashIcon
+    TrashIcon,
+    BoltIcon
 } from '@heroicons/vue/24/outline';
 import { MapPinIcon as MapPinSolidIcon } from '@heroicons/vue/24/solid';
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue';
@@ -128,6 +129,11 @@ const backendMode = computed(() =>
     chatModes.find((m) => m.id === currentChatMode.value)?.backend ?? 'academic'
 );
 
+// Agent mode: ON lets the assistant take real actions via tools (book office
+// hours, check deadlines, generate quizzes/flashcards, add tasks); OFF is a
+// pure question-answering chat — tools are never offered to the model.
+const agentMode = ref(true);
+
 // Build the welcome message. The guiding copy is static, but anything that
 // depends on the student's data (their courses, follow-up prompts) is derived
 // from the enrollments passed by the server.
@@ -152,6 +158,46 @@ const buildWelcomeFollowUps = () => {
     return suggestions;
 };
 
+// Action-oriented starters shown while Agent mode is on.
+const buildAgentFollowUps = () => {
+    const first = studentContext.value.currentCourses[0];
+
+    return [
+        'What deadlines do I have coming up?',
+        'Book office hours with my professor',
+        first ? `Quiz me on ${first.name || first.code}` : 'Quiz me on my weakest topic',
+        first ? `Make flashcards on ${first.name || first.code}` : 'Make flashcards for my next exam',
+    ];
+};
+
+const welcomeFollowUps = () => (agentMode.value ? buildAgentFollowUps() : buildWelcomeFollowUps());
+
+// Sync the recommended starter questions with the active mode — on the
+// welcome card currently on screen AND on the snapshot newChat() restores,
+// so a mode switch made mid-conversation still shows the right prompts on
+// the next "New chat".
+const refreshWelcomeSuggestions = () => {
+    const fresh = welcomeFollowUps();
+    if (welcomeMessage.value) welcomeMessage.value.followUpSuggestions = fresh;
+    const welcome = messages.value.find((m) => m.id === 1);
+    if (welcome) welcome.followUpSuggestions = fresh;
+};
+
+// Switching modes swaps the welcome card's example prompts and refocuses the
+// composer, so the change is immediately visible.
+const setAgentMode = (value) => {
+    if (agentMode.value === value) return;
+    agentMode.value = value;
+
+    refreshWelcomeSuggestions();
+
+    nextTick(() => document.getElementById('message-input')?.focus());
+};
+
+const composerPlaceholder = computed(() => (agentMode.value
+    ? 'Ask anything — or tell me to act: "book office hours", "quiz me on recursion", "add a task"…'
+    : 'Ask anything about your courses, assignments, syllabus, or policies...'));
+
 const buildWelcomeContent = () => {
     const coursesLine = courseLabels.value.length
         ? `I can see you're enrolled in: **${courseLabels.value.join(', ')}**`
@@ -166,6 +212,7 @@ I'm your **UniGPT Academic Assistant**, and I'm here to help you excel in your s
 • Assignment guidance and problem-solving
 • Exam preparation and study strategies
 • University policies and procedures
+• **Taking actions for you** (Agent mode ⚡) — booking office hours, checking deadlines, generating practice quizzes & flashcards, adding planner tasks
 
 ${coursesLine}
 
@@ -184,7 +231,7 @@ const messages = ref([
         contextRelevance: 'profile',
         isExpanded: false,
         saved: false,
-        followUpSuggestions: buildWelcomeFollowUps()
+        followUpSuggestions: welcomeFollowUps()
     }
 ]);
 
@@ -328,6 +375,8 @@ const normalizeMessage = (msg) => ({
     // the user; per-answer follow-ups are intentionally omitted to keep replies
     // focused on the answer itself.
     followUpSuggestions: [],
+    // Agentic actions the assistant took while answering (tool calls).
+    toolActivity: msg.toolActivity ?? [],
     sources: (msg.sources ?? []).map((s) => ({
         ...s,
         confidence: (s.confidence ?? 0) / 100,
@@ -422,7 +471,7 @@ const upsertSession = (session) => {
 // Non-null hides the "thinking" indicator once live text is rendering.
 const streamingDraft = ref(null);
 
-const appendStreamDelta = (text) => {
+const ensureStreamingDraft = () => {
     if (!streamingDraft.value) {
         messages.value.push({
             id: 's' + Date.now(),
@@ -434,13 +483,44 @@ const appendStreamDelta = (text) => {
             contextRelevance: null,
             sources: [],
             followUpSuggestions: [],
+            toolActivity: [],
             saved: false,
         });
         // Grab the reactive proxy of the entry we just pushed so content
         // mutations re-render as deltas arrive.
         streamingDraft.value = messages.value[messages.value.length - 1];
     }
-    streamingDraft.value.content += text;
+    return streamingDraft.value;
+};
+
+const appendStreamDelta = (text) => {
+    ensureStreamingDraft().content += text;
+};
+
+// Tool events arrive between deltas: tool_start adds a running entry to the
+// draft's activity trail, tool_result finalizes it (status/summary/link).
+const onToolStart = (data) => {
+    ensureStreamingDraft().toolActivity.push({
+        name: data.name,
+        label: data.label,
+        status: 'running',
+        summary: null,
+        link: null,
+        linkLabel: null,
+    });
+};
+
+const onToolResult = (data) => {
+    const trail = ensureStreamingDraft().toolActivity;
+    const entry = [...trail].reverse().find((t) => t.name === data.name && t.status === 'running');
+    if (entry) {
+        Object.assign(entry, {
+            status: data.status,
+            summary: data.summary,
+            link: data.link ?? null,
+            linkLabel: data.linkLabel ?? null,
+        });
+    }
 };
 
 const pushAssistantError = (content) => {
@@ -483,11 +563,17 @@ const sendMessage = async () => {
             session_id: currentSessionId.value,
             mode: backendMode.value,
             language: selectedLanguage.value,
+            agent: agentMode.value,
         }, {
             onEvent: (event, data) => {
                 if (event === 'delta') {
                     appendStreamDelta(data.text);
                     scrollToBottom();
+                } else if (event === 'tool_start') {
+                    onToolStart(data);
+                    scrollToBottom();
+                } else if (event === 'tool_result') {
+                    onToolResult(data);
                 } else if (event === 'done') {
                     finalized = true;
                     currentSessionId.value = data.session.id;
@@ -679,6 +765,9 @@ const welcomeMessage = ref(null);
 
 const newChat = () => {
     messages.value = welcomeMessage.value ? [welcomeMessage.value] : [];
+    // The welcome card's example prompts must match the CURRENT mode, not the
+    // mode that was active when the snapshot was taken.
+    refreshWelcomeSuggestions();
     currentSources.value = [];
     selectedChatHistory.value = null;
     currentSessionId.value = null;
@@ -1041,6 +1130,13 @@ watch(() => messages.value.length, () => {
                                                     <p class="font-semibold text-content text-sm flex items-center gap-2">
                                                         UniGPT Assistant
                                                         <span class="ui-badge bg-neutral-bg text-neutral-fg">AI</span>
+                                                        <span
+                                                            v-if="message.toolActivity && message.toolActivity.length"
+                                                            class="ui-badge bg-primary-soft text-primary inline-flex items-center gap-1"
+                                                            title="This reply took actions on your behalf — see the action trail below"
+                                                        >
+                                                            <BoltIcon class="w-3 h-3" /> Agent
+                                                        </span>
                                                     </p>
                                                     <p class="text-xs text-content-faint">
                                                         {{ formatTime(message.timestamp) }}
@@ -1087,6 +1183,32 @@ watch(() => messages.value.length, () => {
                                                 <div class="inline-flex items-center gap-2 px-3 py-1.5 bg-success-bg text-success-fg rounded-control text-xs font-medium">
                                                     <component :is="message.contextRelevance === 'profile' ? AcademicCapIcon : BookOpenIcon" class="w-4 h-4" />
                                                     {{ message.contextRelevance === 'profile' ? 'Personalized for your profile' : 'Based on your current courses' }}
+                                                </div>
+                                            </div>
+
+                                            <!-- Tool Activity (agentic actions taken while answering) -->
+                                            <div v-if="message.toolActivity && message.toolActivity.length" class="mb-4 space-y-1.5">
+                                                <div
+                                                    v-for="(tool, index) in message.toolActivity"
+                                                    :key="index"
+                                                    class="flex items-center gap-2 px-3 py-2 bg-neutral-bg border border-line rounded-control text-xs"
+                                                >
+                                                    <span
+                                                        v-if="tool.status === 'running'"
+                                                        class="w-3.5 h-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin flex-shrink-0"
+                                                        aria-hidden="true"
+                                                    ></span>
+                                                    <CheckCircleIcon v-else-if="tool.status === 'ok'" class="w-4 h-4 text-success-fg flex-shrink-0" />
+                                                    <ExclamationTriangleIcon v-else class="w-4 h-4 text-warning-fg flex-shrink-0" />
+                                                    <span class="font-medium text-content flex-shrink-0">{{ tool.label }}</span>
+                                                    <span v-if="tool.summary" class="text-content-faint truncate">— {{ tool.summary }}</span>
+                                                    <Link
+                                                        v-if="tool.link && tool.status === 'ok'"
+                                                        :href="tool.link"
+                                                        class="ml-auto text-primary hover:text-primary-hover hover:underline font-semibold flex-shrink-0"
+                                                    >
+                                                        {{ tool.linkLabel || 'Open' }}
+                                                    </Link>
                                                 </div>
                                             </div>
 
@@ -1202,6 +1324,52 @@ watch(() => messages.value.length, () => {
                         <div v-if="!isBlocked" class="flex-shrink-0 border-t border-line bg-surface">
                             <div class="mx-auto w-full max-w-3xl px-4 py-3 sm:px-6 sm:py-4">
                             <form @submit.prevent="sendMessage" class="space-y-2.5">
+                                <!-- Mode switcher: Agent (acts for you) vs Answers only -->
+                                <div class="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                                    <div class="inline-flex items-center rounded-pill border border-line bg-bg p-0.5" role="tablist" aria-label="Assistant mode">
+                                        <button
+                                            type="button"
+                                            role="tab"
+                                            :aria-selected="agentMode"
+                                            @click="setAgentMode(true)"
+                                            :class="[
+                                                'inline-flex items-center gap-1 rounded-pill px-3 py-1 text-xs font-semibold transition-all',
+                                                agentMode ? 'bg-primary text-white shadow-sm' : 'text-content-muted hover:text-content',
+                                            ]"
+                                        >
+                                            <BoltIcon class="w-3.5 h-3.5" />
+                                            Agent
+                                        </button>
+                                        <button
+                                            type="button"
+                                            role="tab"
+                                            :aria-selected="!agentMode"
+                                            @click="setAgentMode(false)"
+                                            :class="[
+                                                'inline-flex items-center gap-1 rounded-pill px-3 py-1 text-xs font-semibold transition-all',
+                                                !agentMode ? 'bg-content text-surface shadow-sm' : 'text-content-muted hover:text-content',
+                                            ]"
+                                        >
+                                            <ChatBubbleBottomCenterTextIcon class="w-3.5 h-3.5" />
+                                            Answers only
+                                        </button>
+                                    </div>
+                                    <Transition
+                                        mode="out-in"
+                                        enter-active-class="transition-all duration-200"
+                                        enter-from-class="opacity-0 translate-y-0.5"
+                                        leave-active-class="transition-all duration-150"
+                                        leave-to-class="opacity-0"
+                                    >
+                                        <p v-if="agentMode" key="agent" class="text-xs font-medium text-primary">
+                                            ⚡ I can act for you — book office hours, build quizzes, plan tasks.
+                                        </p>
+                                        <p v-else key="answers" class="text-xs text-content-muted">
+                                            💬 Explanations and answers only — no actions will be taken.
+                                        </p>
+                                    </Transition>
+                                </div>
+
                                 <!-- Input Area -->
                                 <div class="flex items-end gap-2.5">
                                     <div class="flex-1 relative">
@@ -1209,9 +1377,12 @@ watch(() => messages.value.length, () => {
                                             id="message-input"
                                             v-model="messageInput"
                                             :disabled="isTyping"
-                                            placeholder="Ask anything about your courses, assignments, syllabus, or policies..."
+                                            :placeholder="composerPlaceholder"
                                             rows="1"
-                                            class="ui-input pr-12 resize-none"
+                                            :class="[
+                                                'ui-input pr-12 resize-none transition-shadow',
+                                                agentMode ? 'ring-1 ring-primary/25 focus:ring-primary/40' : '',
+                                            ]"
                                             @keydown.enter.exact.prevent="sendMessage"
                                             @keydown.enter.shift.exact="() => {}"
                                             @input="autoResize"

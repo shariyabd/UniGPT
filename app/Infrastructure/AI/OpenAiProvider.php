@@ -20,12 +20,19 @@ class OpenAiProvider implements AIProviderInterface
         $config = config('ai.providers.openai');
         $model = $options['model'] ?? $config['model'];
 
-        $response = $this->client()->post(self::BASE_URL.'/chat/completions', [
+        $payload = [
             'model' => $model,
             'messages' => $messages,
             'max_tokens' => (int) ($options['max_tokens'] ?? $config['max_tokens']),
             'temperature' => (float) ($options['temperature'] ?? $config['temperature']),
-        ]);
+        ];
+
+        if (! empty($options['tools'])) {
+            $payload['tools'] = $options['tools'];
+            $payload['tool_choice'] = 'auto';
+        }
+
+        $response = $this->client()->post(self::BASE_URL.'/chat/completions', $payload);
 
         if ($response->failed()) {
             throw new RuntimeException('OpenAI chat request failed: '.$response->body());
@@ -39,6 +46,7 @@ class OpenAiProvider implements AIProviderInterface
             promptTokens: (int) ($data['usage']['prompt_tokens'] ?? 0),
             completionTokens: (int) ($data['usage']['completion_tokens'] ?? 0),
             raw: $data,
+            toolCalls: $this->normalizeToolCalls($data['choices'][0]['message']['tool_calls'] ?? []),
         );
     }
 
@@ -47,18 +55,25 @@ class OpenAiProvider implements AIProviderInterface
         $config = config('ai.providers.openai');
         $model = $options['model'] ?? $config['model'];
 
+        $payload = [
+            'model' => $model,
+            'messages' => $messages,
+            'max_tokens' => (int) ($options['max_tokens'] ?? $config['max_tokens']),
+            'temperature' => (float) ($options['temperature'] ?? $config['temperature']),
+            'stream' => true,
+            // The final stream chunk then carries token usage, keeping
+            // per-user AI usage accounting intact on the streaming path.
+            'stream_options' => ['include_usage' => true],
+        ];
+
+        if (! empty($options['tools'])) {
+            $payload['tools'] = $options['tools'];
+            $payload['tool_choice'] = 'auto';
+        }
+
         $response = $this->client()
             ->withOptions(['stream' => true])
-            ->post(self::BASE_URL.'/chat/completions', [
-                'model' => $model,
-                'messages' => $messages,
-                'max_tokens' => (int) ($options['max_tokens'] ?? $config['max_tokens']),
-                'temperature' => (float) ($options['temperature'] ?? $config['temperature']),
-                'stream' => true,
-                // The final stream chunk then carries token usage, keeping
-                // per-user AI usage accounting intact on the streaming path.
-                'stream_options' => ['include_usage' => true],
-            ]);
+            ->post(self::BASE_URL.'/chat/completions', $payload);
 
         if ($response->failed()) {
             throw new RuntimeException('OpenAI chat stream request failed: '.$response->body());
@@ -71,6 +86,10 @@ class OpenAiProvider implements AIProviderInterface
         $promptTokens = 0;
         $completionTokens = 0;
         $buffer = '';
+        // Streamed tool calls arrive as fragments keyed by index: the id and
+        // function name in the first fragment, the JSON arguments split across
+        // the rest. Accumulate per index and decode once the stream ends.
+        $toolCallParts = [];
 
         while (! $body->eof()) {
             $buffer .= $body->read(1024);
@@ -103,6 +122,20 @@ class OpenAiProvider implements AIProviderInterface
                     $onDelta($delta);
                 }
 
+                foreach ($chunk['choices'][0]['delta']['tool_calls'] ?? [] as $fragment) {
+                    $index = (int) ($fragment['index'] ?? 0);
+                    $toolCallParts[$index] ??= ['id' => '', 'name' => '', 'arguments' => ''];
+                    if (! empty($fragment['id'])) {
+                        $toolCallParts[$index]['id'] = (string) $fragment['id'];
+                    }
+                    if (! empty($fragment['function']['name'])) {
+                        $toolCallParts[$index]['name'] .= (string) $fragment['function']['name'];
+                    }
+                    if (isset($fragment['function']['arguments'])) {
+                        $toolCallParts[$index]['arguments'] .= (string) $fragment['function']['arguments'];
+                    }
+                }
+
                 if (isset($chunk['usage'])) {
                     $promptTokens = (int) ($chunk['usage']['prompt_tokens'] ?? 0);
                     $completionTokens = (int) ($chunk['usage']['completion_tokens'] ?? 0);
@@ -116,7 +149,65 @@ class OpenAiProvider implements AIProviderInterface
             promptTokens: $promptTokens,
             completionTokens: $completionTokens,
             raw: ['provider' => 'openai', 'streamed' => true],
+            toolCalls: $this->normalizeStreamedToolCalls($toolCallParts),
         );
+    }
+
+    /**
+     * Normalize the non-streaming tool_calls shape into
+     * [{id, name, arguments(array)}], dropping malformed entries.
+     *
+     * @param  array<int, array<string, mixed>>  $toolCalls
+     * @return array<int, array{id: string, name: string, arguments: array<string, mixed>}>
+     */
+    private function normalizeToolCalls(array $toolCalls): array
+    {
+        $normalized = [];
+
+        foreach ($toolCalls as $call) {
+            $name = (string) ($call['function']['name'] ?? '');
+            if ($name === '') {
+                continue;
+            }
+
+            $arguments = json_decode((string) ($call['function']['arguments'] ?? '{}'), true);
+
+            $normalized[] = [
+                'id' => (string) ($call['id'] ?? ''),
+                'name' => $name,
+                'arguments' => is_array($arguments) ? $arguments : [],
+            ];
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * Assemble tool calls accumulated from stream fragments.
+     *
+     * @param  array<int, array{id: string, name: string, arguments: string}>  $parts
+     * @return array<int, array{id: string, name: string, arguments: array<string, mixed>}>
+     */
+    private function normalizeStreamedToolCalls(array $parts): array
+    {
+        ksort($parts);
+        $normalized = [];
+
+        foreach ($parts as $part) {
+            if ($part['name'] === '') {
+                continue;
+            }
+
+            $arguments = json_decode($part['arguments'] !== '' ? $part['arguments'] : '{}', true);
+
+            $normalized[] = [
+                'id' => $part['id'],
+                'name' => $part['name'],
+                'arguments' => is_array($arguments) ? $arguments : [],
+            ];
+        }
+
+        return $normalized;
     }
 
     public function extractText(string $imagePath, string $mimeType): string

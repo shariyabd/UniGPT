@@ -27,6 +27,7 @@ class ChatService
      * persisted result is identical on both paths.
      *
      * @param  (callable(string): void)|null  $onDelta
+     * @param  (callable(string, array<string, mixed>): void)|null  $onToolEvent  Receives tool_start/tool_result events as agentic tools run.
      * @return array{session: ChatSession, userMessage: ChatMessage, assistantMessage: ChatMessage}
      */
     public function sendMessage(
@@ -36,6 +37,8 @@ class ChatService
         ChatMode $mode = ChatMode::ACADEMIC,
         string $language = 'en',
         ?callable $onDelta = null,
+        ?callable $onToolEvent = null,
+        bool $withTools = true,
     ): array {
         $session ??= $this->startSession($user, $mode, $language);
 
@@ -63,8 +66,8 @@ class ChatService
             ->all();
 
         $answer = $onDelta !== null
-            ? $this->rag->answerStream($content, $user, $onDelta, $mode, $history, $language)
-            : $this->rag->answer($content, $user, $mode, $history, $language);
+            ? $this->rag->answerStream($content, $user, $onDelta, $mode, $history, $language, $onToolEvent, $withTools)
+            : $this->rag->answer($content, $user, $mode, $history, $language, $onToolEvent, $withTools);
 
         $assistantMessage = $session->messages()->create([
             'role' => ChatMessage::ROLE_ASSISTANT,
@@ -75,6 +78,7 @@ class ChatService
             'follow_ups' => $answer['follow_ups'],
             'model' => $answer['model'],
             'tokens' => $answer['tokens'],
+            'tool_activity' => $answer['tool_activity'] ?? [],
         ]);
 
         // Persist citations relationally for analytics.

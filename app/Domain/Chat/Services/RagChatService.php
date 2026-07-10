@@ -3,7 +3,9 @@
 namespace App\Domain\Chat\Services;
 
 use App\Domain\Chat\Contracts\AIProviderInterface;
+use App\Domain\Chat\DataObjects\ChatResult;
 use App\Domain\Chat\Support\AiSettings;
+use App\Domain\Chat\Tools\ChatToolRegistry;
 use App\Domain\RAG\Citations\CitationService;
 use App\Domain\RAG\Retrieval\RetrievalService;
 use App\Domain\User\Models\User;
@@ -15,26 +17,38 @@ use App\Enums\QueryIntent;
  * Orchestrates a retrieval-augmented answer: retrieve context → build a
  * grounded prompt → call the provider → attach citations, confidence and
  * follow-up suggestions.
+ *
+ * For students the provider is also offered agentic tools (deadlines,
+ * office-hour booking, quiz/flashcard generation, tasks); requested calls are
+ * executed and fed back until the model produces a final text answer.
  */
 class RagChatService
 {
+    /**
+     * Cap on provider→tools round-trips per answer; after the last round the
+     * tools are withdrawn so the model must produce text.
+     */
+    private const MAX_TOOL_ROUNDS = 3;
+
     public function __construct(
         private readonly AIProviderInterface $provider,
         private readonly RetrievalService $retrieval,
         private readonly CitationService $citations,
         private readonly AiSettings $settings,
         private readonly QueryClassifier $classifier,
+        private readonly ChatToolRegistry $tools,
     ) {}
 
     /**
      * Answer a question for a user.
      *
      * @param  array<int, array{role: string, content: string}>  $history
-     * @return array{content: string, confidence: int, confidence_level: string, sources: array, follow_ups: array, model: string, tokens: int}
+     * @param  (callable(string, array<string, mixed>): void)|null  $onToolEvent  Receives tool_start/tool_result events as tools run.
+     * @return array{content: string, confidence: int, confidence_level: string, sources: array, follow_ups: array, model: string, tokens: int, tool_activity: array}
      */
-    public function answer(string $question, User $user, ChatMode $mode = ChatMode::ACADEMIC, array $history = [], string $language = 'en'): array
+    public function answer(string $question, User $user, ChatMode $mode = ChatMode::ACADEMIC, array $history = [], string $language = 'en', ?callable $onToolEvent = null, bool $withTools = true): array
     {
-        return $this->respond($question, $user, $mode, $history, $language, null);
+        return $this->respond($question, $user, $mode, $history, $language, null, $onToolEvent, $withTools);
     }
 
     /**
@@ -43,11 +57,12 @@ class RagChatService
      *
      * @param  array<int, array{role: string, content: string}>  $history
      * @param  callable(string): void  $onDelta
-     * @return array{content: string, confidence: ?int, confidence_level: ?string, sources: array, follow_ups: array, model: string, tokens: int}
+     * @param  (callable(string, array<string, mixed>): void)|null  $onToolEvent  Receives tool_start/tool_result events as tools run.
+     * @return array{content: string, confidence: ?int, confidence_level: ?string, sources: array, follow_ups: array, model: string, tokens: int, tool_activity: array}
      */
-    public function answerStream(string $question, User $user, callable $onDelta, ChatMode $mode = ChatMode::ACADEMIC, array $history = [], string $language = 'en'): array
+    public function answerStream(string $question, User $user, callable $onDelta, ChatMode $mode = ChatMode::ACADEMIC, array $history = [], string $language = 'en', ?callable $onToolEvent = null, bool $withTools = true): array
     {
-        return $this->respond($question, $user, $mode, $history, $language, $onDelta);
+        return $this->respond($question, $user, $mode, $history, $language, $onDelta, $onToolEvent, $withTools);
     }
 
     /**
@@ -55,9 +70,9 @@ class RagChatService
      * it the call is a single completion.
      *
      * @param  array<int, array{role: string, content: string}>  $history
-     * @return array{content: string, confidence: ?int, confidence_level: ?string, sources: array, follow_ups: array, model: string, tokens: int}
+     * @return array{content: string, confidence: ?int, confidence_level: ?string, sources: array, follow_ups: array, model: string, tokens: int, tool_activity: array}
      */
-    private function respond(string $question, User $user, ChatMode $mode, array $history, string $language, ?callable $onDelta): array
+    private function respond(string $question, User $user, ChatMode $mode, array $history, string $language, ?callable $onDelta, ?callable $onToolEvent = null, bool $withTools = true): array
     {
         // Fast path: greetings, thanks and "what can you do" never need retrieval
         // or an LLM call. Answer them deterministically at zero API cost.
@@ -76,10 +91,54 @@ class RagChatService
         $sources = $this->citations->toSources($retrieved);
         $score = $this->citations->overallConfidence($retrieved);
 
-        $messages = $this->buildMessages($question, $mode, $context, $history, $language, $user);
-        $result = $onDelta !== null
-            ? $this->provider->chatStream($messages, $onDelta, $this->settings->chatOptions())
-            : $this->provider->chat($messages, $this->settings->chatOptions());
+        // Agent mode off = answer-only: tools are never even offered to the model.
+        $toolDefinitions = $withTools ? $this->tools->definitionsFor($user) : [];
+
+        $messages = $this->buildMessages($question, $mode, $context, $history, $language, $user, $toolDefinitions !== []);
+
+        $options = $this->settings->chatOptions();
+        if ($toolDefinitions !== []) {
+            $options['tools'] = $toolDefinitions;
+        }
+
+        $result = $this->complete($messages, $options, $onDelta);
+        $tokens = $result->totalTokens();
+        $toolActivity = [];
+
+        // Agent loop: run requested tools, feed their results back, and repeat
+        // until the model answers in text (or the round cap withdraws tools).
+        for ($round = 1; $result->toolCalls !== [] && $round <= self::MAX_TOOL_ROUNDS; $round++) {
+            $messages[] = $this->assistantToolCallMessage($result);
+
+            foreach ($result->toolCalls as $call) {
+                if ($onToolEvent !== null) {
+                    $onToolEvent('tool_start', [
+                        'name' => $call['name'],
+                        'label' => $this->tools->labelFor($call['name']),
+                    ]);
+                }
+
+                $execution = $this->tools->execute($user, $call['name'], $call['arguments']);
+                $toolActivity[] = $execution->toActivity();
+
+                if ($onToolEvent !== null) {
+                    $onToolEvent('tool_result', $execution->toActivity());
+                }
+
+                $messages[] = [
+                    'role' => 'tool',
+                    'tool_call_id' => $call['id'],
+                    'content' => $execution->toModelPayload(),
+                ];
+            }
+
+            if ($round === self::MAX_TOOL_ROUNDS) {
+                unset($options['tools']);
+            }
+
+            $result = $this->complete($messages, $options, $onDelta);
+            $tokens += $result->totalTokens();
+        }
 
         return [
             'content' => $result->content,
@@ -88,7 +147,43 @@ class RagChatService
             'sources' => $sources,
             'follow_ups' => $this->followUps($mode),
             'model' => $result->model,
-            'tokens' => $result->totalTokens(),
+            'tokens' => $tokens,
+            'tool_activity' => $toolActivity,
+        ];
+    }
+
+    /**
+     * One provider call, streamed when $onDelta is given.
+     *
+     * @param  array<int, array<string, mixed>>  $messages
+     * @param  array<string, mixed>  $options
+     */
+    private function complete(array $messages, array $options, ?callable $onDelta): ChatResult
+    {
+        return $onDelta !== null
+            ? $this->provider->chatStream($messages, $onDelta, $options)
+            : $this->provider->chat($messages, $options);
+    }
+
+    /**
+     * Echo the model's tool-call turn back into the transcript in the
+     * provider wire format, so the follow-up completion sees its own request.
+     *
+     * @return array<string, mixed>
+     */
+    private function assistantToolCallMessage(ChatResult $result): array
+    {
+        return [
+            'role' => 'assistant',
+            'content' => $result->content !== '' ? $result->content : null,
+            'tool_calls' => array_map(fn (array $call) => [
+                'id' => $call['id'],
+                'type' => 'function',
+                'function' => [
+                    'name' => $call['name'],
+                    'arguments' => (string) json_encode($call['arguments']),
+                ],
+            ], $result->toolCalls),
         ];
     }
 
@@ -96,7 +191,7 @@ class RagChatService
      * Shape a deterministic (non-RAG) reply to match the RAG answer contract so
      * the rest of the pipeline persists and renders it identically.
      *
-     * @return array{content: string, confidence: ?int, confidence_level: ?string, sources: array, follow_ups: array, model: string, tokens: int}
+     * @return array{content: string, confidence: ?int, confidence_level: ?string, sources: array, follow_ups: array, model: string, tokens: int, tool_activity: array}
      */
     private function cannedAnswer(string $content, ChatMode $mode): array
     {
@@ -108,6 +203,7 @@ class RagChatService
             'follow_ups' => $this->followUps($mode),
             'model' => 'rule-based',
             'tokens' => 0,
+            'tool_activity' => [],
         ];
     }
 
@@ -115,7 +211,7 @@ class RagChatService
      * @param  array<int, array{role: string, content: string}>  $history
      * @return array<int, array{role: string, content: string}>
      */
-    private function buildMessages(string $question, ChatMode $mode, string $context, array $history, string $language, User $user): array
+    private function buildMessages(string $question, ChatMode $mode, string $context, array $history, string $language, User $user, bool $withTools = false): array
     {
         $system = $mode->systemPrompt()
             ."\n\nYou are UniGPT, a university academic copilot for students and faculty.";
@@ -145,6 +241,18 @@ class RagChatService
                 .'academics, courses, study skills, research and university life; if a question '
                 .'falls clearly outside what a university academic assistant should help with, '
                 .'politely steer the user back on topic.';
+        }
+
+        if ($withTools) {
+            $system .= "\n\nYou have tools that read the student's real academic data (deadlines, courses, "
+                .'office-hour slots) and take actions for them (book or cancel office-hour bookings, '
+                .'generate practice quizzes or flashcard decks, add tasks to their planner). Use a tool '
+                .'whenever the question concerns their actual schedule or they ask you to do one of these '
+                .'things — never fabricate schedule data. Before booking or cancelling a slot, make sure '
+                .'the student has clearly chosen that specific slot; list the open slots first if they '
+                .'have not. Never invent slot ids or course ids — take them from tool results. After '
+                .'acting, briefly confirm what you did. If a tool reports an error, explain it plainly '
+                .'and do not pretend the action succeeded.';
         }
 
         if ($override = $this->settings->systemPromptOverride()) {

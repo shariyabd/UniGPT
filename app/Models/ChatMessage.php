@@ -23,6 +23,7 @@ class ChatMessage extends Model
         'confidence_level',
         'sources',
         'follow_ups',
+        'tool_activity',
         'model',
         'tokens',
     ];
@@ -32,6 +33,7 @@ class ChatMessage extends Model
         return [
             'sources' => 'array',
             'follow_ups' => 'array',
+            'tool_activity' => 'array',
         ];
     }
 
