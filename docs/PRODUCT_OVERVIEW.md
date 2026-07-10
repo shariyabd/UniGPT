@@ -156,6 +156,7 @@ Faculty manage courses end to end while the AI teaching assistant drafts assessm
 feedback in seconds.
 - Streaming AI teaching assistant: quizzes, assignments & rubrics
 - Build timed quizzes & class tests (AI-generated or manual questions) with auto-grading
+- Per-test proctoring layers with a risk-scored, per-student review dossier
 - Manage taught sections & publish course materials (auto-indexed for students' AI tutor)
 - One-click attendance with live class stats
 - Grading workspace with AI-drafted feedback
@@ -174,6 +175,8 @@ academic health.
 - Document approval workflow & knowledge base
 - Institution-wide analytics & top queries
 - AI provider settings, prompts & retrieval tuning
+- Exam-security gate: which proctoring layers faculty may use
+- AI usage monitor with per-user access control
 - System monitor, departments & announcements
 - Discussion moderation queue for reported posts & comments
 - *Sample dashboard metrics:* 2.4k users · 860 docs · 99.9% uptime

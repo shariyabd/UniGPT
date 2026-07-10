@@ -17,6 +17,9 @@ import {
     UserGroupIcon,
     ClockIcon,
     BoltIcon,
+    RectangleStackIcon,
+    CameraIcon,
+    TrophyIcon,
 } from '@heroicons/vue/24/outline';
 </script>
 
@@ -75,6 +78,12 @@ import {
                     <span class="ui-icon-tile bg-accent-sky-soft text-accent-sky-fg"><PencilSquareIcon class="h-5 w-5" /></span>
                     <h3 class="mt-4 font-semibold text-content">Timed quizzes & class tests</h3>
                     <p class="mt-1.5 text-sm text-content-muted">Faculty build timed online quizzes and class tests in minutes — write questions by hand or generate them with AI, then edit. Students take them in-panel with a live countdown and get auto-graded results the moment they submit.</p>
+                </div>
+
+                <div v-reveal="120" class="reveal ui-card ui-card-hover p-6">
+                    <span class="ui-icon-tile bg-danger-bg text-danger-fg"><ShieldCheckIcon class="h-5 w-5" /></span>
+                    <h3 class="mt-4 font-semibold text-content">Layered exam proctoring</h3>
+                    <p class="mt-1.5 text-sm text-content-muted">Faculty pick per-test security layers from an admin-approved set — fullscreen, tab-switch & clipboard guards, watermark, fingerprint, webcam/screen recording — with a risk-scored, per-student review dossier.</p>
                 </div>
 
                 <div v-reveal="60" class="reveal ui-card ui-card-hover p-6">
@@ -141,6 +150,42 @@ import {
                     <span class="ui-icon-tile bg-accent-peach-soft text-accent-peach-fg"><ClockIcon class="h-5 w-5" /></span>
                     <h3 class="mt-4 font-semibold text-content">Office-hours booking</h3>
                     <p class="mt-1.5 text-sm text-content-muted">Faculty publish bookable slots; students book atomically — no double-booking, both sides notified, meetings land on the calendar.</p>
+                </div>
+
+                <div v-reveal="120" class="reveal ui-card ui-card-hover p-6">
+                    <span class="ui-icon-tile bg-accent-yellow-soft text-accent-yellow-fg"><SparklesIcon class="h-5 w-5" /></span>
+                    <h3 class="mt-4 font-semibold text-content">AI Study Planner</h3>
+                    <p class="mt-1.5 text-sm text-content-muted">Feed in your deadlines and UniGPT drafts a realistic study schedule, then saves each session straight to your tasks.</p>
+                </div>
+
+                <div v-reveal class="reveal ui-card ui-card-hover p-6">
+                    <span class="ui-icon-tile bg-accent-rose-soft text-accent-rose-fg"><RectangleStackIcon class="h-5 w-5" /></span>
+                    <h3 class="mt-4 font-semibold text-content">Flashcards with spaced repetition</h3>
+                    <p class="mt-1.5 text-sm text-content-muted">Build decks by hand or generate them with AI, then review on an SM-2 schedule that surfaces cards right before you'd forget.</p>
+                </div>
+
+                <div v-reveal="60" class="reveal ui-card ui-card-hover p-6">
+                    <span class="ui-icon-tile bg-accent-mint-soft text-accent-mint-fg"><ChartPieIcon class="h-5 w-5" /></span>
+                    <h3 class="mt-4 font-semibold text-content">"My Progress" analytics</h3>
+                    <p class="mt-1.5 text-sm text-content-muted">Every student gets a personal insight dashboard — GPA, attendance, test, assignment and activity trends visualised in one place.</p>
+                </div>
+
+                <div v-reveal="120" class="reveal ui-card ui-card-hover p-6">
+                    <span class="ui-icon-tile bg-accent-sky-soft text-accent-sky-fg"><CameraIcon class="h-5 w-5" /></span>
+                    <h3 class="mt-4 font-semibold text-content">OCR handwritten notes</h3>
+                    <p class="mt-1.5 text-sm text-content-muted">Snap a photo of handwritten notes and gpt-4o vision transcribes it into a clean saved note — automatically indexed so the AI tutor can answer from it.</p>
+                </div>
+
+                <div v-reveal class="reveal ui-card ui-card-hover p-6">
+                    <span class="ui-icon-tile bg-accent-lilac-soft text-accent-lilac-fg"><ChatBubbleLeftRightIcon class="h-5 w-5" /></span>
+                    <h3 class="mt-4 font-semibold text-content">Discussion feeds</h3>
+                    <p class="mt-1.5 text-sm text-content-muted">Every course section gets its own group — post, comment, like and report; faculty moderate their sections and admins run a moderation queue.</p>
+                </div>
+
+                <div v-reveal="60" class="reveal ui-card ui-card-hover p-6">
+                    <span class="ui-icon-tile bg-warning-bg text-warning-fg"><TrophyIcon class="h-5 w-5" /></span>
+                    <h3 class="mt-4 font-semibold text-content">Gamified leaderboard</h3>
+                    <p class="mt-1.5 text-sm text-content-muted">Opt-in XP rankings by department, semester or section — students choose an alias and compete on their own terms.</p>
                 </div>
             </div>
         </div>
