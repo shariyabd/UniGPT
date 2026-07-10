@@ -1,6 +1,6 @@
 <script setup>
-import { computed } from 'vue';
-import { Head } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
+import { Head, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import PageHeader from '@/components/ui/PageHeader.vue';
 import Card from '@/components/ui/Card.vue';
@@ -15,11 +15,56 @@ import {
     FireIcon,
     CalendarDaysIcon,
     ChatBubbleLeftRightIcon,
+    Squares2X2Icon,
+    PencilSquareIcon,
+    RectangleStackIcon,
 } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
     analytics: { type: Object, required: true },
+    conceptMastery: { type: Object, default: () => ({ concepts: [], weakCount: 0 }) },
 });
+
+// --- Concept mastery map -------------------------------------------------
+const concepts = computed(() => props.conceptMastery.concepts ?? []);
+
+// Mastery tier → tile styling (weakest concepts jump out).
+const masteryTier = (mastery) => {
+    if (mastery >= 80) return { label: 'Strong', class: 'bg-success-bg text-success-fg border-success-fg/20' };
+    if (mastery >= 60) return { label: 'Developing', class: 'bg-primary-soft text-primary border-primary/20' };
+    if (mastery >= 40) return { label: 'Shaky', class: 'bg-warning-bg text-warning-fg border-warning-fg/20' };
+    return { label: 'Weak', class: 'bg-danger-bg text-danger-fg border-danger-fg/20' };
+};
+
+const sourceSummary = (entry) => {
+    const parts = [];
+    if (entry.sources.classTests) parts.push(`Tests ${entry.sources.classTests.accuracy}%`);
+    if (entry.sources.practice) parts.push(`Practice ${entry.sources.practice.accuracy}%`);
+    if (entry.sources.flashcards) parts.push(`Cards ${entry.sources.flashcards.learned}/${entry.sources.flashcards.total}`);
+    return parts.join(' · ');
+};
+
+// One-click adaptive review: feed the weak topic straight into the existing
+// AI generators; both endpoints redirect to the created quiz/deck.
+const generating = ref(null);
+
+const practiceConcept = (entry) => {
+    generating.value = `practice:${entry.concept}`;
+    router.post(route('practice.generate'), {
+        topic: entry.concept,
+        question_count: 5,
+        difficulty: entry.mastery < 40 ? 'easy' : 'medium',
+    }, { onFinish: () => { generating.value = null; } });
+};
+
+const flashcardsConcept = (entry) => {
+    generating.value = `cards:${entry.concept}`;
+    router.post(route('flashcards.generate'), {
+        topic: entry.concept,
+        count: 10,
+        difficulty: entry.mastery < 40 ? 'easy' : 'medium',
+    }, { onFinish: () => { generating.value = null; } });
+};
 
 const s = computed(() => props.analytics.summary);
 
@@ -59,6 +104,71 @@ const has = (series) => Array.isArray(series) && series.length > 0;
                         :color="card.color"
                     />
                 </div>
+
+                <!-- Concept mastery map + adaptive review -->
+                <Card>
+                    <template #header>
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <h2 class="ui-card-title flex items-center gap-2">
+                                <Squares2X2Icon class="w-5 h-5 text-primary" />
+                                Concept mastery
+                            </h2>
+                            <span v-if="conceptMastery.weakCount > 0" class="ui-badge bg-danger-bg text-danger-fg">
+                                {{ conceptMastery.weakCount }} concept{{ conceptMastery.weakCount === 1 ? '' : 's' }} need review
+                            </span>
+                        </div>
+                    </template>
+
+                    <div v-if="concepts.length" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                        <div
+                            v-for="entry in concepts"
+                            :key="entry.concept"
+                            :class="`rounded-card border p-4 ${masteryTier(entry.mastery).class}`"
+                        >
+                            <div class="flex items-start justify-between gap-2">
+                                <div class="min-w-0">
+                                    <p class="font-semibold text-content truncate" :title="entry.concept">
+                                        {{ entry.concept }}
+                                    </p>
+                                    <p class="text-xs text-content-muted mt-0.5">
+                                        <span v-if="entry.course" class="font-medium">{{ entry.course }} · </span>
+                                        {{ sourceSummary(entry) }}
+                                    </p>
+                                </div>
+                                <div class="text-right flex-shrink-0">
+                                    <p class="text-2xl font-bold leading-none">{{ entry.mastery }}%</p>
+                                    <p class="text-xs font-medium mt-1">{{ masteryTier(entry.mastery).label }}</p>
+                                </div>
+                            </div>
+
+                            <div v-if="entry.weak" class="flex items-center gap-2 mt-3">
+                                <button
+                                    @click="practiceConcept(entry)"
+                                    :disabled="generating !== null"
+                                    class="ui-btn-secondary text-xs py-1.5 px-2.5"
+                                >
+                                    <PencilSquareIcon class="w-3.5 h-3.5" />
+                                    {{ generating === `practice:${entry.concept}` ? 'Generating…' : 'Practice this' }}
+                                </button>
+                                <button
+                                    @click="flashcardsConcept(entry)"
+                                    :disabled="generating !== null"
+                                    class="ui-btn-secondary text-xs py-1.5 px-2.5"
+                                >
+                                    <RectangleStackIcon class="w-3.5 h-3.5" />
+                                    {{ generating === `cards:${entry.concept}` ? 'Generating…' : 'Make flashcards' }}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <EmptyState
+                        v-else
+                        title="No concept data yet"
+                        description="Take practice quizzes, study flashcards or complete class tests and your per-topic mastery will map out here."
+                        :icon="Squares2X2Icon"
+                    />
+                </Card>
 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <Card>
