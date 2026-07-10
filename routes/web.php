@@ -46,6 +46,9 @@ use App\Http\Controllers\Student\FacultyDirectoryController as StudentFacultyDir
 use App\Http\Controllers\Student\FlashcardController;
 use App\Http\Controllers\Student\LeaderboardController;
 use App\Http\Controllers\Student\LearningAnalyticsController;
+use App\Http\Controllers\Student\CourseFeedbackController as StudentCourseFeedbackController;
+use App\Http\Controllers\Faculty\CourseFeedbackController as FacultyCourseFeedbackController;
+use App\Http\Controllers\Faculty\QuestionBankController;
 use App\Http\Controllers\Student\NoteController;
 use App\Http\Controllers\Student\OfficeHoursController as StudentOfficeHoursController;
 use App\Http\Controllers\Student\PracticeQuizController;
@@ -188,6 +191,10 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/office-hours/{slot}/book', [StudentOfficeHoursController::class, 'book'])->name('office-hours.book');
         Route::post('/office-hours/{slot}/cancel', [StudentOfficeHoursController::class, 'cancel'])->name('office-hours.cancel');
 
+        // Anonymous mid-semester course feedback (one response per section).
+        Route::get('/course-feedback', [StudentCourseFeedbackController::class, 'index'])->name('course-feedback');
+        Route::post('/course-feedback/{section}', [StudentCourseFeedbackController::class, 'store'])->name('course-feedback.store');
+
         // Group study rooms — section-scoped group chats between classmates.
         // The chat itself uses the shared messenger endpoints (membership-based
         // auth); these routes manage the rooms and their membership.
@@ -204,6 +211,7 @@ Route::middleware(['auth'])->group(function () {
         Route::prefix('practice')->name('practice.')->group(function () {
             Route::get('/', [PracticeQuizController::class, 'index'])->name('index');
             Route::post('/generate', [PracticeQuizController::class, 'generate'])->middleware(['permission:use_ai_chat', 'ai.chat.access'])->name('generate');
+            Route::post('/from-bank', [PracticeQuizController::class, 'fromBank'])->name('from-bank');
             Route::get('/{quiz}', [PracticeQuizController::class, 'show'])->name('show');
             Route::post('/{quiz}/submit', [PracticeQuizController::class, 'submit'])->name('submit');
             Route::post('/{quiz}/attempts/{attempt}/flashcards', [PracticeQuizController::class, 'toFlashcards'])->name('flashcards');
@@ -251,6 +259,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/assignments', [StudentAssignmentController::class, 'index'])->middleware('permission:view_assignments')->name('assignments');
         Route::get('/assignments/{assignment}', [StudentAssignmentController::class, 'show'])->middleware('permission:view_assignments')->name('assignments.show');
         Route::post('/assignments/{assignment}/submit', [StudentAssignmentController::class, 'store'])->middleware('permission:submit_assignment')->name('assignments.submit');
+        // Anonymous peer review: complete an assigned review task.
+        Route::post('/assignments/{assignment}/peer-reviews/{review}', [StudentAssignmentController::class, 'storePeerReview'])->name('assignments.peer-review');
 
         // Class tests / quizzes (proctored, auto-graded, instant results)
         Route::middleware('permission:take_class_test')->group(function () {
@@ -330,6 +340,11 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('/office-hours/{slot}', [FacultyOfficeHoursController::class, 'destroy'])->name('office-hours.destroy');
         Route::post('/office-hours/{slot}/cancel-booking', [FacultyOfficeHoursController::class, 'cancelBooking'])->name('office-hours.cancel-booking');
 
+        // Anonymous course feedback: per-section window + anonymized results + AI summary.
+        Route::get('/course-feedback', [FacultyCourseFeedbackController::class, 'index'])->name('course-feedback');
+        Route::patch('/course-feedback/{section}/toggle', [FacultyCourseFeedbackController::class, 'toggle'])->name('course-feedback.toggle');
+        Route::post('/course-feedback/{section}/summarize', [FacultyCourseFeedbackController::class, 'summarize'])->middleware(['permission:use_ai_chat', 'ai.chat.access'])->name('course-feedback.summarize');
+
         // My Documents — faculty-submitted documents that flow into the admin
         // approval queue. Owner-scoped upload / edit / delete.
         Route::middleware('permission:upload_document')->group(function () {
@@ -377,6 +392,16 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/class-tests/{classTest}/results', [FacultyClassTestController::class, 'results'])->name('class-tests.results');
             Route::get('/class-tests/{classTest}/attempts/{attempt}', [FacultyClassTestController::class, 'attempt'])->name('class-tests.attempt');
             Route::get('/class-tests/{classTest}/attempts/{attempt}/recordings/{recording}', [FacultyClassTestController::class, 'recording'])->name('class-tests.recording');
+
+        // Question bank: per-course reusable questions, import from tests,
+        // spin draft tests from a selection.
+        Route::prefix('question-bank')->name('question-bank.')->middleware('permission:manage_class_tests')->group(function () {
+            Route::get('/', [QuestionBankController::class, 'index'])->name('index');
+            Route::post('/', [QuestionBankController::class, 'store'])->name('store');
+            Route::delete('/{item}', [QuestionBankController::class, 'destroy'])->name('destroy');
+            Route::post('/import/{classTest}', [QuestionBankController::class, 'import'])->name('import');
+            Route::post('/create-test', [QuestionBankController::class, 'createTest'])->name('create-test');
+        });
         });
 
         // Learning analytics & academic reporting
@@ -394,6 +419,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/submissions/{submission}/download', [FacultyGradingController::class, 'downloadSubmission'])->middleware('permission:grade_assignment')->name('submissions.download');
         Route::post('/submissions/{submission}/grade', [FacultyGradingController::class, 'grade'])->middleware('permission:grade_assignment')->name('submissions.grade');
         Route::post('/submissions/{submission}/feedback', [FacultyGradingController::class, 'suggestFeedback'])->middleware('permission:grade_assignment')->name('submissions.feedback');
+        Route::post('/submissions/{submission}/draft-grade', [FacultyGradingController::class, 'draftGrade'])->middleware('permission:grade_assignment')->name('submissions.draft-grade');
     });
 
     Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function () {

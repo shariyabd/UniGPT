@@ -93,6 +93,7 @@ const navByRole = {
             { label: 'Messages', route: 'messages', icon: ChatBubbleLeftEllipsisIcon },
             { label: 'Study Rooms', route: 'study-rooms.index', icon: UserGroupIcon },
             { label: 'Office Hours', route: 'office-hours', icon: ClockIcon },
+            { label: 'Course Feedback', route: 'course-feedback', icon: ChatBubbleLeftEllipsisIcon },
         ] },
         { section: 'Community', items: [
             { label: 'Discussions', route: 'discussions.index', icon: ChatBubbleLeftRightIcon, permission: 'view_discussions' },
@@ -117,6 +118,7 @@ const navByRole = {
             { label: 'Courses', route: 'faculty.courses', icon: BookOpenIcon, permission: 'view_courses' },
             { label: 'Grading', route: 'faculty.grading', icon: ClipboardDocumentCheckIcon, permission: 'grade_assignment' },
             { label: 'Class Tests', route: 'faculty.class-tests', icon: ClipboardDocumentListIcon, permission: 'manage_class_tests' },
+            { label: 'Question Bank', route: 'faculty.question-bank.index', icon: RectangleStackIcon, permission: 'manage_class_tests' },
             { label: 'Exams', route: 'faculty.exams', icon: PencilSquareIcon, permission: 'view_exams' },
         ] },
         { section: 'Connect', items: [
@@ -132,6 +134,7 @@ const navByRole = {
         ] },
         { section: 'Insights', items: [
             { label: 'Analytics', route: 'faculty.analytics', icon: ChartBarIcon, permission: 'view_department_analytics' },
+            { label: 'Course Feedback', route: 'faculty.course-feedback', icon: ChatBubbleLeftEllipsisIcon },
         ] },
         { section: 'AI Copilot', items: [
             { label: 'AI Assistant', route: 'faculty.ai-assistant', icon: SparklesIcon, permission: 'use_ai_chat' },
