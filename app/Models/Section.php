@@ -33,6 +33,7 @@ class Section extends Model
         'term_id',
         'faculty_id',
         'label',
+        'feedback_open',
         'schedule',
         'max_enrollment',
         'is_active',
@@ -43,6 +44,7 @@ class Section extends Model
         return [
             'schedule' => 'array',
             'is_active' => 'boolean',
+            'feedback_open' => 'boolean',
         ];
     }
 
@@ -67,6 +69,11 @@ class Section extends Model
             ->withPivot(['role', 'status', 'grade', 'progress', 'enrolled_at', 'term_id'])
             ->withTimestamps()
             ->wherePivot('role', 'student');
+    }
+
+    public function feedback(): HasMany
+    {
+        return $this->hasMany(CourseFeedback::class);
     }
 
     public function materials(): HasMany
