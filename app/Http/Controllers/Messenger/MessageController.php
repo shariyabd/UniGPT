@@ -168,7 +168,10 @@ class MessageController extends Controller
             $id => $seen->get($id)?->last_seen_at?->toISOString(),
         ]);
 
+        // Direct threads only — group study rooms have their own surface and
+        // must never masquerade as a 1:1 contact row here.
         $conversations = $user->conversations()
+            ->where('type', Conversation::TYPE_DIRECT)
             ->with(['latestMessage', 'participants:id'])
             ->get()
             ->map(function (Conversation $conversation) use ($user) {

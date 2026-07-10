@@ -103,6 +103,22 @@ export function useConversation({ pollMs = 4000 } = {}) {
         }
     }
 
+    /** Open an existing conversation by id (group study rooms — membership is
+     *  already established, so there is no contact to resolve). */
+    async function openById(id) {
+        close();
+        loading.value = true;
+        conversationId.value = id;
+        try {
+            const { data } = await axios.get(route('messenger.messages.index', id));
+            messages.value = data.messages;
+            const realtime = subscribe();
+            startPolling(realtime ? 15000 : pollMs);
+        } finally {
+            loading.value = false;
+        }
+    }
+
     /** Persist and optimistically render an outgoing message. */
     async function send(body) {
         const text = (body ?? '').trim();
@@ -170,6 +186,7 @@ export function useConversation({ pollMs = 4000 } = {}) {
         otherTyping,
         notifyTyping,
         open,
+        openById,
         send,
         poll,
         receive,
