@@ -1,6 +1,6 @@
 <script setup>
-import { ref, computed } from 'vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { ref, computed, reactive } from 'vue';
+import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import { useToast } from 'vue-toastification';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Card from '@/components/ui/Card.vue';
@@ -11,12 +11,37 @@ import {
     PaperClipIcon,
     CheckBadgeIcon,
     ExclamationTriangleIcon,
+    UserGroupIcon,
+    StarIcon,
 } from '@heroicons/vue/24/outline';
+import { StarIcon as StarSolidIcon } from '@heroicons/vue/24/solid';
 
 const props = defineProps({
     assignment: { type: Object, required: true },
     submission: { type: Object, default: null },
+    peerTasks: { type: Array, default: () => [] },
+    peerReceived: { type: Array, default: () => [] },
 });
+
+// --- Anonymous peer review -------------------------------------------------
+const peerForms = reactive(Object.fromEntries(props.peerTasks.map((task) => [
+    task.id,
+    { rating: task.rating ?? 0, comments: task.comments ?? '', submitting: false },
+])));
+
+const submitPeerReview = (task) => {
+    const peerForm = peerForms[task.id];
+    if (!peerForm.rating || peerForm.submitting) return;
+
+    peerForm.submitting = true;
+    router.post(route('assignments.peer-review', [props.assignment.id, task.id]), {
+        rating: peerForm.rating,
+        comments: peerForm.comments || null,
+    }, {
+        preserveScroll: true,
+        onFinish: () => { peerForm.submitting = false; },
+    });
+};
 
 const toast = useToast();
 
@@ -163,6 +188,77 @@ const statusBadge = computed(() => {
                             </button>
                         </div>
                     </form>
+                </Card>
+
+                <!-- Peer reviews to complete (anonymous) -->
+                <Card v-if="peerTasks.length" title="Peer review">
+                    <p class="text-sm text-content-muted -mt-1 mb-4">
+                        Review these anonymous classmate submissions — they'll never see who reviewed them, and you don't see whose work this is.
+                    </p>
+                    <div class="space-y-5">
+                        <div v-for="(task, index) in peerTasks" :key="task.id" class="rounded-card border border-line p-4">
+                            <p class="text-xs font-semibold text-content-muted mb-2">Submission {{ index + 1 }}</p>
+                            <div class="max-h-56 overflow-y-auto whitespace-pre-wrap rounded-control bg-bg p-3 text-sm text-content">
+                                {{ task.content || 'This classmate submitted an attachment without written text.' }}
+                            </div>
+
+                            <div v-if="task.completed && !peerForms[task.id].submitting" class="mt-3 flex items-center gap-2 text-sm text-success-fg">
+                                <CheckBadgeIcon class="h-4 w-4" /> Review submitted — you can revise it below.
+                            </div>
+
+                            <div class="mt-3 flex items-center gap-1">
+                                <button
+                                    v-for="star in 5"
+                                    :key="star"
+                                    type="button"
+                                    @click="peerForms[task.id].rating = star"
+                                    class="p-0.5"
+                                    :aria-label="`Rate ${star} of 5`"
+                                >
+                                    <component
+                                        :is="star <= peerForms[task.id].rating ? StarSolidIcon : StarIcon"
+                                        class="h-6 w-6"
+                                        :class="star <= peerForms[task.id].rating ? 'text-warning-fg' : 'text-content-faint'"
+                                    />
+                                </button>
+                            </div>
+                            <textarea
+                                v-model="peerForms[task.id].comments"
+                                rows="3"
+                                maxlength="2000"
+                                class="ui-input resize-none mt-2"
+                                placeholder="What works well? What could be improved? Be constructive."
+                            ></textarea>
+                            <button
+                                @click="submitPeerReview(task)"
+                                :disabled="!peerForms[task.id].rating || peerForms[task.id].submitting"
+                                class="ui-btn-primary mt-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {{ peerForms[task.id].submitting ? 'Sending…' : (task.completed ? 'Update review' : 'Submit review') }}
+                            </button>
+                        </div>
+                    </div>
+                </Card>
+
+                <!-- Feedback received from classmates (anonymous) -->
+                <Card v-if="peerReceived.length" title="Feedback from classmates">
+                    <div class="space-y-3">
+                        <div v-for="(review, index) in peerReceived" :key="index" class="rounded-card border border-line bg-bg p-3">
+                            <div class="flex items-center gap-1">
+                                <component
+                                    :is="star <= review.rating ? StarSolidIcon : StarIcon"
+                                    v-for="star in 5"
+                                    :key="star"
+                                    class="h-4 w-4"
+                                    :class="star <= review.rating ? 'text-warning-fg' : 'text-content-faint'"
+                                />
+                            </div>
+                            <p v-if="review.comments" class="mt-2 text-sm text-content whitespace-pre-wrap">{{ review.comments }}</p>
+                        </div>
+                        <p class="flex items-center gap-1.5 text-xs text-content-faint">
+                            <UserGroupIcon class="h-3.5 w-3.5" /> Peer reviews are anonymous and don't affect your grade directly.
+                        </p>
+                    </div>
                 </Card>
             </div>
         </AppLayout>

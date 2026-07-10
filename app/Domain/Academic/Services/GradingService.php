@@ -6,6 +6,8 @@ use App\Domain\User\Models\User;
 use App\Models\Assignment;
 use App\Models\AssignmentSubmission;
 use App\Models\Course;
+use App\Models\Section;
+use App\Models\SubmissionSimilarity;
 use Illuminate\Support\Collection;
 
 /**
@@ -13,6 +15,11 @@ use Illuminate\Support\Collection;
  */
 class GradingService
 {
+    public function __construct(
+        private readonly SubmissionSimilarityService $similarity,
+        private readonly PeerReviewService $peerReviews,
+    ) {}
+
     /**
      * Build the grading overview for a faculty member, optionally scoped to one course.
      *
@@ -59,9 +66,9 @@ class GradingService
             'sections' => $courseSections->map(fn ($s) => ['id' => $s->id, 'label' => $s->label])->values()->all(),
             'activeSectionId' => $active?->id,
             'assignments' => $course->assignments->map(fn (Assignment $a) => $this->presentAssignment($a))->values(),
-            'submissions' => $course->assignments->flatMap(
+            'submissions' => $this->attachSimilarity($course->assignments->flatMap(
                 fn (Assignment $a) => $a->submissions->map(fn ($s) => $this->presentSubmission($s, $a))
-            )->values(),
+            )->values()),
             'allCourses' => false,
         ];
     }
@@ -70,7 +77,7 @@ class GradingService
      * Aggregate assignments and submissions across every section the faculty
      * teaches (the default "All Courses / All Assignments" grading view).
      *
-     * @param  Collection<int, \App\Models\Section>  $sections
+     * @param  Collection<int, Section>  $sections
      * @param  Collection<int, Course>  $courses
      * @return array<string, mixed>
      */
@@ -100,9 +107,9 @@ class GradingService
             'sections' => [],
             'activeSectionId' => null,
             'assignments' => $assignments->map(fn (Assignment $a) => $this->presentAssignment($a))->values(),
-            'submissions' => $assignments->flatMap(
+            'submissions' => $this->attachSimilarity($assignments->flatMap(
                 fn (Assignment $a) => $a->submissions->map(fn ($s) => $this->presentSubmission($s, $a))
-            )->values(),
+            )->values()),
             'allCourses' => true,
         ];
     }
@@ -149,6 +156,40 @@ class GradingService
     }
 
     /**
+     * Attach similarity-screening flags to presented submission payloads.
+     * Submissions without flags get `similarity: null`, so the frontend can
+     * simply check truthiness.
+     *
+     * @param  Collection<int, array<string, mixed>>  $submissions
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function attachSimilarity(Collection $submissions): Collection
+    {
+        $flags = $this->similarity->flagsFor($submissions->pluck('id')->all());
+        $peerStats = $this->peerReviews->statsFor($submissions->pluck('id')->all());
+
+        return $submissions->map(function (array $submission) use ($flags, $peerStats) {
+            $submission['peerReview'] = $peerStats->get($submission['id']);
+
+            /** @var Collection<int, SubmissionSimilarity>|null $matches */
+            $matches = $flags->get($submission['id']);
+
+            $submission['similarity'] = $matches === null || $matches->isEmpty() ? null : [
+                'maxScore' => (float) $matches->max('score'),
+                'matches' => $matches->map(fn (SubmissionSimilarity $flag) => [
+                    'submissionId' => $flag->matched_submission_id,
+                    'student' => $flag->matched?->student?->name,
+                    'score' => $flag->score,
+                    'coverage' => $flag->coverage,
+                    'pairs' => $flag->matched_chunks ?? [],
+                ])->values()->all(),
+            ];
+
+            return $submission;
+        });
+    }
+
+    /**
      * @param  Collection<int, Course>  $courses
      * @return array<int, array<string, mixed>>
      */
@@ -177,7 +218,17 @@ class GradingService
             'dueDate' => $assignment->due_at?->toDateString(),
             'totalPoints' => $assignment->total_points,
             'status' => $assignment->status,
-            'rubric' => ['criteria' => $assignment->rubric ?? []],
+            // Stored rubric rows use the `criterion` key; the grading UI (and
+            // rubric_scores keys) expect `name` — normalize here.
+            'rubric' => ['criteria' => collect($assignment->rubric ?? [])
+                ->map(fn (array $row) => [
+                    'name' => $row['name'] ?? $row['criterion'] ?? null,
+                    'points' => $row['points'] ?? null,
+                    'description' => $row['description'] ?? null,
+                ])
+                ->filter(fn (array $row) => $row['name'] !== null)
+                ->values()
+                ->all()],
             'submissions' => [
                 'total' => $subs->count(),
                 'graded' => $graded->count(),

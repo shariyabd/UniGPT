@@ -122,6 +122,7 @@ const editForm = useForm({
     total_points: 100,
     due_at: null,
     status: 'published',
+    peer_review_enabled: false,
 });
 const editingId = ref(null);
 
@@ -138,6 +139,7 @@ const openEdit = (assignment) => {
     editForm.total_points = assignment.totalPoints ?? 100;
     editForm.due_at = assignment.dueDate ?? null;
     editForm.status = assignment.status ?? 'published';
+    editForm.peer_review_enabled = assignment.peerReviewEnabled ?? false;
 };
 
 const submitEdit = () => {
@@ -688,6 +690,13 @@ const formatDate = (date) => date
                                 <label class="ui-label">Due date</label>
                                 <input v-model="editForm.due_at" type="date" class="ui-input max-w-xs" />
                             </div>
+                            <label class="flex items-start gap-3 rounded-card border border-line p-3 cursor-pointer">
+                                <input v-model="editForm.peer_review_enabled" type="checkbox" class="mt-0.5" />
+                                <span>
+                                    <span class="block font-medium text-content text-sm">Enable anonymous peer review</span>
+                                    <span class="block text-xs text-content-muted">Each student who submits reviews up to two classmates' submissions (rating + comments, anonymous both ways).</span>
+                                </span>
+                            </label>
                             <div>
                                 <label class="ui-label">{{ editForm.type === 'quiz' ? 'Questions / content' : 'Description' }}</label>
                                 <textarea v-model="editForm.description" rows="8" class="ui-input resize-y font-mono text-sm"></textarea>

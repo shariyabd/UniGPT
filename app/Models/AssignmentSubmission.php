@@ -6,6 +6,7 @@ use App\Domain\User\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class AssignmentSubmission extends Model
 {
@@ -44,6 +45,11 @@ class AssignmentSubmission extends Model
     public function student(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function peerReviews(): HasMany
+    {
+        return $this->hasMany(PeerReview::class, 'submission_id');
     }
 
     public function grader(): BelongsTo

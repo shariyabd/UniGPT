@@ -23,6 +23,7 @@ class Assignment extends Model
         'total_points',
         'due_at',
         'rubric',
+        'peer_review_enabled',
         'status',
         'created_by',
     ];
@@ -31,6 +32,7 @@ class Assignment extends Model
     {
         return [
             'rubric' => 'array',
+            'peer_review_enabled' => 'boolean',
             'due_at' => 'datetime',
         ];
     }

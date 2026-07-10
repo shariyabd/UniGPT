@@ -19,7 +19,12 @@ import {
     ClipboardDocumentCheckIcon,
     ArrowLeftIcon,
     ArrowDownTrayIcon,
+    ExclamationTriangleIcon,
 } from '@heroicons/vue/24/outline';
+
+// Similarity screening runs on embeddings, so scores are a review signal —
+// format as a percentage for display.
+const similarityPercent = (score) => `${Math.round((score ?? 0) * 100)}%`;
 
 // Component state
 // 'all' shows submissions across every assignment (the default); a numeric id
@@ -268,6 +273,8 @@ const openGradingPanel = (submission) => {
     currentFeedback.value = submission.feedback || '';
     // Seed rubric inputs from any previously-saved per-criterion scores.
     currentRubricScores.value = { ...(submission.rubricScores || {}) };
+    aiJustifications.value = {};
+    aiDraftSource.value = null;
     showGradingPanel.value = true;
 };
 
@@ -277,6 +284,8 @@ const closeGradingPanel = () => {
     currentGrade.value = '';
     currentFeedback.value = '';
     currentRubricScores.value = {};
+    aiJustifications.value = {};
+    aiDraftSource.value = null;
 };
 
 // Running total of the rubric inputs; lets faculty apply it as the grade.
@@ -293,6 +302,52 @@ const applyRubricTotal = () => {
 
 const toast = useToast();
 const isDraftingFeedback = ref(false);
+
+// --- AI grade draft ------------------------------------------------------
+// Prefills rubric scores + grade + feedback from the submission text; the
+// faculty member reviews and edits before saving.
+const isDraftingGrade = ref(false);
+const aiJustifications = ref({});
+const aiDraftSource = ref(null);
+
+const formatDraftFeedback = (data) => {
+    const parts = [data.feedback];
+    if (data.strengths?.length) {
+        parts.push('\nStrengths:\n' + data.strengths.map((s) => `• ${s}`).join('\n'));
+    }
+    if (data.improvements?.length) {
+        parts.push('\nTo improve:\n' + data.improvements.map((s) => `• ${s}`).join('\n'));
+    }
+    return parts.filter(Boolean).join('\n');
+};
+
+const draftGrade = async () => {
+    if (!selectedSubmission.value) return;
+
+    isDraftingGrade.value = true;
+
+    try {
+        const { data } = await axios.post(
+            route('faculty.submissions.draft-grade', selectedSubmission.value.id)
+        );
+
+        (data.criteria || []).forEach((criterion) => {
+            currentRubricScores.value[criterion.name] = criterion.score;
+            if (criterion.justification) {
+                aiJustifications.value[criterion.name] = criterion.justification;
+            }
+        });
+        if (data.suggestedGrade !== null && data.suggestedGrade !== undefined) {
+            currentGrade.value = data.suggestedGrade;
+        }
+        currentFeedback.value = formatDraftFeedback(data);
+        aiDraftSource.value = data.source;
+    } catch (e) {
+        toast.error('Could not draft a grade. Please try again.');
+    } finally {
+        isDraftingGrade.value = false;
+    }
+};
 
 const draftFeedback = async () => {
     if (!selectedSubmission.value) return;
@@ -566,6 +621,23 @@ const submitGrade = () => {
                                                 <Badge :variant="getStatusVariant(submission.status, submission.isLate)">
                                                     {{ submission.isLate ? 'Late' : submission.status }}
                                                 </Badge>
+
+                                                <span
+                                                    v-if="submission.peerReview"
+                                                    class="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-pill bg-primary-soft text-primary border border-primary/20"
+                                                    title="Average anonymous peer rating"
+                                                >
+                                                    Peer {{ submission.peerReview.average }}★ ({{ submission.peerReview.completed }})
+                                                </span>
+
+                                                <span
+                                                    v-if="submission.similarity"
+                                                    class="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-pill bg-warning-bg text-warning-fg border border-warning-fg/20"
+                                                    title="High similarity with another submission — open the grading panel for details"
+                                                >
+                                                    <ExclamationTriangleIcon class="w-3.5 h-3.5" />
+                                                    {{ similarityPercent(submission.similarity.maxScore) }} similarity
+                                                </span>
                                             </div>
 
                                             <!-- Existing Grade & Feedback -->
@@ -735,15 +807,71 @@ const submitGrade = () => {
                                         >No written response or attachment was submitted.</p>
                                     </div>
 
+                                    <!-- Similarity Screening -->
+                                    <div v-if="selectedSubmission?.similarity" class="mt-6">
+                                        <label class="ui-label flex items-center gap-1.5">
+                                            <ExclamationTriangleIcon class="w-4 h-4 text-warning-fg" />
+                                            Similarity check
+                                        </label>
+                                        <div class="mt-1 space-y-3">
+                                            <div
+                                                v-for="match in selectedSubmission.similarity.matches"
+                                                :key="match.submissionId"
+                                                class="rounded-card border border-warning-fg/30 bg-warning-bg/40 p-4"
+                                            >
+                                                <div class="flex flex-wrap items-center gap-2 text-sm">
+                                                    <span class="font-semibold text-content">{{ match.student || 'Another student' }}</span>
+                                                    <span class="px-2 py-0.5 text-xs font-bold rounded-pill bg-warning-bg text-warning-fg border border-warning-fg/20">
+                                                        {{ similarityPercent(match.score) }} match
+                                                    </span>
+                                                    <span class="text-xs text-content-muted">
+                                                        {{ similarityPercent(match.coverage) }} of this submission overlaps
+                                                    </span>
+                                                </div>
+                                                <div v-if="match.pairs?.length" class="mt-3 space-y-2">
+                                                    <div
+                                                        v-for="(pair, pairIndex) in match.pairs"
+                                                        :key="pairIndex"
+                                                        class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs"
+                                                    >
+                                                        <div class="rounded-control border border-line bg-surface p-2.5">
+                                                            <p class="font-semibold text-content-muted mb-1">This submission</p>
+                                                            <p class="text-content whitespace-pre-wrap">{{ pair.excerpt }}</p>
+                                                        </div>
+                                                        <div class="rounded-control border border-line bg-surface p-2.5">
+                                                            <p class="font-semibold text-content-muted mb-1">{{ match.student || 'Matched submission' }} ({{ similarityPercent(pair.score) }})</p>
+                                                            <p class="text-content whitespace-pre-wrap">{{ pair.matchedExcerpt }}</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <p class="text-xs text-content-faint">
+                                                Automated signal based on text similarity — always review before acting.
+                                            </p>
+                                        </div>
+                                    </div>
+
                                 </div>
 
                                 <!-- Right Column - Grading -->
                                 <div>
                                     <!-- Grade Input -->
                                     <div class="mb-6">
-                                        <label class="ui-label">
-                                            Grade (out of {{ gradingAssignment?.totalPoints }})
-                                        </label>
+                                        <div class="flex items-center justify-between">
+                                            <label class="ui-label">
+                                                Grade (out of {{ gradingAssignment?.totalPoints }})
+                                            </label>
+                                            <button
+                                                v-if="!gradingAssignment?.rubric?.criteria?.length"
+                                                type="button"
+                                                @click="draftGrade"
+                                                :disabled="isDraftingGrade"
+                                                class="ui-btn-secondary !py-1.5 !px-3 text-xs disabled:opacity-50"
+                                            >
+                                                <SparklesIcon class="w-4 h-4 text-primary" />
+                                                {{ isDraftingGrade ? 'Drafting…' : 'Draft grade with AI' }}
+                                            </button>
+                                        </div>
                                         <input
                                             v-model="currentGrade"
                                             type="number"
@@ -791,7 +919,18 @@ const submitGrade = () => {
 
                                     <!-- Rubric Grading -->
                                     <div v-if="gradingAssignment?.rubric?.criteria?.length" class="mb-6">
-                                        <h4 class="font-semibold text-content mb-3">Rubric Breakdown</h4>
+                                        <div class="flex items-center justify-between mb-3">
+                                            <h4 class="font-semibold text-content">Rubric Breakdown</h4>
+                                            <button
+                                                type="button"
+                                                @click="draftGrade"
+                                                :disabled="isDraftingGrade"
+                                                class="ui-btn-secondary !py-1.5 !px-3 text-xs disabled:opacity-50"
+                                            >
+                                                <SparklesIcon class="w-4 h-4 text-primary" />
+                                                {{ isDraftingGrade ? 'Drafting…' : 'Draft grade with AI' }}
+                                            </button>
+                                        </div>
                                         <div class="space-y-3">
                                             <div
                                                 v-for="criterion in gradingAssignment.rubric.criteria"
@@ -812,8 +951,15 @@ const submitGrade = () => {
                                                     class="ui-input text-sm"
                                                     :placeholder="`0 - ${criterion.points}`"
                                                 />
+                                                <p v-if="aiJustifications[criterion.name]" class="mt-1.5 text-xs text-primary italic">
+                                                    <SparklesIcon class="inline w-3.5 h-3.5 -mt-0.5" />
+                                                    {{ aiJustifications[criterion.name] }}
+                                                </p>
                                             </div>
                                         </div>
+                                        <p v-if="aiDraftSource === 'heuristic'" class="mt-2 text-xs text-warning-fg">
+                                            No AI provider responded — these are heuristic draft scores. Verify each one carefully.
+                                        </p>
                                         <div class="mt-3 flex items-center justify-between rounded-control border border-line bg-bg px-3 py-2">
                                             <span class="text-sm font-medium text-content">Rubric total: {{ rubricTotal }}</span>
                                             <button

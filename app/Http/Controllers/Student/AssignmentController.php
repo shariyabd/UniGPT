@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Student;
 
+use App\Domain\Academic\Services\PeerReviewService;
 use App\Domain\Academic\Services\SubmissionService;
 use App\Domain\Notification\Services\NotificationService;
 use App\Domain\User\Models\User;
@@ -12,6 +13,7 @@ use App\Http\Controllers\Concerns\PaginatesCollections;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Student\SubmitAssignmentRequest;
 use App\Models\Assignment;
+use App\Models\PeerReview;
 use App\Services\ActivityLogger;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
@@ -25,6 +27,7 @@ class AssignmentController extends Controller
         private readonly SubmissionService $submissions,
         private readonly NotificationService $notifications,
         private readonly ActivityLogger $activity,
+        private readonly PeerReviewService $peerReviews,
     ) {}
 
     public function index(): Response
@@ -53,7 +56,36 @@ class AssignmentController extends Controller
         $user = request()->user();
         $this->ensureAccessible($user, $assignment);
 
-        return Inertia::render('Student/AssignmentDetail', $this->submissions->detailFor($user, $assignment));
+        return Inertia::render('Student/AssignmentDetail', array_merge(
+            $this->submissions->detailFor($user, $assignment),
+            [
+                // Anonymous peer review: tasks to complete (lazily assigned once
+                // the student has submitted) and feedback received from classmates.
+                'peerTasks' => $this->peerReviews->tasksFor($user, $assignment),
+                'peerReceived' => $this->peerReviews->receivedFor($user, $assignment),
+            ],
+        ));
+    }
+
+    public function storePeerReview(Assignment $assignment, PeerReview $review): RedirectResponse
+    {
+        $user = request()->user();
+        $this->ensureAccessible($user, $assignment);
+        abort_unless($review->assignment_id === $assignment->id, 404);
+
+        $validated = request()->validate([
+            'rating' => ['required', 'integer', 'min:1', 'max:5'],
+            'comments' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $this->peerReviews->submitReview(
+            reviewer: $user,
+            review: $review,
+            rating: (int) $validated['rating'],
+            comments: $validated['comments'] ?? null,
+        );
+
+        return back()->with('success', 'Peer review submitted — thanks for helping a classmate.');
     }
 
     public function store(SubmitAssignmentRequest $request, Assignment $assignment): RedirectResponse
