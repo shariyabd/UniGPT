@@ -50,12 +50,15 @@ class CourseController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'name', 'student_id']),
             'terms' => Term::orderByDesc('is_current')->orderByDesc('start_date')->get(['id', 'name', 'is_current']),
+            // Options for the prerequisites multi-select on the course form.
+            'courseOptions' => Course::orderBy('code')->get(['id', 'code', 'name']),
         ]);
     }
 
     public function store(CourseRequest $request): RedirectResponse
     {
-        $course = $this->management->createCourse($request->validated());
+        $course = $this->management->createCourse($request->safe()->except('prerequisites'));
+        $course->prerequisites()->sync($this->prerequisiteIds($request, $course));
 
         $this->activity->log('course.created', "Created course {$course->code}", $course, [], $request->user());
 
@@ -64,7 +67,8 @@ class CourseController extends Controller
 
     public function update(CourseRequest $request, Course $course): RedirectResponse
     {
-        $this->management->updateCourse($course, $request->validated());
+        $this->management->updateCourse($course, $request->safe()->except('prerequisites'));
+        $course->prerequisites()->sync($this->prerequisiteIds($request, $course));
 
         $this->activity->log('course.updated', "Updated course {$course->code}", $course, [], $request->user());
 
@@ -84,5 +88,20 @@ class CourseController extends Controller
         $this->activity->log('course.deleted', "Deleted course {$code}", null, ['code' => $code], request()->user());
 
         return back()->with('success', 'Course deleted.');
+    }
+
+    /**
+     * A course can never be its own prerequisite.
+     *
+     * @return array<int, int>
+     */
+    private function prerequisiteIds(CourseRequest $request, Course $course): array
+    {
+        return collect($request->validated()['prerequisites'] ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->reject(fn (int $id) => $id === $course->id)
+            ->unique()
+            ->values()
+            ->all();
     }
 }

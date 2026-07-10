@@ -22,6 +22,7 @@ const props = defineProps({
     // awaiting the student's confirmation.
     assigned: { type: Array, default: () => [] },
     registered: { type: Array, default: () => [] },
+    waitlisted: { type: Array, default: () => [] },
     registrationOpen: { type: Boolean, default: false },
     term: { type: String, default: null },
     semester: { type: [Number, String], default: null },
@@ -31,6 +32,8 @@ const toast = useToast();
 const { confirm } = useConfirm();
 
 const registeredCredits = computed(() => props.registered.reduce((n, c) => n + (c.credits || 0), 0));
+
+const unmetPrereqs = (section) => (section.prerequisites || []).filter((p) => !p.met);
 
 const registerForm = useForm({ section_id: null });
 
@@ -147,16 +150,45 @@ const drop = async (course) => {
                                 <span class="inline-flex items-center gap-1.5"><UserIcon class="w-4 h-4" /> {{ section.faculty || 'TBA' }}</span>
                                 <span class="inline-flex items-center gap-1.5"><UserGroupIcon class="w-4 h-4" /> {{ section.seatsLeft }} seat(s) left</span>
                             </div>
+                            <div v-if="section.prerequisites && section.prerequisites.length" class="flex flex-wrap items-center gap-1.5 mt-2">
+                                <span class="text-xs font-medium text-content-muted">Prerequisites:</span>
+                                <Badge
+                                    v-for="prereq in section.prerequisites"
+                                    :key="prereq.code"
+                                    :variant="prereq.met ? 'success' : 'danger'"
+                                >
+                                    {{ prereq.code }} {{ prereq.met ? '✓' : '✗' }}
+                                </Badge>
+                            </div>
                             <button
                                 type="button"
                                 @click="register(section)"
                                 class="ui-btn-primary w-full mt-3"
-                                :disabled="!registrationOpen || registerForm.processing"
+                                :disabled="!registrationOpen || registerForm.processing || unmetPrereqs(section).length > 0"
                             >
                                 <PlusCircleIcon class="w-4 h-4" /> Register
                             </button>
+                            <p v-if="unmetPrereqs(section).length" class="mt-1.5 text-xs text-danger-fg">
+                                Complete {{ unmetPrereqs(section).map((p) => p.code).join(', ') }} first.
+                            </p>
                         </div>
                     </div>
+                </Card>
+
+                <!-- Waitlists -->
+                <Card v-if="waitlisted.length" title="Waitlisted">
+                    <div class="divide-y divide-line">
+                        <div v-for="entry in waitlisted" :key="entry.sectionId" class="flex items-center justify-between gap-3 py-3">
+                            <div class="min-w-0">
+                                <span class="font-semibold text-content">{{ entry.code }}</span>
+                                <span class="text-sm text-content-muted"> — {{ entry.name }}<span v-if="entry.label"> · Section {{ entry.label }}</span></span>
+                            </div>
+                            <Badge variant="warning">#{{ entry.position }} in queue</Badge>
+                        </div>
+                    </div>
+                    <p class="mt-3 text-xs text-content-muted">
+                        You'll be assigned automatically (and notified) when a seat opens.
+                    </p>
                 </Card>
             </div>
         </AppLayout>

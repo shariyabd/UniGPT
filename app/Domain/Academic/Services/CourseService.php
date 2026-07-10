@@ -23,7 +23,7 @@ class CourseService
      */
     public function catalog(): Collection
     {
-        return Course::with(['department', 'sections.faculty', 'sections.term', 'sections.students'])
+        return Course::with(['department', 'prerequisites:id,code', 'sections.faculty', 'sections.term', 'sections.students'])
             ->latest()
             ->get()
             ->map(fn (Course $course) => $this->presentCourse($course));
@@ -90,6 +90,8 @@ class CourseService
             'department' => $course->department?->name,
             'semester' => $course->semester,
             'credits' => $course->credits,
+            'prerequisiteIds' => $course->prerequisites->pluck('id')->values()->all(),
+            'prerequisites' => $course->prerequisites->pluck('code')->values()->all(),
             'sections' => $course->sections->map(fn (Section $section) => [
                 'id' => $section->id,
                 'label' => $section->label,
@@ -362,6 +364,7 @@ class CourseService
                 'totalPoints' => $a->total_points,
                 'dueDate' => $a->due_at?->toDateString(),
                 'rubric' => $a->rubric ?? [],
+                'peerReviewEnabled' => (bool) $a->peer_review_enabled,
                 'submissions' => $a->submissions->count(),
                 'graded' => $a->submissions->whereNotNull('grade')->count(),
             ])->values(),

@@ -85,6 +85,14 @@ class Course extends Model
             ->wherePivot('role', 'student');
     }
 
+    /**
+     * Courses that must be completed before registering for this one.
+     */
+    public function prerequisites(): BelongsToMany
+    {
+        return $this->belongsToMany(Course::class, 'course_prerequisites', 'course_id', 'prerequisite_id');
+    }
+
     public function materials(): HasMany
     {
         return $this->hasMany(CourseMaterial::class);

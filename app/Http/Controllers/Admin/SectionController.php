@@ -81,6 +81,7 @@ class SectionController extends Controller
 
         $assigned = [];
         $skipped = [];
+        $waitlisted = [];
 
         foreach ($students as $student) {
             if (! $student->isStudent()) {
@@ -96,7 +97,18 @@ class SectionController extends Controller
             }
 
             if (! $this->enrollment->hasCapacity($section)) {
-                $skipped[] = "{$student->name} (section full)";
+                // Full section: queue the student instead of dropping the request.
+                $this->enrollment->waitlist($section, $student);
+                $waitlisted[] = $student->name;
+
+                $this->notifications->notify(
+                    user: $student,
+                    type: NotificationType::ENROLLMENT,
+                    title: 'Added to a waitlist',
+                    message: "{$course->code} — {$course->name} (Section {$section->label}) is full. You are on the waitlist and will be assigned automatically when a seat opens.",
+                    link: route('register'),
+                    data: ['course_id' => $course->id, 'section_id' => $section->id, 'waitlisted' => true],
+                );
 
                 continue;
             }
@@ -127,7 +139,11 @@ class SectionController extends Controller
 
         $message = $assigned !== []
             ? count($assigned).' student(s) assigned to Section '.$section->label.'.'
-            : 'No students were assigned.';
+            : ($waitlisted !== [] ? 'Section full.' : 'No students were assigned.');
+
+        if ($waitlisted !== []) {
+            $message .= ' Waitlisted (section full): '.implode(', ', $waitlisted).'.';
+        }
 
         if ($skipped !== []) {
             $message .= ' Skipped: '.implode(', ', $skipped).'.';

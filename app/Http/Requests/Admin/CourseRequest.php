@@ -28,6 +28,8 @@ class CourseRequest extends FormRequest
             'department_id' => ['nullable', 'exists:departments,id'],
             'semester' => ['nullable', 'integer', 'min:1', 'max:12'],
             'credits' => ['required', 'integer', 'min:1', 'max:12'],
+            'prerequisites' => ['nullable', 'array'],
+            'prerequisites.*' => ['integer', 'exists:courses,id'],
         ];
     }
 }

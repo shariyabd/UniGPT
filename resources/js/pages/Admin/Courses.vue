@@ -31,6 +31,7 @@ const props = defineProps({
     students: { type: Array, default: () => [] },
     terms: { type: Array, default: () => [] },
     semesterOptions: { type: Array, default: () => [] },
+    courseOptions: { type: Array, default: () => [] },
     filters: { type: Object, default: () => ({}) },
 });
 
@@ -93,6 +94,7 @@ const courseForm = useForm({
     department_id: null,
     semester: null,
     credits: 3,
+    prerequisites: [],
 });
 
 const openCreateCourse = () => {
@@ -111,6 +113,7 @@ const openEditCourse = (course) => {
     courseForm.department_id = course.departmentId;
     courseForm.semester = course.semester;
     courseForm.credits = course.credits;
+    courseForm.prerequisites = [...(course.prerequisiteIds ?? [])];
     showCourseModal.value = true;
 };
 
@@ -540,6 +543,18 @@ const dropStudent = async (student) => {
                                         <input v-model.number="courseForm.credits" type="number" min="1" max="12" class="ui-input" />
                                         <p v-if="courseForm.errors.credits" class="text-xs text-danger-fg mt-1">{{ courseForm.errors.credits }}</p>
                                     </div>
+                                </div>
+                                <div>
+                                    <label class="ui-label">Prerequisites <span class="font-normal text-content-faint">(must be completed before registering)</span></label>
+                                    <select v-model="courseForm.prerequisites" multiple size="5" class="ui-input">
+                                        <option
+                                            v-for="option in courseOptions.filter((c) => c.id !== editingCourseId)"
+                                            :key="option.id"
+                                            :value="option.id"
+                                        >{{ option.code }} — {{ option.name }}</option>
+                                    </select>
+                                    <p class="mt-1 text-xs text-content-muted">Hold Ctrl/Cmd to select multiple. Leave empty for none.</p>
+                                    <p v-if="courseForm.errors.prerequisites" class="text-xs text-danger-fg mt-1">{{ courseForm.errors.prerequisites }}</p>
                                 </div>
                             </div>
                             <div class="flex items-center justify-end gap-3 border-t border-line px-6 py-4">

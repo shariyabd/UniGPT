@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace App\Domain\Academic\Services;
 
+use App\Domain\Notification\Services\NotificationService;
 use App\Domain\User\Models\User;
+use App\Enums\NotificationType;
+use App\Models\Course;
 use App\Models\Section;
+use App\Models\SectionWaitlist;
 use App\Models\Term;
 use Illuminate\Support\Collection;
 
@@ -30,6 +34,8 @@ class EnrollmentService
      * @var list<string>
      */
     private const RESERVING_STATUSES = ['enrolled', 'pending'];
+
+    public function __construct(private readonly NotificationService $notifications) {}
 
     /**
      * Whether the section has room for another active enrollment.
@@ -84,11 +90,113 @@ class EnrollmentService
     }
 
     /**
-     * Drop a student from a section (keeps the row, marks it dropped).
+     * Drop a student from a section (keeps the row, marks it dropped) and
+     * promote the head of the section's waitlist into the freed seat.
      */
     public function drop(Section $section, User $student): void
     {
         $section->course->students()->updateExistingPivot($student->id, ['status' => 'dropped']);
+
+        $this->promoteFromWaitlist($section);
+    }
+
+    /* ---- Prerequisites ---- */
+
+    /**
+     * Prerequisite courses the student has not COMPLETED yet. In-progress
+     * enrollments do not satisfy a prerequisite.
+     *
+     * @return Collection<int, Course>
+     */
+    public function unmetPrerequisites(User $student, Course $course): Collection
+    {
+        $prerequisites = $course->prerequisites;
+        if ($prerequisites->isEmpty()) {
+            return collect();
+        }
+
+        $completedIds = $student->enrolledCourses()
+            ->wherePivot('status', 'completed')
+            ->pluck('courses.id');
+
+        return $prerequisites->reject(fn (Course $prerequisite) => $completedIds->contains($prerequisite->id))->values();
+    }
+
+    /* ---- Waitlist ---- */
+
+    /**
+     * Queue a student for a full section (idempotent).
+     */
+    public function waitlist(Section $section, User $student): SectionWaitlist
+    {
+        return SectionWaitlist::firstOrCreate([
+            'section_id' => $section->id,
+            'user_id' => $student->id,
+        ]);
+    }
+
+    /**
+     * The student's waitlist entries with their queue positions.
+     *
+     * @return Collection<int, array<string, mixed>>
+     */
+    public function waitlistFor(User $student): Collection
+    {
+        return SectionWaitlist::query()
+            ->where('user_id', $student->id)
+            ->with('section.course:id,code,name', 'section.faculty:id,name')
+            ->get()
+            ->map(fn (SectionWaitlist $entry) => [
+                'sectionId' => $entry->section_id,
+                'code' => $entry->section?->course?->code,
+                'name' => $entry->section?->course?->name,
+                'label' => $entry->section?->label,
+                'position' => SectionWaitlist::where('section_id', $entry->section_id)
+                    ->where('id', '<=', $entry->id)
+                    ->count(),
+            ])
+            ->values();
+    }
+
+    /**
+     * Fill freed seats from the FIFO waitlist: each promoted student gets a
+     * pending placement (the same state an admin assignment produces) and a
+     * notification to go register.
+     */
+    public function promoteFromWaitlist(Section $section): void
+    {
+        while ($this->hasCapacity($section)) {
+            $entry = SectionWaitlist::where('section_id', $section->id)->orderBy('id')->first();
+            if ($entry === null) {
+                return;
+            }
+
+            $student = $entry->user;
+            $entry->delete();
+            if ($student === null) {
+                continue;
+            }
+
+            // Skip anyone who meanwhile got a seat in this course another way.
+            $alreadyReserved = $section->course->students()
+                ->where('users.id', $student->id)
+                ->wherePivotIn('status', self::RESERVING_STATUSES)
+                ->exists();
+            if ($alreadyReserved) {
+                continue;
+            }
+
+            $this->assign($section, $student);
+
+            $this->notifications->notify(
+                user: $student,
+                type: NotificationType::ENROLLMENT,
+                title: 'A seat opened up',
+                message: "A seat in {$section->course?->code} — {$section->course?->name} (Section {$section->label}) is now yours. Go to Registration and click Register to confirm it.",
+                link: route('register'),
+                data: ['course_id' => $section->course_id, 'section_id' => $section->id, 'from_waitlist' => true],
+            );
+        }
     }
 
     /* ---- Student self-registration ---- */
@@ -123,12 +231,25 @@ class EnrollmentService
             return collect();
         }
 
+        $completedIds = $student->enrolledCourses()
+            ->wherePivot('status', 'completed')
+            ->pluck('courses.id');
+
         return Section::where('term_id', $term->id)
             ->where('is_active', true)
             ->whereHas('students', fn ($q) => $q->where('users.id', $student->id)->where('course_user.status', 'pending'))
-            ->with(['course', 'faculty'])
+            ->with(['course.prerequisites:id,code', 'faculty'])
             ->get()
-            ->map(fn (Section $section) => $this->presentSection($section))
+            ->map(fn (Section $section) => $this->presentSection($section) + [
+                // Registration is blocked until every prerequisite is completed.
+                'prerequisites' => $section->course?->prerequisites
+                    ->map(fn (Course $prerequisite) => [
+                        'code' => $prerequisite->code,
+                        'met' => $completedIds->contains($prerequisite->id),
+                    ])
+                    ->values()
+                    ->all() ?? [],
+            ])
             ->values();
     }
 
@@ -190,6 +311,11 @@ class EnrollmentService
 
         if (! $isAssigned) {
             return 'This course has not been assigned to you. Contact the registrar.';
+        }
+
+        $unmet = $this->unmetPrerequisites($student, $section->course);
+        if ($unmet->isNotEmpty()) {
+            return 'Prerequisites not completed: '.$unmet->pluck('code')->implode(', ').'.';
         }
 
         return null;

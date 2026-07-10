@@ -31,6 +31,7 @@ class RegistrationController extends Controller
         return Inertia::render('Student/Registration', [
             'assigned' => $this->enrollment->assignedFor($user),
             'registered' => $this->enrollment->registeredFor($user),
+            'waitlisted' => $this->enrollment->waitlistFor($user),
             'registrationOpen' => $this->enrollment->registrationOpen(),
             'term' => $this->enrollment->currentTerm()?->name,
             'semester' => $user->semester,
