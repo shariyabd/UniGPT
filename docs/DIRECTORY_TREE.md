@@ -10,7 +10,8 @@ The project follows a **Domain-Driven Design** layout: HTTP is a thin layer over
 ```
 uni-chat/
 ├── app/
-│   ├── Console/Commands/                 ✅ SendAssignmentReminders (assignments:remind),
+│   ├── Console/Commands/                 ✅ SendAssignmentReminders (assignments:remind — in-app nudge + email),
+│   │                                        SendWeeklyDigests (digests:send-weekly — scheduled Mon 07:00),
 │   │                                        SyncPersonalCorpus (rag:sync-personal — backfills notes/materials into RAG)
 │   │
 │   ├── Enums/                            ✅ Type-safe constants
@@ -28,12 +29,14 @@ uni-chat/
 │   ├── Http/
 │   │   ├── Controllers/                  ✅ Thin controllers (45+)
 │   │   │   ├── Auth/                      AuthenticationController, PasswordResetController
-│   │   │   ├── Student/                   Dashboard, Chat (+stream SSE), SavedAnswer, Registration, Assignment,
-│   │   │   │                              Note (+ocr()), Task, StudyPlanner, LearningAnalytics, Flashcard,
-│   │   │   │                              Leaderboard, ClassTest, PracticeQuiz, StudyRoom, OfficeHours,
+│   │   │   ├── Student/                   Dashboard, Chat (+stream SSE + tool trail), SavedAnswer, Registration,
+│   │   │   │                              Assignment (+ peer reviews), Note (+ocr()), Task, StudyPlanner,
+│   │   │   │                              LearningAnalytics (+ concept mastery), Flashcard, Leaderboard, ClassTest,
+│   │   │   │                              PracticeQuiz (+ from-bank), StudyRoom, OfficeHours, CourseFeedback,
 │   │   │   │                              CalendarExport (.ics), FacultyDirectory
 │   │   │   ├── Faculty/                   Dashboard, Course, CourseMaterial, AIAssistant (+stream SSE), Attendance,
-│   │   │   │                              Analytics, Assignment, Grading, ClassTest, OfficeHours, StudentDirectory
+│   │   │   │                              Analytics, Assignment, Grading (+ draft-grade), ClassTest, OfficeHours,
+│   │   │   │                              CourseFeedback, QuestionBank, StudentDirectory
 │   │   │   ├── Community/                 DiscussionController (course/section discussion feed)
 │   │   │   ├── Messenger/                 MessageController (1:1 chat + study-room message plumbing)
 │   │   │   ├── Admin/                     Dashboard, UserManagement, Role, Document, Analytics, AiUsage, Monitor,
@@ -56,17 +59,23 @@ uni-chat/
 │   │   │   ├── Models/User.php            ✅ THE User model (RBAC helpers live here, not app/Models)
 │   │   │   ├── Services/UserManagementService.php  ✅
 │   │   │   ├── Contracts/ Policies/ Providers/     ✅
-│   │   ├── Academic/Services/             ✅ Course, CourseManagement, Enrollment, Grading, Submission,
-│   │   │   │                                 Attendance, Exam, ExamSecurity, ClassTest, Transcript, Calendar,
-│   │   │   │                                 Term, StudyPlanner, Flashcard, PracticeQuiz, OfficeHours,
-│   │   │   │                                 IcsExport services
+│   │   ├── Academic/Services/             ✅ Course, CourseManagement, Enrollment (+ prerequisites/waitlists),
+│   │   │   │                                 Grading, Submission, SubmissionSimilarity, SubmissionText,
+│   │   │   │                                 PeerReview, CourseFeedback, QuestionBank, Attendance, Exam,
+│   │   │   │                                 ExamSecurity, ClassTest, Transcript, Calendar, Term, StudyPlanner,
+│   │   │   │                                 Flashcard, PracticeQuiz, OfficeHours, IcsExport services
 │   │   │   ├── Rules/ ValueObjects/       ⬜ empty (logic inlined in services)
 │   │   ├── Community/Services/            ✅ DiscussionService (section feed) + StudyRoomService (group chats)
 │   │   ├── Search/GlobalSearchService.php ✅ ⌘K search: semantic knowledge group + lexical entity groups
 │   │   ├── Chat/
-│   │   │   ├── Services/                  ✅ ChatService, RagChatService (answer + answerStream), TeachingAssistantService, OcrService
+│   │   │   ├── Services/                  ✅ ChatService, RagChatService (answer + answerStream + agent loop),
+│   │   │   │                                 TeachingAssistantService (+ draftRubricGrade, summarizeFeedback), OcrService
+│   │   │   ├── Tools/                     ✅ ChatToolRegistry + 8 agentic chat tools (GetUpcomingDeadlines, ListMyCourses,
+│   │   │   │                                 ListOfficeHourSlots, BookOfficeHourSlot, CancelOfficeHourBooking,
+│   │   │   │                                 GeneratePracticeQuiz, GenerateFlashcardDeck, CreateStudyTask)
 │   │   │   ├── Document/                  ✅ DocumentService, DocumentProcessingService, ChunkingService
-│   │   │   ├── Contracts/ DataObjects/ Support/  ✅ AIProviderInterface (chat/chatStream/embed/extractText), ChatResult DTO, AiSettings
+│   │   │   ├── Contracts/ DataObjects/ Support/  ✅ AIProviderInterface (chat/chatStream — accept options['tools'] — /embed/extractText),
+│   │   │   │                                 ChatToolInterface, ChatResult DTO (+$toolCalls), ToolExecution DTO, AiSettings
 │   │   │   ├── Models/                    ⬜ (chat models live in app/Models)
 │   │   │   └── Memory/                    ⬜ empty (no long-term memory/summarization yet)
 │   │   ├── RAG/
@@ -78,9 +87,10 @@ uni-chat/
 │   │   │   ├── Support/CorpusVersion.php          ✅ retrieval-cache invalidation
 │   │   │   ├── Contracts/                 ✅
 │   │   │   └── Prompts/                   ⬜ empty
-│   │   ├── Notification/Services/NotificationService.php  ✅
+│   │   ├── Notification/Services/         ✅ NotificationService, EmailDigestService (weekly digest + due-soon emails)
 │   │   └── Analytics/Services/            ✅ AnalyticsService, FacultyAnalyticsService, EarlyWarningService
 │   │       │                                 (at-risk: 4 signals, high/watch), LearningAnalyticsService,
+│   │       │                                 ConceptMasteryService (topic mastery blend, no AI calls),
 │   │       │                                 LeaderboardService, AiUsageService
 │   │
 │   ├── Infrastructure/                   🔌 External-edge adapters
@@ -104,11 +114,16 @@ uni-chat/
 │   │   ├── Role, Permission, RoleUser, PermissionRole
 │   │   ├── Notification, Note, Task, ActivityLog, Setting
 │   │   ├── FlashcardDeck, Flashcard              ✅ spaced-repetition study decks
+│   │   ├── SubmissionEmbedding, SubmissionSimilarity  ✅ similarity screening (chunk vectors + flagged pairs)
+│   │   ├── PeerReview, CourseFeedback             ✅ anonymous peer review + per-section course feedback
+│   │   ├── SectionWaitlist, QuestionBankItem      ✅ FIFO waitlists + per-course question bank
 │   │   ├── Post, PostComment, PostReaction, PostReport  ✅ Community discussion feed
 │   │   └── Concerns/BelongsToSection.php  ✅ shared trait (section-scoped models)
 │   │
 │   ├── Jobs/                             ✅ ProcessDocumentJob (library RAG ingest),
-│   │                                        SyncNoteToRagJob + SyncCourseMaterialToRagJob (personal corpus)
+│   │                                        SyncNoteToRagJob + SyncCourseMaterialToRagJob (personal corpus),
+│   │                                        ScreenSubmissionSimilarityJob (queued on every submit)
+│   ├── Mail/                             ✅ WeeklyDigestMail, AssignmentDueMail (queued mailables)
 │   ├── Policies/                         ✅ ChatSession, Course, Document, SavedAnswer
 │   ├── Services/ActivityLogger.php       ✅ audit trail writer
 │   ├── Providers/  Support/  Livewire/   ⚠️ Livewire dirs exist but are unused
@@ -117,15 +132,17 @@ uni-chat/
 │
 ├── config/
 │   ├── ai.php                            ✅ provider/model/embedding config
-│   ├── rag.php                           ✅ chunking/retrieval/citation config
+│   ├── rag.php                           ✅ chunking/retrieval/citation config (+ submission_screening.flag_threshold)
 │   ├── permissions.php                   ⚠️ legacy soft map (enum is source of truth)
 │   ├── vector.php                        ⚠️ Pinecone/FAISS/Chroma config — unused (MySQL store)
 │   └── … (standard Laravel configs)
 │
 ├── database/
-│   ├── migrations/                       ✅ ~55 migrations (RBAC, academic, RAG + personal corpus, terms/sections,
+│   ├── migrations/                       ✅ ~61 migrations (RBAC, academic, RAG + personal corpus, terms/sections,
 │   │                                        class tests + proctoring, conversations (direct+group), practice
-│   │                                        quizzes, office hours, etc.)
+│   │                                        quizzes, office hours, etc. — July-2026 wave adds tool_activity on
+│   │                                        chat_messages, submission similarity tables, course_feedback,
+│   │                                        peer_reviews, prerequisites + waitlists, question_bank_items)
 │   ├── seeders/                          ✅ DatabaseSeeder → RBACSeeder, AcademicSeeder, KnowledgeBaseSeeder,
 │   │                                        ClassTestAttemptSeeder, FlashcardSeeder, LeaderboardSeeder, DiscussionSeeder
 │   └── factories/
@@ -133,20 +150,24 @@ uni-chat/
 ├── resources/
 │   ├── js/
 │   │   ├── app.js                        ✅ Inertia + Vue 3 + Ziggy bootstrap; vue-toastification
-│   │   ├── pages/                        ✅ Inertia pages (~78)
+│   │   ├── pages/                        ✅ Inertia pages (~81)
 │   │   │   ├── Landing.vue, Dashboard.vue
 │   │   │   ├── Auth/Login.vue
 │   │   │   ├── Admin/                     18 pages (Users, Roles, Courses, Terms, Departments,
 │   │   │   │                              Documents, Approvals, Analytics, AiUsage, Monitor, AISettings,
 │   │   │   │                              Announcements, Exams, ExamSecurity, DiscussionReports, …)
-│   │   │   ├── Faculty/                   13 pages (Dashboard, Courses, CourseDetail, AIAssistant (streaming),
-│   │   │   │                              Attendance, Analytics (+at-risk), Exams, Grading, ClassTests/{…},
-│   │   │   │                              Students, Messages, OfficeHours, ArchivedChats)
-│   │   │   ├── Student/                   28 pages (Dashboard, Chat (streaming), Materials, Registration,
-│   │   │   │                              Assignments, Attendance, Transcript, Exams, Calendar (+.ics),
+│   │   │   ├── Faculty/                   15 pages (Dashboard, Courses, CourseDetail (+peer-review toggle),
+│   │   │   │                              AIAssistant (streaming), Attendance, Analytics (+at-risk), Exams,
+│   │   │   │                              Grading (+similarity badge, AI rubric draft), ClassTests/{…},
+│   │   │   │                              QuestionBank, CourseFeedback, Students, Messages, OfficeHours,
+│   │   │   │                              ArchivedChats)
+│   │   │   ├── Student/                   29 pages (Dashboard, Chat (streaming + tool trail), Materials,
+│   │   │   │                              Registration (+prereq badges/waitlist), Assignments (+peer review),
+│   │   │   │                              Attendance, Transcript, Exams, Calendar (+.ics),
 │   │   │   │                              ClassTests/{…}, Notes, Tasks, Roadmap, SavedAnswers, Documents,
-│   │   │   │                              StudyPlanner, LearningAnalytics, Flashcards/{Index,Study},
-│   │   │   │                              Practice/{Index,Take}, StudyRooms, OfficeHours, Leaderboard,
+│   │   │   │                              StudyPlanner, LearningAnalytics (+concept mastery map),
+│   │   │   │                              Flashcards/{Index,Study}, Practice/{Index (+from-bank),Take},
+│   │   │   │                              StudyRooms, OfficeHours, CourseFeedback, Leaderboard,
 │   │   │   │                              Faculty, Messages, …)
 │   │   │   ├── Community/Discussions.vue   ✅ course/section discussion feed
 │   │   │   └── Notifications/Index.vue
@@ -158,14 +179,21 @@ uni-chat/
 │   │   ├── lib/                           ✅ markdown.js, sse.js (fetch-based SSE parser for streaming chat)
 │   │   └── tests/                         ✅ Vitest specs
 │   ├── css/app.css                        ✅ Tailwind
-│   └── views/app.blade.php                ✅ single Inertia root view (@routes for Ziggy)
+│   └── views/
+│       ├── app.blade.php                  ✅ single Inertia root view (@routes for Ziggy)
+│       └── emails/                        ✅ layout, weekly-digest, assignment-due (queued mail views)
 │
 ├── routes/
 │   ├── web.php                            ✅ THE route file (public + student + faculty + admin)
 │   ├── api.php                            ⬜ effectively empty
 │   └── student.php / faculty.php / admin.php  ⚠️ unregistered dead stubs — editing them does nothing
 │
-├── storage/   public/build/   tests/{Feature,Unit}
+├── storage/   public/build/
+│
+├── tests/{Feature,Unit}                  ✅ 45 feature suites — July-2026 wave adds ChatToolsTest,
+│                                            SubmissionSimilarityTest, ConceptMasteryTest, EmailDigestTest,
+│                                            AiGradeDraftTest, CourseFeedbackTest, PeerReviewTest,
+│                                            PrerequisiteWaitlistTest, QuestionBankTest
 │
 └── Docs: README.md · PROJECT_ANALYSIS.md · PROJECT_STATUS.md · DIRECTORY_TREE.md · CLAUDE.md
 ```

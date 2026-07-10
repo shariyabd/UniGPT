@@ -12,9 +12,9 @@ import {
 } from '@heroicons/vue/24/outline';
 
 // Flagship roadmap items — features in active design, building on the platform that ships today.
-// (Real-time chat, token-by-token streaming, personal-corpus RAG, practice quizzes,
-// at-risk early warning, ⌘K search, study rooms, office hours and .ics calendar sync
-// have all shipped — see the Core platform section above.)
+// (The July 2026 wave — agentic chat actions, similarity screening, AI rubric grading,
+// peer review, anonymous course feedback, concept mastery, prerequisites & waitlists,
+// question bank and email digests — has shipped; see the Core platform section above.)
 const upcoming = [
     {
         icon: DevicePhoneMobileIcon,
@@ -36,9 +36,9 @@ const upcoming = [
         icon: BoltIcon,
         tile: 'bg-accent-sky-soft text-accent-sky-fg',
         phase: 'Shipped ✓',
-        title: 'Latest feature wave',
-        body: 'Streaming answers, "chat with my materials", AI practice quizzes, at-risk early warning, semantic ⌘K search, group study rooms, office-hours booking and .ics calendar sync — all live today.',
-        tags: ['8 features', 'Live now', 'Fully tested'],
+        title: 'July 2026 wave — all live',
+        body: 'Agentic chat actions, submission similarity screening, AI rubric grading, anonymous peer review & course feedback, concept mastery map, prerequisites & waitlists, a per-course question bank and email digests — shipped and fully tested.',
+        tags: ['9 features', 'Live now', 'Fully tested'],
     },
 ];
 

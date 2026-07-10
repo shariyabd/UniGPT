@@ -45,7 +45,9 @@ current MVP.
 | **Streaming AI responses (SSE)** — student chat + faculty assistant | ✅ | `AIProviderInterface::chatStream`, `RagChatService::answerStream`, `chat.stream` / `faculty.ai-assistant.stream`, `resources/js/lib/sse.js` |
 | **Personal-corpus RAG** ("chat with my materials": own notes + section materials as shadow documents) | ✅ | `Domain/RAG/Ingestion/PersonalCorpusService`, `Document::LIBRARY_SCOPE`, `Sync*ToRagJob`, `rag:sync-personal` |
 | **Semantic global search (⌘K)** — knowledge + courses/assignments/discussions/chat history | ✅ | `Domain/Search/GlobalSearchService`, `SearchController`, AppLayout palette |
-| Voice / TTS / STT / predictive | ⬜ | P3 — voice is a UI mock |
+| **Agentic AI chat (tool calling)** — 8 permission-checked in-chat actions + live tool-activity trail, **Agent / Answers-only mode switch** (answers-only enforced server-side) (student chat only; mock-provider keyless) | ✅ | `Domain/Chat/Tools/ChatToolRegistry` + 8 `*Tool` classes (deadlines, courses, office hours, quiz/flashcard gen, planner tasks) |
+| **Email digests & deadline nudges** — weekly Monday digest + daily due-soon email, opt-out, admin SMTP | ✅ | `Domain/Notification/Services/EmailDigestService`, `digests:send-weekly` + `assignments:remind`, `routes/console.php` schedule |
+| Voice / TTS / STT / predictive | ⬜ | P3 — voice is a UI mock (intentionally on hold) |
 
 ### Student
 | Feature | Status | Evidence |
@@ -54,8 +56,11 @@ current MVP.
 | RAG tutor chat + saved answers | ✅ | `ChatController`, `SavedAnswerController` |
 | Roadmap / GPA / progress | ✅ | `roadmap()` (real enrollment data) |
 | **Registration (assign → confirm)** | ✅ | `RegistrationController`, `EnrollmentService::assignedFor/enroll` |
+| **Prerequisite badges + waitlist queue positions** on registration (server-side block until prereqs met) | ✅ | `RegistrationController`, `EnrollmentService::waitlistFor`, `SectionWaitlist` |
 | Course materials (persisted completion, gated download) | ✅ | `CourseService::studentMaterials` |
 | Assignments + submissions | ✅ | `Student/AssignmentController`, `SubmissionService` |
+| **Anonymous peer review** (rate up to 2 anonymized classmate submissions; see feedback received) | ✅ | `Student/AssignmentController::storePeerReview` (`assignments.peer-review`), `PeerReviewService`, `PeerReview` |
+| **Anonymous course feedback** (one revisable 1–5 rating + comment per open section window) | ✅ | `Student/CourseFeedbackController` (`course-feedback*`), `CourseFeedbackService`, `CourseFeedback` |
 | Timed quizzes / class tests (take + auto-grade + instant result) | ✅ | `Student/ClassTestController`, `ClassTestService` |
 | Layered proctoring (fullscreen/tab/clipboard/watermark/fingerprint/behaviour/webcam+screen recording) | ✅ | `ExamSecurityService`, `config/exam_security.php`, `class_test_events`/`class_test_recordings` |
 | Attendance · Transcript · Exams · Calendar | ✅ | Attendance/Transcript/Exam/Calendar services |
@@ -69,6 +74,8 @@ current MVP.
 | **Discussions** (section feed: post/comment/like/report) | ✅ | `Community/DiscussionController`, `Domain/Community/DiscussionService` |
 | **OCR handwritten notes** (photo → transcribe → save note → RAG-indexed) | ✅ | `NoteController::ocr`, `Domain/Chat/OcrService`, gpt-4o vision |
 | **AI practice quizzes** (self-serve, server-graded, retakes, missed → flashcards) | ✅ | `PracticeQuizController`, `Domain/Academic/PracticeQuizService`, `PracticeQuiz`/`PracticeAttempt` |
+| **Question-bank self-quizzing** (deterministic practice quizzes sampled from the course bank — no AI) | ✅ | `PracticeQuizController` + `QuestionBankService`, `QuestionBankItem` |
+| **Concept mastery map + adaptive review** (class tests .5 / practice .35 / SM-2 recall .15; weakest-first tiles, <60% → one-click practice/flashcards) | ✅ | `Domain/Analytics/ConceptMasteryService`, surfaced on the `progress` page |
 | **Group study rooms** (section-scoped live group chat) | ✅ | `StudyRoomController`, `Domain/Community/StudyRoomService`, `conversations.type=group` |
 | **Office-hours booking** (browse faculty slots, atomic book/cancel, notifications) | ✅ | `Student/OfficeHoursController`, `Domain/Academic/OfficeHoursService`, `office_hour_slots` |
 | **Calendar .ics export + subscribe feed** (Google/Outlook/Apple) | ✅ | `CalendarExportController`, `IcsExportService`, signed `calendar.feed` route |
@@ -82,6 +89,11 @@ current MVP.
 | Timed quizzes / class tests (author manually or AI-generated, timer, marks, auto-grade) | ✅ | `Faculty/ClassTestController`, `ClassTestService` |
 | Per-test proctoring layer selection + attempt review dossier (timeline, risk score, recordings) | ✅ | `Faculty/ClassTestController::attempt`, `ClassTestService::attemptReview` |
 | Grading (rubric) + **AI-drafted feedback** | ✅ | `GradingController`, `GradingService` |
+| **AI-assisted rubric grading** ("Draft grade with AI": per-criterion prefills clamped to maxima + justifications + suggested grade/feedback; editable, never auto-released; heuristic fallback) | ✅ | `GradingController::draftGrade` (`submissions.draft-grade`), `GradingService` |
+| **Submission similarity screening** (chunk+embed submission text incl. PDF/DOCX extraction; cosine ≥ 0.82 pairs flagged, amber badge + side-by-side excerpts, section-scoped, recomputed on resubmit) | ✅ | `SubmissionSimilarityService`, `SubmissionTextService`, `ScreenSubmissionSimilarityJob`, `SubmissionEmbedding`/`SubmissionSimilarity` |
+| **Anonymous course-feedback windows** (open/close per section, roster notified, results unlock at ≥3 responses, AI "Summarize themes") | ✅ | `Faculty/CourseFeedbackController` (`course-feedback.toggle/summarize`), `CourseFeedbackService` |
+| **Peer review per assignment** (toggle; up to 2 load-balanced anonymous reviews per submitter; avg peer ratings in grading) | ✅ | `PeerReviewService`, `PeerReview`, assignment toggle + grading panel |
+| **Question bank** (per-course shared bank: manual add, import from class tests w/ duplicate skip, spin selection into a draft test) | ✅ | `Faculty/QuestionBankController` (`question-bank.*`), `QuestionBankService`, `QuestionBankItem` |
 | Attendance management | ✅ | `Faculty/AttendanceController` |
 | Learning analytics & **at-risk early warning** (4 signals: attendance / missed deadlines / test average / grade, high–watch levels, dashboard stat + message deep-link) | ✅ | `Domain/Analytics/EarlyWarningService`, `FacultyAnalyticsService` |
 | **Office hours** (publish slots, manage bookings, notified both ways) | ✅ | `Faculty/OfficeHoursController`, `OfficeHoursService` |
@@ -95,6 +107,8 @@ current MVP.
 |---|---|---|
 | User management + RBAC matrix | ✅ | `UserManagementController`, `RoleController` |
 | Course catalog + **Sections** + faculty assignment | ✅ | `Admin/CourseController`, `Admin/SectionController` |
+| **Course prerequisites** (per-course; only a COMPLETED course satisfies; registration blocked server-side) | ✅ | `Admin/CourseController`, `EnrollmentService`, `create_prerequisites_and_waitlists` migration |
+| **Section waitlists** (assign to full section → FIFO queue; drop auto-promotes head to pending placement + notification) | ✅ | `SectionWaitlist`, `EnrollmentService::waitlist/promoteFromWaitlist` |
 | **Terms** + registration toggle + rollover | ✅ | `Admin/TermController`, `TermService` |
 | Department management (delete-guarded) | ✅ | `Admin/DepartmentController` |
 | Knowledge base + approval workflow | ✅ | `Admin/DocumentController` |
@@ -110,9 +124,77 @@ current MVP.
 
 ## Recently shipped
 
-### Latest wave — copilot depth & connection (8 features)
+### Latest wave — July 2026: act, assess & connect (9 features)
+Shipped 2026-07 on the same domain-service → thin-controller → Inertia patterns,
+all with feature tests:
+
+1. **Agentic AI chat (tool calling).** The student AI chat now takes real actions:
+   **8 tools** via LLM function calling — check upcoming deadlines, list my courses,
+   list/book/cancel office-hour slots, generate practice quizzes and flashcard
+   decks, add planner tasks (`Domain/Chat/Tools/*`, orchestrated by
+   `ChatToolRegistry`). A live **"tool activity" trail** renders in the chat
+   (spinner → ✓ with deep links to the created quiz/deck/booking). Every action
+   executes through the *same* domain services and permission checks as the normal
+   UI; works keylessly on the mock provider; student chat only. A segmented
+   **⚡ Agent / 💬 Answers only** switcher above the composer sets the mode —
+   placeholder, hint line and welcome example prompts follow it, and replies that
+   actually acted carry an ⚡ Agent badge. Answers-only is enforced server-side:
+   the request's `agent` flag gates `withTools`, so tool definitions are never
+   offered to the model.
+2. **Submission similarity screening.** Every assignment submission — written text
+   plus extracted PDF/DOCX text (`SubmissionTextService`) — is chunked and embedded
+   (`ScreenSubmissionSimilarityJob`); pairs within the same assignment at
+   **cosine ≥ 0.82** are flagged with matching excerpt pairs. Faculty grading shows
+   an amber similarity badge per submission and a side-by-side excerpt comparison
+   panel. Resubmissions recompute; comparisons never leave the section. A **review
+   signal, not a verdict**.
+3. **Concept mastery map + adaptive review.** Deterministic per-topic mastery on
+   the student "My Progress" page (`ConceptMasteryService`), blended from
+   class-test scores (weight .5), practice-quiz accuracy (.35) and flashcard SM-2
+   recall (.15). Tier-colored tiles sorted weakest-first; weak concepts (<60%)
+   offer one-click **"Practice this" / "Make flashcards"** that feed the topic
+   straight into the AI generators.
+4. **Email digests & deadline nudges.** Weekly Monday-morning digest
+   (`digests:send-weekly`: deadlines in 7 days, freshly posted grades, booked
+   office hours, due flashcards — students with nothing to report are skipped)
+   plus a daily **"assignment due soon"** email twin of the in-app reminder
+   (`assignments:remind`, max once per student per assignment). Opt-out toggle in
+   student Settings; delivered via the admin-configured SMTP
+   (`EmailDigestService`).
+5. **AI-assisted rubric grading.** A **"Draft grade with AI"** button in the
+   faculty grading panel: the AI reads the actual submission (text + file) and
+   drafts per-rubric-criterion scores (clamped to each criterion's max) with
+   one-line justifications, a suggested overall grade and feedback. Everything is
+   an **editable prefill** — faculty review and save; nothing auto-releases.
+   Labelled heuristic fallback without an AI key
+   (`GradingController::draftGrade`).
+6. **Anonymous mid-semester course feedback.** Faculty open/close a feedback
+   window per section (roster notified); students submit one revisable 1–5 rating
+   + comment. Results (average, star distribution, shuffled anonymized comments)
+   unlock only once **≥3 responses** exist, protecting anonymity; an AI
+   **"Summarize themes"** button groups comments into Going well / Concerns /
+   Suggestions (`CourseFeedbackService`).
+7. **Anonymous peer review on assignments.** Per-assignment toggle; each student
+   who submits receives up to **2 classmate submissions** to rate and comment on
+   (load-balanced, never their own). Anonymous in both directions; reviewees get
+   notified and see the feedback on the assignment page; faculty see average peer
+   ratings in grading (`PeerReviewService`).
+8. **Course prerequisites & section waitlists.** Admins define prerequisites per
+   course (only a **COMPLETED** course satisfies one); the registration page shows
+   met/unmet badges and registration is blocked server-side until met. Assigning
+   students to a full section queues them on a **FIFO waitlist**; any drop
+   auto-promotes the head of the queue to a pending placement with a notification;
+   students see their queue positions
+   (`EnrollmentService::waitlist/promoteFromWaitlist`, `SectionWaitlist`).
+9. **Question bank.** Per-course bank of reusable MCQ/true-false questions shared
+   by faculty teaching the course (`QuestionBankService`, `QuestionBankItem`): add
+   manually, import from existing class tests (duplicates skipped), select
+   questions to spin up a **draft class test**, and students can self-quiz with
+   **deterministic practice quizzes** sampled from the bank — no AI required.
+
+### Copilot depth & connection wave (8 features)
 Shipped on the existing domain-service → thin-controller → Inertia patterns,
-all with feature tests (suite: 209 passing):
+all with feature tests (suite then at 209 passing):
 
 1. **Personal-corpus RAG — "chat with my materials."** Student notes (incl. OCR'd)
    and file-backed course materials are indexed as hidden **shadow documents**
@@ -295,9 +377,13 @@ library** so students get answers grounded specifically in the available library
   library resources. Builds directly on the current RAG engine and `ChatMode`.
 
 ### B. P3 advanced band (deferred, infra-dependent)
-- ✅ **Streaming chat** — **shipped** (latest wave): token-by-token SSE on the
-  student chat and faculty assistant.
-- **Voice I/O + TTS/STT** — browser mic capture + speech APIs (the voice UI is a mock).
+- ✅ **Streaming chat** — **shipped** (copilot depth & connection wave): token-by-token
+  SSE on the student chat and faculty assistant.
+- **Voice I/O + TTS/STT** — browser mic capture + speech APIs (the voice UI is a mock)
+  — **intentionally on hold**.
+- **Lecture-audio transcription · realtime presence / websocket expansion ·
+  completion certificates** — designed, **intentionally on hold** (do not treat as
+  shipped).
 - **Predictive analytics / recommendation engine** — ML over the now-rich academic data
   (the at-risk early-warning signals are a first, rule-based step).
 - **Alternate LLM providers** — Gemini / Local-LLM (config stubs today; only OpenAI + Mock built).

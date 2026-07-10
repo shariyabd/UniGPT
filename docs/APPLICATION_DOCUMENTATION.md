@@ -181,6 +181,13 @@ system to its own access policies.
 - **Sections:** create the actual class offerings for a term, assign a teacher (who must be in
   the course's department), and place students into them. Placing a student **reserves a seat**
   and notifies the student to confirm; removing one drops them and notifies them too.
+- **Prerequisites:** a course can require other courses first (picked from a simple
+  multi-select on the course form). A student can only confirm a section once they've
+  **completed** every prerequisite — being merely enrolled in one isn't enough.
+- **Waitlists:** if an admin places a student into a section that's already **full**, the
+  student joins that section's **waitlist** (first come, first served) instead. Whenever
+  someone drops the section, the first student in the queue automatically receives a
+  reserved seat and a notification to come and confirm — no admin action needed.
 - This area is the **bridge** between admin setup and student self-registration.
 
 ### 3.8 Terms & Rollover
@@ -321,13 +328,30 @@ intervention in one click. The teacher's dashboard shows a running count of flag
 
 ### 4.11 Assignment Management
 Edit, publish/unpublish, or delete the assignments they've set. Editing notifies students and
-highlights a changed due date.
+highlights a changed due date. An assignment can also have **peer review** switched on from
+the course's edit screen — see 5.13 for what students then do.
 
 ### 4.12 Grading ⭐
 A queue of submissions per assignment (graded, pending, and late counts at a glance). The teacher
 enters a grade and feedback (optionally using **AI-suggested feedback** — strengths, areas to
 improve, and a draft comment they can edit first), and the student is notified. Grades flow
 straight into the student's transcript and progress views.
+
+Three extra helpers sit inside the grading view:
+
+- **AI rubric drafting:** when an assignment has a rubric, one click asks the AI to score the
+  submission against each rubric criterion, with a short justification per criterion. The
+  scores simply pre-fill the grading form — the teacher reviews and edits everything before
+  saving, and nothing reaches the student until they do. (Without an AI key, a clearly
+  labelled built-in estimate is used instead.)
+- **Similarity screening:** in the background, every submission is automatically compared
+  against the other submissions for the same assignment (including the text inside uploaded
+  PDF and Word files). If two are suspiciously similar, both show a warning badge in the
+  grading queue, and the teacher can open the matching excerpts side by side to judge for
+  themselves. It only ever *flags* — it never penalises anyone automatically.
+- **Peer review at a glance:** if the assignment has peer review enabled (see 5.13), the
+  grading view shows the average rating a submission received from classmates — as extra
+  context for the teacher, never as the grade.
 
 ### 4.13 Discussion Feed
 Each section the teacher runs has its own **discussion group**, with the teacher and the section's
@@ -343,6 +367,22 @@ Teachers publish **bookable office-hours slots** — a time window plus an optio
 meeting link and note. Students of their sections book them one-per-slot (no double-booking);
 the teacher sees who booked, can cancel a booking (re-opening the slot) or remove a slot
 entirely, and everyone affected is notified automatically.
+
+### 4.15 Anonymous Course Feedback
+Teachers can **open or close feedback** for each section they teach. While it's open, each of
+the section's students can leave one anonymous rating and comment. To protect anonymity, the
+teacher sees **nothing until at least three students have responded**; after that they see the
+average rating and the comments — shuffled, with no names and no timestamps, so nothing can be
+traced back to an individual student. One click asks the AI to **summarise the main themes**
+in the comments (what's working, what to improve).
+
+### 4.16 Question Bank
+A per-course library of reusable quiz questions. Teachers build it by writing questions
+directly or by **importing the questions from an existing class test** (duplicates are
+skipped), tagging each question with a topic and difficulty. From the bank they can assemble
+a **draft class test in one click** — it stays a draft until published, like any other test.
+The bank quietly helps students too: enrolled students can generate practice quizzes straight
+from it (see 5.24).
 
 ---
 
@@ -376,6 +416,22 @@ question becomes an answer:
    answer using the sources first — citing them — and to be honest when the documents don't
    cover something.
 5. **Saving the conversation** with its confidence level and sources, so it can be revisited.
+
+**The tutor can also *do* things, not just answer.** When a student asks it to — "book me a
+slot with Prof. Smith", "make me a practice quiz on recursion", "add a study task for Friday"
+— the AI can check upcoming deadlines, list the student's courses, list / book / cancel
+office-hours slots, generate a practice quiz or a flashcard deck, or create a study task, and
+then reports back what it did. Each step is shown in the chat as it happens (and kept in the
+conversation history), so nothing happens invisibly. Crucially, these actions go through
+exactly the same rules as clicking the buttons yourself — the AI can't book a slot that isn't
+open to that student, and first-click-wins on office hours still applies.
+
+The student decides when the tutor may act: a prominent switch above the message box toggles
+between **"⚡ Agent"** (the default — actions allowed, with hints and example prompts that
+invite requests like "Book office hours with my professor") and **"💬 Answers only"** (the
+tutor just explains — the ability to act is switched off on the server, not merely hidden).
+Replies where the tutor actually did something carry a small "⚡ Agent" badge next to the AI
+badge, alongside the usual step-by-step action trail.
 
 Students can pick a **chat mode** (general, academic, exam prep, assignment help, and so on),
 choose an answer language, and organise conversations (pin, rename, archive, delete). If an admin
@@ -425,11 +481,27 @@ registration window is open. The page shows the seats reserved for them (with se
 and the ones they've already confirmed. Registration is only possible for sections they've been
 placed in — placement is controlled by the administration.
 
+Two more rules apply at confirm time:
+
+- **Prerequisites:** each reserved seat shows the course's prerequisites as badges — met or
+  not met. A student can't confirm a section until they've **completed** every prerequisite
+  course, and the page explains exactly what's missing.
+- **Waitlists:** if the section filled up, the student sees their **place in the queue**
+  instead of a Register button. When a seat frees up, the first student in line automatically
+  gets a reserved seat and a notification to come back and confirm.
+
 ### 5.13 Assignments
 A list of the student's assignments, each tagged pending, submitted, late, or graded. The student
 submits text and/or a file before the deadline (submitted after the deadline is marked "late"),
 which notifies the teacher. Once an assignment is graded it locks. Submitting feeds the teacher's
 grading queue.
+
+**Peer review.** When a teacher switches peer review on for an assignment, students who have
+submitted are each given up to two classmates' submissions to review — anonymously, never their
+own, and spread out so the least-reviewed work gets looked at first. A reviewer leaves a rating
+and a comment; the author is notified and sees the feedback they received without ever learning
+who wrote it. Peer ratings are advice for the author (and context for the teacher) — they are
+never part of the grade.
 
 ### 5.14 Class Tests (Quizzes) ⭐
 Students take their teachers' interactive quizzes under **fullscreen proctoring**:
@@ -456,8 +528,9 @@ messaging view to chat with any of them. Because teachers stay within their own 
 student only ever sees faculty from their own programme.
 
 ### 5.18 Profile & Settings
-Edit name, bio, and avatar; and set preferences — light/dark theme, notifications on/off, and the
-preferred answer language for the AI tutor.
+Edit name, bio, and avatar; and set preferences — light/dark theme, notifications on/off, the
+preferred answer language for the AI tutor, and whether to receive **email digests and
+reminders** (see 6.2).
 
 ### 5.19 AI Study Planner
 Looks at the student's **upcoming deadlines** — assignments, exams, and class tests — and turns
@@ -470,6 +543,13 @@ A personal analytics dashboard that charts how the student is doing over time: t
 **attendance**, **class-test and assignment score trends**, and **weekly activity** (rendered as
 graphs with Chart.js). It's a private, self-reflection view built only from the student's own data
 — nothing here is shared with anyone else.
+
+The page also includes a **concept mastery map**: a tile for every topic the student has actually
+studied, coloured by how well they know it. Mastery is blended from three real signals — their
+practice-quiz results per topic, how well their flashcard decks are sticking (the spaced-repetition
+state), and their class-test scores — with no AI involved. Topics scoring below 60 are marked
+**weak**, and every weak tile has one-click buttons to generate a practice quiz or a flashcard deck
+on exactly that topic — closing the loop from "I'm weak here" to "I'm practising it".
 
 ### 5.21 Flashcards
 The student builds study **decks** — either by hand, card by card, or by asking the AI to
@@ -500,6 +580,11 @@ shows a score with per-question explanations. Quizzes can be retaken any number 
 one click turns the **missed questions into a flashcard deck** so the weak spots go straight
 into spaced-repetition review.
 
+Besides AI generation, a student can build a practice quiz **from their course's question
+bank** (see 4.16) — real questions their teacher curated, filtered by topic or difficulty.
+Bank quizzes don't use the AI at all, so they work even for a student whose AI access is
+blocked.
+
 ### 5.25 Study Rooms
 Classmates in the same section can create and join **group chat rooms** — one per topic (say,
 "Midterm prep squad"). Rooms are strictly section-scoped: only students actually enrolled in
@@ -512,6 +597,13 @@ Students see the **bookable office-hours slots** published by the teachers who a
 them, and book one in a click. First click wins — a slot can never be double-booked — and both
 sides are notified on booking or cancellation. Booked meetings appear on the student's calendar
 (and in its .ics export).
+
+### 5.27 Anonymous Course Feedback
+When a teacher opens feedback for one of the student's sections, the student can leave a
+**rating and comment — completely anonymously**, once per course. The responses are shown to
+the teacher without names or timestamps, shuffled, and not at all until at least three
+students have responded — so nothing can be traced back to an individual. The student can
+update their response while the feedback window is open.
 
 ---
 
@@ -544,6 +636,12 @@ quizzes, due-date reminders, and admin announcements. Each person gets their own
 a bell that updates automatically and can be muted in settings. Notifications about class
 activity always go to exactly the right class's students (or the class's teacher) — never the
 whole university by accident.
+
+Beyond the in-app bell, UniGPT also reaches people by **email**: a **weekly digest** every
+Monday morning summarising what's ahead, and **due-soon reminder emails** for assignments,
+sent alongside the in-app nudge (with the same de-duplication, so nobody is reminded twice
+about the same deadline). Both are optional — a single "email digest" switch in Settings turns
+them off — and emails are sent in the background, so they never slow the app down.
 
 ### 6.3 Messaging & presence
 Students and their teachers can chat directly. A conversation can only be started between a
@@ -581,11 +679,15 @@ These tie the features together into the journeys people actually take.
    grading, analytics, and messaging contacts.
 
 ### 7.3 The life of an assignment
-1. A **teacher** creates an assignment (by hand or by publishing an AI draft); students are
-   notified.
-2. A **student** submits before the deadline (after it, it's marked late); the teacher is notified.
-3. The **teacher** grades it (optionally with AI-suggested feedback); the student is notified and
-   the grade flows into their transcript and roadmap.
+1. A **teacher** creates an assignment (by hand or by publishing an AI draft), optionally with
+   peer review switched on; students are notified.
+2. A **student** submits before the deadline (after it, it's marked late); the teacher is
+   notified, and the submission is quietly screened for similarity against classmates' work.
+3. If peer review is on, submitting also brings the student up to two classmates' submissions
+   to review anonymously — and their own work receives anonymous feedback the same way.
+4. The **teacher** grades it (optionally with AI-suggested feedback or an AI-drafted rubric
+   score they edit first); the student is notified and the grade flows into their transcript
+   and roadmap.
 
 ### 7.4 The life of a quiz
 1. A **teacher** creates and publishes a quiz to their class; students are notified.

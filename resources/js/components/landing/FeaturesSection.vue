@@ -20,6 +20,13 @@ import {
     RectangleStackIcon,
     CameraIcon,
     TrophyIcon,
+    DocumentMagnifyingGlassIcon,
+    EnvelopeIcon,
+    ScaleIcon,
+    ChatBubbleLeftEllipsisIcon,
+    UsersIcon,
+    QueueListIcon,
+    ArchiveBoxIcon,
 } from '@heroicons/vue/24/outline';
 </script>
 
@@ -38,19 +45,22 @@ import {
                     <div class="aurora -right-10 -top-10 h-56 w-56 bg-primary/30"></div>
                     <div class="relative">
                         <span class="ui-icon-tile bg-primary text-white"><SparklesIcon class="h-5 w-5" /></span>
-                        <h3 class="mt-5 text-xl font-bold text-content">Grounded RAG assistant</h3>
+                        <h3 class="mt-5 text-xl font-bold text-content">Grounded RAG assistant — that acts</h3>
                         <p class="mt-2 max-w-md text-sm leading-relaxed text-content-muted">
                             Ask anything. UniGPT retrieves passages from your approved documents — and from your own
                             notes and your courses' materials — then answers live, streaming word by word, with inline
-                            citations and a confidence score. Multiple modes — academic, exam prep, research — keep
-                            responses on-task.
+                            citations and a confidence score. And it doesn't just answer: ask it to book office hours,
+                            check your deadlines, build a practice quiz or plan your week, and it does it — showing a
+                            live trail of every action it takes. A one-tap Agent / Answers-only switch decides when
+                            it may act — and answers-only is enforced server-side.
                         </p>
                         <div class="mt-6 flex flex-wrap gap-2">
                             <span class="ui-status-primary">Streaming answers</span>
+                            <span class="ui-status-primary">Agentic actions</span>
+                            <span class="ui-status-primary">Agent / Answers switch</span>
                             <span class="ui-status-primary">Citations</span>
                             <span class="ui-status-primary">Chat with my materials</span>
                             <span class="ui-status-primary">Confidence scoring</span>
-                            <span class="ui-status-primary">Chat modes</span>
                             <span class="ui-status-primary">Saved answers</span>
                         </div>
                     </div>
@@ -186,6 +196,60 @@ import {
                     <span class="ui-icon-tile bg-warning-bg text-warning-fg"><TrophyIcon class="h-5 w-5" /></span>
                     <h3 class="mt-4 font-semibold text-content">Gamified leaderboard</h3>
                     <p class="mt-1.5 text-sm text-content-muted">Opt-in XP rankings by department, semester or section — students choose an alias and compete on their own terms.</p>
+                </div>
+
+                <div v-reveal="120" class="reveal ui-card ui-card-hover p-6">
+                    <span class="ui-icon-tile bg-primary-soft text-primary"><BoltIcon class="h-5 w-5" /></span>
+                    <h3 class="mt-4 font-semibold text-content">Agentic chat actions</h3>
+                    <p class="mt-1.5 text-sm text-content-muted">The AI tutor takes real actions — book office hours, check deadlines, generate quizzes & flashcards, add planner tasks — through the same permissions as the UI, with a visible action trail.</p>
+                </div>
+
+                <div v-reveal class="reveal ui-card ui-card-hover p-6">
+                    <span class="ui-icon-tile bg-warning-bg text-warning-fg"><DocumentMagnifyingGlassIcon class="h-5 w-5" /></span>
+                    <h3 class="mt-4 font-semibold text-content">Submission similarity screening</h3>
+                    <p class="mt-1.5 text-sm text-content-muted">Every submission is embedded and compared within its assignment — suspicious pairs surface at grading with side-by-side matching excerpts. A signal for humans, not a verdict.</p>
+                </div>
+
+                <div v-reveal="60" class="reveal ui-card ui-card-hover p-6">
+                    <span class="ui-icon-tile bg-accent-mint-soft text-accent-mint-fg"><Squares2X2Icon class="h-5 w-5" /></span>
+                    <h3 class="mt-4 font-semibold text-content">Concept mastery map</h3>
+                    <p class="mt-1.5 text-sm text-content-muted">Tests, practice quizzes and flashcard recall blend into a per-topic mastery grid — weak concepts get one-click "Practice this" and "Make flashcards".</p>
+                </div>
+
+                <div v-reveal="120" class="reveal ui-card ui-card-hover p-6">
+                    <span class="ui-icon-tile bg-accent-lilac-soft text-accent-lilac-fg"><ScaleIcon class="h-5 w-5" /></span>
+                    <h3 class="mt-4 font-semibold text-content">AI rubric grading</h3>
+                    <p class="mt-1.5 text-sm text-content-muted">One click drafts per-criterion scores with justifications, a suggested grade and feedback from the actual submission — faculty review and edit before anything reaches the student.</p>
+                </div>
+
+                <div v-reveal class="reveal ui-card ui-card-hover p-6">
+                    <span class="ui-icon-tile bg-accent-rose-soft text-accent-rose-fg"><ChatBubbleLeftEllipsisIcon class="h-5 w-5" /></span>
+                    <h3 class="mt-4 font-semibold text-content">Anonymous course feedback</h3>
+                    <p class="mt-1.5 text-sm text-content-muted">Mid-semester pulse per section: results unlock only past an anonymity floor, comments arrive shuffled, and AI summarizes the themes for the instructor.</p>
+                </div>
+
+                <div v-reveal="60" class="reveal ui-card ui-card-hover p-6">
+                    <span class="ui-icon-tile bg-accent-sky-soft text-accent-sky-fg"><UsersIcon class="h-5 w-5" /></span>
+                    <h3 class="mt-4 font-semibold text-content">Anonymous peer review</h3>
+                    <p class="mt-1.5 text-sm text-content-muted">Each student who submits reviews two anonymous classmate submissions — anonymous both ways, with average peer ratings feeding the faculty grading view.</p>
+                </div>
+
+                <div v-reveal="120" class="reveal ui-card ui-card-hover p-6">
+                    <span class="ui-icon-tile bg-accent-peach-soft text-accent-peach-fg"><QueueListIcon class="h-5 w-5" /></span>
+                    <h3 class="mt-4 font-semibold text-content">Prerequisites & waitlists</h3>
+                    <p class="mt-1.5 text-sm text-content-muted">Registration enforces completed prerequisites with met/unmet badges; full sections queue students FIFO and auto-promote the moment a seat frees up.</p>
+                </div>
+
+                <div v-reveal class="reveal ui-card ui-card-hover p-6">
+                    <span class="ui-icon-tile bg-accent-yellow-soft text-accent-yellow-fg"><ArchiveBoxIcon class="h-5 w-5" /></span>
+                    <h3 class="mt-4 font-semibold text-content">Question bank</h3>
+                    <p class="mt-1.5 text-sm text-content-muted">A reusable per-course bank: add questions, import from past tests, spin up draft exams from a selection — and students practice on it for free, no AI required.</p>
+                </div>
+
+                <div v-reveal="60" class="reveal ui-card ui-card-hover p-6">
+                    <span class="ui-icon-tile bg-success-bg text-success-fg"><EnvelopeIcon class="h-5 w-5" /></span>
+                    <h3 class="mt-4 font-semibold text-content">Email digests & nudges</h3>
+                    <p class="mt-1.5 text-sm text-content-muted">A Monday week-ahead email — deadlines, fresh grades, booked office hours, due flashcards — plus due-soon assignment reminders. Opt-out per student, on your own SMTP.</p>
                 </div>
             </div>
         </div>

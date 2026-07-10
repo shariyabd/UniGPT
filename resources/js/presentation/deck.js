@@ -202,7 +202,7 @@ export const slides = [
         title: 'One platform, every academic workflow',
         columns: 3,
         items: [
-            { icon: 'SparklesIcon', title: 'Grounded AI tutor', desc: 'Streaming, cited answers from approved docs + your own notes & materials.' },
+            { icon: 'SparklesIcon', title: 'Agentic AI tutor', desc: 'Streaming, cited answers — and real actions: it books office hours, builds quizzes and plans tasks for you.' },
             { icon: 'DocumentTextIcon', title: 'Document knowledge base', desc: 'Upload → review → approve; approved docs auto-chunk, embed and become searchable.' },
             { icon: 'Squares2X2Icon', title: 'Role-based dashboards', desc: 'Student, faculty and admin each get a tailored home with the tools that matter.' },
             { icon: 'AcademicCapIcon', title: 'AI teaching automation', desc: 'Generate quizzes, assignments and rubrics, and draft grading feedback.' },
@@ -215,6 +215,26 @@ export const slides = [
         ],
     },
 
+    /* ------------------------------------------------- 08b JULY 2026 WAVE */
+    {
+        id: 'new-wave',
+        layout: 'grid',
+        kicker: 'New · July 2026 wave',
+        title: 'The copilot now acts, assesses and listens',
+        columns: 3,
+        items: [
+            { icon: 'BoltIcon', title: 'Agentic chat actions', desc: 'The AI tutor books office hours, checks deadlines, generates quizzes & flashcards, adds tasks — visible action trail, one-tap Agent / Answers-only switch.' },
+            { icon: 'MagnifyingGlassIcon', title: 'Similarity screening', desc: 'Every submission is embedded and compared; suspicious pairs surface at grading with matching excerpts.' },
+            { icon: 'Squares2X2Icon', title: 'Concept mastery map', desc: 'Per-topic mastery from tests, practice and flashcards — weak spots get one-click targeted review.' },
+            { icon: 'CheckBadgeIcon', title: 'AI rubric grading', desc: 'AI drafts per-criterion scores + feedback from the real submission; faculty review before anything releases.' },
+            { icon: 'ChatBubbleLeftRightIcon', title: 'Anonymous course feedback', desc: 'Mid-semester pulse per section with an anonymity floor and AI-summarized themes.' },
+            { icon: 'UsersIcon', title: 'Peer review', desc: 'Students review two anonymous classmate submissions each — anonymous in both directions.' },
+            { icon: 'BookOpenIcon', title: 'Prerequisites & waitlists', desc: 'Registration enforces completed prerequisites; full sections queue students and auto-promote on drops.' },
+            { icon: 'ClipboardDocumentCheckIcon', title: 'Question bank', desc: 'Per-course reusable questions — import from tests, spin up draft exams, let students practice from it.' },
+            { icon: 'BellAlertIcon', title: 'Email digests & nudges', desc: 'Weekly week-ahead email and due-soon reminders, opt-out per student, on your own SMTP.' },
+        ],
+    },
+
     /* ------------------------------------------------------- 09 STUDENT GRID */
     {
         id: 'student-features',
@@ -223,12 +243,12 @@ export const slides = [
         title: 'Everything a student needs, in one place',
         columns: 3,
         items: [
-            { icon: 'SparklesIcon', title: 'AI Tutor', desc: 'Streaming grounded chat — cites the library plus your own notes & materials.' },
+            { icon: 'SparklesIcon', title: 'AI Tutor that acts', desc: 'Grounded, cited chat that also books office hours, builds quizzes and plans your tasks — with a one-tap Agent / Answers-only switch.' },
             { icon: 'ClipboardDocumentCheckIcon', title: 'Class Tests', desc: 'Timed, proctored, auto-graded with instant review.' },
-            { icon: 'BoltIcon', title: 'Practice Quizzes', desc: 'Self-serve AI quizzes; missed questions become flashcards.' },
-            { icon: 'PencilSquareIcon', title: 'Assignments', desc: 'Submit work, track status, read rubrics.' },
+            { icon: 'BoltIcon', title: 'Practice Quizzes', desc: 'AI quizzes on any topic or straight from the faculty question bank; misses become flashcards.' },
+            { icon: 'PencilSquareIcon', title: 'Assignments + Peer Review', desc: 'Submit, track, read rubrics — and review two anonymous classmates.' },
             { icon: 'BookOpenIcon', title: 'Materials & Roadmap', desc: 'Course content with per-item completion tracking.' },
-            { icon: 'ChartBarIcon', title: 'Transcript & Attendance', desc: 'Grades and academic history at a glance — plus "My Progress" trend analytics.' },
+            { icon: 'ChartBarIcon', title: 'Progress & Mastery', desc: 'Transcript, attendance, trend analytics and a per-concept mastery map with one-click review.' },
             { icon: 'LightBulbIcon', title: 'Planner, Flashcards & OCR', desc: 'AI study schedules, SM-2 spaced repetition, handwriting → searchable notes.' },
             { icon: 'UsersIcon', title: 'Community', desc: 'Section discussions, opt-in leaderboard, study rooms & office-hours booking.' },
             { icon: 'MagnifyingGlassIcon', title: '⌘K Semantic Search', desc: 'One palette over docs, notes, courses, discussions & chats — plus .ics calendar sync.' },
@@ -260,9 +280,12 @@ export const slides = [
             { icon: 'SparklesIcon', title: 'AI Assistant', desc: 'ChatGPT-style workspace, course-aware context.' },
             { icon: 'BeakerIcon', title: 'AI Quiz Generator', desc: 'Topic → MCQ / true-false with explanations, editable.' },
             { icon: 'PencilSquareIcon', title: 'Assignment Generator', desc: 'Auto-draft description, tasks and rubric.' },
-            { icon: 'CheckBadgeIcon', title: 'AI-Assisted Grading', desc: 'Draft constructive feedback against the rubric.' },
+            { icon: 'CheckBadgeIcon', title: 'AI-Assisted Grading', desc: 'Draft per-criterion rubric scores + feedback from the submission — review, edit, release.' },
             { icon: 'ChartBarIcon', title: 'Learning Analytics', desc: 'Class performance & at-risk student flags.' },
             { icon: 'UserGroupIcon', title: 'Courses & Attendance', desc: 'Materials, rosters and attendance per section.' },
+            { icon: 'ClipboardDocumentCheckIcon', title: 'Question Bank', desc: 'Reusable per-course questions; import from tests, build draft exams.' },
+            { icon: 'MagnifyingGlassIcon', title: 'Similarity Screening', desc: 'Flagged submission pairs with side-by-side excerpts at grading.' },
+            { icon: 'ChatBubbleLeftRightIcon', title: 'Course Feedback', desc: 'Anonymous section pulse with AI-summarized themes.' },
         ],
     },
 
@@ -552,7 +575,7 @@ export const slides = [
         layout: 'roadmap',
         kicker: 'Where it goes next',
         title: 'Shipped, and what is coming',
-        shipped: ['Streaming RAG tutor + citations', 'Chat with my materials (personal RAG)', 'AI quiz → proctored exam', 'Layered exam-security proctoring', 'AI practice quizzes', 'AI-assisted grading', 'At-risk early warning', 'Study planner + SM-2 flashcards', '"My Progress" analytics', 'OCR handwritten notes', 'Discussions + opt-in leaderboard', 'Real-time messaging + study rooms', 'Office-hours booking', '⌘K semantic search', '.ics calendar sync', 'RBAC + audit log', 'Document approval pipeline', 'AI usage governance'],
+        shipped: ['Streaming RAG tutor + citations', 'Agentic chat actions (8 tools)', 'Chat with my materials (personal RAG)', 'AI quiz → proctored exam', 'Layered exam-security proctoring', 'AI practice quizzes + question bank', 'AI rubric grading (human-in-the-loop)', 'Submission similarity screening', 'Anonymous peer review', 'Anonymous course feedback + AI themes', 'Concept mastery map', 'Prerequisites + section waitlists', 'Email digests & deadline nudges', 'At-risk early warning', 'Study planner + SM-2 flashcards', 'OCR handwritten notes', 'Discussions, leaderboard, study rooms', 'Office-hours booking', '⌘K semantic search', '.ics calendar sync', 'RBAC + audit log', 'Document approval pipeline', 'AI usage governance'],
         upcoming: ['Telegram / WhatsApp alerts', 'Voice input / output', 'Managed vector DB at scale'],
     },
 

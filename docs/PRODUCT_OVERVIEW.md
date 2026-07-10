@@ -89,8 +89,16 @@ operational insight. **One login, three tailored experiences.**
 Ask anything. UniGPT retrieves passages from your approved documents — **and from your own
 notes and your courses' materials** — answers **streaming live, token by token**, with inline
 citations and a confidence score, and suggests follow-ups. Multiple modes — academic, exam
-prep, research — keep responses on-task.
-*Highlights:* Streaming answers · Citations (library + personal sources) · Confidence scoring · Chat modes · Saved answers · Session history
+prep, research — keep responses on-task. And it doesn't just answer — **it acts**: the
+student chat takes real actions via tool calling (check upcoming deadlines, list and book
+office-hour slots, generate practice quizzes and flashcard decks, add planner tasks — 8
+tools), showing a live tool-activity trail in the conversation, with every action passing
+the same permission checks as the rest of the platform. A segmented **⚡ Agent / 💬 Answers
+only** switch above the composer puts the student in charge: Agent mode (the default) invites
+action requests — hints and example prompts adapt, and replies that acted carry an ⚡ Agent
+badge — while Answers only is a hard, server-side guarantee that tools are never even offered
+to the model.
+*Highlights:* Streaming answers · **Agentic in-chat actions (8 tools)** · **Agent / Answers-only switch** · Citations (library + personal sources) · Confidence scoring · Chat modes · Saved answers · Session history
 
 **Supporting features**
 
@@ -103,12 +111,20 @@ prep, research — keep responses on-task.
 | **Layered exam proctoring** | Faculty pick, per test, which security layers apply from an admin-approved set — fullscreen, tab-switch detection, clipboard block, one-at-a-time, randomisation, identity watermark, browser fingerprint, behaviour logging, risk scoring, and **webcam / screen recording**. Every attempt gets an evidence trail and a per-student review dossier (timeline, 0–100 risk score, recording playback). |
 | **Attendance & analytics** | Mark attendance in seconds; track rates, grades, GPA and engagement across every course. |
 | **My Progress analytics** | Every student gets a personal insight dashboard — GPA, attendance, test, assignment and activity trends visualised in one place. |
+| **Concept mastery map** | A deterministic per-topic mastery score on My Progress, blended from class-test scores, practice-quiz accuracy and flashcard recall. Tier-coloured tiles sort weakest-first, and weak concepts offer one-click "Practice this" / "Make flashcards" straight into the AI generators. |
 | **AI Study Planner** | Feed in your deadlines and UniGPT drafts a realistic study schedule, then saves each session straight to your tasks. |
 | **Flashcards with spaced repetition** | Build decks by hand or generate them with AI, then review on an SM-2 spaced-repetition schedule that surfaces cards right before you'd forget. |
 | **OCR handwritten notes** | Snap a photo of handwritten notes and gpt-4o vision transcribes them into a clean, searchable saved note — automatically indexed so the AI tutor can answer from it. |
 | **Chat with my materials** | Personal-corpus RAG: the tutor answers from your own notes and your sections' course materials, not just the library — each strictly scoped to its owner/class. |
 | **AI practice quizzes** | Students generate their own MCQ/true-false quizzes on any topic, get instant server-graded results with explanations, retake freely, and convert missed questions into flashcards. |
+| **Question bank** | Faculty teaching a course share a bank of reusable MCQ/true-false questions — add them manually or import from existing class tests (duplicates skipped), spin a selection into a draft class test, and students self-quiz with deterministic practice quizzes sampled from the bank (no AI required). |
 | **At-risk early warning** | Faculty see students flagged on four live signals (attendance, missed deadlines, test average, grade) with High/Watch levels and a one-click message to intervene. |
+| **Submission similarity screening** | Every submission's text — typed answers plus extracted PDF/DOCX content — is chunked and embedded; high-similarity pairs within the same assignment are flagged with matching excerpts. Grading shows an amber badge and a side-by-side comparison panel. A review signal, not a verdict. |
+| **AI-assisted rubric grading** | One "Draft grade with AI" click reads the actual submission and drafts per-criterion scores with one-line justifications, plus a suggested overall grade and feedback — all editable prefills that faculty review and save. Nothing auto-releases. |
+| **Anonymous course feedback** | Faculty open a mid-semester feedback window per section; students submit one revisable 1–5 rating + comment. Results — average, star distribution, shuffled anonymized comments — unlock only once 3+ responses exist, and an AI button summarizes themes into Going well / Concerns / Suggestions. |
+| **Anonymous peer review** | A per-assignment toggle: each submitting student receives up to two classmate submissions to rate and comment on — load-balanced, never their own, anonymous in both directions. Reviewees see the feedback; faculty see average peer ratings in grading. |
+| **Prerequisites & waitlists** | Admins define course prerequisites (only a completed course counts); registration shows met/unmet badges and is enforced server-side. Full sections queue students on a FIFO waitlist that auto-promotes the head of the queue on any drop. |
+| **Email digests & nudges** | A Monday-morning email digest — deadlines in 7 days, fresh grades, booked office hours, due flashcards — plus a daily "assignment due soon" email. Opt-out in Settings; delivered via the admin-configured SMTP. |
 | **Semantic global search (⌘K)** | One search across documents, notes, materials, courses, assignments, discussions and past AI chats — matched by meaning, scoped to what you can access. |
 | **Group study rooms** | Section-scoped live group chats for classmates — create a room per topic, join in one click, messages delivered in real time. |
 | **Office-hours booking** | Faculty publish bookable slots; students book atomically (no double-booking), both sides are notified, meetings land on the calendar. |
@@ -132,11 +148,13 @@ prep, research — keep responses on-task.
 From the first lecture to final transcript, students get instant, cited answers and a
 planner that keeps the term on track.
 - Streaming AI chat with citations, confidence & saved answers — grounded in the library **and your own notes & materials**
+- **Agentic in-chat actions** — the tutor checks deadlines, books office hours, spins up quizzes, flashcards & planner tasks for you, with a live tool-activity trail
 - Personal dashboard: courses, CGPA & deadlines
-- One-click registration for assigned course sections
+- One-click registration for assigned course sections — with **prerequisite met/unmet badges** and live **waitlist queue positions**
 - Timed quizzes & class tests with instant auto-graded results
-- Self-serve **AI practice quizzes** — instant grading, missed questions become flashcards
-- "My Progress" analytics: GPA, attendance, test & assignment trends
+- Self-serve **AI practice quizzes** — instant grading, missed questions become flashcards — or self-quiz from the course **question bank**
+- **Anonymous peer review** on assignments & **anonymous mid-semester course feedback**
+- "My Progress" analytics: GPA, attendance, test & assignment trends — plus a **concept mastery map** with one-click adaptive review
 - AI Study Planner: turn deadlines into a saved study schedule
 - Flashcards — manual or AI-generated, with SM-2 spaced repetition
 - OCR handwritten notes: photo → gpt-4o transcription → saved, AI-searchable note
@@ -148,6 +166,7 @@ planner that keeps the term on track.
 - Attendance, transcript & GPA tracking
 - Course roadmap, materials & document library
 - Exam schedule, calendar (**.ics export/subscribe**), notes & tasks
+- **Weekly email digest** & deadline-nudge emails — opt-out in Settings
 - Real-time messaging with your faculty
 - *Sample dashboard metrics:* 6 courses · 3.78 CGPA · 94% attendance
 
@@ -155,11 +174,15 @@ planner that keeps the term on track.
 Faculty manage courses end to end while the AI teaching assistant drafts assessments and
 feedback in seconds.
 - Streaming AI teaching assistant: quizzes, assignments & rubrics
-- Build timed quizzes & class tests (AI-generated or manual questions) with auto-grading
+- Build timed quizzes & class tests (AI-generated, manual or **question-bank** questions) with auto-grading
+- **Per-course question bank** — add or import reusable questions, spin a selection into a draft class test
 - Per-test proctoring layers with a risk-scored, per-student review dossier
 - Manage taught sections & publish course materials (auto-indexed for students' AI tutor)
 - One-click attendance with live class stats
-- Grading workspace with AI-drafted feedback
+- Grading workspace with AI-drafted feedback — plus **"Draft grade with AI"** per-rubric-criterion prefills (reviewed & saved by you, never auto-released)
+- **Submission similarity flags** — amber badge + side-by-side excerpt comparison per submission
+- **Anonymous mid-semester feedback windows** — anonymized results unlock at 3+ responses, with an AI theme summary
+- **Anonymous peer review** per assignment — average peer ratings surface in grading
 - Per-course analytics & grade distributions
 - **At-risk early warning** — four signals, High/Watch levels, message a flagged student in one click
 - **Publish bookable office-hours slots** & manage bookings
@@ -172,6 +195,7 @@ Admins govern users, knowledge and the AI itself — with a real-time view of sy
 academic health.
 - User, role & permission matrix management
 - Course catalog, sections, terms & student assignment
+- **Course prerequisites** & **section waitlists** — FIFO queue with auto-promotion on drops
 - Document approval workflow & knowledge base
 - Institution-wide analytics & top queries
 - AI provider settings, prompts & retrieval tuning
@@ -217,8 +241,14 @@ How UniGPT turns raw activity into decisions, automation and trustworthy answers
   and links back to the exact source (e.g. *CS401 Syllabus · p.4*).
 - **Suggested follow-ups** — the assistant proposes next questions to keep guidance moving.
 - **Chat modes** — academic, exam-prep, research and more steer tone and focus per task.
-- **Teaching automation** — auto-generates quizzes, assignments and rubrics, and drafts
-  grading feedback for faculty to review and edit.
+- **Agentic actions** — the student assistant executes real tasks (checking deadlines,
+  booking office hours, generating quizzes, flashcards and planner tasks) through the same
+  domain services and permission checks as the UI, with a visible tool-activity trail.
+- **Teaching automation** — auto-generates quizzes, assignments and rubrics, drafts
+  grading feedback, and pre-fills rubric scores per criterion from the actual submission —
+  always for faculty to review and edit.
+- **Integrity signals** — submission text is embedded and screened for high-similarity
+  pairs within an assignment, surfaced to faculty as a review signal, never a verdict.
 - **Operational intelligence** — the system turns daily activity into institutional insight:
   top queries, engagement and grade trends, and early signals of at-risk students.
 - **Permission-aware by design** — every AI action respects the same role-based permissions
@@ -329,10 +359,18 @@ How modules, services and roles connect — the platform is one loop, not isolat
 > OCR handwritten-note transcription, and course Discussion feeds (with faculty section
 > moderation and an admin moderation queue). All live — see §4 Features & §5 Roles.
 >
-> ✅ **Latest wave — all shipped:** token-by-token **streaming answers**, **"chat with my
-> materials"** personal-corpus RAG, self-serve **AI practice quizzes** (missed → flashcards),
-> the **at-risk early-warning** system for faculty, **⌘K semantic global search**, **group
-> study rooms**, **office-hours booking**, and **.ics calendar export/subscribe**.
+> ✅ **Copilot depth & connection wave — all shipped:** token-by-token **streaming answers**,
+> **"chat with my materials"** personal-corpus RAG, self-serve **AI practice quizzes**
+> (missed → flashcards), the **at-risk early-warning** system for faculty, **⌘K semantic
+> global search**, **group study rooms**, **office-hours booking**, and **.ics calendar
+> export/subscribe**.
+>
+> ✅ **July 2026 wave — all shipped:** **agentic AI chat** (the tutor takes real actions —
+> 8 tools with a live activity trail), **submission similarity screening**, the **concept
+> mastery map + adaptive review**, **email digests & deadline nudges**, **AI-assisted
+> rubric grading**, **anonymous mid-semester course feedback**, **anonymous peer review**
+> on assignments, **course prerequisites & section waitlists**, and the per-course
+> **question bank**. All live — see §4 Features & §5 Roles.
 
 | Feature | Stage | What it adds |
 |---|---|---|
@@ -340,7 +378,8 @@ How modules, services and roles connect — the platform is one loop, not isolat
 | **Digital library + AI assistant** | Exploring | A library of academic books and resources with an AI assistant that answers strictly from the library's own content — grounded, cited, on-syllabus. |
 
 **Also on the engineering roadmap** *(later phases — most depend on additional infrastructure)*
-- **Voice I/O** — speak to the assistant with speech-to-text & text-to-speech.
+- **Voice I/O** — speak to the assistant with speech-to-text & text-to-speech *(intentionally on hold)*.
+- **Lecture-audio transcription, completion certificates, expanded realtime presence** — designed, intentionally on hold.
 - **Predictive analytics** — ML-driven recommendations building on the shipped rule-based at-risk signals.
 - **More AI providers** — Gemini and self-hosted models alongside OpenAI.
 - **Versioning & memory** — document version history and longer conversation memory.
