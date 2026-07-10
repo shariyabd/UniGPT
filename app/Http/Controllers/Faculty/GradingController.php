@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Faculty;
 
 use App\Domain\Academic\Services\GradingService;
+use App\Domain\Academic\Services\SubmissionTextService;
 use App\Domain\Chat\Services\TeachingAssistantService;
 use App\Domain\Notification\Services\NotificationService;
 use App\Enums\NotificationType;
@@ -98,6 +99,37 @@ class GradingController extends Controller
      * Draft AI feedback for a submission. Returns JSON for the faculty to edit
      * before saving — it does not persist anything.
      */
+    /**
+     * AI grade draft: per-rubric-criterion scores + suggested overall grade +
+     * feedback, generated from the actual submission text. Returned to the
+     * grading panel as a prefill — the faculty member reviews, edits and
+     * saves; nothing reaches the student until they do.
+     */
+    public function draftGrade(AssignmentSubmission $submission, SubmissionTextService $text): JsonResponse
+    {
+        Gate::authorize('manage', $submission->assignment->course);
+
+        $assignment = $submission->assignment;
+
+        $criteria = collect($assignment->rubric ?? [])
+            ->map(fn (array $row) => [
+                'name' => trim((string) ($row['name'] ?? $row['criterion'] ?? '')),
+                'points' => (float) ($row['points'] ?? 0),
+            ])
+            ->filter(fn (array $criterion) => $criterion['name'] !== '' && $criterion['points'] > 0)
+            ->values()
+            ->all();
+
+        $draft = $this->assistant->draftRubricGrade([
+            'assignmentTitle' => $assignment->title,
+            'totalPoints' => $assignment->total_points,
+            'criteria' => $criteria,
+            'submissionText' => $text->textFor($submission, 6000),
+        ]);
+
+        return response()->json($draft);
+    }
+
     public function suggestFeedback(AssignmentSubmission $submission): JsonResponse
     {
         Gate::authorize('manage', $submission->assignment->course);

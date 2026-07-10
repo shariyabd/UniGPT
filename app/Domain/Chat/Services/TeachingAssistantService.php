@@ -237,6 +237,226 @@ class TeachingAssistantService
         ];
     }
 
+    /**
+     * Draft a full grade for a submission: per-rubric-criterion scores with
+     * one-line justifications, a suggested overall grade, and feedback.
+     * Faculty review and edit before saving — nothing is released
+     * automatically. Falls back to a clearly-labelled heuristic draft when no
+     * LLM responds usefully.
+     *
+     * @param  array{assignmentTitle: string, totalPoints: mixed, criteria: array<int, array{name: string, points: float}>, submissionText: string}  $params
+     * @return array{criteria: array<int, array{name: string, points: float, score: float, justification: string}>, suggestedGrade: ?float, feedback: string, strengths: array<int, string>, improvements: array<int, string>, source: string}
+     */
+    public function draftRubricGrade(array $params): array
+    {
+        $title = trim((string) ($params['assignmentTitle'] ?? 'the assignment'));
+        $totalPoints = (float) ($params['totalPoints'] ?? 0);
+        $criteria = array_values((array) ($params['criteria'] ?? []));
+        $text = trim((string) ($params['submissionText'] ?? ''));
+
+        $parsed = $text === '' ? null : $this->tryJson($this->provider->chat([
+            [
+                'role' => 'system',
+                'content' => 'You are a fair, consistent university grader. Score strictly against the rubric; '
+                    .'justify each score in one sentence grounded in the submission. Never exceed the maximum points.',
+            ],
+            ['role' => 'user', 'content' => $this->rubricGradePrompt($title, $totalPoints, $criteria, $text)],
+        ])->content);
+
+        $scored = $this->scoreCriteria($criteria, $parsed, $text);
+        $fromAi = $parsed !== null && ($criteria === [] ? isset($parsed['score']) : ! empty($parsed['criteria']));
+
+        $suggested = $criteria !== []
+            ? round(array_sum(array_column($scored, 'score')), 1)
+            : $this->overallScore($parsed, $totalPoints, $title, $text);
+
+        $grade = $suggested;
+
+        return [
+            'criteria' => $scored,
+            'suggestedGrade' => $suggested,
+            'feedback' => trim((string) ($parsed['feedback'] ?? $this->fallbackFeedback($title, $grade, $totalPoints))),
+            'strengths' => array_values((array) ($parsed['strengths'] ?? $this->fallbackStrengths($grade, $totalPoints))),
+            'improvements' => array_values((array) ($parsed['improvements'] ?? $this->fallbackImprovements($grade, $totalPoints))),
+            'source' => $fromAi ? 'ai' : 'heuristic',
+        ];
+    }
+
+    /**
+     * @param  array<int, array{name: string, points: float}>  $criteria
+     */
+    private function rubricGradePrompt(string $title, float $totalPoints, array $criteria, string $text): string
+    {
+        if ($criteria !== []) {
+            $rubricLines = collect($criteria)
+                ->map(fn (array $criterion) => "- \"{$criterion['name']}\" (max {$criterion['points']} points)")
+                ->implode("\n");
+
+            return "Grade this student submission for \"{$title}\" against the rubric below.\n\n"
+                ."Rubric:\n{$rubricLines}\n\n"
+                ."Submission:\n\"\"\"\n{$text}\n\"\"\"\n\n"
+                .'Respond ONLY with JSON: {"criteria":[{"name":"exact rubric name","score":number,'
+                .'"justification":"one sentence"}],"feedback":"2-4 sentences for the student",'
+                .'"strengths":["..."],"improvements":["..."]}';
+        }
+
+        return "Grade this student submission for \"{$title}\" out of {$totalPoints} points.\n\n"
+            ."Submission:\n\"\"\"\n{$text}\n\"\"\"\n\n"
+            .'Respond ONLY with JSON: {"score":number,"feedback":"2-4 sentences for the student",'
+            .'"strengths":["..."],"improvements":["..."]}';
+    }
+
+    /**
+     * Marry the model's criterion scores back to the rubric, clamped to each
+     * criterion's maximum; criteria the model skipped get heuristic scores.
+     *
+     * @param  array<int, array{name: string, points: float}>  $criteria
+     * @param  array<string, mixed>|null  $parsed
+     * @return array<int, array{name: string, points: float, score: float, justification: string}>
+     */
+    private function scoreCriteria(array $criteria, ?array $parsed, string $text): array
+    {
+        $byName = collect((array) ($parsed['criteria'] ?? []))
+            ->filter(fn ($row) => is_array($row) && isset($row['name']))
+            ->keyBy(fn (array $row) => mb_strtolower(trim((string) $row['name'])));
+
+        return array_map(function (array $criterion) use ($byName, $text): array {
+            $match = $byName->get(mb_strtolower(trim($criterion['name'])));
+
+            if ($match !== null && is_numeric($match['score'] ?? null)) {
+                return [
+                    'name' => $criterion['name'],
+                    'points' => $criterion['points'],
+                    'score' => round(max(0.0, min((float) $criterion['points'], (float) $match['score'])), 1),
+                    'justification' => trim((string) ($match['justification'] ?? '')),
+                ];
+            }
+
+            return [
+                'name' => $criterion['name'],
+                'points' => $criterion['points'],
+                'score' => $this->heuristicScore((float) $criterion['points'], $criterion['name'], $text),
+                'justification' => 'Heuristic draft (no AI response for this criterion) — verify against the submission.',
+            ];
+        }, $criteria);
+    }
+
+    /**
+     * Summarize anonymous course-feedback comments into themes for faculty.
+     * Comments arrive already anonymized; the summary never references
+     * individual respondents. Deterministic fallback when no LLM responds.
+     *
+     * @param  array<int, string>  $comments
+     * @param  array<int, int>  $ratingDistribution  rating (1-5) → count
+     * @return array{summary: string, positives: array<int, string>, concerns: array<int, string>, suggestions: array<int, string>, source: string}
+     */
+    public function summarizeFeedback(string $courseLabel, array $comments, array $ratingDistribution): array
+    {
+        $comments = array_values(array_filter(array_map('trim', $comments)));
+
+        $parsed = null;
+        if ($comments !== []) {
+            $commentBlock = collect($comments)
+                ->take(60)
+                ->map(fn (string $comment) => '- '.mb_substr($comment, 0, 400))
+                ->implode("\n");
+            $ratingLine = collect($ratingDistribution)
+                ->map(fn (int $count, int $rating) => "{$rating}★: {$count}")
+                ->implode(', ');
+
+            // The response-format spec lives in the SYSTEM message: the mock
+            // provider echoes the user question back, and a valid-JSON template
+            // there would be mistaken for a real model answer by tryJson().
+            $parsed = $this->tryJson($this->provider->chat([
+                [
+                    'role' => 'system',
+                    'content' => 'You summarize anonymous student course feedback for the instructor. Group recurring '
+                        .'themes; never quote in a way that could identify a student; stay balanced and specific. '
+                        .'Respond ONLY with JSON of this shape: {"summary":"2-3 sentences","positives":["theme"],'
+                        .'"concerns":["theme"],"suggestions":["actionable step for the instructor"]}',
+                ],
+                [
+                    'role' => 'user',
+                    'content' => "Course: {$courseLabel}. Rating distribution: {$ratingLine}.\n\n"
+                        ."Anonymous comments:\n{$commentBlock}",
+                ],
+            ])->content);
+        }
+
+        if (is_array($parsed) && isset($parsed['summary'])) {
+            return [
+                'summary' => trim((string) $parsed['summary']),
+                'positives' => array_values((array) ($parsed['positives'] ?? [])),
+                'concerns' => array_values((array) ($parsed['concerns'] ?? [])),
+                'suggestions' => array_values((array) ($parsed['suggestions'] ?? [])),
+                'source' => 'ai',
+            ];
+        }
+
+        return $this->fallbackFeedbackSummary($comments, $ratingDistribution);
+    }
+
+    /**
+     * @param  array<int, string>  $comments
+     * @param  array<int, int>  $ratingDistribution
+     * @return array{summary: string, positives: array<int, string>, concerns: array<int, string>, suggestions: array<int, string>, source: string}
+     */
+    private function fallbackFeedbackSummary(array $comments, array $ratingDistribution): array
+    {
+        $total = array_sum($ratingDistribution);
+        $average = $total > 0
+            ? round(collect($ratingDistribution)->map(fn (int $count, int $rating) => $rating * $count)->sum() / $total, 1)
+            : null;
+        $positiveShare = $total > 0
+            ? (($ratingDistribution[4] ?? 0) + ($ratingDistribution[5] ?? 0)) / $total
+            : 0;
+
+        $summary = $total === 0
+            ? 'No responses yet.'
+            : "{$total} response(s) with an average rating of {$average}/5"
+                .($comments !== [] ? ' and '.count($comments).' written comment(s)' : '')
+                .'. Configure an AI provider for a thematic summary — the raw comments are listed below.';
+
+        return [
+            'summary' => $summary,
+            'positives' => $positiveShare >= 0.5 ? ['Most respondents rated the course 4★ or higher'] : [],
+            'concerns' => $positiveShare < 0.5 && $total > 0 ? ['Fewer than half of respondents rated the course 4★ or higher'] : [],
+            'suggestions' => $comments !== [] ? ['Read the written comments below for specifics'] : [],
+            'source' => 'heuristic',
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $parsed
+     */
+    private function overallScore(?array $parsed, float $totalPoints, string $title, string $text): ?float
+    {
+        if (is_numeric($parsed['score'] ?? null)) {
+            return round(max(0.0, min($totalPoints, (float) $parsed['score'])), 1);
+        }
+
+        return $totalPoints > 0 ? $this->heuristicScore($totalPoints, $title, $text) : null;
+    }
+
+    /**
+     * Keyless draft score: submission length plus keyword coverage of the
+     * criterion/assignment wording. Deliberately mid-range and clearly
+     * labelled as heuristic in the justification.
+     */
+    private function heuristicScore(float $maxPoints, string $keywords, string $text): float
+    {
+        $words = str_word_count($text);
+        $lengthFactor = min(1.0, $words / 150);
+
+        preg_match_all('/[a-z]{4,}/', mb_strtolower($keywords), $matches);
+        $terms = array_unique($matches[0]);
+        $lower = mb_strtolower($text);
+        $hits = count(array_filter($terms, fn (string $term) => str_contains($lower, $term)));
+        $coverage = $terms === [] ? 0.5 : $hits / count($terms);
+
+        return round($maxPoints * (0.4 + 0.3 * $lengthFactor + 0.3 * $coverage) * 2) / 2;
+    }
+
     private function ratio(mixed $grade, mixed $total): ?float
     {
         return ($grade !== null && $total) ? (float) $grade / (float) $total : null;
