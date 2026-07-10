@@ -7,15 +7,23 @@ use App\Domain\Chat\Support\AiSettings;
 use App\Domain\RAG\Embeddings\EmbeddingService;
 use App\Domain\RAG\Support\CorpusVersion;
 use App\Domain\User\Models\User;
+use App\Models\CourseMaterial;
 use App\Models\Document;
 use App\Models\DocumentChunk;
 use App\Models\Embedding;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 
 /**
- * MySQL-native vector retrieval: loads candidate embeddings (scoped to approved
- * documents the user may see), then ranks by cosine similarity in PHP.
+ * MySQL-native vector retrieval: loads candidate embeddings (scoped to what the
+ * user may retrieve from), then ranks by cosine similarity in PHP.
+ *
+ * A user's corpus is the union of three sources:
+ *  - approved library documents whose audience includes them,
+ *  - their own notes (personal shadow documents),
+ *  - materials of the sections they are enrolled in (students) or teach
+ *    (faculty).
  *
  * @phpstan-type RetrievedChunk array{chunk: \App\Models\DocumentChunk, document: \App\Models\Document, score: float}
  */
@@ -47,17 +55,22 @@ class RetrievalService
 
         $topK = $topK ?? $this->settings->topK();
 
+        // Resolved outside the cache closure so the cache key reflects the
+        // user's *current* section access — an enrolment change reshapes the
+        // key instead of serving a stale scope for the TTL.
+        $materialIds = $this->accessibleMaterialIds($user);
+
         // The expensive part — embedding the query and cosine-ranking every
         // candidate vector — is cached as a compact id/score list, keyed by the
-        // corpus version and the user's visibility scope. A document change bumps
+        // corpus version and the user's retrieval scope. A document change bumps
         // the corpus version and transparently invalidates these entries.
         $rows = $this->cacheEnabled()
             ? Cache::remember(
-                $this->cacheKey($query, $user, $topK),
+                $this->cacheKey($query, $user, $topK, $materialIds),
                 (int) config('rag.cache.ttl', 3600),
-                fn (): array => $this->rankCandidates($query, $user, $topK),
+                fn (): array => $this->rankCandidates($query, $user, $topK, $materialIds),
             )
-            : $this->rankCandidates($query, $user, $topK);
+            : $this->rankCandidates($query, $user, $topK, $materialIds);
 
         return $this->hydrate($rows);
     }
@@ -66,9 +79,10 @@ class RetrievalService
      * Embed the query and cosine-rank visible candidate chunks, returning a
      * cache-safe array of [chunk_id, document_id, score] for the top matches.
      *
+     * @param  array<int, int>  $materialIds
      * @return array<int, array{chunk_id: int, document_id: int, score: float}>
      */
-    private function rankCandidates(string $query, User $user, int $topK): array
+    private function rankCandidates(string $query, User $user, int $topK, array $materialIds): array
     {
         $queryVector = $this->embeddings->embedQuery($query);
         if (empty($queryVector)) {
@@ -87,8 +101,8 @@ class RetrievalService
 
         Embedding::query()
             ->where('model', $this->provider->embeddingModel())
-            ->whereHas('document', function ($q) use ($user) {
-                $q->approved()->visibleTo($user);
+            ->whereHas('document', function (Builder $q) use ($user, $materialIds) {
+                $this->scopeRetrievable($q, $user, $materialIds);
             })
             ->select(['id', 'document_chunk_id', 'document_id', 'vector'])
             ->chunkById(self::SCORING_BATCH_SIZE, function (Collection $batch) use ($queryVector, $threshold, $topK, &$passing, &$best): void {
@@ -150,7 +164,11 @@ class RetrievalService
             return collect();
         }
 
-        $chunks = DocumentChunk::with('document')
+        // Personal shadow documents are hidden by the library global scope, so
+        // eager-load the document relation without it.
+        $chunks = DocumentChunk::with(['document' => function ($q) {
+            $q->withoutGlobalScope(Document::LIBRARY_SCOPE);
+        }])
             ->whereIn('id', array_column($rows, 'chunk_id'))
             ->get()
             ->keyBy('id');
@@ -178,45 +196,82 @@ class RetrievalService
     }
 
     /**
-     * Cache key for a retrieval. Scoped by corpus version (invalidation), the
-     * embedding model, and the user's visibility audience so that two users with
-     * the same access share cached results while access boundaries are respected.
+     * Restrict a document query to what this user may retrieve from: approved
+     * library documents in their audience, their own notes, and materials of
+     * their sections. Applied inside a whereHas, where the library global scope
+     * is active by default — remove it, then re-add source rules explicitly.
+     *
+     * @param  array<int, int>  $materialIds
      */
-    private function cacheKey(string $query, User $user, int $topK): string
+    private function scopeRetrievable(Builder $query, User $user, array $materialIds): void
+    {
+        $query->withoutGlobalScope(Document::LIBRARY_SCOPE)
+            ->where(function (Builder $sources) use ($user, $materialIds) {
+                $sources->where(function (Builder $library) use ($user) {
+                    $library->where('documents.source_type', Document::SOURCE_LIBRARY)
+                        ->approved()
+                        ->visibleTo($user);
+                });
+
+                $sources->orWhere(function (Builder $notes) use ($user) {
+                    $notes->where('documents.source_type', Document::SOURCE_NOTE)
+                        ->where('documents.owner_id', $user->id);
+                });
+
+                if ($materialIds !== []) {
+                    $sources->orWhere(function (Builder $materials) use ($materialIds) {
+                        $materials->where('documents.source_type', Document::SOURCE_MATERIAL)
+                            ->whereIn('documents.source_id', $materialIds);
+                    });
+                }
+            });
+    }
+
+    /**
+     * IDs of the course materials in this user's retrieval scope: published
+     * materials of enrolled sections for students, all own-section materials
+     * for faculty. Only file-backed materials ever get shadow documents, so
+     * filter to those here to keep the id list (and cache key) tight.
+     *
+     * @return array<int, int>
+     */
+    private function accessibleMaterialIds(User $user): array
+    {
+        $sectionIds = match (true) {
+            $user->isStudent() => $user->enrolledSectionIds(),
+            $user->isFaculty() => $user->teachingSectionIds(),
+            default => collect(),
+        };
+
+        if ($sectionIds->isEmpty()) {
+            return [];
+        }
+
+        return CourseMaterial::query()
+            ->whereIn('section_id', $sectionIds)
+            ->when($user->isStudent(), fn ($q) => $q->where('is_published', true))
+            ->whereNotNull('file_path')
+            ->pluck('id')
+            ->all();
+    }
+
+    /**
+     * Cache key for a retrieval. Scoped by corpus version (invalidation), the
+     * embedding model, and the user's retrieval scope. Personal corpora (own
+     * notes, section materials) make the scope inherently per-user, so the key
+     * carries the user id plus a fingerprint of their accessible material set.
+     */
+    private function cacheKey(string $query, User $user, int $topK, array $materialIds): string
     {
         return implode(':', [
             'rag:ret:v'.CorpusVersion::current(),
             $this->provider->embeddingModel(),
-            $this->visibilityScope($user),
+            'u'.$user->id,
+            'm'.sha1(implode(',', $materialIds)),
             'k'.$topK,
             't'.$this->threshold(),
             sha1($query),
         ]);
-    }
-
-    /**
-     * A stable token describing which documents the user may see, mirroring
-     * {@see Document::scopeVisibleTo()}.
-     */
-    private function visibilityScope(User $user): string
-    {
-        if ($user->isAdmin()) {
-            return 'all';
-        }
-
-        $audiences = [];
-        if ($user->isStudent()) {
-            $audiences[] = 'students';
-        }
-        if ($user->isFaculty()) {
-            $audiences[] = 'students';
-            $audiences[] = 'faculty';
-        }
-
-        $audiences = array_values(array_unique($audiences));
-        sort($audiences);
-
-        return $audiences === [] ? 'none' : implode('+', $audiences);
     }
 
     /**

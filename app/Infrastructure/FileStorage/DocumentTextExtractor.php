@@ -2,6 +2,7 @@
 
 namespace App\Infrastructure\FileStorage;
 
+use Illuminate\Support\Facades\Storage;
 use Smalot\PdfParser\Parser as PdfParser;
 use Throwable;
 use ZipArchive;
@@ -23,8 +24,29 @@ class DocumentTextExtractor
             return [];
         }
 
-        $absolute = $this->storage->absolutePath($path);
+        return $this->fromAbsolute($this->storage->absolutePath($path), $fileType);
+    }
 
+    /**
+     * Extract from a file on an arbitrary disk — course-material uploads live
+     * on `local`, not the knowledge-base disk this service defaults to.
+     *
+     * @return array<int, array{page: int, text: string}>
+     */
+    public function extractFromDisk(string $disk, string $path, string $fileType): array
+    {
+        if (! Storage::disk($disk)->exists($path)) {
+            return [];
+        }
+
+        return $this->fromAbsolute(Storage::disk($disk)->path($path), $fileType);
+    }
+
+    /**
+     * @return array<int, array{page: int, text: string}>
+     */
+    private function fromAbsolute(string $absolute, string $fileType): array
+    {
         return match (strtolower($fileType)) {
             'pdf' => $this->fromPdf($absolute),
             'docx' => $this->fromDocx($absolute),

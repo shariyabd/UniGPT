@@ -3,6 +3,7 @@
 namespace App\Domain\Academic\Services;
 
 use App\Domain\User\Models\User;
+use App\Jobs\SyncCourseMaterialToRagJob;
 use App\Models\Assignment;
 use App\Models\Course;
 use App\Models\CourseMaterial;
@@ -131,7 +132,11 @@ class CourseManagementService
             $payload = array_merge($payload, $this->storeFile($file));
         }
 
-        return CourseMaterial::create($payload);
+        $material = CourseMaterial::create($payload);
+
+        SyncCourseMaterialToRagJob::dispatch($material->id);
+
+        return $material;
     }
 
     /**
@@ -148,6 +153,8 @@ class CourseManagementService
 
         $material->update($payload);
 
+        SyncCourseMaterialToRagJob::dispatch($material->id);
+
         return $material->fresh();
     }
 
@@ -155,6 +162,8 @@ class CourseManagementService
     {
         $this->deleteFile($material);
         $material->delete();
+
+        SyncCourseMaterialToRagJob::dispatch($material->id);
     }
 
     public function recordMaterialDownload(CourseMaterial $material): void

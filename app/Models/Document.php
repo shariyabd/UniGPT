@@ -16,7 +16,25 @@ class Document extends Model
 {
     use HasFactory, SoftDeletes;
 
+    /**
+     * Global scope name that restricts every ordinary query to library
+     * documents. RAG ingestion/retrieval code opts out explicitly via
+     * {@see allSources()} so personal shadow documents (notes, course
+     * materials) never leak into the admin library, approvals, analytics,
+     * dashboards or route-model binding.
+     */
+    public const LIBRARY_SCOPE = 'librarySource';
+
+    public const SOURCE_LIBRARY = 'library';
+
+    public const SOURCE_NOTE = 'note';
+
+    public const SOURCE_MATERIAL = 'material';
+
     protected $fillable = [
+        'source_type',
+        'source_id',
+        'owner_id',
         'title',
         'description',
         'category',
@@ -39,9 +57,27 @@ class Document extends Model
         'processed_at',
     ];
 
+    protected static function booted(): void
+    {
+        static::addGlobalScope(self::LIBRARY_SCOPE, function (Builder $query) {
+            $query->where($query->qualifyColumn('source_type'), self::SOURCE_LIBRARY);
+        });
+    }
+
+    /**
+     * Query across every source (library + personal shadows). The entry point
+     * for RAG code that must see shadow documents.
+     */
+    public static function allSources(): Builder
+    {
+        return static::query()->withoutGlobalScope(self::LIBRARY_SCOPE);
+    }
+
     protected function casts(): array
     {
         return [
+            'source_id' => 'integer',
+            'owner_id' => 'integer',
             'uploaded_by' => 'integer',
             'approved_by' => 'integer',
             'tags' => 'array',
@@ -64,6 +100,14 @@ class Document extends Model
     public function uploader(): BelongsTo
     {
         return $this->belongsTo(User::class, 'uploaded_by');
+    }
+
+    /**
+     * Owner of a personal shadow document (the note's author).
+     */
+    public function owner(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'owner_id');
     }
 
     public function approver(): BelongsTo

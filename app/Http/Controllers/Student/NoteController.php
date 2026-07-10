@@ -6,6 +6,7 @@ use App\Domain\Chat\Services\OcrService;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Student\NoteRequest;
 use App\Http\Requests\Student\OcrNoteRequest;
+use App\Jobs\SyncNoteToRagJob;
 use App\Models\Note;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -35,7 +36,9 @@ class NoteController extends Controller
 
     public function store(NoteRequest $request): RedirectResponse
     {
-        $request->user()->notes()->create($request->validated());
+        $note = $request->user()->notes()->create($request->validated());
+
+        SyncNoteToRagJob::dispatch($note->id);
 
         return back()->with('success', 'Note saved.');
     }
@@ -57,6 +60,8 @@ class NoteController extends Controller
 
         $note->update($request->validated());
 
+        SyncNoteToRagJob::dispatch($note->id);
+
         return back()->with('success', 'Note updated.');
     }
 
@@ -65,6 +70,8 @@ class NoteController extends Controller
         $this->authorizeOwner($request, $note);
 
         $note->delete();
+
+        SyncNoteToRagJob::dispatch($note->id);
 
         return back()->with('success', 'Note deleted.');
     }
