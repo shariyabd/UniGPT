@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
+import axios from 'axios';
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue';
 import NotificationBell from '@/components/NotificationBell.vue';
 import { usePermissions } from '@/composables/usePermissions';
@@ -30,6 +31,8 @@ import {
     TrophyIcon,
     CpuChipIcon,
     UsersIcon,
+    UserGroupIcon,
+    ClockIcon,
     BuildingOffice2Icon,
     ShieldCheckIcon,
     CheckBadgeIcon,
@@ -82,11 +85,14 @@ const navByRole = {
         { section: 'AI Copilot', items: [
             { label: 'AI Chat', route: 'chat', icon: ChatBubbleLeftRightIcon, permission: 'use_ai_chat' },
             { label: 'Flashcards', route: 'flashcards.index', icon: RectangleStackIcon },
+            { label: 'Practice Quizzes', route: 'practice.index', icon: ClipboardDocumentCheckIcon },
             { label: 'Saved Answers', route: 'saved', icon: BookmarkIcon, permission: 'view_chat_history' },
         ] },
         { section: 'Connect', items: [
             { label: 'My Faculty', route: 'my-faculty', icon: UsersIcon },
             { label: 'Messages', route: 'messages', icon: ChatBubbleLeftEllipsisIcon },
+            { label: 'Study Rooms', route: 'study-rooms.index', icon: UserGroupIcon },
+            { label: 'Office Hours', route: 'office-hours', icon: ClockIcon },
         ] },
         { section: 'Community', items: [
             { label: 'Discussions', route: 'discussions.index', icon: ChatBubbleLeftRightIcon, permission: 'view_discussions' },
@@ -116,6 +122,7 @@ const navByRole = {
         { section: 'Connect', items: [
             { label: 'My Students', route: 'faculty.students', icon: UsersIcon },
             { label: 'Messages', route: 'faculty.messages', icon: ChatBubbleLeftEllipsisIcon },
+            { label: 'Office Hours', route: 'faculty.office-hours', icon: ClockIcon },
         ] },
         { section: 'Community', items: [
             { label: 'Discussions', route: 'discussions.index', icon: ChatBubbleLeftRightIcon, permission: 'view_discussions' },
@@ -213,27 +220,65 @@ const searchResults = computed(() => {
     );
 });
 
+// --- Global content search (semantic + lexical, server-side) ----------------
+// Debounced call to the /search endpoint; results are grouped (Knowledge,
+// Courses, Assignments, …) and rendered below the page matches.
+const serverGroups = ref([]);
+const searchingRemote = ref(false);
+let remoteSearchTimer = null;
+
+watch(searchQuery, (value) => {
+    clearTimeout(remoteSearchTimer);
+    const query = value.trim();
+    if (query.length < 3) {
+        serverGroups.value = [];
+        searchingRemote.value = false;
+        return;
+    }
+    searchingRemote.value = true;
+    remoteSearchTimer = setTimeout(async () => {
+        try {
+            const { data } = await axios.get(route('search.global'), { params: { q: query } });
+            serverGroups.value = data.groups ?? [];
+        } catch {
+            serverGroups.value = [];
+        } finally {
+            searchingRemote.value = false;
+        }
+    }, 350);
+});
+
+// One flat, keyboard-navigable list: page matches first, then every content
+// hit carrying its group label (used to render section headers in order).
+const flatResults = computed(() => [
+    ...searchResults.value.map((item) => ({ kind: 'page', group: 'Pages', item })),
+    ...serverGroups.value.flatMap((group) =>
+        group.items.map((item) => ({ kind: 'content', group: group.label, item })),
+    ),
+]);
+
 // Keep the highlighted result valid as the query narrows the list.
-watch(searchResults, () => { activeIndex.value = 0; });
+watch(flatResults, () => { activeIndex.value = 0; });
 
 const openSearch = () => { searchOpen.value = true; };
 const closeSearch = () => { searchOpen.value = false; };
 
-const goToResult = (item) => {
-    if (!item) {
+const goToResult = (entry) => {
+    if (!entry) {
         return;
     }
     searchOpen.value = false;
     searchQuery.value = '';
-    router.visit(route(item.route));
+    serverGroups.value = [];
+    router.visit(entry.kind === 'page' ? route(entry.item.route) : entry.item.url);
 };
 
 const onSearchEnter = () => {
-    goToResult(searchResults.value[activeIndex.value] ?? searchResults.value[0]);
+    goToResult(flatResults.value[activeIndex.value] ?? flatResults.value[0]);
 };
 
 const moveActive = (delta) => {
-    const count = searchResults.value.length;
+    const count = flatResults.value.length;
     if (count === 0) {
         return;
     }
@@ -370,15 +415,15 @@ if (typeof window !== 'undefined') {
                     <Bars3Icon class="h-5 w-5" />
                 </button>
 
-                <!-- Search (jump to a page) -->
+                <!-- Search (pages + global content: documents, notes, courses, chats…) -->
                 <div class="relative hidden max-w-md flex-1 sm:block">
                     <MagnifyingGlassIcon class="pointer-events-none absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-content-faint" />
                     <input
                         ref="searchInput"
                         v-model="searchQuery"
                         type="search"
-                        placeholder="Search pages..."
-                        aria-label="Search pages"
+                        placeholder="Search anything..."
+                        aria-label="Search pages and content"
                         class="w-full rounded-pill border border-line bg-surface py-2.5 pl-11 pr-16 text-sm text-content shadow-card placeholder:text-content-faint focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                         @focus="openSearch"
                         @blur="closeSearch"
@@ -389,26 +434,41 @@ if (typeof window !== 'undefined') {
                     />
                     <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded-md bg-neutral-bg px-2 py-1 text-[11px] font-semibold text-content-faint">⌘ K</span>
 
-                    <!-- Results dropdown -->
+                    <!-- Results dropdown: page matches + grouped content hits -->
                     <div
                         v-if="searchOpen"
-                        class="absolute left-0 right-0 top-full z-50 mt-2 max-h-80 overflow-y-auto rounded-card border border-line bg-surface py-2 shadow-card"
+                        class="absolute left-0 right-0 top-full z-50 mt-2 max-h-96 overflow-y-auto rounded-card border border-line bg-surface py-2 shadow-card"
                     >
-                        <button
-                            v-for="(item, idx) in searchResults"
-                            :key="item.route"
-                            type="button"
-                            @mousedown.prevent="goToResult(item)"
-                            @mouseenter="activeIndex = idx"
-                            class="flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors"
-                            :class="idx === activeIndex ? 'bg-primary-soft text-primary' : 'text-content hover:bg-neutral-bg'"
-                        >
-                            <component :is="item.icon" class="h-4 w-4 flex-shrink-0" />
-                            <span class="flex-1 truncate">{{ item.label }}</span>
-                            <span class="text-xs text-content-faint">{{ item.section }}</span>
-                        </button>
-                        <p v-if="searchResults.length === 0" class="px-4 py-3 text-sm text-content-muted">
-                            No pages match “{{ searchQuery }}”.
+                        <template v-for="(entry, idx) in flatResults" :key="entry.kind + '-' + (entry.item.route ?? entry.item.url) + '-' + idx">
+                            <p
+                                v-if="idx === 0 ? searchQuery.trim().length >= 3 : flatResults[idx - 1].group !== entry.group"
+                                class="px-4 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wider text-content-faint"
+                            >
+                                {{ entry.group }}
+                            </p>
+                            <button
+                                type="button"
+                                @mousedown.prevent="goToResult(entry)"
+                                @mouseenter="activeIndex = idx"
+                                class="flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors"
+                                :class="idx === activeIndex ? 'bg-primary-soft text-primary' : 'text-content hover:bg-neutral-bg'"
+                            >
+                                <component v-if="entry.kind === 'page'" :is="entry.item.icon" class="h-4 w-4 flex-shrink-0" />
+                                <MagnifyingGlassIcon v-else class="h-4 w-4 flex-shrink-0 text-content-faint" />
+                                <span class="min-w-0 flex-1">
+                                    <span class="block truncate">{{ entry.kind === 'page' ? entry.item.label : entry.item.title }}</span>
+                                    <span v-if="entry.item.snippet" class="block truncate text-xs text-content-faint">{{ entry.item.snippet }}</span>
+                                </span>
+                                <span class="flex-shrink-0 text-xs text-content-faint">
+                                    {{ entry.kind === 'page' ? entry.item.section : entry.item.badge }}
+                                </span>
+                            </button>
+                        </template>
+                        <p v-if="searchingRemote" class="px-4 py-2 text-xs text-content-faint">
+                            Searching your content…
+                        </p>
+                        <p v-if="flatResults.length === 0 && !searchingRemote" class="px-4 py-3 text-sm text-content-muted">
+                            Nothing matches “{{ searchQuery }}”.
                         </p>
                     </div>
                 </div>
