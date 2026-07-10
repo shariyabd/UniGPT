@@ -1,6 +1,6 @@
 # UniGPT — Architecture & Developer Reference
 
-> **Updated:** 2026-06-18. The deep reference for the whole system — read this after
+> **Updated:** 2026-07-10. The deep reference for the whole system — read this after
 > [README.md](README.md) to build a complete mental model.
 > **Source of truth = the code.** Where older marketing docs disagree, the code wins.
 >
@@ -101,24 +101,48 @@ Critical rules:
   submissions, attendance, dashboards, and the chat/notes/tasks course pickers. A
   pending course must never leak content before the student confirms.
 
-### 2.4 RAG chat: grounded, cited, confidence-scored
+### 2.4 RAG chat: grounded, cited, confidence-scored, streamed
 
 When a user sends a chat message (`ChatService` → `RagChatService`):
 
 1. **Embed the query** (`EmbeddingService`) and **retrieve** the top-K most similar
-   document chunks by **cosine similarity computed in PHP** over vectors stored in the
-   MySQL `embeddings` table (`RetrievalService`). Retrieval is scoped to **approved
-   documents the user may see**.
-2. **Build a grounded context block** from those chunks and call the **AI provider**.
+   chunks by **cosine similarity computed in PHP** over vectors stored in the
+   MySQL `embeddings` table (`RetrievalService`). The retrieval scope is the union of
+   **approved library documents the user may see**, the user's **own notes**, and the
+   **materials of their enrolled/teaching sections** (see §2.4a).
+2. **Build a grounded context block** from those chunks and call the **AI provider** —
+   either as a single completion (`answer()`) or **streamed token-by-token**
+   (`answerStream()` → `AIProviderInterface::chatStream`, delivered over SSE via the
+   `chat.stream` / `faculty.ai-assistant.stream` endpoints and parsed client-side by
+   `resources/js/lib/sse.js`).
 3. **Persist** the session + messages + **citations** (`message_citations`) + a
-   **confidence score/level** + suggested **follow-ups**.
+   **confidence score/level** + suggested **follow-ups** — identically on both paths.
 
 - **Chat modes** (`ChatMode`): general / academic / research / exam_prep /
   assignment_help / career_guidance — each injects a different system prompt.
 - **Provider resolution** (`AIProviderManager`): use the configured provider
   (OpenAI) if a key is present; otherwise **fall back to the deterministic
   `MockProvider`** so chat works with no credentials. The mock composes an answer from
-  the injected context and produces stable lexical-hash embeddings.
+  the injected context, streams it word-by-word, and produces stable lexical-hash embeddings.
+
+### 2.4a Personal corpus — "chat with my materials" (shadow documents)
+
+Student notes (including OCR'd handwriting) and file-backed course materials are
+RAG-searchable via **shadow documents**: rows in `documents` with
+`source_type = note|material`, `source_id`, and `owner_id`. They flow through the
+*same* chunk → embed → retrieve → cite pipeline as the library.
+
+- A **global scope** (`Document::LIBRARY_SCOPE`) restricts every ordinary query to
+  `source_type = library`, so shadows can never leak into the admin library,
+  approvals, dashboards, analytics or route binding. RAG code opts out explicitly via
+  `Document::allSources()`.
+- **Sync:** `SyncNoteToRagJob` / `SyncCourseMaterialToRagJob` fire on every mutation
+  (one job handles create/update/delete — a missing model means "forget the shadow");
+  `PersonalCorpusService` skips re-embedding unchanged content via a stored hash.
+  Backfill: `php artisan rag:sync-personal [--user=]`.
+- **Access:** retrieval scope = library-visible ∪ own notes ∪ enrolled/teaching-section
+  materials; the retrieval cache key is per-user. Citations carry the shadow's
+  category ("Personal Note" / "Course Material") so the UI labels sources for free.
 
 ### 2.5 Document knowledge base lifecycle
 
@@ -225,10 +249,12 @@ Controller (thin: orchestrate + respond)
 
 ### 3.4 AI / RAG infrastructure
 
-- **Contract:** `AIProviderInterface` (`chat`, `embed`, `embeddingDimensions`,
-  `embeddingModel`, `name`, `isAvailable`).
-- **Implementations:** `OpenAiProvider` (native HTTP, no SDK) and `MockProvider`
-  (deterministic, always available); resolved by `AIProviderManager` with auto-fallback.
+- **Contract:** `AIProviderInterface` (`chat`, `chatStream`, `extractText`, `embed`,
+  `embeddingDimensions`, `embeddingModel`, `name`, `isAvailable`).
+- **Implementations:** `OpenAiProvider` (native HTTP, no SDK; SSE streaming with
+  `stream_options.include_usage` so token accounting survives streaming) and
+  `MockProvider` (deterministic, always available, word-streams its answers);
+  resolved by `AIProviderManager` with auto-fallback.
 - **Vector store = MySQL.** Embeddings are JSON in the `embeddings` table; retrieval is
   PHP cosine similarity. `app/Infrastructure/VectorDB/` is empty and `config/vector.php`
   is unused — both are swap points for a managed vector DB at scale.
@@ -240,13 +266,14 @@ Controller (thin: orchestrate + respond)
 | Context | State |
 |---|---|
 | User (RBAC, service, repository) | ✅ Implemented |
-| Academic (Course/Section/Term/Enrollment/Grading/Attendance/Exam/Transcript/Calendar/Submission/**StudyPlanner**/**Flashcard**) | ✅ Implemented |
-| Chat (`ChatService`, `RagChatService`, `TeachingAssistantService`, **`OcrService`**) | ✅ Implemented |
-| RAG (Embedding/Retrieval/Citation, MySQL-native) | ✅ Implemented |
+| Academic (Course/Section/Term/Enrollment/Grading/Attendance/Exam/ExamSecurity/ClassTest/Transcript/Calendar/Submission/**StudyPlanner**/**Flashcard**/**PracticeQuiz**/**OfficeHours**/**IcsExport**) | ✅ Implemented |
+| Chat (`ChatService`, `RagChatService` — answer + **answerStream**, `TeachingAssistantService`, **`OcrService`**) | ✅ Implemented |
+| RAG (Embedding/Retrieval/Citation + **Ingestion/`PersonalCorpusService`** — MySQL-native, per-user scope) | ✅ Implemented |
+| Search (**`GlobalSearchService`** — ⌘K semantic + lexical) | ✅ Implemented |
 | Document (Service, Processing, Chunking) | ✅ Implemented |
-| Notification, Analytics (platform + faculty + **student `LearningAnalyticsService`** + **`LeaderboardService`**) | ✅ Implemented |
-| Community (`DiscussionService` — section-scoped forum + moderation) | ✅ Implemented |
-| AI Infrastructure (OpenAI + Mock + Manager) | ✅ Implemented |
+| Notification, Analytics (platform + faculty + **`EarlyWarningService`** at-risk + **student `LearningAnalyticsService`** + **`LeaderboardService`** + `AiUsageService`) | ✅ Implemented |
+| Community (`DiscussionService` — section-scoped forum + moderation; **`StudyRoomService`** — group chats) | ✅ Implemented |
+| AI Infrastructure (OpenAI + Mock + Manager, both streaming-capable) | ✅ Implemented |
 | Chat/Memory, RAG/Prompts, Academic/Rules+ValueObjects | ⬜ Empty (inlined or unneeded) |
 | VectorDB, Speech infrastructure | ⬜ Empty (MySQL store; no speech) |
 
@@ -317,11 +344,15 @@ view **transcript** (term GPA + CGPA) and **exams/calendar**; manage personal
 ## 6. Roles & Responsibilities
 
 ### 6.A Student
-**Can:** chat with the RAG tutor (6 modes, cited + confidence); save/organize answers;
+**Can:** chat with the **streaming** RAG tutor (6 modes, cited + confidence, grounded in
+the library **plus their own notes and section materials**); save/organize answers;
 follow a roadmap from real enrollments; register for **admin-assigned** sections; view
 materials & approved documents (download logged); submit assignments; **take timed
-quizzes/class tests** (countdown timer, auto-graded with an instant result); view grades,
-transcript, attendance, exams, calendar; keep personal notes/tasks; edit profile/settings.
+quizzes/class tests** (countdown timer, auto-graded with an instant result); generate
+**AI practice quizzes** (server-graded, retakes, missed → flashcards); join **group study
+rooms**; **book faculty office hours**; use the **⌘K global search**; view grades,
+transcript, attendance, exams, calendar (**.ics export/subscribe**); keep personal
+notes/tasks; edit profile/settings.
 **Cannot:** upload/approve documents, manage users, configure AI, or see analytics beyond
 their own.
 **Key permissions:** `use_ai_chat`, `view_chat_history`, `view_courses`, `enroll_course`,
@@ -334,9 +365,10 @@ their own.
 run timed quizzes/class tests** (rules, duration, MCQ / True-False questions written by hand
 or **AI-generated**, marks, optional availability window — fullscreen proctoring + auto-graded);
 grade submissions with rubrics + AI-drafted feedback; mark
-attendance; read exam timetable; view
-per-course **learning analytics** (grade distribution, attendance rate, submission
-completion, at-risk flags).
+attendance; read exam timetable; publish **bookable office-hours slots** and manage
+bookings; view per-course **learning analytics** (grade distribution, attendance rate,
+submission completion) with the **at-risk early-warning list** (4 signals, high/watch
+levels, one-click message to the flagged student).
 **Cannot:** manage users, configure the AI provider, own the catalog/terms/sections
 (admin-owned), or administer the system. Department-scoped.
 **Key permissions:** all student perms **+** `manage_materials`, `create_assignment`,
@@ -430,27 +462,39 @@ the `BelongsToSection` trait; `Document → DocumentChunk → Embedding`;
 
 ### 9.1 Key services
 - **Academic:** `Course`, `CourseManagement`, `Enrollment`, `Grading`, `Submission`,
-  `Attendance`, `Exam`, `Transcript`, `Calendar`, `Term` services (`app/Domain/Academic/Services/`).
-- **Chat/RAG:** `ChatService`, `RagChatService`, `TeachingAssistantService`;
-  `EmbeddingService`, `RetrievalService`, `CitationService`; `ChunkingService`.
-- **Documents:** `DocumentService`, `DocumentProcessingService` (+ `ProcessDocumentJob`).
+  `Attendance`, `Exam`, `ExamSecurity`, `ClassTest`, `Transcript`, `Calendar`, `Term`,
+  `StudyPlanner`, `Flashcard`, `PracticeQuiz`, `OfficeHours`, `IcsExport` services
+  (`app/Domain/Academic/Services/`).
+- **Chat/RAG:** `ChatService`, `RagChatService` (answer + answerStream),
+  `TeachingAssistantService`, `OcrService`; `EmbeddingService`, `RetrievalService`,
+  `CitationService`, `PersonalCorpusService`; `ChunkingService`.
+- **Search:** `GlobalSearchService` (⌘K — semantic knowledge group + lexical entity groups).
+- **Documents:** `DocumentService`, `DocumentProcessingService` (+ `ProcessDocumentJob`,
+  `SyncNoteToRagJob`, `SyncCourseMaterialToRagJob`).
+- **Community:** `DiscussionService`, `StudyRoomService`.
 - **User/Analytics:** `UserManagementService`, `EloquentUserRepository`,
-  `AnalyticsService`, `FacultyAnalyticsService`, `NotificationService`, `ActivityLogger`.
+  `AnalyticsService`, `FacultyAnalyticsService`, `EarlyWarningService`,
+  `LearningAnalyticsService`, `LeaderboardService`, `NotificationService`, `ActivityLogger`.
 
 ### 9.2 Enums (`app/Enums/`)
-`Permission` (40, categorized), `UserRole` (admin/faculty/student, lowercase),
-`ChatMode` (6), `NotificationType` (8), `AttendanceStatus` (4), `ExamType` (4),
-`TaskPriority` (3), `DocumentStatus` (6), `ConfidenceLevel` (5), `Language` (7).
+`Permission` (46, categorized), `UserRole` (admin/faculty/student, lowercase),
+`ChatMode` (6), `NotificationType` (10, incl. `class_test` + `office_hours`),
+`AttendanceStatus` (4), `ExamType` (4), `TaskPriority` (3), `DocumentStatus` (6),
+`ConfidenceLevel` (5), `Language` (7).
 
 ### 9.3 Authorization artifacts
-~28 permission-aware Form Requests (`app/Http/Requests/{Admin,Faculty,Student}/`);
-4 Policies — `ChatSessionPolicy`, `CoursePolicy`, `DocumentPolicy`, `SavedAnswerPolicy`.
+~30 permission-aware Form Requests (`app/Http/Requests/{Admin,Faculty,Student}/`);
+Policies — `ChatSessionPolicy`, `ConversationPolicy`, `CoursePolicy`, `DocumentPolicy`,
+`SavedAnswerPolicy`. The signed `calendar.feed` route uses a URL signature (no session).
 
 ### 9.4 Tests
-**PHP** (`tests/Feature/`): role gating (Admin/Faculty/Student), permission matrix,
-attendance, course/department/exam/section management, enrollment, **section assignment +
-isolation**, self-registration, multi-section, notifications, transcript, faculty
-analytics, feedback generation, term rollover/separation, productivity.
+**PHP** (`tests/Feature/`, 209 passing): role gating (Admin/Faculty/Student), permission
+matrix, attendance, course/department/exam/section management, enrollment, **section
+assignment + isolation**, self-registration, multi-section, notifications, transcript,
+faculty analytics, feedback generation, term rollover/separation, productivity,
+class tests, messenger, corpus versioning, **personal corpus (RAG scoping)**,
+**chat streaming (SSE)**, **practice quizzes**, **early warning**, **global search**,
+**study rooms**, **office hours**, **calendar export**.
 **JS** (`resources/js/tests/`, Vitest): `AppLayout` nav gating, `usePermissions`,
 `RolePermissions` matrix, button gating.
 
@@ -458,4 +502,3 @@ analytics, feedback generation, term rollover/separation, productivity.
 Student `student@university.edu` · Faculty `prof.smith@university.edu`,
 `prof.jones@university.edu` · Admin `admin@university.edu`.
 `demoLogin` auto-seeds RBAC if these are missing.
-</content>

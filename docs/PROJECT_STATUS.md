@@ -3,7 +3,7 @@
 > The live status tracker. **Source of truth = code.** For architecture and logic see
 > [PROJECT_ANALYSIS.md](PROJECT_ANALYSIS.md); for layout see [DIRECTORY_TREE.md](DIRECTORY_TREE.md).
 >
-> **Last updated:** 2026-06-23
+> **Last updated:** 2026-07-10
 > **Contents:** [Summary](#progress-summary) · [Feature matrix](#feature-matrix-codebase-vs-spec)
 > · [Recently shipped](#recently-shipped) · [Incomplete tasks](#incomplete-tasks)
 > · [Future plans / upcoming features](#future-plans--upcoming-features)
@@ -42,7 +42,10 @@ current MVP.
 | Multi-LLM provider (OpenAI + mock fallback) | ✅ | `Infrastructure/AI/*`; mock = zero-key default |
 | Document KB + approval + embed pipeline | ✅ | `DocumentService`, `ProcessDocumentJob` |
 | Saved answers / bookmarks | ✅ | `Student/SavedAnswerController` |
-| Streaming / Voice / TTS / STT / predictive | ⬜ | P3 — chat returns full response; voice is a UI mock |
+| **Streaming AI responses (SSE)** — student chat + faculty assistant | ✅ | `AIProviderInterface::chatStream`, `RagChatService::answerStream`, `chat.stream` / `faculty.ai-assistant.stream`, `resources/js/lib/sse.js` |
+| **Personal-corpus RAG** ("chat with my materials": own notes + section materials as shadow documents) | ✅ | `Domain/RAG/Ingestion/PersonalCorpusService`, `Document::LIBRARY_SCOPE`, `Sync*ToRagJob`, `rag:sync-personal` |
+| **Semantic global search (⌘K)** — knowledge + courses/assignments/discussions/chat history | ✅ | `Domain/Search/GlobalSearchService`, `SearchController`, AppLayout palette |
+| Voice / TTS / STT / predictive | ⬜ | P3 — voice is a UI mock |
 
 ### Student
 | Feature | Status | Evidence |
@@ -64,7 +67,11 @@ current MVP.
 | **Flashcards** (manual + AI-generated, SM-2 spaced repetition) | ✅ | `FlashcardController`, `Domain/Academic/FlashcardService`, `FlashcardDeck`/`Flashcard` |
 | **Leaderboard** (opt-in XP; dept/semester/section) | ✅ | `LeaderboardController`, `Domain/Analytics/LeaderboardService` |
 | **Discussions** (section feed: post/comment/like/report) | ✅ | `Community/DiscussionController`, `Domain/Community/DiscussionService` |
-| **OCR handwritten notes** (photo → transcribe → save note) | ✅ | `NoteController::ocr`, `Domain/Chat/OcrService`, gpt-4o vision |
+| **OCR handwritten notes** (photo → transcribe → save note → RAG-indexed) | ✅ | `NoteController::ocr`, `Domain/Chat/OcrService`, gpt-4o vision |
+| **AI practice quizzes** (self-serve, server-graded, retakes, missed → flashcards) | ✅ | `PracticeQuizController`, `Domain/Academic/PracticeQuizService`, `PracticeQuiz`/`PracticeAttempt` |
+| **Group study rooms** (section-scoped live group chat) | ✅ | `StudyRoomController`, `Domain/Community/StudyRoomService`, `conversations.type=group` |
+| **Office-hours booking** (browse faculty slots, atomic book/cancel, notifications) | ✅ | `Student/OfficeHoursController`, `Domain/Academic/OfficeHoursService`, `office_hour_slots` |
+| **Calendar .ics export + subscribe feed** (Google/Outlook/Apple) | ✅ | `CalendarExportController`, `IcsExportService`, signed `calendar.feed` route |
 
 ### Faculty
 | Feature | Status | Evidence |
@@ -76,7 +83,9 @@ current MVP.
 | Per-test proctoring layer selection + attempt review dossier (timeline, risk score, recordings) | ✅ | `Faculty/ClassTestController::attempt`, `ClassTestService::attemptReview` |
 | Grading (rubric) + **AI-drafted feedback** | ✅ | `GradingController`, `GradingService` |
 | Attendance management | ✅ | `Faculty/AttendanceController` |
-| Learning analytics & at-risk flagging | ✅ | `FacultyAnalyticsService` |
+| Learning analytics & **at-risk early warning** (4 signals: attendance / missed deadlines / test average / grade, high–watch levels, dashboard stat + message deep-link) | ✅ | `Domain/Analytics/EarlyWarningService`, `FacultyAnalyticsService` |
+| **Office hours** (publish slots, manage bookings, notified both ways) | ✅ | `Faculty/OfficeHoursController`, `OfficeHoursService` |
+| **Streaming AI assistant** | ✅ | `faculty.ai-assistant.stream`, `AIAssistant.vue` streaming drafts |
 | Exam timetable (read) | ✅ | `ExamService::forFaculty` |
 | **Real-time chat with students** (presence, typing, unread) | ✅ | `Messenger/MessageController`, `Conversation`/`Message`, `Events/MessageSent` (Ably) |
 | **Discussions** (participate + moderate own sections: pin/delete) | ✅ | `Community/DiscussionController`, `DiscussionService::canModerate` |
@@ -100,6 +109,53 @@ current MVP.
 ---
 
 ## Recently shipped
+
+### July 2026 wave — copilot depth & connection (8 features)
+Shipped 2026-07-10 on the existing domain-service → thin-controller → Inertia patterns,
+all with feature tests (suite: 209 passing):
+
+1. **Personal-corpus RAG — "chat with my materials."** Student notes (incl. OCR'd)
+   and file-backed course materials are indexed as hidden **shadow documents**
+   (`documents.source_type = note|material`, owner/section-scoped) and flow through
+   the *same* chunk → embed → retrieve → cite pipeline as the library. A global
+   scope (`Document::LIBRARY_SCOPE`) keeps shadows out of every admin/library
+   surface; retrieval scope = library-visible ∪ own notes ∪ enrolled/teaching-section
+   materials. Sync jobs fire on note/material mutations; backfill via
+   `php artisan rag:sync-personal [--user=]`. Citations label sources
+   "Personal Note" / "Course Material" automatically.
+2. **Streaming AI responses (SSE).** `chatStream()` on both providers (OpenAI
+   `stream:true` + word-streaming mock), `RagChatService::answerStream`, SSE
+   endpoints for student chat and the faculty assistant (`delta` → `done` events,
+   same payload as the JSON endpoints), fetch-based client parser
+   (`resources/js/lib/sse.js`) with live-typing drafts in both chat UIs. Token
+   usage accounting preserved via `stream_options.include_usage`.
+3. **AI practice quizzes.** Students generate MCQ/true-false quizzes on any topic
+   (same generator faculty use), take them unproctored, get instant **server-side**
+   grading (answers never reach the client pre-submit), retake freely, and convert
+   missed questions into a flashcard deck (`source: practice`) for SM-2 review.
+4. **At-risk early warning.** `EarlyWarningService` flags students on 4 signals —
+   attendance <75% (≥4 sessions), ≥2 missed published-assignment deadlines,
+   class-test average <50%, grade D+/D/D−/F — with **high** (≥2 signals) / **watch**
+   levels. Surfaced on the faculty Analytics report (message deep-link per student)
+   and as a faculty dashboard stat (unique flagged students).
+5. **Semantic global search (⌘K).** One palette searches pages + content:
+   a semantic "Knowledge" group over the user's RAG corpus plus lexical groups
+   (courses, assignments, discussions, own chat history deep-linked to the exact
+   message, users for admins). Debounced, permission-scoped, keyboard-navigable.
+6. **Group study rooms.** Section-scoped group chats built *on* the messenger:
+   `conversations.type = group` + title/section/creator; membership = participants
+   pivot; the same message endpoints, Ably channel auth and polling fallback work
+   unchanged. Guards keep group rooms out of the 1:1 surface (`betweenOrCreate`
+   scoped `->direct()`; overview filters direct-only). Self-serve join for
+   classmates; last member out deletes the room.
+7. **Office-hours booking.** Faculty publish single-capacity slots; students of
+   their sections book/cancel with an **atomic** claim (conditional UPDATE → 409 on
+   race). In-app notifications both ways (`NotificationType::OFFICE_HOURS`); booked
+   meetings appear on the student calendar.
+8. **ICS calendar export + subscribe feed.** RFC 5545 export of the unified
+   calendar (deadlines, exams, tasks, office hours): authenticated `.ics` download
+   plus a **signed, sessionless feed URL** (throttled) that Google/Outlook/Apple
+   Calendar can poll — minted per-user on the Calendar page.
 
 ### Study & community suite (Planner · Analytics · Flashcards · Leaderboard · Discussions · OCR)
 Six student-facing features layered on the existing domain/RBAC/Inertia patterns:
@@ -239,9 +295,12 @@ library** so students get answers grounded specifically in the available library
   library resources. Builds directly on the current RAG engine and `ChatMode`.
 
 ### B. P3 advanced band (deferred, infra-dependent)
-- **Streaming chat** — token-by-token SSE/transport (chat currently returns the full response).
+- ✅ **Streaming chat** — **shipped** (July 2026 wave): token-by-token SSE on the
+  student chat and faculty assistant.
 - **Voice I/O + TTS/STT** — browser mic capture + speech APIs (the voice UI is a mock).
-- **Predictive analytics / recommendation engine** — ML over the now-rich academic data.
+- **Predictive analytics / recommendation engine** — ML over the now-rich academic data
+  (the at-risk early-warning signals are a first, rule-based step).
 - **Alternate LLM providers** — Gemini / Local-LLM (config stubs today; only OpenAI + Mock built).
 - **Document versioning** and **conversation memory/summarization** — empty domain dirs.
-</content>
+- **Admin at-risk rollup** — per-department early-warning counts on the admin
+  analytics page (small follow-up on `EarlyWarningService`).

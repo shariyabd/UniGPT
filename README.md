@@ -8,7 +8,7 @@ Administrators**. Built with **Laravel 11 + Inertia 2 + Vue 3 + Tailwind**, back
 mock AI provider.
 
 > **Trust code over docs.** Where any document disagrees with the source, the code
-> wins. These docs are kept current as of **2026-07-09**.
+> wins. These docs are kept current as of **2026-07-10**.
 
 ---
 
@@ -32,25 +32,39 @@ New here? Read this page, then **PROJECT_ANALYSIS.md** for the full mental model
 
 UniGPT gives a university a single, governed AI layer over its own academic content:
 
-- **Students** chat with an AI tutor that answers from *approved* university documents
-  with **citations + a confidence score**, follow a course roadmap, track attendance,
-  grades, exams, and a calendar, register for admin-assigned course sections, submit
-  assignments, take **timed quizzes/class tests** with instant auto-graded results,
-  **message their faculty in real time**, keep personal notes/tasks/saved answers,
-  and use the newer study suite: an **AI Study Planner** (turns deadlines into a
-  saveable study schedule), **Flashcards** (manual or AI-generated, with SM-2 spaced
-  repetition), a **Learning Analytics / "My Progress"** dashboard (GPA, attendance,
-  test/assignment trends), an opt-in **Leaderboard** (gamified XP by department /
-  semester / section), **course/section Discussions** (post/comment/like), and
-  **OCR of handwritten notes** (photo → transcribed text → saved note, via gpt-4o vision).
-- **Faculty** manage the sections they teach, upload materials, grade submissions
-  (with AI-drafted feedback), generate quizzes/assignments with an AI teaching
+- **Students** chat with an AI tutor that **streams answers token-by-token** and
+  answers from *approved* university documents **plus their own notes and course
+  materials** ("chat with my materials" — the personal corpus is indexed into the
+  same RAG pipeline) with **citations + a confidence score**, follow a course
+  roadmap, track attendance, grades, exams, and a calendar (**exportable /
+  subscribable as .ics** for Google/Outlook/Apple Calendar), register for
+  admin-assigned course sections, submit assignments, take **timed quizzes/class
+  tests** with instant auto-graded results, generate their own **AI practice
+  quizzes** (instant server-graded feedback, missed questions convert to
+  flashcards), **message their faculty in real time**, join **group study rooms**
+  (section-scoped live group chat with classmates), **book faculty office hours**,
+  search everything from one **⌘K semantic global search** (documents, notes,
+  materials, courses, assignments, discussions, chat history), keep personal
+  notes/tasks/saved answers, and use the study suite: an **AI Study Planner**
+  (turns deadlines into a saveable study schedule), **Flashcards** (manual or
+  AI-generated, with SM-2 spaced repetition), a **Learning Analytics / "My
+  Progress"** dashboard (GPA, attendance, test/assignment trends), an opt-in
+  **Leaderboard** (gamified XP by department / semester / section),
+  **course/section Discussions** (post/comment/like), and **OCR of handwritten
+  notes** (photo → transcribed text → saved note, via gpt-4o vision — indexed
+  into the personal RAG corpus).
+- **Faculty** manage the sections they teach, upload materials (**auto-indexed
+  into their students' RAG corpus**), grade submissions (with AI-drafted
+  feedback), generate quizzes/assignments with a **streaming** AI teaching
   assistant, author and run **timed online quizzes/class tests** — writing questions
   manually or **generating them with AI**, with auto-grading — apply **per-test
   proctoring layers** (fullscreen, tab/clipboard guards, watermark, fingerprint,
   behaviour logging, risk scoring, **webcam + screen recording**) and review a
-  per-student evidence dossier, **message their students in real time**, moderate
-  their sections' **discussion feed**, and view learning analytics.
+  per-student evidence dossier, get **at-risk early warnings** (students flagged
+  on attendance, missed deadlines, test average and grade — with one-click
+  messaging), publish **bookable office-hours slots**, **message their students
+  in real time**, moderate their sections' **discussion feed**, and view
+  learning analytics.
 - **Administrators** govern users and the RBAC matrix, own the course catalog,
   sections, terms and departments, curate the document knowledge base (upload →
   approve → embed), configure the AI provider, **gate the exam-security layers**,
@@ -153,14 +167,16 @@ php artisan optimize:clear
 
 | | Student | Faculty | Administrator |
 |---|---|---|---|
-| AI chat | RAG tutor (6 modes), saved answers | AI teaching assistant (quiz/assignment gen, feedback) | Configures the AI provider |
-| Courses | Register for **admin-assigned** sections; view materials | Manage taught sections; upload materials | Owns catalog, sections, terms, departments |
-| Assessment | Submit assignments, take timed quizzes/tests, view grades/transcript | Grade submissions, author timed quizzes/tests (manual or AI-generated questions), mark attendance | — |
-| Visibility | Own roadmap, attendance, exams, calendar | Per-course learning analytics | Platform analytics, system monitor, audit log |
+| AI chat | **Streaming** RAG tutor (6 modes) grounded in library **+ own notes & materials**, saved answers | **Streaming** AI teaching assistant (quiz/assignment gen, feedback) | Configures the AI provider |
+| Courses | Register for **admin-assigned** sections; view materials | Manage taught sections; upload materials (auto-indexed for RAG) | Owns catalog, sections, terms, departments |
+| Assessment | Submit assignments, take timed quizzes/tests, **self-serve AI practice quizzes** (missed → flashcards), view grades/transcript | Grade submissions, author timed quizzes/tests (manual or AI-generated questions), mark attendance | — |
+| Visibility | Own roadmap, attendance, exams, calendar (**.ics export/subscribe**) | Per-course learning analytics + **at-risk early warning** (4 signals, high/watch levels) | Platform analytics, system monitor, audit log |
 | Knowledge base | Read/download approved docs | Upload course materials | Upload + approve/reject documents (→ RAG) |
-| Messaging | Real-time chat with their faculty | Real-time chat with their students | — |
+| Search | **⌘K semantic global search** (knowledge, courses, assignments, discussions, chat history) | Same, scoped to taught sections | Same + user lookup |
+| Messaging | Real-time chat with their faculty + **group study rooms** with classmates | Real-time chat with their students | — |
+| Office hours | Browse & **book** their faculty's slots (atomic, notified) | **Publish slots**, manage bookings | — |
 | Community | Discussions, opt-in leaderboard | Discussions (moderate own sections) | Discussion moderation queue |
-| Study suite | Study Planner, Flashcards (SM-2), My Progress analytics, OCR notes | — | — |
+| Study suite | Study Planner, Flashcards (SM-2), Practice Quizzes, My Progress analytics, OCR notes | — | — |
 | Governance | — | Department-scoped | User & RBAC management, announcements |
 
 Access is enforced by **role middleware + 46 fine-grained permissions** (with
@@ -194,9 +210,13 @@ Browser (Vue 3 page) ──Inertia──▶ routes/web.php ──▶ Controller 
 
 ## 7. What's next
 
-Real-time student↔faculty chat, the **AI Study Planner**, **Flashcards**, **Learning
-Analytics**, the **Leaderboard**, **Discussions**, and **OCR handwritten notes** have all
-**shipped** (see Roles at a Glance above). The completion tracker, the list of
+The July 2026 feature wave has **shipped** (see Roles at a Glance above):
+**personal-corpus RAG** ("chat with my materials"), **streaming AI responses
+(SSE)**, **AI practice quizzes** (missed → flashcards), the **at-risk early-warning
+system**, **semantic ⌘K global search**, **group study rooms**, **office-hours
+booking**, and **ICS calendar export/subscribe** — on top of the earlier study
+suite (Study Planner, Flashcards, Learning Analytics, Leaderboard, Discussions,
+OCR notes) and real-time messaging. The completion tracker, the list of
 **incomplete tasks**, and the remaining **Future Plans / Upcoming Features**
 (Telegram/WhatsApp notifications and an AI-assisted digital library) live in
 **[PROJECT_STATUS.md](PROJECT_STATUS.md)**.
@@ -204,5 +224,3 @@ Analytics**, the **Leaderboard**, **Discussions**, and **OCR handwritten notes**
 ---
 
 **Built with Laravel 11, Inertia 2, Vue 3, Vite, and Tailwind CSS.**
-</content>
-</invoke>

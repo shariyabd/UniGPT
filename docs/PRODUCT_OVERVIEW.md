@@ -86,10 +86,11 @@ operational insight. **One login, three tailored experiences.**
 > **Subtitle:** Real, shipped capabilities — not roadmap promises. Here is what UniGPT does today.
 
 **Flagship — Grounded RAG assistant**
-Ask anything. UniGPT retrieves passages from your approved documents, answers with inline
+Ask anything. UniGPT retrieves passages from your approved documents — **and from your own
+notes and your courses' materials** — answers **streaming live, token by token**, with inline
 citations and a confidence score, and suggests follow-ups. Multiple modes — academic, exam
 prep, research — keep responses on-task.
-*Highlights:* Citations · Confidence scoring · Chat modes · Saved answers · Session history
+*Highlights:* Streaming answers · Citations (library + personal sources) · Confidence scoring · Chat modes · Saved answers · Session history
 
 **Supporting features**
 
@@ -104,7 +105,14 @@ prep, research — keep responses on-task.
 | **My Progress analytics** | Every student gets a personal insight dashboard — GPA, attendance, test, assignment and activity trends visualised in one place. |
 | **AI Study Planner** | Feed in your deadlines and UniGPT drafts a realistic study schedule, then saves each session straight to your tasks. |
 | **Flashcards with spaced repetition** | Build decks by hand or generate them with AI, then review on an SM-2 spaced-repetition schedule that surfaces cards right before you'd forget. |
-| **OCR handwritten notes** | Snap a photo of handwritten notes and gpt-4o vision transcribes them into a clean, searchable saved note. |
+| **OCR handwritten notes** | Snap a photo of handwritten notes and gpt-4o vision transcribes them into a clean, searchable saved note — automatically indexed so the AI tutor can answer from it. |
+| **Chat with my materials** | Personal-corpus RAG: the tutor answers from your own notes and your sections' course materials, not just the library — each strictly scoped to its owner/class. |
+| **AI practice quizzes** | Students generate their own MCQ/true-false quizzes on any topic, get instant server-graded results with explanations, retake freely, and convert missed questions into flashcards. |
+| **At-risk early warning** | Faculty see students flagged on four live signals (attendance, missed deadlines, test average, grade) with High/Watch levels and a one-click message to intervene. |
+| **Semantic global search (⌘K)** | One search across documents, notes, materials, courses, assignments, discussions and past AI chats — matched by meaning, scoped to what you can access. |
+| **Group study rooms** | Section-scoped live group chats for classmates — create a room per topic, join in one click, messages delivered in real time. |
+| **Office-hours booking** | Faculty publish bookable slots; students book atomically (no double-booking), both sides are notified, meetings land on the calendar. |
+| **Calendar .ics export & subscribe** | Download the unified calendar or subscribe by signed URL from Google/Outlook/Apple Calendar and stay auto-synced. |
 | **Discussion feed** | Course and section discussion groups where students and faculty post, comment, like and report — faculty moderate their own sections and admins run a moderation queue. |
 | **Leaderboard** | Opt-in, gamified XP rankings by department, semester or section — students choose an alias and compete on their own terms. |
 | **Granular RBAC** | Roles map to fine-grained permissions with time-limited grants — every action is gated and logged. |
@@ -123,31 +131,37 @@ prep, research — keep responses on-task.
 ### 🎓 Student — *A copilot for every academic question*
 From the first lecture to final transcript, students get instant, cited answers and a
 planner that keeps the term on track.
-- AI chat with citations, confidence & saved answers
+- Streaming AI chat with citations, confidence & saved answers — grounded in the library **and your own notes & materials**
 - Personal dashboard: courses, CGPA & deadlines
 - One-click registration for assigned course sections
 - Timed quizzes & class tests with instant auto-graded results
+- Self-serve **AI practice quizzes** — instant grading, missed questions become flashcards
 - "My Progress" analytics: GPA, attendance, test & assignment trends
 - AI Study Planner: turn deadlines into a saved study schedule
 - Flashcards — manual or AI-generated, with SM-2 spaced repetition
-- OCR handwritten notes: photo → gpt-4o transcription → saved note
+- OCR handwritten notes: photo → gpt-4o transcription → saved, AI-searchable note
 - Course discussion feeds: post, comment, like & report
+- **Group study rooms** — live section-scoped group chat with classmates
+- **Book faculty office hours** in one click
+- **⌘K semantic search** across everything you can access
 - Opt-in gamified leaderboard with XP ranked by department, semester or section
 - Attendance, transcript & GPA tracking
 - Course roadmap, materials & document library
-- Exam schedule, calendar, notes & tasks
+- Exam schedule, calendar (**.ics export/subscribe**), notes & tasks
 - Real-time messaging with your faculty
 - *Sample dashboard metrics:* 6 courses · 3.78 CGPA · 94% attendance
 
 ### 📊 Faculty — *Teach more, administrate less*
 Faculty manage courses end to end while the AI teaching assistant drafts assessments and
 feedback in seconds.
-- AI teaching assistant: quizzes, assignments & rubrics
+- Streaming AI teaching assistant: quizzes, assignments & rubrics
 - Build timed quizzes & class tests (AI-generated or manual questions) with auto-grading
-- Manage taught sections & publish course materials
+- Manage taught sections & publish course materials (auto-indexed for students' AI tutor)
 - One-click attendance with live class stats
 - Grading workspace with AI-drafted feedback
 - Per-course analytics & grade distributions
+- **At-risk early warning** — four signals, High/Watch levels, message a flagged student in one click
+- **Publish bookable office-hours slots** & manage bookings
 - Join & moderate discussion feeds in your own sections
 - Real-time messaging with your students
 - *Sample dashboard metrics:* 4 courses · 128 students · 12 to grade
@@ -311,16 +325,20 @@ How modules, services and roles connect — the platform is one loop, not isolat
 > AI-generated Flashcards with SM-2 spaced repetition, an opt-in gamified Leaderboard,
 > OCR handwritten-note transcription, and course Discussion feeds (with faculty section
 > moderation and an admin moderation queue). All live — see §4 Features & §5 Roles.
+>
+> ✅ **July 2026 wave — all shipped:** token-by-token **streaming answers**, **"chat with my
+> materials"** personal-corpus RAG, self-serve **AI practice quizzes** (missed → flashcards),
+> the **at-risk early-warning** system for faculty, **⌘K semantic global search**, **group
+> study rooms**, **office-hours booking**, and **.ics calendar export/subscribe**.
 
 | Feature | Stage | What it adds |
 |---|---|---|
-| **Token-by-token streaming** | In design | Watch grounded answers generate live, word by word — faster perceived responses over a streaming transport. |
 | **Telegram & WhatsApp alerts** | Planned | Push assignments, scheduled quizzes, syllabus changes and announcements straight to the phones students already use. |
 | **Digital library + AI assistant** | Exploring | A library of academic books and resources with an AI assistant that answers strictly from the library's own content — grounded, cited, on-syllabus. |
 
 **Also on the engineering roadmap** *(later phases — most depend on additional infrastructure)*
 - **Voice I/O** — speak to the assistant with speech-to-text & text-to-speech.
-- **Predictive analytics** — early-risk signals & recommendations from academic data.
+- **Predictive analytics** — ML-driven recommendations building on the shipped rule-based at-risk signals.
 - **More AI providers** — Gemini and self-hosted models alongside OpenAI.
 - **Versioning & memory** — document version history and longer conversation memory.
 
@@ -386,4 +404,3 @@ to use today. Sign in and see your role come to life.
 **Footer tagline:** The AI academic copilot for universities — grounded answers, automated
 teaching tools and live operational insight, in one platform. *Reimagining university
 management with AI.* — Built by Mohammad Shariya.
-</content>

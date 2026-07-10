@@ -60,8 +60,8 @@ The AI core → Proof (grounded answers, live demo) → Governance → Metrics �
 - **Kicker:** Role-based access control
 - **Title:** "Three roles, 46 fine-grained permissions"
 - **Subtitle:** Every route guarded. Every action audited. Role assignments can even expire.
-- **Student** ("Learn & get answers"): AI chat with citations/confidence/saved answers · dashboard with courses, CGPA & deadlines · one-click registration for assigned sections · timed quizzes with instant auto-grade · attendance, transcript & GPA · roadmap, materials & document library · exam schedule, calendar, notes & tasks · AI study planner, learning analytics & flashcards · opt-in leaderboard & course discussions · real-time messaging with faculty.
-- **Faculty** ("Teach & assess"): AI teaching assistant (quizzes, assignments, rubrics) · build timed auto-graded quizzes · manage sections & publish materials · one-click attendance with live stats · grading workspace with AI-drafted feedback · per-course analytics & grade distributions · real-time messaging with students.
+- **Student** ("Learn & get answers"): streaming AI chat with citations/confidence/saved answers (grounded in library + own notes & materials) · dashboard with courses, CGPA & deadlines · one-click registration for assigned sections · timed quizzes with instant auto-grade · self-serve AI practice quizzes (missed → flashcards) · attendance, transcript & GPA · roadmap, materials & document library · exam schedule, calendar (.ics sync), notes & tasks · AI study planner, learning analytics & flashcards · ⌘K semantic search · opt-in leaderboard & course discussions · real-time messaging with faculty, group study rooms & office-hours booking.
+- **Faculty** ("Teach & assess"): streaming AI teaching assistant (quizzes, assignments, rubrics) · build timed auto-graded quizzes · manage sections & publish materials · one-click attendance with live stats · grading workspace with AI-drafted feedback · per-course analytics with at-risk early warning · bookable office hours · real-time messaging with students.
 - **Admin** ("Govern & monitor"): user, role & permission matrix · course catalog, sections, terms & student assignment · document approval workflow & knowledge base · institution-wide analytics & top queries · AI provider settings, prompts & retrieval tuning · system monitor, departments & announcements.
 
 ## Slide 7 — The AI Core (RAG Pipeline)
@@ -165,8 +165,8 @@ The AI core → Proof (grounded answers, live demo) → Governance → Metrics �
 ## Slide 22 — Roadmap (Shipped vs. Coming)
 - **Kicker:** Where it goes next
 - **Title:** "Shipped, and what is coming"
-- **Shipped:** RAG tutor + citations · AI quiz → proctored exam · AI-assisted grading · real-time messaging · RBAC + audit log · document approval pipeline · AI usage governance.
-- **Upcoming:** Telegram/WhatsApp alerts · token-by-token streaming · voice input/output · managed vector DB at scale.
+- **Shipped:** RAG tutor + citations (streaming, grounded in library + personal notes/materials) · AI quiz → proctored exam · AI practice quizzes · AI-assisted grading · at-risk early warning · real-time messaging + group study rooms · office-hours booking · ⌘K semantic search · calendar .ics sync · RBAC + audit log · document approval pipeline · AI usage governance.
+- **Upcoming:** Telegram/WhatsApp alerts · voice input/output · managed vector DB at scale.
 
 ## Slide 23 — Impact
 - **Kicker:** The impact

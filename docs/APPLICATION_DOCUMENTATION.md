@@ -269,8 +269,8 @@ approved the document joins the AI tutor's knowledge.
 
 ### 4.6 AI Teaching Assistant ⭐
 A ChatGPT-style assistant for teachers, running on the same cited-answer AI engine as the
-student tutor. Beyond chatting, it can **generate** draft quizzes, draft assignments, and
-suggested grading feedback. These drafts are *previews only* — nothing reaches students until
+student tutor — with answers **streaming in live, word by word**. Beyond chatting, it can
+**generate** draft quizzes, draft assignments, and suggested grading feedback. These drafts are *previews only* — nothing reaches students until
 the teacher explicitly publishes:
 
 - **Publish as an assignment:** turns a draft into a real graded assignment for the teacher's
@@ -310,10 +310,14 @@ factors, a full behaviour timeline (focus loss, clipboard attempts, answer timin
 and — when recording layers were on — in-browser playback of the webcam and screen recordings.
 Recordings are stored privately and are only ever visible to faculty and admins.
 
-### 4.10 Analytics
+### 4.10 Analytics & At-Risk Early Warning ⭐
 Insights for the teacher's classes: students, attendance, grading backlog, grade distribution,
-submission rates, and a list of **at-risk students** (low attendance or low grades) so teachers
-can intervene early.
+and submission rates — plus an **early-warning list of at-risk students**. A student is flagged
+on any of four signals: attendance below 75%, two or more missed assignment deadlines, a
+class-test average below 50%, or a failing grade. Two or more signals mark them **High risk**
+(one signal = **Watch**), each flag shows exactly *why* ("Attendance 62%", "3 missed
+deadlines"…), and a message button opens a direct chat with that student so flagging turns into
+intervention in one click. The teacher's dashboard shows a running count of flagged students.
 
 ### 4.11 Assignment Management
 Edit, publish/unpublish, or delete the assignments they've set. Editing notifies students and
@@ -334,6 +338,12 @@ think breaks the rules; reports the teacher doesn't handle can be escalated to t
 moderation queue (see 3.11a). Teachers only ever see and moderate the feeds for the sections they
 personally teach.
 
+### 4.14 Office Hours
+Teachers publish **bookable office-hours slots** — a time window plus an optional room or
+meeting link and note. Students of their sections book them one-per-slot (no double-booking);
+the teacher sees who booked, can cancel a booking (re-opening the slot) or remove a slot
+entirely, and everyone affected is notified automatically.
+
 ---
 
 ## 5. What Students Can Do
@@ -347,13 +357,18 @@ through their course materials they are.
 
 ### 5.2 AI Tutor (Chat) ⭐ — the flagship feature
 The student asks questions in natural language and gets answers **grounded in the university's
-own approved documents, with citations** showing exactly which document and page each fact came
-from. How a question becomes an answer:
+own approved documents — plus the student's own notes and their courses' materials** — with
+citations showing exactly which source each fact came from. Answers **stream in live,
+word by word**, like a modern chat assistant, instead of arriving all at once. How a
+question becomes an answer:
 
 1. **Quick replies for small talk.** Greetings or "what can you do?" get an instant, friendly
    reply without any heavy processing.
-2. **Finding the right sources.** For real questions, the system searches the approved documents
-   the student is allowed to see and picks the handful most relevant to the question.
+2. **Finding the right sources.** For real questions, the system searches everything the
+   student may draw on — approved library documents, **their own saved notes** (including
+   scanned handwriting), and **files their teachers shared with their class** — and picks
+   the handful most relevant to the question. Sources are labelled so a "Personal Note" or
+   "Course Material" citation is clearly distinguished from a library document.
 3. **Showing its work.** Those sources become numbered citations attached to the answer, each
    with a short excerpt and a confidence indicator.
 4. **Writing the answer.** The AI is given the student's context (their department, year, and
@@ -399,8 +414,10 @@ All courses grouped by semester with grades and credits, a GPA per semester, and
 The student's upcoming and past exams, with countdowns. Only their own classes' exams appear.
 
 ### 5.11 Calendar
-One combined calendar of assignment deadlines, exam dates, and the student's personal tasks.
-Tasks can be created right from the calendar.
+One combined calendar of assignment deadlines, exam dates, the student's personal tasks, and
+their **booked office-hours meetings**. Tasks can be created right from the calendar. The
+calendar can be **downloaded as an .ics file** or **subscribed to by URL** so it stays in sync
+inside Google Calendar, Outlook, or Apple Calendar automatically.
 
 ### 5.12 Course Registration ⭐
 Where a student **confirms or drops** the sections an admin has placed them in, while the term's
@@ -474,11 +491,33 @@ inappropriate. The section's teacher takes part and moderates (pinning or removi
 serious reports can reach the admin moderation queue. A student only sees the feeds for the classes
 they're actually in.
 
+### 5.24 Practice Quizzes ⭐
+Students can quiz **themselves** without waiting for a teacher: pick any topic (optionally tied
+to a course), a question count, and a difficulty, and the AI generates a multiple-choice /
+true-false quiz. There's no proctoring — this is for learning, not assessment. On submit the
+system grades **on the server** (the correct answers never reach the browser beforehand) and
+shows a score with per-question explanations. Quizzes can be retaken any number of times, and
+one click turns the **missed questions into a flashcard deck** so the weak spots go straight
+into spaced-repetition review.
+
+### 5.25 Study Rooms
+Classmates in the same section can create and join **group chat rooms** — one per topic (say,
+"Midterm prep squad"). Rooms are strictly section-scoped: only students actually enrolled in
+that class can see or join them. Messages are delivered live, every message shows who sent it,
+and the last member to leave closes the room. Study rooms are completely separate from the
+private student↔teacher messenger.
+
+### 5.26 Office Hours
+Students see the **bookable office-hours slots** published by the teachers who actually teach
+them, and book one in a click. First click wins — a slot can never be double-booked — and both
+sides are notified on booking or cancellation. Booked meetings appear on the student's calendar
+(and in its .ics export).
+
 ---
 
 ## 6. The Shared Engines
 
-These three systems work quietly behind every portal.
+These systems work quietly behind every portal.
 
 ### 6.1 The AI tutor and how it stays grounded
 UniGPT's AI can run in two modes, switchable by an admin:
@@ -511,7 +550,16 @@ Students and their teachers can chat directly. A conversation can only be starte
 student and a teacher who **share a class**, which keeps messaging relevant and within a
 student's own programme. Messages are delivered live when real-time messaging is enabled, and
 fall back to refreshing every few seconds otherwise — either way nothing is lost. A small
-"online now" indicator shows who's currently active.
+"online now" indicator shows who's currently active. The same live-messaging engine also powers
+the students' **group study rooms** (§5.25).
+
+### 6.4 Global search (⌘K)
+The search box in the header finds more than pages: type a few characters and it also searches
+**content** — the documents, notes and course materials the person can access (matched by
+*meaning*, not just keywords, using the same engine that grounds the AI tutor), plus their
+courses, assignments, class discussions, and their own past AI conversations (each result jumps
+to the exact message). Admins can also look up users. Everyone's results are limited to what
+they're allowed to see.
 
 ---
 
