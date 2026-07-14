@@ -227,11 +227,14 @@ faculty and student timetables.
 The global gate over the class-test proctoring layers. For each layer (fullscreen, tab-switch,
 clipboard block, one-at-a-time, disable-back, shuffle questions, shuffle options, watermark,
 integrity notice, fingerprint, behaviour logging, risk scoring, webcam recording, screen
-recording) the admin controls two switches: whether it is **available** to faculty at all, and
+recording, face liveness, snapshot evidence, phone detection) the admin controls two switches: whether it is **available** to faculty at all, and
 whether it is **on by default** on a new test. Turning a layer off removes it from the faculty
 authoring form and stops any existing test from applying it. Faculty still choose, per test, which
 of the available layers actually run. The heavier "consent" layers (webcam / screen) are clearly
-marked because they prompt the student for camera / screen access before the exam begins.
+marked because they prompt the student for camera / screen access before the exam begins. A
+"How each layer works" offcanvas explains every layer's step-by-step flow with the live
+configured timings (grace periods, free warnings, retention), so the guide can never drift from
+actual behaviour.
 
 ### 3.13 AI Settings ⭐
 The control panel for the AI itself. Admins choose the AI provider (the real OpenAI service or a
@@ -307,15 +310,25 @@ violations can disqualify an attempt.
 apply, from a set of independent, configurable options: fullscreen enforcement, tab-switch
 detection, clipboard/right-click blocking, one-question-at-a-time, disable-going-back, randomise
 question order, randomise answer options, identity watermark, browser fingerprint, behaviour
-logging, risk scoring, an AI assessment-integrity notice, and **webcam** / **screen recording**.
+logging, risk scoring, an AI assessment-integrity notice, **webcam** / **screen recording**, and
+three on-device camera-AI layers: **face liveness** (a blink-verified gate keeps questions hidden
+until a live face is confirmed — a photo can't blink — then monitors continuously: 3s without a
+face shows a warning and blurs the paper, 8s locks it; the first two incidents are free, further
+ones count as violations; a logged 30s bypass ensures a student whose face can't be detected is
+never locked out), **snapshot evidence** (webcam photo bursts at flagged moments plus random
+samples — moment-based evidence instead of hours of video), and **phone detection** (an
+on-device model flags a phone raised into frame, with photo evidence — a review signal, never an
+auto-violation). Detection runs entirely in the browser; no frames are uploaded for it.
 An administrator decides globally which layers are available and which are pre-ticked (see 3.x
 Exam Security). The exam's runtime and the server both apply only the layers that test enabled.
 
 **Attempt review.** From the results screen a teacher opens a per-student **Review** dossier:
 the student's identity and device fingerprint, a computed 0–100 risk score with its contributing
 factors, a full behaviour timeline (focus loss, clipboard attempts, answer timing, idle spans),
-and — when recording layers were on — in-browser playback of the webcam and screen recordings.
-Recordings are stored privately and are only ever visible to faculty and admins.
+and — when recording layers were on — in-browser playback of the webcam and screen recordings,
+plus a trigger-labelled **snapshot photo strip** (slider viewer with keyboard navigation) when
+snapshot evidence was on. Recordings and snapshots are stored privately, only ever visible to
+faculty and admins, and pruned automatically after the retention window.
 
 ### 4.10 Analytics & At-Risk Early Warning ⭐
 Insights for the teacher's classes: students, attendance, grading backlog, grade distribution,

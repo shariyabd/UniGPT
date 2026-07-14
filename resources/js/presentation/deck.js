@@ -124,7 +124,7 @@ export const slides = [
                 features: [
                     'Streaming AI teaching assistant: quizzes, assignments & rubrics',
                     'Build timed quizzes & class tests with auto-grading',
-                    'Per-test proctoring layers + risk-scored review dossier',
+                    'Per-test proctoring + camera AI (liveness, phone, snapshots)',
                     'Manage taught sections & publish course materials',
                     'One-click attendance with live class stats',
                     'Grading workspace with AI-drafted feedback',
@@ -312,8 +312,10 @@ export const slides = [
         title: 'Real exam integrity, in the browser',
         columns: 2,
         items: [
-            { icon: 'EyeIcon', title: 'Fullscreen enforcement', desc: 'Tab-switch & fullscreen-exit detection with warnings.' },
-            { icon: 'ExclamationTriangleIcon', title: 'Auto-disqualify', desc: 'Exceed the warning limit → attempt auto-submitted.' },
+            { icon: 'EyeIcon', title: 'Face-liveness gate', desc: 'Blink-verified check before questions render; face loss blurs then locks the paper. On-device AI — no video leaves the browser.' },
+            { icon: 'DevicePhoneMobileIcon', title: 'Phone & second-face detection', desc: 'Camera AI flags a raised phone or a second person — with photo evidence, judged by a human.' },
+            { icon: 'CameraIcon', title: 'Snapshot evidence', desc: 'Photo bursts at flagged moments + random samples — ~100× less storage than continuous recording.' },
+            { icon: 'ExclamationTriangleIcon', title: 'Lockdown & auto-disqualify', desc: 'Fullscreen, tab-switch and clipboard guards; exceed the warning limit → auto-submitted.' },
             { icon: 'ClockIcon', title: 'Per-student timer', desc: 'Countdown begins on start, not globally — fair to all.' },
             { icon: 'ShieldCheckIcon', title: 'Server-authoritative grading', desc: 'Answers never trusted from the client; graded on the server.' },
         ],
@@ -575,7 +577,7 @@ export const slides = [
         layout: 'roadmap',
         kicker: 'Where it goes next',
         title: 'Shipped, and what is coming',
-        shipped: ['Streaming RAG tutor + citations', 'Agentic chat actions (8 tools)', 'Chat with my materials (personal RAG)', 'AI quiz → proctored exam', 'Layered exam-security proctoring', 'AI practice quizzes + question bank', 'AI rubric grading (human-in-the-loop)', 'Submission similarity screening', 'Anonymous peer review', 'Anonymous course feedback + AI themes', 'Concept mastery map', 'Prerequisites + section waitlists', 'Email digests & deadline nudges', 'At-risk early warning', 'Study planner + SM-2 flashcards', 'OCR handwritten notes', 'Discussions, leaderboard, study rooms', 'Office-hours booking', '⌘K semantic search', '.ics calendar sync', 'RBAC + audit log', 'Document approval pipeline', 'AI usage governance'],
+        shipped: ['Streaming RAG tutor + citations', 'Agentic chat actions (8 tools)', 'Chat with my materials (personal RAG)', 'AI quiz → proctored exam', 'Layered proctoring + camera AI (liveness, phone, snapshots)', 'AI practice quizzes + question bank', 'AI rubric grading (human-in-the-loop)', 'Submission similarity screening', 'Anonymous peer review', 'Anonymous course feedback + AI themes', 'Concept mastery map', 'Prerequisites + section waitlists', 'Email digests & deadline nudges', 'At-risk early warning', 'Study planner + SM-2 flashcards', 'OCR handwritten notes', 'Discussions, leaderboard, study rooms', 'Office-hours booking', '⌘K semantic search', '.ics calendar sync', 'RBAC + audit log', 'Document approval pipeline', 'AI usage governance'],
         upcoming: ['Telegram / WhatsApp alerts', 'Voice input / output', 'Managed vector DB at scale'],
     },
 

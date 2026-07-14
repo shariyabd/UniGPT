@@ -93,7 +93,7 @@ import {
                 <div v-reveal="120" class="reveal ui-card ui-card-hover p-6">
                     <span class="ui-icon-tile bg-danger-bg text-danger-fg"><ShieldCheckIcon class="h-5 w-5" /></span>
                     <h3 class="mt-4 font-semibold text-content">Layered exam proctoring</h3>
-                    <p class="mt-1.5 text-sm text-content-muted">Faculty pick per-test security layers from an admin-approved set — fullscreen, tab-switch & clipboard guards, watermark, fingerprint, webcam/screen recording — with a risk-scored, per-student review dossier.</p>
+                    <p class="mt-1.5 text-sm text-content-muted">Faculty pick per-test security layers from an admin-approved set — fullscreen, tab-switch & clipboard guards, watermark, plus on-device camera AI: blink-verified face liveness, phone & second-face detection, and snapshot evidence that photographs flagged moments instead of recording hours of video — with a risk-scored review dossier and photo strip.</p>
                 </div>
 
                 <div v-reveal="60" class="reveal ui-card ui-card-hover p-6">

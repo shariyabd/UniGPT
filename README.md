@@ -79,8 +79,14 @@ UniNexus gives a university a single, governed AI layer over its own academic co
   **question bank** (import from existing tests, spin selected questions into a
   draft test), with auto-grading — apply **per-test
   proctoring layers** (fullscreen, tab/clipboard guards, watermark, fingerprint,
-  behaviour logging, risk scoring, **webcam + screen recording**) and review a
-  per-student evidence dossier, get **at-risk early warnings** (students flagged
+  behaviour logging, risk scoring, **webcam + screen recording**, and the
+  camera-AI layers: **face-liveness verification** — a blink-checked gate before
+  questions render plus continuous monitoring with question-blur and escalating
+  warnings, **snapshot evidence** — photo bursts at flagged moments instead of
+  storage-heavy continuous video, and **phone / second-face detection** — all
+  on-device MediaPipe, no frames leave the browser) and review a
+  per-student evidence dossier (timeline, recordings, photo strip, risk score),
+  get **at-risk early warnings** (students flagged
   on attendance, missed deadlines, test average and grade — with one-click
   messaging), open **anonymous mid-semester feedback windows** per section
   (results unlock at ≥3 responses; AI theme summary), enable **anonymous peer

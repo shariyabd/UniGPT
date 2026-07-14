@@ -19,7 +19,7 @@ The AI core → Proof (grounded answers, agentic actions, live demo) → Governa
 - **Title:** "Run your university on intelligence, not paperwork."
 - **Subtitle:** One platform. Three tailored experiences. Grounded AI that answers from your own academic documents — with citations, not hallucinations.
 - **Audience tags:** Students · Faculty · Administrators
-- **Three highlight chips:** RAG-grounded answers · Role-based governance · Proctored AI exams
+- **Three highlight chips:** RAG-grounded answers · Role-based governance · Camera-AI proctored exams
 
 ## Slide 2 — The Problem
 - **Kicker:** The problem
@@ -61,7 +61,7 @@ The AI core → Proof (grounded answers, agentic actions, live demo) → Governa
 - **Title:** "Three roles, 46 fine-grained permissions"
 - **Subtitle:** Every route guarded. Every action audited. Role assignments can even expire.
 - **Student** ("Learn & get answers"): streaming **agentic** AI chat with citations/confidence/saved answers (grounded in library + own notes & materials; can book office hours, spin up quizzes/decks and add tasks from the conversation) · dashboard with courses, CGPA & deadlines · one-click registration for assigned sections (prerequisite badges + automatic waitlists) · timed quizzes with instant auto-grade · self-serve AI practice quizzes (missed → flashcards) or practice built from the course question bank · anonymous peer review of classmates' submissions · anonymous course feedback · attendance, transcript & GPA · roadmap, materials & document library · exam schedule, calendar (.ics sync), notes & tasks · AI study planner, learning analytics with a concept mastery map, & flashcards · OCR handwritten notes · ⌘K semantic search · opt-in leaderboard & course discussions · weekly email digest (opt-out) · real-time messaging with faculty, group study rooms & office-hours booking.
-- **Faculty** ("Teach & assess"): streaming AI teaching assistant (quizzes, assignments, rubrics) · build timed auto-graded quizzes · per-test proctoring layers with risk-scored review dossier · per-course question bank (author, import from tests, assemble draft tests) · manage sections & publish materials · one-click attendance with live stats · grading workspace with AI-drafted feedback, per-criterion AI rubric drafts, similarity-screening badges & peer-review averages · per-assignment peer-review toggle · anonymous course-feedback dashboard with AI theme summaries · per-course analytics with at-risk early warning · bookable office hours · moderate section discussions · real-time messaging with students.
+- **Faculty** ("Teach & assess"): streaming AI teaching assistant (quizzes, assignments, rubrics) · build timed auto-graded quizzes · per-test proctoring layers (face-liveness gate, phone & second-face detection, snapshot evidence) with risk-scored review dossier + photo strip · per-course question bank (author, import from tests, assemble draft tests) · manage sections & publish materials · one-click attendance with live stats · grading workspace with AI-drafted feedback, per-criterion AI rubric drafts, similarity-screening badges & peer-review averages · per-assignment peer-review toggle · anonymous course-feedback dashboard with AI theme summaries · per-course analytics with at-risk early warning · bookable office hours · moderate section discussions · real-time messaging with students.
 - **Admin** ("Govern & monitor"): user, role & permission matrix · course catalog (incl. prerequisites), sections, terms & student assignment (full sections → FIFO waitlists) · document approval workflow & knowledge base · institution-wide analytics & top queries · AI provider settings, prompts & retrieval tuning · exam-security gate + discussion moderation queue · AI usage monitor with per-user access control · system monitor, departments & announcements.
 
 ## Slide 7 — The AI Core (RAG Pipeline)
@@ -128,9 +128,10 @@ The AI core → Proof (grounded answers, agentic actions, live demo) → Governa
 ## Slide 15 — Proctored Class Tests
 - **Kicker:** Proctored class tests
 - **Title:** "Real exam integrity, in the browser"
-- **Layered, per-test proctoring:** faculty pick from 14 admin-approved layers — fullscreen, tab-switch/exit detection, clipboard block, question/option randomisation, identity watermark, browser fingerprint, behaviour logging, **webcam + screen recording**.
+- **Layered, per-test proctoring:** faculty pick from 17 admin-approved layers — fullscreen, tab-switch/exit detection, clipboard block, question/option randomisation, identity watermark, browser fingerprint, behaviour logging, **webcam + screen recording**, plus on-device camera AI.
+- **Camera AI (no frames leave the browser):** blink-verified **face-liveness gate** before questions render; face loss blurs then locks the paper with escalating warnings; **phone & second-face detection** and **snapshot evidence** — photo bursts at flagged moments instead of hours of video (~100× less storage). Audible alerts call absent students back.
 - **Server-authoritative:** per-student timer, client answers never trusted, auto-disqualify over the warning limit.
-- **Evidence + review:** every attempt yields a behaviour timeline, a 0–100 risk score, and a per-student review dossier with recording playback.
+- **Evidence + review:** every attempt yields a behaviour timeline, a 0–100 risk score, and a per-student review dossier with recording playback and a snapshot photo strip.
 
 ## Slide 16 — Assessment Integrity & Honest Feedback
 - **Kicker:** Fair assessment

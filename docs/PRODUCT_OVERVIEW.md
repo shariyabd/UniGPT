@@ -108,7 +108,7 @@ to the model.
 | **Role-based dashboards** | Students, faculty and admins each get a tailored home with the tools and data that matter to them. |
 | **Teaching automation** | Generate quizzes, assignments and rubrics, and draft grading feedback with an AI teaching assistant. |
 | **Timed quizzes & class tests** | Faculty set up online quizzes/class tests with rules, a duration timer, questions and marks — writing questions by hand or **generating them with AI**, then editing. Students take them in-panel with a live countdown and get auto-graded results the moment they submit. |
-| **Layered exam proctoring** | Faculty pick, per test, which security layers apply from an admin-approved set — fullscreen, tab-switch detection, clipboard block, one-at-a-time, randomisation, identity watermark, browser fingerprint, behaviour logging, risk scoring, and **webcam / screen recording**. Every attempt gets an evidence trail and a per-student review dossier (timeline, 0–100 risk score, recording playback). |
+| **Layered exam proctoring** | Faculty pick, per test, which security layers apply from an admin-approved set — fullscreen, tab-switch detection, clipboard block, one-at-a-time, randomisation, identity watermark, browser fingerprint, behaviour logging, risk scoring, **webcam / screen recording**, and the on-device **camera-AI layers**: a blink-verified **face-liveness gate** (questions stay hidden until a live face is confirmed; face loss blurs then locks the paper with escalating warnings), **phone & second-face detection**, and **snapshot evidence** (photo bursts at flagged moments + random samples — ~100× less storage than continuous video). Every attempt gets an evidence trail and a per-student review dossier (timeline, 0–100 risk score, recording playback, snapshot photo strip). Audible alerts call back a student who has left the frame. |
 | **Attendance & analytics** | Mark attendance in seconds; track rates, grades, GPA and engagement across every course. |
 | **My Progress analytics** | Every student gets a personal insight dashboard — GPA, attendance, test, assignment and activity trends visualised in one place. |
 | **Concept mastery map** | A deterministic per-topic mastery score on My Progress, blended from class-test scores, practice-quiz accuracy and flashcard recall. Tier-coloured tiles sort weakest-first, and weak concepts offer one-click "Practice this" / "Make flashcards" straight into the AI generators. |
@@ -176,7 +176,7 @@ feedback in seconds.
 - Streaming AI teaching assistant: quizzes, assignments & rubrics
 - Build timed quizzes & class tests (AI-generated, manual or **question-bank** questions) with auto-grading
 - **Per-course question bank** — add or import reusable questions, spin a selection into a draft class test
-- Per-test proctoring layers with a risk-scored, per-student review dossier
+- Per-test proctoring layers (incl. face liveness, phone detection, snapshot evidence) with a risk-scored, per-student review dossier
 - Manage taught sections & publish course materials (auto-indexed for students' AI tutor)
 - One-click attendance with live class stats
 - Grading workspace with AI-drafted feedback — plus **"Draft grade with AI"** per-rubric-criterion prefills (reviewed & saved by you, never auto-released)
@@ -199,7 +199,7 @@ academic health.
 - Document approval workflow & knowledge base
 - Institution-wide analytics & top queries
 - AI provider settings, prompts & retrieval tuning
-- Exam-security gate: which proctoring layers faculty may use
+- Exam-security gate: which proctoring layers faculty may use, with a built-in step-by-step layer guide
 - AI usage monitor with per-user access control
 - System monitor, departments & announcements
 - Discussion moderation queue for reported posts & comments

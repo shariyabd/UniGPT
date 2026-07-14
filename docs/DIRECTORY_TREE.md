@@ -104,7 +104,8 @@ uni-chat/
 │   │   ├── Course, Section, Term, Department
 │   │   ├── CourseMaterial, Assignment, AssignmentSubmission, AttendanceRecord, Exam
 │   │   ├── ClassTest, ClassTestQuestion, ClassTestAttempt, ClassTestAnswer,
-│   │   │   ClassTestEvent, ClassTestRecording     ✅ timed quizzes + proctoring evidence
+│   │   │   ClassTestEvent, ClassTestRecording,    ✅ timed quizzes + proctoring evidence
+│   │   │   ClassTestSnapshot                       ✅ snapshot-evidence photo frames
 │   │   ├── Document (source_type: library|note|material + LIBRARY_SCOPE global scope),
 │   │   │   DocumentChunk, Embedding, DocumentApproval
 │   │   ├── ChatSession, ChatMessage, MessageCitation, SavedAnswer
@@ -176,6 +177,9 @@ uni-chat/
 │   │   ├── Layouts/AppLayout.vue          ✅ authenticated shell + role-aware nav + ⌘K global search palette
 │   │   ├── composables/                   ✅ usePermissions, useConfirm, useReveal, useTheme, useConversation
 │   │   │                                     (1:1 + study rooms), useHeartbeat, exam-security composables
+│   │   │                                     (useFaceLiveness, useExamSnapshots, usePhoneDetection,
+│   │   │                                      useExamSounds, useExamRecorder — MediaPipe assets self-hosted
+│   │   │                                      under public/vendor/mediapipe)
 │   │   ├── lib/                           ✅ markdown.js, sse.js (fetch-based SSE parser for streaming chat)
 │   │   └── tests/                         ✅ Vitest specs
 │   ├── css/app.css                        ✅ Tailwind

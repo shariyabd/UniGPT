@@ -46,7 +46,7 @@ const tabs = [
         features: [
             'Streaming AI teaching assistant: quizzes, assignments & rubrics',
             'Build timed quizzes & class tests with auto-grading',
-            'Per-test proctoring layers — lockdown, watermark, webcam/screen recording, risk-scored review dossier',
+            'Per-test proctoring layers — lockdown, watermark, face-liveness gate, phone detection, snapshot evidence, risk-scored review dossier',
             'Manage taught sections & publish course materials',
             'One-click attendance with live class stats',
             'Grading workspace with AI-drafted feedback',
@@ -75,7 +75,7 @@ const tabs = [
             'Document approval workflow & knowledge base',
             'Institution-wide analytics & top queries',
             'AI provider settings, prompts & retrieval tuning',
-            'Exam-security gate: which proctoring layers faculty may use',
+            'Exam-security gate: which proctoring layers faculty may use, with a built-in layer guide',
             'Discussion moderation queue for reported posts & comments',
             'AI usage monitor with per-user access control',
             'System monitor, departments & announcements',

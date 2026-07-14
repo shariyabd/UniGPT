@@ -63,6 +63,8 @@ current MVP.
 | **Anonymous course feedback** (one revisable 1–5 rating + comment per open section window) | ✅ | `Student/CourseFeedbackController` (`course-feedback*`), `CourseFeedbackService`, `CourseFeedback` |
 | Timed quizzes / class tests (take + auto-grade + instant result) | ✅ | `Student/ClassTestController`, `ClassTestService` |
 | Layered proctoring (fullscreen/tab/clipboard/watermark/fingerprint/behaviour/webcam+screen recording) | ✅ | `ExamSecurityService`, `config/exam_security.php`, `class_test_events`/`class_test_recordings` |
+| Camera-AI proctoring: face-liveness gate, phone & second-face detection, snapshot evidence (photo bursts + periodic samples), audible alerts | ✅ | `useFaceLiveness`/`usePhoneDetection`/`useExamSnapshots`/`useExamSounds`, `class_test_snapshots`, MediaPipe self-hosted under `public/vendor/mediapipe` |
+| Evidence cost controls: 250 kbps recording bitrate cap + `exam:prune-evidence` retention (weekly) | ✅ | `config/exam_security.php`, `PruneExamEvidence` |
 | Attendance · Transcript · Exams · Calendar | ✅ | Attendance/Transcript/Exam/Calendar services |
 | Notes · Tasks (owner-scoped) | ✅ | `NoteController`, `TaskController` |
 | Notifications (bell + index) | ✅ | `NotificationService`, `NotificationController` |
@@ -87,7 +89,7 @@ current MVP.
 | Material management (upload/download) | ✅ | `CourseMaterialController` |
 | AI teaching assistant (chat + quiz/assignment gen + publish) | ✅ | `AIAssistantController`, `TeachingAssistantService` |
 | Timed quizzes / class tests (author manually or AI-generated, timer, marks, auto-grade) | ✅ | `Faculty/ClassTestController`, `ClassTestService` |
-| Per-test proctoring layer selection + attempt review dossier (timeline, risk score, recordings) | ✅ | `Faculty/ClassTestController::attempt`, `ClassTestService::attemptReview` |
+| Per-test proctoring layer selection + attempt review dossier (timeline, risk score, recordings, snapshot photo strip with slider viewer) | ✅ | `Faculty/ClassTestController::attempt`, `ClassTestService::attemptReview` |
 | Grading (rubric) + **AI-drafted feedback** | ✅ | `GradingController`, `GradingService` |
 | **AI-assisted rubric grading** ("Draft grade with AI": per-criterion prefills clamped to maxima + justifications + suggested grade/feedback; editable, never auto-released; heuristic fallback) | ✅ | `GradingController::draftGrade` (`submissions.draft-grade`), `GradingService` |
 | **Submission similarity screening** (chunk+embed submission text incl. PDF/DOCX extraction; cosine ≥ 0.82 pairs flagged, amber badge + side-by-side excerpts, section-scoped, recomputed on resubmit) | ✅ | `SubmissionSimilarityService`, `SubmissionTextService`, `ScreenSubmissionSimilarityJob`, `SubmissionEmbedding`/`SubmissionSimilarity` |
@@ -115,7 +117,7 @@ current MVP.
 | Exam/timetable CRUD | ✅ | `Admin/ExamController` |
 | Announcements / broadcast | ✅ | `Admin/AnnouncementController` |
 | Analytics · AI settings · System monitor | ✅ | `AnalyticsController`, `SettingsController`, `MonitorController` |
-| Exam Security settings (global layer availability + defaults) | ✅ | `Admin/ExamSecurityController`, `exam_security` setting |
+| Exam Security settings (global layer availability + defaults, “How each layer works” guide offcanvas) | ✅ | `Admin/ExamSecurityController`, `exam_security` setting |
 | **Discussion moderation queue** (reported posts/comments → dismiss/remove) | ✅ | `Admin/DiscussionModerationController`, `PostReport` |
 | Activity log / audit trail | ✅ | `ActivityLog`, `ActivityLogger` |
 | Admin transcript editing | ⬜ | not started (low priority; grades flow via grading/enrolment) |
@@ -289,12 +291,21 @@ roster via the existing `NotificationService`.
 
 ### Layered exam-security / proctoring (per-test, admin-gated)
 Proctoring is a **config-driven layer system**, not a fixed set of hard-coded checks.
-`config/exam_security.php` declares 14 independent layers; `ExamSecurityService` resolves the
+`config/exam_security.php` declares 17 independent layers; `ExamSecurityService` resolves the
 *effective* set for a test as **config default → admin global gate → per-test faculty
 selection**. Layers: fullscreen enforcement, tab-switch / focus-loss detection, clipboard &
 context-menu block, one-question-at-a-time, disable-going-back, randomise question order,
 randomise answer options, identity watermark, browser fingerprint, behaviour logging, risk
-scoring, AI assessment-integrity notice, **webcam recording** and **screen recording**.
+scoring, AI assessment-integrity notice, **webcam recording**, **screen recording**, and the
+on-device **camera-AI layers** (MediaPipe, self-hosted — no frames leave the browser):
+**face liveness** (blink-verified gate before questions render; face loss → 3s soft banner +
+question blur → 8s blocking overlay; 2 free warnings then violations; 30s logged gate bypass so
+no one is locked out; 90s no-blink photo-spoof flag; second-face detection), **snapshot
+evidence** (photo bursts at flagged moments + jittered periodic samples, `class_test_snapshots`,
+~3–4 MB/student vs 150+ MB of video) and **phone detection** (debounced ObjectDetector, warning
+severity with photo evidence — never an auto-violation). Camera access is decoupled from
+recording, recording bitrate is capped (250 kbps) and `exam:prune-evidence` prunes old media
+weekly. Audible alerts (Web Audio) accompany warnings and blocks.
 
 - **Faculty** tick the layers per test on the authoring form (stored in
   `class_tests.security_config` JSON); an **admin** decides which layers are available at all

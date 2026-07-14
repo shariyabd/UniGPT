@@ -202,15 +202,19 @@ retrievable in chat. Visibility is scoped; downloads are logged. Documents soft-
   fullscreen with anti-cheat (warn once, then disqualify), and on submit/timeout the attempt
   is **auto-graded** — the score and answer review return instantly; a disqualified attempt
   scores 0. Publishing a quiz notifies the roster.
-- **Exam security (layered proctoring):** a config-driven registry of 14 independent layers
+- **Exam security (layered proctoring):** a config-driven registry of 17 independent layers
   (`config/exam_security.php`) resolved per test by `ExamSecurityService` as *config default →
   admin global gate → per-test faculty selection* (`class_tests.security_config`). Beyond the
   original fullscreen/tab/clipboard guards it adds question/option randomisation, an identity
   watermark, browser fingerprinting, a typed behaviour/violation event log (`class_test_events`),
   a computed 0–100 risk score on the attempt, an AI assessment-integrity notice, and **webcam /
   screen recording** captured with `MediaRecorder` and stored in chunks on a private disk
-  (`class_test_recordings`). Faculty get a per-attempt review dossier (`attemptReview`); admins
-  gate the layers globally via the `exam_security` setting (`Admin/ExamSecurityController`).
+  (`class_test_recordings`). The camera-AI wave adds a blink-verified **face-liveness gate**,
+  **phone & second-face detection** and **snapshot evidence** (photo bursts at flagged moments,
+  `class_test_snapshots`) — all on-device MediaPipe with camera access decoupled from recording,
+  a 250 kbps recording bitrate cap and weekly evidence pruning. Faculty get a per-attempt review
+  dossier (`attemptReview`) incl. a snapshot photo strip; admins gate the layers globally via the
+  `exam_security` setting (`Admin/ExamSecurityController`) with a built-in layer guide.
 - **Notifications** are per-recipient rows; auto-fired on graded submission, published
   material, scheduled exam, published assignment, published quiz, and enrollment
   assignment; admins can **broadcast** announcements.
