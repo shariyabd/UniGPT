@@ -1,27 +1,37 @@
 /**
- * Webcam / screen media recording for a proctored exam.
+ * Webcam / screen media capture for a proctored exam.
+ *
+ * Two distinct jobs, deliberately decoupled:
+ *   - CAMERA ACCESS: detection layers (face liveness, snapshots, phone
+ *     detection) need the webcam stream without storing any video. The
+ *     `camera` flag requests the stream; `getStream('webcam')` shares it.
+ *   - RECORDING: the `webcam` / `screen` flags additionally create a
+ *     MediaRecorder per stream and upload timeslice chunks.
  *
  * Permissions must be requested from a user gesture (the "Begin" click), so the
  * flow is: requestPermissions() → start() → stop(). Recording is chunked — each
  * MediaRecorder `timeslice` blob is uploaded on its own so a mid-exam disconnect
  * still preserves the earlier footage. All uploads are best-effort; a failed
- * chunk never interrupts the exam.
+ * chunk never interrupts the exam. Bitrate is capped server-side via config —
+ * browser defaults (~1–2.5 Mbps) are untenable at university scale.
  *
  * @param {object}   opts
  * @param {number}   opts.testId
- * @param {object}   opts.recording           { webcam, screen, chunkSeconds, mime }
+ * @param {object}   opts.recording           { webcam, screen, camera, chunkSeconds, mime, videoBitsPerSecond }
  * @param {function}[opts.onEnded]            called with the kind when a stream ends early
  */
 export function useExamRecorder({ testId, recording, onEnded = () => {} }) {
-    const wantWebcam = !!recording?.webcam;
-    const wantScreen = !!recording?.screen;
+    const recordWebcam = !!recording?.webcam;
+    const recordScreen = !!recording?.screen;
+    const wantCamera = !!recording?.camera || recordWebcam;
     const chunkMs = Math.max(5, Number(recording?.chunkSeconds) || 15) * 1000;
+    const videoBitsPerSecond = Math.max(50_000, Number(recording?.videoBitsPerSecond) || 250_000);
 
     const streams = {}; // kind -> MediaStream
     const recorders = {}; // kind -> MediaRecorder
     const sequences = {}; // kind -> next chunk index
 
-    const needsMedia = wantWebcam || wantScreen;
+    const needsMedia = wantCamera || recordScreen;
 
     const pickMimeType = () => {
         const candidates = [
@@ -41,10 +51,10 @@ export function useExamRecorder({ testId, recording, onEnded = () => {} }) {
         if (!needsMedia) return { ok: true };
 
         try {
-            if (wantWebcam) {
+            if (wantCamera) {
                 streams.webcam = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
             }
-            if (wantScreen) {
+            if (recordScreen) {
                 streams.screen = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
             }
         } catch (e) {
@@ -81,15 +91,21 @@ export function useExamRecorder({ testId, recording, onEnded = () => {} }) {
         }
     };
 
-    /** Begin recording every granted stream. */
+    /** Begin recording every stream that is flagged for recording. */
     const start = () => {
         const mimeType = pickMimeType();
+        const recordKinds = [
+            ...(recordWebcam ? ['webcam'] : []),
+            ...(recordScreen ? ['screen'] : []),
+        ];
 
-        Object.entries(streams).forEach(([kind, stream]) => {
+        recordKinds.forEach((kind) => {
+            const stream = streams[kind];
+            if (!stream) return;
             sequences[kind] = 0;
             let recorder;
             try {
-                recorder = new MediaRecorder(stream, { mimeType });
+                recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond });
             } catch {
                 recorder = new MediaRecorder(stream);
             }
@@ -119,5 +135,8 @@ export function useExamRecorder({ testId, recording, onEnded = () => {} }) {
         releaseStreams();
     };
 
-    return { needsMedia, requestPermissions, start, stop };
+    /** Shared access to a granted stream (detection layers reuse the webcam). */
+    const getStream = (kind) => streams[kind] ?? null;
+
+    return { needsMedia, requestPermissions, start, stop, getStream };
 }

@@ -12,6 +12,7 @@ use App\Http\Requests\Student\CaptureFingerprintRequest;
 use App\Http\Requests\Student\LogClassTestEventsRequest;
 use App\Http\Requests\Student\SubmitClassTestRequest;
 use App\Http\Requests\Student\UploadClassTestRecordingRequest;
+use App\Http\Requests\Student\UploadClassTestSnapshotRequest;
 use App\Models\ClassTest;
 use App\Models\ClassTestAttempt;
 use App\Services\ActivityLogger;
@@ -195,6 +196,32 @@ class ClassTestController extends Controller
         );
 
         return response()->json(['ok' => true]);
+    }
+
+    /**
+     * Store one snapshot-evidence frame. Layer-gated and capped per attempt so
+     * a misbehaving client can never flood the disk.
+     */
+    public function snapshot(UploadClassTestSnapshotRequest $request, ClassTest $classTest): JsonResponse
+    {
+        $this->ensureEnrolled($classTest);
+
+        abort_unless($this->security->isEnabled($classTest, 'snapshot_evidence'), 403, 'Snapshot evidence is not enabled for this test.');
+
+        $attempt = $this->attemptFor($classTest);
+
+        if (! $attempt || $attempt->isFinalised()) {
+            return response()->json(['ok' => false], 409);
+        }
+
+        $stored = $this->security->storeSnapshot(
+            attempt: $attempt,
+            trigger: $request->string('trigger')->value(),
+            sequence: (int) $request->integer('sequence'),
+            file: $request->file('frame'),
+        );
+
+        return response()->json(['ok' => $stored !== null, 'capped' => $stored === null]);
     }
 
     public function submit(SubmitClassTestRequest $request, ClassTest $classTest): RedirectResponse

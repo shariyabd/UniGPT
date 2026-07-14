@@ -41,6 +41,9 @@ const RULE_TEXT = {
     risk_analysis: 'Your activity is analysed for a suspicion score after you submit.',
     webcam: 'Your webcam is recorded for the entire exam.',
     screen_record: 'Your screen is recorded for the entire exam.',
+    face_liveness: 'Your face presence and eye blinks are checked before and during the exam. Detection runs locally in your browser — no video is uploaded for this check.',
+    snapshot_evidence: 'Webcam photos are captured at flagged moments and at random intervals during the exam, visible only to your faculty.',
+    phone_detection: 'The camera watches for a phone raised into view. Detection runs locally in your browser; flagged moments are photographed for review.',
 };
 
 const activeRules = computed(() =>
@@ -48,7 +51,9 @@ const activeRules = computed(() =>
 );
 
 const showWarnings = computed(() => layers.value.fullscreen || layers.value.tab_switch);
-const needsConsent = computed(() => !!(props.security?.recording?.webcam || props.security?.recording?.screen));
+const needsConsent = computed(() => !!(props.security?.recording?.camera || props.security?.recording?.screen));
+// Camera used by detection layers without being recorded — consent wording differs.
+const cameraOnly = computed(() => !!props.security?.recording?.camera && !props.security?.recording?.webcam);
 const integrityNotice = computed(() => props.security?.integrityNotice ?? null);
 
 const start = () => {
@@ -119,15 +124,21 @@ const start = () => {
                     </Card>
 
                     <!-- Media consent — the exam will request camera/screen access -->
-                    <Card v-if="needsConsent" title="Recording & consent" :icon="VideoCameraIcon">
+                    <Card v-if="needsConsent" title="Camera & consent" :icon="VideoCameraIcon">
                         <p class="text-sm text-content">
-                            When you start, your browser will ask permission to record your
-                            <template v-if="props.security.recording.webcam && props.security.recording.screen">
-                                <strong>webcam and screen</strong>
+                            <template v-if="cameraOnly && !props.security.recording.screen">
+                                When you start, your browser will ask for <strong>camera access</strong>.
+                                The camera is used for on-device checks<template v-if="layers.snapshot_evidence"> and photo evidence at flagged moments</template> —
+                                <strong>no continuous video is recorded</strong>.
                             </template>
-                            <template v-else-if="props.security.recording.webcam"><strong>webcam</strong></template>
-                            <template v-else><strong>screen</strong></template>.
-                            Recording lasts for the whole exam and is visible only to your faculty and administrators.
+                            <template v-else>
+                                When you start, your browser will ask permission to
+                                <template v-if="props.security.recording.webcam && props.security.recording.screen">record your <strong>webcam and screen</strong></template>
+                                <template v-else-if="props.security.recording.webcam">record your <strong>webcam</strong></template>
+                                <template v-else-if="cameraOnly">access your <strong>camera</strong> (on-device checks, no continuous recording) and record your <strong>screen</strong></template>
+                                <template v-else>record your <strong>screen</strong></template>.
+                            </template>
+                            Everything captured is visible only to your faculty and administrators.
                             You must grant access to begin.
                         </p>
                     </Card>

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, computed } from 'vue';
+import { ref, reactive, computed, watch, onBeforeUnmount } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import { useToast } from 'vue-toastification';
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -15,6 +15,10 @@ import {
     NoSymbolIcon,
     ClockIcon,
     VideoCameraIcon,
+    CameraIcon,
+    ChevronLeftIcon,
+    ChevronRightIcon,
+    XMarkIcon,
 } from '@heroicons/vue/24/outline';
 
 const toast = useToast();
@@ -25,6 +29,7 @@ const props = defineProps({
     events: { type: Array, default: () => [] },
     eventCounts: { type: Object, default: () => ({}) },
     recordings: { type: Array, default: () => [] },
+    snapshots: { type: Array, default: () => [] },
 });
 
 const statusVariant = (status) => ({
@@ -46,6 +51,55 @@ const severityColor = (severity) => ({
     warning: 'text-warning-fg',
     info: 'text-content-muted',
 }[severity] ?? 'text-content-muted');
+
+// Face-liveness events get friendly wording; other types read fine raw.
+const TYPE_LABELS = {
+    face_verified: 'face verified (liveness gate passed)',
+    face_lost: 'face lost > grace period',
+    face_restored: 'face back in frame',
+    face_liveness_violation: 'face lost — violation',
+    face_liveness_unavailable: 'liveness detector unavailable',
+    face_verification_bypassed: 'skipped face verification (review evidence)',
+    no_blink_suspicion: 'no blink detected — possible photo',
+    phone_detected: 'phone seen in frame',
+    multiple_faces: 'second face in frame',
+    phone_detection_unavailable: 'phone detector unavailable',
+};
+const typeLabel = (type) => TYPE_LABELS[type] ?? type;
+
+// --- snapshot evidence -------------------------------------------------------
+const TRIGGER_META = {
+    violation: { label: 'Violation', variant: 'danger' },
+    face_lost: { label: 'Face lost', variant: 'warning' },
+    phone_detected: { label: 'Phone', variant: 'danger' },
+    multiple_faces: { label: 'Second face', variant: 'danger' },
+    identity: { label: 'Identity', variant: 'success' },
+    periodic: { label: 'Periodic', variant: 'slate' },
+};
+const triggerMeta = (trigger) => TRIGGER_META[trigger] ?? { label: trigger, variant: 'slate' };
+
+// Full-size viewer is a slider over the whole strip: arrows/keyboard navigate,
+// index wraps at the ends, Esc or backdrop click closes.
+const openIndex = ref(null);
+const openSnapshot = computed(() => (openIndex.value === null ? null : props.snapshots[openIndex.value] ?? null));
+const flaggedSnapshotCount = computed(() => props.snapshots.filter((s) => s.trigger !== 'periodic').length);
+
+const stepSnapshot = (delta) => {
+    if (openIndex.value === null || !props.snapshots.length) return;
+    openIndex.value = (openIndex.value + delta + props.snapshots.length) % props.snapshots.length;
+};
+
+const onViewerKeys = (e) => {
+    if (e.key === 'Escape') openIndex.value = null;
+    else if (e.key === 'ArrowLeft') stepSnapshot(-1);
+    else if (e.key === 'ArrowRight') stepSnapshot(1);
+};
+
+watch(openIndex, (open, was) => {
+    if (open !== null && was === null) window.addEventListener('keydown', onViewerKeys);
+    else if (open === null) window.removeEventListener('keydown', onViewerKeys);
+});
+onBeforeUnmount(() => window.removeEventListener('keydown', onViewerKeys));
 
 const fingerprintRows = computed(() => {
     const fp = props.attempt.fingerprint ?? {};
@@ -171,6 +225,81 @@ const formatBytes = (bytes) => {
                     </div>
                 </Card>
 
+                <!-- Snapshot evidence (photo strip) -->
+                <Card v-if="snapshots.length" title="Snapshot evidence" :icon="CameraIcon">
+                    <p class="mb-3 text-xs text-content-muted">
+                        {{ snapshots.length }} photo(s) — {{ flaggedSnapshotCount }} at flagged moments, the rest random samples.
+                        Captured on-device instead of continuous recording.
+                    </p>
+                    <div class="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6">
+                        <button
+                            v-for="(shot, si) in snapshots"
+                            :key="shot.id"
+                            type="button"
+                            class="group relative overflow-hidden rounded-card border border-line text-left"
+                            @click="openIndex = si"
+                        >
+                            <img :src="shot.url" :alt="`Snapshot ${shot.sequence} — ${shot.trigger}`" loading="lazy" class="aspect-video w-full object-cover transition-transform group-hover:scale-105" />
+                            <div class="absolute inset-x-0 bottom-0 flex items-center justify-between gap-1 bg-black/60 px-1.5 py-1">
+                                <Badge :variant="triggerMeta(shot.trigger).variant">{{ triggerMeta(shot.trigger).label }}</Badge>
+                                <span class="text-[10px] text-white/80">{{ (shot.capturedAt || '').slice(11, 16) }}</span>
+                            </div>
+                        </button>
+                    </div>
+
+                    <!-- Full-size viewer. Teleported to <body>: the layout's <main>
+                         keeps a transform from its fade-in animation, which turns it
+                         into the containing block for position:fixed — the overlay
+                         must escape it to actually cover the viewport. -->
+                    <Teleport to="body">
+                        <div
+                            v-if="openSnapshot"
+                            class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-6"
+                            role="dialog"
+                            aria-modal="true"
+                            @click="openIndex = null"
+                        >
+                            <button
+                                type="button"
+                                class="absolute right-4 top-4 rounded-full bg-white/10 p-2 text-white transition-colors hover:bg-white/25"
+                                aria-label="Close viewer"
+                                @click.stop="openIndex = null"
+                            >
+                                <XMarkIcon class="h-6 w-6" />
+                            </button>
+
+                            <button
+                                v-if="snapshots.length > 1"
+                                type="button"
+                                class="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-2.5 text-white transition-colors hover:bg-white/25"
+                                aria-label="Previous snapshot"
+                                @click.stop="stepSnapshot(-1)"
+                            >
+                                <ChevronLeftIcon class="h-7 w-7" />
+                            </button>
+
+                            <div class="max-w-3xl" @click.stop>
+                                <img :src="openSnapshot.url" :alt="`Snapshot ${openSnapshot.sequence}`" class="max-h-[80vh] w-auto rounded-card" />
+                                <p class="mt-2 flex items-center justify-center gap-3 text-sm text-white/90">
+                                    <Badge :variant="triggerMeta(openSnapshot.trigger).variant">{{ triggerMeta(openSnapshot.trigger).label }}</Badge>
+                                    {{ openSnapshot.capturedAt }}
+                                    <span class="tabular-nums text-white/60">{{ openIndex + 1 }} / {{ snapshots.length }}</span>
+                                </p>
+                            </div>
+
+                            <button
+                                v-if="snapshots.length > 1"
+                                type="button"
+                                class="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-2.5 text-white transition-colors hover:bg-white/25"
+                                aria-label="Next snapshot"
+                                @click.stop="stepSnapshot(1)"
+                            >
+                                <ChevronRightIcon class="h-7 w-7" />
+                            </button>
+                        </div>
+                    </Teleport>
+                </Card>
+
                 <!-- Behaviour timeline -->
                 <Card title="Activity timeline" :icon="ClockIcon" padding="p-0">
                     <div class="flex flex-wrap gap-2 border-b border-line px-4 py-3 text-xs">
@@ -191,7 +320,7 @@ const formatBytes = (bytes) => {
                                 <tr v-for="(event, i) in events" :key="i">
                                     <td class="whitespace-nowrap px-4 py-2 text-content-faint">{{ event.occurredAt }}</td>
                                     <td class="px-4 py-2">
-                                        <span class="font-medium" :class="severityColor(event.severity)">{{ event.type }}</span>
+                                        <span class="font-medium" :class="severityColor(event.severity)">{{ typeLabel(event.type) }}</span>
                                     </td>
                                     <td class="px-4 py-2 text-content-muted">
                                         <span v-if="event.durationMs">{{ Math.round(event.durationMs / 1000) }}s</span>

@@ -13,6 +13,7 @@ use App\Models\ClassTestAttempt;
 use App\Models\ClassTestEvent;
 use App\Models\ClassTestQuestion;
 use App\Models\ClassTestRecording;
+use App\Models\ClassTestSnapshot;
 use App\Models\Section;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
@@ -367,6 +368,7 @@ class ClassTestService
             'student',
             'events' => fn ($q) => $q->orderBy('occurred_at')->orderBy('id'),
             'recordings' => fn ($q) => $q->orderBy('kind')->orderBy('sequence'),
+            'snapshots' => fn ($q) => $q->orderBy('sequence'),
         ]);
 
         $recordings = $attempt->recordings
@@ -427,6 +429,13 @@ class ClassTestService
                 'info' => $attempt->events->where('severity', 'info')->count(),
             ],
             'recordings' => $recordings,
+            'snapshots' => $attempt->snapshots->map(fn (ClassTestSnapshot $s) => [
+                'id' => $s->id,
+                'trigger' => $s->trigger,
+                'sequence' => $s->sequence,
+                'capturedAt' => $s->created_at?->toDateTimeString(),
+                'url' => route('faculty.class-tests.snapshot', [$test->id, $attempt->id, $s->id]),
+            ])->values(),
         ];
     }
 

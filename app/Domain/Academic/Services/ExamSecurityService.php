@@ -8,6 +8,7 @@ use App\Models\ClassTest;
 use App\Models\ClassTestAttempt;
 use App\Models\ClassTestEvent;
 use App\Models\ClassTestRecording;
+use App\Models\ClassTestSnapshot;
 use App\Models\Setting;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
@@ -172,6 +173,7 @@ class ExamSecurityService
         return [
             'layers' => $selection,
             'maxWarnings' => $test->max_warnings,
+            'soundsEnabled' => (bool) config('exam_security.sounds_enabled', true),
             'integrityNotice' => ($selection['integrity_notice'] ?? false)
                 ? (string) config('exam_security.integrity_notice_text')
                 : null,
@@ -179,9 +181,57 @@ class ExamSecurityService
             'recording' => [
                 'webcam' => (bool) ($selection['webcam'] ?? false),
                 'screen' => (bool) ($selection['screen_record'] ?? false),
+                // Camera stream needed without necessarily recording it —
+                // detection layers share the one getUserMedia stream.
+                'camera' => (bool) (
+                    ($selection['webcam'] ?? false)
+                    || ($selection['face_liveness'] ?? false)
+                    || ($selection['snapshot_evidence'] ?? false)
+                    || ($selection['phone_detection'] ?? false)
+                ),
                 'chunkSeconds' => (int) config('exam_security.recording.chunk_seconds'),
                 'mime' => (string) config('exam_security.recording.mime'),
+                'videoBitsPerSecond' => (int) config('exam_security.recording.video_bits_per_second'),
             ],
+            'snapshots' => ($selection['snapshot_evidence'] ?? false)
+                ? [
+                    'burstCount' => (int) config('exam_security.snapshots.burst_count'),
+                    'burstIntervalMs' => (int) config('exam_security.snapshots.burst_interval_ms'),
+                    'periodicMinSeconds' => (int) config('exam_security.snapshots.periodic_min_seconds'),
+                    'periodicMaxSeconds' => (int) config('exam_security.snapshots.periodic_max_seconds'),
+                    'maxWidth' => (int) config('exam_security.snapshots.max_width'),
+                    'jpegQuality' => (float) config('exam_security.snapshots.jpeg_quality'),
+                    'maxPerAttempt' => (int) config('exam_security.snapshots.max_per_attempt'),
+                ]
+                : null,
+            'phone' => ($selection['phone_detection'] ?? false)
+                ? [
+                    'scoreThreshold' => (float) config('exam_security.phone.score_threshold'),
+                    'consecutiveHits' => (int) config('exam_security.phone.consecutive_hits'),
+                    'cooldownSeconds' => (int) config('exam_security.phone.cooldown_seconds'),
+                    'detectIntervalMs' => (int) config('exam_security.phone.detect_interval_ms'),
+                    'wasmPath' => (string) config('exam_security.liveness.wasm_path'),
+                    'modelPath' => (string) config('exam_security.phone.model_path'),
+                ]
+                : null,
+            'liveness' => ($selection['face_liveness'] ?? false)
+                ? [
+                    'softWarningSeconds' => (int) config('exam_security.liveness.soft_warning_seconds'),
+                    'graceSeconds' => (int) config('exam_security.liveness.grace_seconds'),
+                    'freeWarnings' => (int) config('exam_security.liveness.free_warnings'),
+                    'blinkCloseThreshold' => (float) config('exam_security.liveness.blink_close_threshold'),
+                    'blinkOpenThreshold' => (float) config('exam_security.liveness.blink_open_threshold'),
+                    'earCloseThreshold' => (float) config('exam_security.liveness.ear_close_threshold'),
+                    'earOpenThreshold' => (float) config('exam_security.liveness.ear_open_threshold'),
+                    'minDetectionConfidence' => (float) config('exam_security.liveness.min_detection_confidence'),
+                    'minPresenceConfidence' => (float) config('exam_security.liveness.min_presence_confidence'),
+                    'noBlinkSpoofSeconds' => (int) config('exam_security.liveness.no_blink_spoof_seconds'),
+                    'gateBypassSeconds' => (int) config('exam_security.liveness.gate_bypass_seconds'),
+                    'detectIntervalMs' => (int) config('exam_security.liveness.detect_interval_ms'),
+                    'wasmPath' => (string) config('exam_security.liveness.wasm_path'),
+                    'modelPath' => (string) config('exam_security.liveness.model_path'),
+                ]
+                : null,
         ];
     }
 
@@ -306,6 +356,37 @@ class ExamSecurityService
         );
     }
 
+    /**
+     * Store one snapshot-evidence frame on the private disk and index it.
+     * Returns null when the attempt already hit the per-attempt cap.
+     */
+    public function storeSnapshot(
+        ClassTestAttempt $attempt,
+        string $trigger,
+        int $sequence,
+        UploadedFile $file,
+    ): ?ClassTestSnapshot {
+        $max = (int) config('exam_security.snapshots.max_per_attempt');
+        if ($attempt->snapshots()->count() >= $max) {
+            return null;
+        }
+
+        $disk = (string) config('exam_security.snapshots.disk');
+        $directory = trim((string) config('exam_security.snapshots.directory'), '/')."/{$attempt->id}";
+        $filename = sprintf('%04d-%s.jpg', $sequence, Str::slug($trigger));
+
+        $path = $file->storeAs($directory, $filename, ['disk' => $disk]);
+
+        return ClassTestSnapshot::create([
+            'attempt_id' => $attempt->id,
+            'trigger' => $trigger,
+            'sequence' => $sequence,
+            'disk' => $disk,
+            'path' => $path,
+            'size_bytes' => $file->getSize() ?: 0,
+        ]);
+    }
+
     // ---------------------------------------------------------------------
     // Risk analysis
     // ---------------------------------------------------------------------
@@ -380,7 +461,20 @@ class ExamSecurityService
             $add('frequent_focus_loss', 'Frequent focus loss', "{$focusLoss} focus-loss events");
         }
 
-        // 6. No pointer activity despite an active session.
+        // 6. Face lost beyond the liveness layer's tolerated warnings.
+        $faceLoss = $events->whereIn('type', ['face_lost', 'face_liveness_violation'])->count();
+        $freeWarnings = (int) config('exam_security.liveness.free_warnings', 2);
+        if ($faceLoss > $freeWarnings) {
+            $add('face_loss', 'Repeated face loss', "{$faceLoss} face-loss incident(s)");
+        }
+
+        // 7. Phone or second face seen in frame (already debounced client-side).
+        $phoneActivity = $events->whereIn('type', ['phone_detected', 'multiple_faces'])->count();
+        if ($phoneActivity > 0) {
+            $add('phone_activity', 'Phone / second person in frame', "{$phoneActivity} detection(s)");
+        }
+
+        // 8. No pointer activity despite an active session.
         $hasPointer = $events->whereIn('type', ['mouse_move', 'click'])->isNotEmpty();
         if (! $hasPointer && $events->isNotEmpty()) {
             $add('no_mouse_movement', 'No mouse movement', 'No pointer activity logged');
@@ -409,6 +503,11 @@ class ExamSecurityService
         if (! empty($selection['lock_back']) && empty($selection['sequential'])) {
             $selection['lock_back'] = false;
         }
+
+        // Camera-based detection layers (face_liveness, snapshot_evidence,
+        // phone_detection) request the camera themselves via consent — they
+        // deliberately do NOT require the `webcam` recording layer, so a test
+        // can use the camera without storing continuous video.
 
         return $selection;
     }

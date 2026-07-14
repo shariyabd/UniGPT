@@ -63,6 +63,8 @@ const groupedLayers = computed(() => {
 });
 
 // "Disable going back" is meaningless without "one question at a time".
+// (Camera-based detection layers request camera access themselves — they do
+// NOT require webcam recording.)
 const layerDisabled = (key) => key === 'lock_back' && !form.security_config.sequential;
 
 const OPTION_KEYS = ['A', 'B', 'C', 'D', 'E', 'F'];
@@ -112,6 +114,7 @@ watch(
         if (!on && form.security_config.lock_back) form.security_config.lock_back = false;
     },
 );
+
 
 // --- AI generation (optional) ----------------------------------------------
 const ai = reactive({

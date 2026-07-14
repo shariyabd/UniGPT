@@ -14,6 +14,7 @@ use App\Http\Requests\Faculty\UpdateClassTestRequest;
 use App\Models\ClassTest;
 use App\Models\ClassTestAttempt;
 use App\Models\ClassTestRecording;
+use App\Models\ClassTestSnapshot;
 use App\Services\ActivityLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -154,6 +155,26 @@ class ClassTestController extends Controller
 
         return $disk->response($recording->path, null, [
             'Content-Type' => $recording->mime ?: 'video/webm',
+        ]);
+    }
+
+    /**
+     * Stream one snapshot-evidence frame from the private disk. Same access
+     * rules and scoping as recording chunks.
+     */
+    public function snapshot(ClassTest $classTest, ClassTestAttempt $attempt, ClassTestSnapshot $snapshot): StreamedResponse
+    {
+        $this->authorizeTest($classTest);
+        abort_unless(
+            $attempt->class_test_id === $classTest->id && $snapshot->attempt_id === $attempt->id,
+            404,
+        );
+
+        $disk = Storage::disk($snapshot->disk);
+        abort_unless($disk->exists($snapshot->path), 404);
+
+        return $disk->response($snapshot->path, null, [
+            'Content-Type' => 'image/jpeg',
         ]);
     }
 

@@ -41,6 +41,24 @@ class ExamSecurityController extends Controller
         return Inertia::render('Admin/ExamSecurity', [
             'layers' => $layers,
             'maxWarningsDefault' => (int) config('exam_security.max_warnings_default'),
+            // Real tuning values for the layer guide so the docs never drift
+            // from the behaviour that ships.
+            'guideConfig' => [
+                'softWarningSeconds' => (int) config('exam_security.liveness.soft_warning_seconds'),
+                'graceSeconds' => (int) config('exam_security.liveness.grace_seconds'),
+                'freeWarnings' => (int) config('exam_security.liveness.free_warnings'),
+                'noBlinkSpoofSeconds' => (int) config('exam_security.liveness.no_blink_spoof_seconds'),
+                'gateBypassSeconds' => (int) config('exam_security.liveness.gate_bypass_seconds'),
+                'recordingChunkSeconds' => (int) config('exam_security.recording.chunk_seconds'),
+                'recordingBitrateKbps' => (int) round(((int) config('exam_security.recording.video_bits_per_second')) / 1000),
+                'retentionDays' => (int) config('exam_security.evidence_retention_days'),
+                'snapshotBurstCount' => (int) config('exam_security.snapshots.burst_count'),
+                'snapshotPeriodicMin' => (int) config('exam_security.snapshots.periodic_min_seconds'),
+                'snapshotPeriodicMax' => (int) config('exam_security.snapshots.periodic_max_seconds'),
+                'snapshotMaxPerAttempt' => (int) config('exam_security.snapshots.max_per_attempt'),
+                'phoneConsecutiveHits' => (int) config('exam_security.phone.consecutive_hits'),
+                'phoneCooldownSeconds' => (int) config('exam_security.phone.cooldown_seconds'),
+            ],
         ]);
     }
 

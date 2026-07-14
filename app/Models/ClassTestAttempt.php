@@ -90,6 +90,11 @@ class ClassTestAttempt extends Model
         return $this->hasMany(ClassTestRecording::class, 'attempt_id');
     }
 
+    public function snapshots(): HasMany
+    {
+        return $this->hasMany(ClassTestSnapshot::class, 'attempt_id');
+    }
+
     public function isFinalised(): bool
     {
         return in_array($this->status, ['submitted', 'disqualified', 'expired'], true);

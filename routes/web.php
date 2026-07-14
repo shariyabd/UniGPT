@@ -27,10 +27,12 @@ use App\Http\Controllers\Faculty\AssignmentController as FacultyAssignmentContro
 use App\Http\Controllers\Faculty\AttendanceController as FacultyAttendanceController;
 use App\Http\Controllers\Faculty\ClassTestController as FacultyClassTestController;
 use App\Http\Controllers\Faculty\CourseController as FacultyCourseController;
+use App\Http\Controllers\Faculty\CourseFeedbackController as FacultyCourseFeedbackController;
 use App\Http\Controllers\Faculty\CourseMaterialController as FacultyCourseMaterialController;
 use App\Http\Controllers\Faculty\FacultyDashboardController;
 use App\Http\Controllers\Faculty\GradingController as FacultyGradingController;
 use App\Http\Controllers\Faculty\OfficeHoursController as FacultyOfficeHoursController;
+use App\Http\Controllers\Faculty\QuestionBankController;
 use App\Http\Controllers\Faculty\StudentDirectoryController as FacultyStudentDirectoryController;
 use App\Http\Controllers\LegalController;
 use App\Http\Controllers\Messenger\MessageController;
@@ -42,13 +44,11 @@ use App\Http\Controllers\Student\AssignmentController as StudentAssignmentContro
 use App\Http\Controllers\Student\CalendarExportController;
 use App\Http\Controllers\Student\ChatController;
 use App\Http\Controllers\Student\ClassTestController as StudentClassTestController;
+use App\Http\Controllers\Student\CourseFeedbackController as StudentCourseFeedbackController;
 use App\Http\Controllers\Student\FacultyDirectoryController as StudentFacultyDirectoryController;
 use App\Http\Controllers\Student\FlashcardController;
 use App\Http\Controllers\Student\LeaderboardController;
 use App\Http\Controllers\Student\LearningAnalyticsController;
-use App\Http\Controllers\Student\CourseFeedbackController as StudentCourseFeedbackController;
-use App\Http\Controllers\Faculty\CourseFeedbackController as FacultyCourseFeedbackController;
-use App\Http\Controllers\Faculty\QuestionBankController;
 use App\Http\Controllers\Student\NoteController;
 use App\Http\Controllers\Student\OfficeHoursController as StudentOfficeHoursController;
 use App\Http\Controllers\Student\PracticeQuizController;
@@ -272,6 +272,7 @@ Route::middleware(['auth'])->group(function () {
             Route::post('/class-tests/{classTest}/fingerprint', [StudentClassTestController::class, 'fingerprint'])->name('class-tests.fingerprint');
             Route::post('/class-tests/{classTest}/events', [StudentClassTestController::class, 'events'])->name('class-tests.events');
             Route::post('/class-tests/{classTest}/recording', [StudentClassTestController::class, 'recording'])->name('class-tests.recording');
+            Route::post('/class-tests/{classTest}/snapshot', [StudentClassTestController::class, 'snapshot'])->name('class-tests.snapshot');
             Route::post('/class-tests/{classTest}/submit', [StudentClassTestController::class, 'submit'])->name('class-tests.submit');
             Route::get('/class-tests/{classTest}/result', [StudentClassTestController::class, 'result'])->name('class-tests.result');
         });
@@ -392,16 +393,17 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/class-tests/{classTest}/results', [FacultyClassTestController::class, 'results'])->name('class-tests.results');
             Route::get('/class-tests/{classTest}/attempts/{attempt}', [FacultyClassTestController::class, 'attempt'])->name('class-tests.attempt');
             Route::get('/class-tests/{classTest}/attempts/{attempt}/recordings/{recording}', [FacultyClassTestController::class, 'recording'])->name('class-tests.recording');
+            Route::get('/class-tests/{classTest}/attempts/{attempt}/snapshots/{snapshot}', [FacultyClassTestController::class, 'snapshot'])->name('class-tests.snapshot');
 
-        // Question bank: per-course reusable questions, import from tests,
-        // spin draft tests from a selection.
-        Route::prefix('question-bank')->name('question-bank.')->middleware('permission:manage_class_tests')->group(function () {
-            Route::get('/', [QuestionBankController::class, 'index'])->name('index');
-            Route::post('/', [QuestionBankController::class, 'store'])->name('store');
-            Route::delete('/{item}', [QuestionBankController::class, 'destroy'])->name('destroy');
-            Route::post('/import/{classTest}', [QuestionBankController::class, 'import'])->name('import');
-            Route::post('/create-test', [QuestionBankController::class, 'createTest'])->name('create-test');
-        });
+            // Question bank: per-course reusable questions, import from tests,
+            // spin draft tests from a selection.
+            Route::prefix('question-bank')->name('question-bank.')->middleware('permission:manage_class_tests')->group(function () {
+                Route::get('/', [QuestionBankController::class, 'index'])->name('index');
+                Route::post('/', [QuestionBankController::class, 'store'])->name('store');
+                Route::delete('/{item}', [QuestionBankController::class, 'destroy'])->name('destroy');
+                Route::post('/import/{classTest}', [QuestionBankController::class, 'import'])->name('import');
+                Route::post('/create-test', [QuestionBankController::class, 'createTest'])->name('create-test');
+            });
         });
 
         // Learning analytics & academic reporting

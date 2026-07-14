@@ -143,6 +143,17 @@ php artisan migrate:fresh --seed   # schema + demo data (RBAC, academic, knowled
 npm run build
 ```
 
+### Exam face-liveness assets (committed)
+The face-liveness proctoring layer runs MediaPipe Face Landmarker fully client-side.
+Its assets live in `public/vendor/mediapipe/` (wasm bundle + `face_landmarker.task`
+model, ~37 MB total) and are committed so exams never depend on a CDN. To refresh
+them after upgrading `@mediapipe/tasks-vision`:
+```bash
+cp node_modules/@mediapipe/tasks-vision/wasm/* public/vendor/mediapipe/wasm/
+curl -L -o public/vendor/mediapipe/face_landmarker.task \
+  "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task"
+```
+
 ### Run (two terminals)
 ```bash
 php artisan serve     # http://localhost:8000
