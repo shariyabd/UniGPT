@@ -39,7 +39,7 @@ current MVP.
 | RBAC (46 perms, pivots, `expires_at`) | ✅ | `Enums/Permission`, `RBACSeeder`, `PermissionMiddleware` |
 | AI Chat (sessions, messages, modes, pin/archive) | ✅ | `Domain/Chat/Services/ChatService` |
 | RAG (chunk→embed→cosine retrieve→cite) | ✅ | `Domain/RAG/*`, MySQL vector store |
-| Multi-LLM provider (OpenAI + mock fallback) | ✅ | `Infrastructure/AI/*`; mock = zero-key default |
+| Multi-LLM provider (OpenAI → OpenRouter → mock fallback chain, admin-configurable primary; Jina embeddings alternative + dual-embed fallback) | ✅ | `Infrastructure/AI/*` (`FallbackProvider`, `OpenRouterProvider`, `JinaEmbeddingProvider`, `FallbackEmbeddingProvider`); mock = zero-key default; `rag:reembed` on provider switch |
 | Document KB + approval + embed pipeline | ✅ | `DocumentService`, `ProcessDocumentJob` |
 | Saved answers / bookmarks | ✅ | `Student/SavedAnswerController` |
 | **Streaming AI responses (SSE)** — student chat + faculty assistant | ✅ | `AIProviderInterface::chatStream`, `RagChatService::answerStream`, `chat.stream` / `faculty.ai-assistant.stream`, `resources/js/lib/sse.js` |

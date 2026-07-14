@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Enums\Permission;
 use App\Models\Document;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\UploadedFile;
@@ -10,7 +11,7 @@ class StoreDocumentRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->hasPermission(\App\Enums\Permission::UPLOAD_DOCUMENT) ?? false;
+        return $this->user()?->hasPermission(Permission::UPLOAD_DOCUMENT) ?? false;
     }
 
     /**

@@ -26,6 +26,17 @@ Stack:
   RAG-cited answers; faculty AI assistant + AI quiz/assignment generation work.
   (The earlier "mostly unimplemented scaffolding" note is outdated — verify in
   `app/Domain/Chat/*` before assuming a feature is stubbed.)
+* **Provider fallback layer (live)** — chat resolves through a `FallbackProvider`
+  chain (Admin → AI Settings picks OpenAI **or** OpenRouter as primary; the other
+  backs it up; `openrouter/auto` is the last-resort model; Mock is the terminal
+  never-fail link). Embeddings resolve **separately** — OpenRouter has no embeddings
+  endpoint — via `FallbackEmbeddingProvider`: OpenAI or **Jina** (`jina-embeddings-v3`,
+  free/multilingual), with optional dual-embed so RAG survives the primary embeddings
+  API dying at midnight. Vectors are **model-tagged** and `RetrievalService` filters to
+  the active model, so mixed-provider vectors never cross-compare; switching the
+  embedding provider auto-dispatches `ReembedCorpusJob` (`rag:reembed`). Config seeds
+  from `.env` via `AISettingsSeeder` so `migrate:fresh --seed` boots a working,
+  resilient setup. Infra: `app/Infrastructure/AI/{OpenRouterProvider,JinaEmbeddingProvider,FallbackProvider,FallbackEmbeddingProvider,Concerns/ParsesOpenAiChatWire}`. Tests: `OpenRouterFallbackTest`.
 
 **Trust code over docs.**
 

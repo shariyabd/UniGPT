@@ -4,6 +4,7 @@ namespace App\Infrastructure\AI;
 
 use App\Domain\Chat\Contracts\AIProviderInterface;
 use App\Domain\Chat\DataObjects\ChatResult;
+use App\Infrastructure\AI\Concerns\ParsesOpenAiChatWire;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
 
@@ -13,6 +14,8 @@ use RuntimeException;
  */
 class OpenAiProvider implements AIProviderInterface
 {
+    use ParsesOpenAiChatWire;
+
     private const BASE_URL = 'https://api.openai.com/v1';
 
     public function chat(array $messages, array $options = []): ChatResult
@@ -79,135 +82,16 @@ class OpenAiProvider implements AIProviderInterface
             throw new RuntimeException('OpenAI chat stream request failed: '.$response->body());
         }
 
-        $body = $response->toPsrResponse()->getBody();
-
-        $content = '';
-        $modelUsed = $model;
-        $promptTokens = 0;
-        $completionTokens = 0;
-        $buffer = '';
-        // Streamed tool calls arrive as fragments keyed by index: the id and
-        // function name in the first fragment, the JSON arguments split across
-        // the rest. Accumulate per index and decode once the stream ends.
-        $toolCallParts = [];
-
-        while (! $body->eof()) {
-            $buffer .= $body->read(1024);
-
-            // The SSE payload arrives as "data: {json}\n" lines; process every
-            // complete line and keep the remainder buffered.
-            while (($newline = strpos($buffer, "\n")) !== false) {
-                $line = trim(substr($buffer, 0, $newline));
-                $buffer = substr($buffer, $newline + 1);
-
-                if (! str_starts_with($line, 'data:')) {
-                    continue;
-                }
-
-                $payload = trim(substr($line, 5));
-                if ($payload === '' || $payload === '[DONE]') {
-                    continue;
-                }
-
-                $chunk = json_decode($payload, true);
-                if (! is_array($chunk)) {
-                    continue;
-                }
-
-                $modelUsed = (string) ($chunk['model'] ?? $modelUsed);
-
-                $delta = (string) ($chunk['choices'][0]['delta']['content'] ?? '');
-                if ($delta !== '') {
-                    $content .= $delta;
-                    $onDelta($delta);
-                }
-
-                foreach ($chunk['choices'][0]['delta']['tool_calls'] ?? [] as $fragment) {
-                    $index = (int) ($fragment['index'] ?? 0);
-                    $toolCallParts[$index] ??= ['id' => '', 'name' => '', 'arguments' => ''];
-                    if (! empty($fragment['id'])) {
-                        $toolCallParts[$index]['id'] = (string) $fragment['id'];
-                    }
-                    if (! empty($fragment['function']['name'])) {
-                        $toolCallParts[$index]['name'] .= (string) $fragment['function']['name'];
-                    }
-                    if (isset($fragment['function']['arguments'])) {
-                        $toolCallParts[$index]['arguments'] .= (string) $fragment['function']['arguments'];
-                    }
-                }
-
-                if (isset($chunk['usage'])) {
-                    $promptTokens = (int) ($chunk['usage']['prompt_tokens'] ?? 0);
-                    $completionTokens = (int) ($chunk['usage']['completion_tokens'] ?? 0);
-                }
-            }
-        }
+        $parsed = $this->consumeChatStream($response->toPsrResponse()->getBody(), $model, $onDelta);
 
         return new ChatResult(
-            content: $content,
-            model: $modelUsed,
-            promptTokens: $promptTokens,
-            completionTokens: $completionTokens,
+            content: $parsed['content'],
+            model: $parsed['model'],
+            promptTokens: $parsed['prompt_tokens'],
+            completionTokens: $parsed['completion_tokens'],
             raw: ['provider' => 'openai', 'streamed' => true],
-            toolCalls: $this->normalizeStreamedToolCalls($toolCallParts),
+            toolCalls: $parsed['tool_calls'],
         );
-    }
-
-    /**
-     * Normalize the non-streaming tool_calls shape into
-     * [{id, name, arguments(array)}], dropping malformed entries.
-     *
-     * @param  array<int, array<string, mixed>>  $toolCalls
-     * @return array<int, array{id: string, name: string, arguments: array<string, mixed>}>
-     */
-    private function normalizeToolCalls(array $toolCalls): array
-    {
-        $normalized = [];
-
-        foreach ($toolCalls as $call) {
-            $name = (string) ($call['function']['name'] ?? '');
-            if ($name === '') {
-                continue;
-            }
-
-            $arguments = json_decode((string) ($call['function']['arguments'] ?? '{}'), true);
-
-            $normalized[] = [
-                'id' => (string) ($call['id'] ?? ''),
-                'name' => $name,
-                'arguments' => is_array($arguments) ? $arguments : [],
-            ];
-        }
-
-        return $normalized;
-    }
-
-    /**
-     * Assemble tool calls accumulated from stream fragments.
-     *
-     * @param  array<int, array{id: string, name: string, arguments: string}>  $parts
-     * @return array<int, array{id: string, name: string, arguments: array<string, mixed>}>
-     */
-    private function normalizeStreamedToolCalls(array $parts): array
-    {
-        ksort($parts);
-        $normalized = [];
-
-        foreach ($parts as $part) {
-            if ($part['name'] === '') {
-                continue;
-            }
-
-            $arguments = json_decode($part['arguments'] !== '' ? $part['arguments'] : '{}', true);
-
-            $normalized[] = [
-                'id' => $part['id'],
-                'name' => $part['name'],
-                'arguments' => is_array($arguments) ? $arguments : [],
-            ];
-        }
-
-        return $normalized;
     }
 
     public function extractText(string $imagePath, string $mimeType): string

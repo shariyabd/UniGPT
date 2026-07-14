@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Domain\Chat\Contracts\AIProviderInterface;
 use App\Domain\Chat\Document\Services\DocumentService;
 use App\Domain\User\Models\User;
 use App\Domain\User\Services\UserManagementService;
@@ -12,6 +13,7 @@ use App\Models\ActivityLog;
 use App\Models\AttendanceRecord;
 use App\Models\Document;
 use App\Models\Term;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -120,7 +122,7 @@ class AdminDashboardController extends Controller
             'status' => $status,
             'database_status' => $databaseUp ? 'healthy' : 'down',
             'disk_used_percent' => $diskUsedPercent,
-            'ai_provider' => app(\App\Domain\Chat\Contracts\AIProviderInterface::class)->name(),
+            'ai_provider' => app(AIProviderInterface::class)->name(),
             'documents_indexed' => $docStats['approved'],
             'documents_pending' => $docStats['pending'],
         ];
@@ -129,7 +131,7 @@ class AdminDashboardController extends Controller
     private function databaseUp(): bool
     {
         try {
-            \Illuminate\Support\Facades\DB::connection()->getPdo();
+            DB::connection()->getPdo();
 
             return true;
         } catch (\Throwable $e) {

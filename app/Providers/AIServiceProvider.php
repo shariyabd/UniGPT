@@ -64,6 +64,15 @@ class AIServiceProvider extends ServiceProvider
         if (! empty($ai['embedding_model'])) {
             $overrides['ai.embedding.model'] = $ai['embedding_model'];
         }
+        if (! empty($ai['embedding_provider'])) {
+            $overrides['ai.embedding.provider'] = $ai['embedding_provider'];
+        }
+        if (isset($ai['embedding_fallback_enabled'])) {
+            $overrides['ai.embedding.fallback.enabled'] = (bool) $ai['embedding_fallback_enabled'];
+        }
+        if (! empty($ai['embedding_fallback_secondary'])) {
+            $overrides['ai.embedding.fallback.secondary'] = $ai['embedding_fallback_secondary'];
+        }
         if (isset($ai['temperature'])) {
             $overrides['ai.providers.openai.temperature'] = (float) $ai['temperature'];
         }
@@ -76,8 +85,17 @@ class AIServiceProvider extends ServiceProvider
         if (isset($ai['rag_similarity_threshold'])) {
             $overrides['rag.retrieval.similarity_threshold'] = (float) $ai['rag_similarity_threshold'];
         }
+        if (isset($ai['fallback_enabled'])) {
+            $overrides['ai.fallback.enabled'] = (bool) $ai['fallback_enabled'];
+        }
+        if (! empty($ai['fallback_primary'])) {
+            $overrides['ai.fallback.primary'] = $ai['fallback_primary'];
+        }
+        if (! empty($ai['openrouter_models']) && is_array($ai['openrouter_models'])) {
+            $overrides['ai.providers.openrouter.models'] = array_values($ai['openrouter_models']);
+        }
 
-        foreach (['openai' => 'openai_api_key', 'gemini' => 'gemini_api_key'] as $provider => $field) {
+        foreach (['openai' => 'openai_api_key', 'gemini' => 'gemini_api_key', 'openrouter' => 'openrouter_api_key', 'jina' => 'jina_api_key'] as $provider => $field) {
             if (! empty($ai[$field])) {
                 try {
                     $overrides["ai.providers.{$provider}.api_key"] = decrypt($ai[$field]);

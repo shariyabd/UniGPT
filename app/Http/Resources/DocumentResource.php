@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Document;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Route;
@@ -9,7 +10,7 @@ use Illuminate\Support\Facades\Route;
 /**
  * Unified document shape consumed by the admin + student Vue pages.
  *
- * @mixin \App\Models\Document
+ * @mixin Document
  */
 class DocumentResource extends JsonResource
 {

@@ -41,7 +41,13 @@ const props = defineProps({
     },
     providerStatus: {
         type: Object,
-        default: () => ({ active: 'mock', openaiConfigured: false, openaiKeyStored: false }),
+        default: () => ({
+            active: 'mock',
+            openaiConfigured: false,
+            openaiKeyStored: false,
+            openrouterConfigured: false,
+            openrouterKeyStored: false,
+        }),
     },
     providerOptions: {
         type: Array,
@@ -56,8 +62,18 @@ const form = useForm({
     provider: props.settings.provider ?? 'openai',
     model: props.settings.model ?? '',
     embedding_model: props.settings.embedding_model ?? '',
+    embedding_provider: props.settings.embedding_provider ?? 'openai',
+    embedding_fallback_enabled: Boolean(props.settings.embedding_fallback_enabled),
+    embedding_fallback_secondary: props.settings.embedding_fallback_secondary ?? 'jina',
+    jina_api_key: '',
+    remove_jina_key: false,
     openai_api_key: '',
     remove_openai_key: false,
+    fallback_enabled: Boolean(props.settings.fallback_enabled),
+    fallback_primary: props.settings.fallback_primary ?? 'openai',
+    openrouter_api_key: '',
+    remove_openrouter_key: false,
+    openrouter_models: props.settings.openrouter_models ?? '',
     temperature: Number(props.settings.temperature),
     max_tokens: Number(props.settings.max_tokens),
     rag_top_k: Number(props.settings.rag_top_k),
@@ -87,18 +103,23 @@ const save = () => {
         onSuccess: () => {
             form.openai_api_key = '';
             form.remove_openai_key = false;
+            form.openrouter_api_key = '';
+            form.remove_openrouter_key = false;
+            form.jina_api_key = '';
+            form.remove_jina_key = false;
         },
     });
 };
 
-const testConnection = async () => {
+// `provider` targets a specific tier ('openrouter'); omitted = the active provider.
+const testConnection = async (provider = null) => {
     isTesting.value = true;
     testResult.value = null;
     try {
-        const { data } = await axios.post(route('admin.settings.test'));
+        const { data } = await axios.post(route('admin.settings.test'), provider ? { provider } : {});
         testResult.value = { ok: data.available, ...data };
     } catch (e) {
-        testResult.value = { ok: false, message: 'Test request failed.' };
+        testResult.value = { ok: e.response?.data?.available ?? false, ...(e.response?.data ?? { message: 'Test request failed.' }) };
     } finally {
         isTesting.value = false;
     }
@@ -143,6 +164,18 @@ const testConnection = async () => {
                             class="inline-flex items-center gap-1.5 text-sm font-medium text-warning-fg"
                         >
                             <ExclamationTriangleIcon class="h-4 w-4" /> No OpenAI key — using mock provider
+                        </span>
+                        <span
+                            v-if="providerStatus.openrouterConfigured"
+                            class="inline-flex items-center gap-1.5 text-sm font-medium text-success-fg"
+                        >
+                            <CheckCircleIcon class="h-4 w-4" /> OpenRouter fallback ready
+                        </span>
+                        <span
+                            v-if="providerStatus.jinaConfigured"
+                            class="inline-flex items-center gap-1.5 text-sm font-medium text-success-fg"
+                        >
+                            <CheckCircleIcon class="h-4 w-4" /> Jina embeddings ready
                         </span>
                     </div>
 
@@ -237,6 +270,185 @@ const testConnection = async () => {
                                 </datalist>
                                 <p v-if="form.errors.embedding_model" class="mt-1 text-xs text-danger-fg">{{ form.errors.embedding_model }}</p>
                             </div>
+                        </div>
+                    </Card>
+
+                    <Card title="OpenRouter Fallback" subtitle="Automatically fail over to OpenRouter free models when OpenAI fails" :icon="CloudIcon">
+                        <template #actions>
+                            <button
+                                type="button"
+                                @click="testConnection('openrouter')"
+                                :disabled="isTesting"
+                                class="ui-btn-secondary disabled:opacity-50"
+                            >
+                                <PlayIcon class="h-4 w-4" />
+                                {{ isTesting ? 'Testing…' : 'Test OpenRouter' }}
+                            </button>
+                        </template>
+
+                        <div class="space-y-6">
+                            <label class="flex items-start gap-3">
+                                <input v-model="form.fallback_enabled" type="checkbox" class="mt-1 rounded border-line text-primary" />
+                                <span>
+                                    <span class="ui-label mb-0">Enable provider fallback</span>
+                                    <span class="mt-1 block text-xs text-content-muted">
+                                        When the primary provider returns an error, times out, or its key is exhausted,
+                                        chat requests instantly retry on the other provider before falling back to the
+                                        offline mock provider. Requires an OpenRouter API key below.
+                                    </span>
+                                </span>
+                            </label>
+
+                            <div>
+                                <label class="ui-label">Primary provider</label>
+                                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                    <label
+                                        v-for="opt in [
+                                            { value: 'openai', label: 'OpenAI', hint: 'OpenAI leads · OpenRouter backs it up' },
+                                            { value: 'openrouter', label: 'OpenRouter', hint: 'OpenRouter leads · OpenAI backs it up' },
+                                        ]"
+                                        :key="opt.value"
+                                        :class="`flex cursor-pointer items-start gap-3 rounded-control border p-3 ${form.fallback_primary === opt.value ? 'border-primary bg-primary/5' : 'border-line'}`"
+                                    >
+                                        <input v-model="form.fallback_primary" :value="opt.value" type="radio" class="mt-1 border-line text-primary" />
+                                        <span>
+                                            <span class="block text-sm font-medium text-content">{{ opt.label }}</span>
+                                            <span class="mt-0.5 block text-xs text-content-muted">{{ opt.hint }}</span>
+                                        </span>
+                                    </label>
+                                </div>
+                                <p class="mt-1 text-xs text-content-muted">
+                                    The chosen provider is tried first; the other becomes the automatic fallback.
+                                    The offline mock provider is always the final safety net.
+                                </p>
+                                <p v-if="form.errors.fallback_primary" class="mt-1 text-xs text-danger-fg">{{ form.errors.fallback_primary }}</p>
+                            </div>
+
+                            <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                                <div>
+                                    <label class="ui-label">OpenRouter API Key</label>
+                                    <input
+                                        v-model="form.openrouter_api_key"
+                                        type="password"
+                                        autocomplete="off"
+                                        :placeholder="providerStatus.openrouterKeyStored ? '•••••••••• (stored — leave blank to keep)' : 'sk-or-…'"
+                                        class="ui-input font-mono"
+                                    />
+                                    <div class="mt-1 flex items-center justify-between gap-2">
+                                        <p class="text-xs text-content-muted">Stored encrypted; never shown again.</p>
+                                        <label v-if="providerStatus.openrouterKeyStored" class="inline-flex items-center gap-1.5 text-xs text-danger-fg">
+                                            <input v-model="form.remove_openrouter_key" type="checkbox" class="rounded border-line text-danger-fg" />
+                                            Remove stored key
+                                        </label>
+                                    </div>
+                                    <p v-if="form.errors.openrouter_api_key" class="mt-1 text-xs text-danger-fg">{{ form.errors.openrouter_api_key }}</p>
+                                </div>
+
+                                <div>
+                                    <label class="ui-label">Model Chain</label>
+                                    <textarea
+                                        v-model="form.openrouter_models"
+                                        rows="3"
+                                        placeholder="meta-llama/llama-3.3-70b-instruct:free"
+                                        class="ui-input resize-none font-mono text-sm"
+                                    ></textarea>
+                                    <p class="mt-1 text-xs text-content-muted">
+                                        One model per line, tried in order. <span class="font-mono">openrouter/auto</span> is always
+                                        appended as the last resort so a request resolves even when specific free models are down.
+                                    </p>
+                                    <p v-if="form.errors.openrouter_models" class="mt-1 text-xs text-danger-fg">{{ form.errors.openrouter_models }}</p>
+                                </div>
+                            </div>
+
+                            <p class="rounded-control border border-line bg-bg p-3 text-xs text-content-muted">
+                                <ExclamationTriangleIcon class="mr-1 inline h-4 w-4 text-warning-fg" />
+                                Embeddings always stay on OpenAI — OpenRouter has no embeddings endpoint, and re-embedding with a
+                                different model would break document retrieval. Only chat/completions fail over.
+                            </p>
+                        </div>
+                    </Card>
+
+                    <Card title="Embeddings Provider" subtitle="Powers RAG retrieval — can differ from the chat provider" :icon="CircleStackIcon">
+                        <template #actions>
+                            <button
+                                type="button"
+                                @click="testConnection('embedding')"
+                                :disabled="isTesting"
+                                class="ui-btn-secondary disabled:opacity-50"
+                            >
+                                <PlayIcon class="h-4 w-4" />
+                                {{ isTesting ? 'Testing…' : 'Test Embeddings' }}
+                            </button>
+                        </template>
+
+                        <div class="space-y-6">
+                            <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                                <div>
+                                    <label class="ui-label">Primary provider</label>
+                                    <select v-model="form.embedding_provider" class="ui-input">
+                                        <option value="openai">OpenAI (text-embedding-3-small)</option>
+                                        <option value="jina">Jina AI (free · multilingual)</option>
+                                        <option value="mock">Mock (offline / no key)</option>
+                                    </select>
+                                    <p class="mt-1 text-xs text-content-muted">
+                                        Active model:
+                                        <span class="font-mono">{{ settings.embedding_model_active || '—' }}</span>
+                                    </p>
+                                    <p v-if="form.errors.embedding_provider" class="mt-1 text-xs text-danger-fg">{{ form.errors.embedding_provider }}</p>
+                                </div>
+
+                                <div>
+                                    <label class="ui-label">Jina API Key</label>
+                                    <input
+                                        v-model="form.jina_api_key"
+                                        type="password"
+                                        autocomplete="off"
+                                        :placeholder="providerStatus.jinaKeyStored ? '•••••••••• (stored — leave blank to keep)' : 'jina_…'"
+                                        class="ui-input font-mono"
+                                    />
+                                    <div class="mt-1 flex items-center justify-between gap-2">
+                                        <p class="text-xs text-content-muted">Stored encrypted; never shown again.</p>
+                                        <label v-if="providerStatus.jinaKeyStored" class="inline-flex items-center gap-1.5 text-xs text-danger-fg">
+                                            <input v-model="form.remove_jina_key" type="checkbox" class="rounded border-line text-danger-fg" />
+                                            Remove stored key
+                                        </label>
+                                    </div>
+                                    <p v-if="form.errors.jina_api_key" class="mt-1 text-xs text-danger-fg">{{ form.errors.jina_api_key }}</p>
+                                </div>
+                            </div>
+
+                            <div class="rounded-control border border-line bg-bg p-4">
+                                <label class="flex items-start gap-3">
+                                    <input v-model="form.embedding_fallback_enabled" type="checkbox" class="mt-1 rounded border-line text-primary" />
+                                    <span>
+                                        <span class="ui-label mb-0">Enable embedding fallback (dual-index)</span>
+                                        <span class="mt-1 block text-xs text-content-muted">
+                                            Embeds every document with <em>both</em> the primary and secondary provider.
+                                            If the primary embeddings API goes down mid-use (e.g. OpenAI quota at midnight),
+                                            retrieval instantly falls back to the secondary provider's vectors, so RAG never
+                                            breaks. Uses more storage and indexing time.
+                                        </span>
+                                    </span>
+                                </label>
+
+                                <div v-if="form.embedding_fallback_enabled" class="mt-4 sm:max-w-xs">
+                                    <label class="ui-label">Secondary (fallback) provider</label>
+                                    <select v-model="form.embedding_fallback_secondary" class="ui-input">
+                                        <option value="jina">Jina AI (free · multilingual)</option>
+                                        <option value="openai">OpenAI (text-embedding-3-small)</option>
+                                        <option value="mock">Mock (offline / no key)</option>
+                                    </select>
+                                    <p v-if="form.errors.embedding_fallback_secondary" class="mt-1 text-xs text-danger-fg">{{ form.errors.embedding_fallback_secondary }}</p>
+                                </div>
+                            </div>
+
+                            <p class="rounded-control border border-line bg-bg p-3 text-xs text-content-muted">
+                                <ExclamationTriangleIcon class="mr-1 inline h-4 w-4 text-warning-fg" />
+                                Changing any embedding setting automatically re-indexes your documents with the new
+                                model(s) on save — no need to run <span class="font-mono">php artisan rag:reembed</span> by
+                                hand. Retrieval only scores vectors from the active model, so re-indexing is what keeps
+                                results flowing after a switch.
+                            </p>
                         </div>
                     </Card>
 

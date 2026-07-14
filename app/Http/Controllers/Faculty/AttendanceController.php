@@ -6,9 +6,11 @@ use App\Domain\Academic\Services\AttendanceService;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Faculty\MarkAttendanceRequest;
 use App\Models\Course;
+use App\Models\Section;
 use App\Services\ActivityLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -74,7 +76,7 @@ class AttendanceController extends Controller
      * it for this course, otherwise their default section. Attendance is always
      * scoped to one of the instructor's own sections.
      */
-    private function facultySection(Course $course, Request $request): \App\Models\Section
+    private function facultySection(Course $course, Request $request): Section
     {
         $requested = $request->integer('section') ?: null;
 
@@ -91,9 +93,9 @@ class AttendanceController extends Controller
     /**
      * The sections of this course taught by the current faculty member.
      *
-     * @return \Illuminate\Support\Collection<int, \App\Models\Section>
+     * @return Collection<int, Section>
      */
-    private function facultySections(Course $course, Request $request): \Illuminate\Support\Collection
+    private function facultySections(Course $course, Request $request): Collection
     {
         return $course->sections()
             ->where('faculty_id', $request->user()->id)

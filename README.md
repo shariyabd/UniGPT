@@ -118,7 +118,8 @@ The differentiator: AI answers are **grounded in institution-approved documents
 | Route bridge | **Ziggy** (`route()` helper in Vue) |
 | Database | **MySQL** (`uni_gpt`) — application data **and** the vector store |
 | Toasts | `vue-toastification` |
-| AI provider | Pluggable **OpenAI** (native HTTP, no SDK) + always-available **deterministic Mock** fallback |
+| AI provider | Pluggable **OpenAI** (native HTTP, no SDK) with an admin-configurable **OpenRouter** fallback chain (free models, either provider primary) and always-available **deterministic Mock** fallback |
+| Embeddings | **OpenAI** or **Jina AI** (free, multilingual), selectable in admin; optional dual-embed fallback keeps RAG alive if the primary embeddings API dies. Vectors are model-tagged so providers never cross-compare |
 | Document parsing | `smalot/pdfparser` (PDF) + native ZipArchive/XML (DOCX) |
 | JS testing | **Vitest** + `@vue/test-utils` + `jsdom` |
 | Architecture | **Domain-Driven Design** layout (`app/Domain/*`, `app/Infrastructure/*`) |
@@ -240,8 +241,8 @@ Browser (Vue 3 page) ──Inertia──▶ routes/web.php ──▶ Controller 
                                     ┌──────────────────┼───────────────────┐
                                     ▼                  ▼                   ▼
                               Eloquent models     RAG pipeline       AI provider
-                              (MySQL)         (chunk→embed→retrieve   (OpenAI | Mock)
-                                               →cite, MySQL vectors)
+                              (MySQL)         (chunk→embed→retrieve   (OpenAI→OpenRouter
+                                               →cite, MySQL vectors)    | Jina embeds | Mock)
 ```
 
 - **One route file** — `routes/web.php` (the `routes/{student,faculty,admin}.php`

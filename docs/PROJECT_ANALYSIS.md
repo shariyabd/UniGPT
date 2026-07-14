@@ -335,9 +335,17 @@ Controller (thin: orchestrate + respond)
   accept `options['tools']` (function-calling schemas) and report requested calls via
   `ChatResult::$toolCalls` — the hook the agentic tutor (§2.4b) is built on.
 - **Implementations:** `OpenAiProvider` (native HTTP, no SDK; SSE streaming with
-  `stream_options.include_usage` so token accounting survives streaming) and
+  `stream_options.include_usage` so token accounting survives streaming),
+  `OpenRouterProvider` (OpenAI-wire-compatible free-model chain ending in
+  `openrouter/auto`), `JinaEmbeddingProvider` (free multilingual embeddings) and
   `MockProvider` (deterministic, always available, word-streams its answers);
-  resolved by `AIProviderManager` with auto-fallback.
+  resolved by `AIProviderManager`. Chat runs through a `FallbackProvider` chain
+  (admin picks OpenAI or OpenRouter as primary; the other backs it up, mock is the
+  terminal never-fail link); embeddings resolve separately (OpenRouter has no
+  embeddings endpoint) via `FallbackEmbeddingProvider`, with optional dual-embed so
+  RAG survives the primary embeddings API dying. Vectors are model-tagged and
+  retrieval filters to the active model, so providers never cross-compare; switching
+  providers auto-dispatches `rag:reembed`.
 - **Vector store = MySQL.** Embeddings are JSON in the `embeddings` table; retrieval is
   PHP cosine similarity. `app/Infrastructure/VectorDB/` is empty and `config/vector.php`
   is unused — both are swap points for a managed vector DB at scale.

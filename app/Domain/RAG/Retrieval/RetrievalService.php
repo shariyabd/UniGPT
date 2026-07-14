@@ -275,14 +275,15 @@ class RetrievalService
     }
 
     /**
-     * Provider-aware similarity threshold. Mock lexical similarities are lower
-     * than the OpenAI-tuned default, so we relax the floor in mock mode.
+     * Embedding-aware similarity threshold. Mock lexical similarities are lower
+     * than the OpenAI-tuned default, so we relax the floor whenever the active
+     * embedding model is the mock hash embedder — regardless of the chat provider.
      */
     private function threshold(): float
     {
         $configured = $this->settings->similarityThreshold();
 
-        return $this->provider->name() === 'mock'
+        return str_starts_with($this->provider->embeddingModel(), 'mock')
             ? min($configured, 0.08)
             : $configured;
     }

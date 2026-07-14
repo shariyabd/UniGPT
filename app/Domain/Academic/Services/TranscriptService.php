@@ -4,6 +4,7 @@ namespace App\Domain\Academic\Services;
 
 use App\Domain\User\Models\User;
 use App\Models\Course;
+use Illuminate\Support\Collection;
 
 /**
  * Builds an academic transcript (term-grouped grades, per-term GPA and CGPA)
@@ -74,7 +75,7 @@ class TranscriptService
     }
 
     /**
-     * @param  \Illuminate\Support\Collection<int, Course>  $courses
+     * @param  Collection<int, Course>  $courses
      * @return array<string, mixed>
      */
     private function buildSemester(string $semester, $courses): array

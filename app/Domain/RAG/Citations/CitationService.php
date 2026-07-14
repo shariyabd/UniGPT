@@ -3,6 +3,8 @@
 namespace App\Domain\RAG\Citations;
 
 use App\Enums\ConfidenceLevel;
+use App\Models\Document;
+use App\Models\DocumentChunk;
 use Illuminate\Support\Collection;
 
 /**
@@ -12,7 +14,7 @@ use Illuminate\Support\Collection;
 class CitationService
 {
     /**
-     * @param  Collection<int, array{chunk: \App\Models\DocumentChunk, document: \App\Models\Document, score: float}>  $retrieved
+     * @param  Collection<int, array{chunk: DocumentChunk, document: Document, score: float}>  $retrieved
      * @return array<int, array<string, mixed>>
      */
     public function toSources(Collection $retrieved): array
@@ -41,7 +43,7 @@ class CitationService
      * Build the "Context:" block consumed by providers (and read back by the
      * mock provider) from the retrieved chunks.
      *
-     * @param  Collection<int, array{chunk: \App\Models\DocumentChunk, document: \App\Models\Document, score: float}>  $retrieved
+     * @param  Collection<int, array{chunk: DocumentChunk, document: Document, score: float}>  $retrieved
      */
     public function buildContext(Collection $retrieved): string
     {
@@ -66,7 +68,7 @@ class CitationService
     /**
      * Overall answer confidence from the best retrieval score.
      *
-     * @param  Collection<int, array{chunk: \App\Models\DocumentChunk, document: \App\Models\Document, score: float}>  $retrieved
+     * @param  Collection<int, array{chunk: DocumentChunk, document: Document, score: float}>  $retrieved
      */
     public function overallConfidence(Collection $retrieved): float
     {
