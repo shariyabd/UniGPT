@@ -30,6 +30,36 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Default Live State (hidden maintenance switch)
+    |--------------------------------------------------------------------------
+    |
+    | The initial state used by HandleMaintenanceMode before the ?live=true /
+    | ?live=false shortcut has ever been toggled. `true` (default) means the app
+    | runs normally out of the box; set to `false` to make the public land on the
+    | Maintenance page until an operator unlocks the session with ?live=true.
+    |
+    */
+
+    'live_default' => (bool) env('APP_LIVE_DEFAULT', true),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Application Mode (demo gate)
+    |--------------------------------------------------------------------------
+    |
+    | `APP_MODE=demo` puts the deployment in demo mode, which activates the AI
+    | usage cap (User::DEMO_AI_REQUEST_LIMIT requests per account across every AI
+    | feature). Any other value runs the app unmetered. `app.demo` is the derived
+    | boolean the app checks.
+    |
+    */
+
+    'mode' => env('APP_MODE', 'live'),
+
+    'demo' => env('APP_MODE', 'live') === 'demo',
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Debug Mode
     |--------------------------------------------------------------------------
     |

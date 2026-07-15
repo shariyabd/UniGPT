@@ -80,6 +80,13 @@ Route::get('/calendar/feed/{user}', [CalendarExportController::class, 'feed'])
     ->middleware(['signed', 'throttle:30,1'])
     ->name('calendar.feed');
 
+// Hidden/internal maintenance switch. `?live=true` (or live=1) runs the app
+// normally; `?live=false` (or live=0) drops the whole site into Maintenance Mode.
+// The toggle is handled globally by HandleMaintenanceMode (any URL honours the
+// `live` param); this named route is the canonical shortcut and redirects home
+// once the state has been applied.
+Route::get('/live', fn () => redirect()->route('home'))->name('live.toggle');
+
 // Public marketing landing page.
 Route::get('/', fn () => Inertia::render('Landing'))->name('home');
 
@@ -162,8 +169,8 @@ Route::middleware(['auth'])->group(function () {
         // AI chat (page is Inertia; send/load are JSON for a live feel)
         Route::get('/chat', [ChatController::class, 'index'])->middleware('permission:use_ai_chat')->name('chat');
         Route::get('/chat/archived', [ChatController::class, 'archived'])->middleware('permission:view_chat_history')->name('chat.archived');
-        Route::post('/chat', [ChatController::class, 'store'])->middleware(['permission:use_ai_chat', 'ai.chat.access'])->name('chat.send');
-        Route::post('/chat/stream', [ChatController::class, 'stream'])->middleware(['permission:use_ai_chat', 'ai.chat.access'])->name('chat.stream');
+        Route::post('/chat', [ChatController::class, 'store'])->middleware(['permission:use_ai_chat', 'ai.chat.access', 'demo.ai.limit'])->name('chat.send');
+        Route::post('/chat/stream', [ChatController::class, 'stream'])->middleware(['permission:use_ai_chat', 'ai.chat.access', 'demo.ai.limit'])->name('chat.stream');
         Route::get('/chat/sessions/{session}', [ChatController::class, 'show'])->middleware('permission:view_chat_history')->name('chat.session');
         Route::patch('/chat/sessions/{session}', [ChatController::class, 'rename'])->middleware('permission:use_ai_chat')->name('chat.session.rename');
         Route::patch('/chat/sessions/{session}/pin', [ChatController::class, 'togglePin'])->middleware('permission:view_chat_history')->name('chat.session.pin');
@@ -176,7 +183,7 @@ Route::middleware(['auth'])->group(function () {
         Route::prefix('flashcards')->name('flashcards.')->group(function () {
             Route::get('/', [FlashcardController::class, 'index'])->name('index');
             Route::post('/', [FlashcardController::class, 'store'])->name('store');
-            Route::post('/generate', [FlashcardController::class, 'generate'])->middleware(['permission:use_ai_chat', 'ai.chat.access'])->name('generate');
+            Route::post('/generate', [FlashcardController::class, 'generate'])->middleware(['permission:use_ai_chat', 'ai.chat.access', 'demo.ai.limit'])->name('generate');
             Route::get('/{deck}', [FlashcardController::class, 'show'])->name('show');
             Route::patch('/{deck}', [FlashcardController::class, 'update'])->name('update');
             Route::delete('/{deck}', [FlashcardController::class, 'destroy'])->name('destroy');
@@ -210,7 +217,7 @@ Route::middleware(['auth'])->group(function () {
         // server-side grading; generation reuses the AI-chat access gate.
         Route::prefix('practice')->name('practice.')->group(function () {
             Route::get('/', [PracticeQuizController::class, 'index'])->name('index');
-            Route::post('/generate', [PracticeQuizController::class, 'generate'])->middleware(['permission:use_ai_chat', 'ai.chat.access'])->name('generate');
+            Route::post('/generate', [PracticeQuizController::class, 'generate'])->middleware(['permission:use_ai_chat', 'ai.chat.access', 'demo.ai.limit'])->name('generate');
             Route::post('/from-bank', [PracticeQuizController::class, 'fromBank'])->name('from-bank');
             Route::get('/{quiz}', [PracticeQuizController::class, 'show'])->name('show');
             Route::post('/{quiz}/submit', [PracticeQuizController::class, 'submit'])->name('submit');
@@ -281,7 +288,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/notes', [NoteController::class, 'index'])->name('notes');
         Route::post('/notes', [NoteController::class, 'store'])->name('notes.store');
         // OCR handwritten notes — gpt-4o vision transcription (behind the AI gate)
-        Route::post('/notes/ocr', [NoteController::class, 'ocr'])->middleware(['permission:use_ai_chat', 'ai.chat.access'])->name('notes.ocr');
+        Route::post('/notes/ocr', [NoteController::class, 'ocr'])->middleware(['permission:use_ai_chat', 'ai.chat.access', 'demo.ai.limit'])->name('notes.ocr');
         Route::patch('/notes/{note}', [NoteController::class, 'update'])->name('notes.update');
         Route::delete('/notes/{note}', [NoteController::class, 'destroy'])->name('notes.destroy');
 
@@ -289,7 +296,7 @@ Route::middleware(['auth'])->group(function () {
         // saves chosen sessions as personal Tasks. Generation reuses the AI-chat
         // access gate so admin AI-blocking covers it too.
         Route::get('/study-planner', [StudyPlannerController::class, 'index'])->name('study-planner');
-        Route::post('/study-planner/generate', [StudyPlannerController::class, 'generate'])->middleware(['permission:use_ai_chat', 'ai.chat.access'])->name('study-planner.generate');
+        Route::post('/study-planner/generate', [StudyPlannerController::class, 'generate'])->middleware(['permission:use_ai_chat', 'ai.chat.access', 'demo.ai.limit'])->name('study-planner.generate');
         Route::post('/study-planner/tasks', [StudyPlannerController::class, 'storeTasks'])->name('study-planner.tasks');
 
         // Personal productivity — Tasks
@@ -344,7 +351,7 @@ Route::middleware(['auth'])->group(function () {
         // Anonymous course feedback: per-section window + anonymized results + AI summary.
         Route::get('/course-feedback', [FacultyCourseFeedbackController::class, 'index'])->name('course-feedback');
         Route::patch('/course-feedback/{section}/toggle', [FacultyCourseFeedbackController::class, 'toggle'])->name('course-feedback.toggle');
-        Route::post('/course-feedback/{section}/summarize', [FacultyCourseFeedbackController::class, 'summarize'])->middleware(['permission:use_ai_chat', 'ai.chat.access'])->name('course-feedback.summarize');
+        Route::post('/course-feedback/{section}/summarize', [FacultyCourseFeedbackController::class, 'summarize'])->middleware(['permission:use_ai_chat', 'ai.chat.access', 'demo.ai.limit'])->name('course-feedback.summarize');
 
         // My Documents — faculty-submitted documents that flow into the admin
         // approval queue. Owner-scoped upload / edit / delete.
@@ -360,16 +367,16 @@ Route::middleware(['auth'])->group(function () {
         // AI teaching assistant — full ChatGPT-style chat workspace + generators
         Route::get('/ai-assistant', [FacultyAIAssistantController::class, 'index'])->middleware('permission:use_ai_chat')->name('ai-assistant');
         Route::get('/ai-assistant/archived', [FacultyAIAssistantController::class, 'archived'])->middleware('permission:view_chat_history')->name('ai-assistant.archived');
-        Route::post('/ai-assistant/chat', [FacultyAIAssistantController::class, 'chat'])->middleware('permission:use_ai_chat')->name('ai-assistant.chat');
-        Route::post('/ai-assistant/chat/stream', [FacultyAIAssistantController::class, 'stream'])->middleware('permission:use_ai_chat')->name('ai-assistant.stream');
+        Route::post('/ai-assistant/chat', [FacultyAIAssistantController::class, 'chat'])->middleware(['permission:use_ai_chat', 'demo.ai.limit'])->name('ai-assistant.chat');
+        Route::post('/ai-assistant/chat/stream', [FacultyAIAssistantController::class, 'stream'])->middleware(['permission:use_ai_chat', 'demo.ai.limit'])->name('ai-assistant.stream');
         Route::get('/ai-assistant/sessions/{session}', [FacultyAIAssistantController::class, 'show'])->middleware('permission:view_chat_history')->name('ai-assistant.session');
         Route::patch('/ai-assistant/sessions/{session}', [FacultyAIAssistantController::class, 'rename'])->middleware('permission:use_ai_chat')->name('ai-assistant.session.rename');
         Route::patch('/ai-assistant/sessions/{session}/pin', [FacultyAIAssistantController::class, 'togglePin'])->middleware('permission:view_chat_history')->name('ai-assistant.session.pin');
         Route::patch('/ai-assistant/sessions/{session}/archive', [FacultyAIAssistantController::class, 'archive'])->middleware('permission:use_ai_chat')->name('ai-assistant.session.archive');
         Route::patch('/ai-assistant/sessions/{session}/unarchive', [FacultyAIAssistantController::class, 'unarchive'])->middleware('permission:use_ai_chat')->name('ai-assistant.session.unarchive');
         Route::delete('/ai-assistant/sessions/{session}', [FacultyAIAssistantController::class, 'destroySession'])->middleware('permission:delete_chat')->name('ai-assistant.session.destroy');
-        Route::post('/ai-assistant/quiz', [FacultyAIAssistantController::class, 'generateQuiz'])->middleware('permission:use_ai_chat')->name('ai-assistant.quiz');
-        Route::post('/ai-assistant/assignment', [FacultyAIAssistantController::class, 'generateAssignment'])->middleware('permission:create_assignment')->name('ai-assistant.assignment');
+        Route::post('/ai-assistant/quiz', [FacultyAIAssistantController::class, 'generateQuiz'])->middleware(['permission:use_ai_chat', 'demo.ai.limit'])->name('ai-assistant.quiz');
+        Route::post('/ai-assistant/assignment', [FacultyAIAssistantController::class, 'generateAssignment'])->middleware(['permission:create_assignment', 'demo.ai.limit'])->name('ai-assistant.assignment');
         Route::post('/ai-assistant/publish', [FacultyAIAssistantController::class, 'publish'])->middleware('permission:create_assignment')->name('ai-assistant.publish');
         Route::post('/ai-assistant/publish-class-test', [FacultyAIAssistantController::class, 'publishClassTest'])->middleware('permission:manage_class_tests')->name('ai-assistant.publish-class-test');
 
@@ -421,7 +428,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/submissions/{submission}/download', [FacultyGradingController::class, 'downloadSubmission'])->middleware('permission:grade_assignment')->name('submissions.download');
         Route::post('/submissions/{submission}/grade', [FacultyGradingController::class, 'grade'])->middleware('permission:grade_assignment')->name('submissions.grade');
         Route::post('/submissions/{submission}/feedback', [FacultyGradingController::class, 'suggestFeedback'])->middleware('permission:grade_assignment')->name('submissions.feedback');
-        Route::post('/submissions/{submission}/draft-grade', [FacultyGradingController::class, 'draftGrade'])->middleware('permission:grade_assignment')->name('submissions.draft-grade');
+        Route::post('/submissions/{submission}/draft-grade', [FacultyGradingController::class, 'draftGrade'])->middleware(['permission:grade_assignment', 'demo.ai.limit'])->name('submissions.draft-grade');
     });
 
     Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function () {

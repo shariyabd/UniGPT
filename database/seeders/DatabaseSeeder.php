@@ -55,6 +55,12 @@ class DatabaseSeeder extends Seeder
             // demo courses to keep the test fixtures exact). Runs last so it only
             // adds enrollments and disturbs nothing earlier.
             DemoCourseRosterSeeder::class,
+
+            // Backfills demo data for the recent feature waves (practice quizzes,
+            // question bank, peer review, course feedback, office hours, proctoring
+            // snapshots, prerequisites/waitlist). Runs last: it needs the demo
+            // cohort and the student's class-test attempts to already exist.
+            DemoFeatureShowcaseSeeder::class,
         ]);
     }
 }

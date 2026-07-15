@@ -60,6 +60,7 @@ class User extends Authenticatable
         'ai_chat_blocked_at',
         'ai_chat_blocked_until',
         'ai_chat_block_reason',
+        'ai_request_count',
     ];
 
     protected $hidden = [
@@ -85,6 +86,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             // Curriculum level (1–8), aligned with courses.semester.
             'semester' => 'integer',
+            'ai_request_count' => 'integer',
         ];
     }
 
@@ -166,6 +168,52 @@ class User extends Authenticatable
             'ai_chat_blocked_until' => null,
             'ai_chat_block_reason' => null,
         ])->save();
+    }
+
+    /**
+     * The maximum number of AI-feature requests a user may make while the app is
+     * in demo mode, across every AI surface (student chat/agent, faculty
+     * assistant, generators).
+     */
+    public const DEMO_AI_REQUEST_LIMIT = 10;
+
+    /**
+     * Whether AI usage is quota-capped. The cap is governed by the deployment,
+     * not the account: it applies to everyone when the app runs in demo mode
+     * (`APP_MODE=demo` → config `app.demo`) and to no one otherwise.
+     */
+    public function hasAiRequestQuota(): bool
+    {
+        return (bool) config('app.demo', false);
+    }
+
+    /**
+     * Requests still available before the AI quota is exhausted. Unlimited
+     * (PHP_INT_MAX) when the app is not in demo mode.
+     */
+    public function remainingAiRequests(): int
+    {
+        if (! $this->hasAiRequestQuota()) {
+            return PHP_INT_MAX;
+        }
+
+        return max(0, self::DEMO_AI_REQUEST_LIMIT - (int) $this->ai_request_count);
+    }
+
+    /**
+     * Whether the AI quota is used up. Always false outside demo mode.
+     */
+    public function hasReachedAiRequestLimit(): bool
+    {
+        return $this->hasAiRequestQuota() && $this->remainingAiRequests() <= 0;
+    }
+
+    /**
+     * Atomically record one AI-feature request against the running tally.
+     */
+    public function recordAiRequest(): void
+    {
+        $this->increment('ai_request_count');
     }
 
     public function savedAnswers(): HasMany

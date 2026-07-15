@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Domain\Notification\Services\NotificationService;
+use App\Domain\User\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Inertia\Middleware;
@@ -159,6 +160,13 @@ class HandleInertiaRequests extends Middleware
             'permissions' => $permissions,
             'primary_role' => $user->getPrimaryRole()?->slug,
             'dashboard_route' => $user->getDashboardRoute(),
+            // In demo mode AI usage is quota-capped; expose the tally so the UI
+            // can show remaining requests. Null when the app is unmetered.
+            'demo' => $user->hasAiRequestQuota() ? [
+                'ai_limit' => User::DEMO_AI_REQUEST_LIMIT,
+                'ai_used' => (int) $user->ai_request_count,
+                'ai_remaining' => $user->remainingAiRequests(),
+            ] : null,
         ];
     }
 }
