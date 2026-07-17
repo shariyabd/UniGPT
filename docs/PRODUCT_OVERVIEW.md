@@ -131,6 +131,9 @@ to the model.
 | **Calendar .ics export & subscribe** | Download the unified calendar or subscribe by signed URL from Google/Outlook/Apple Calendar and stay auto-synced. |
 | **Discussion feed** | Course and section discussion groups where students and faculty post, comment, like and report — faculty moderate their own sections and admins run a moderation queue. |
 | **Leaderboard** | Opt-in, gamified XP rankings by department, semester or section — students choose an alias and compete on their own terms. |
+| **User activity tracking** | An Admin → User Activity panel records who visited, from where (referrer), on what device, and an IP-derived location — meaningful page views on the public landing page and every authenticated page, logged after the response ships so it adds no page latency. Summary stats (total / today / unique visitors / guest visits), device + top-country + top-page breakdowns, filters (user, role, device, country, date range) and a paginated feed. Configurable retention (90 days default) with a scheduled prune. |
+| **Demo-mode governance** | In demo mode every account is capped at a fixed number of AI requests across all AI surfaces — student chat/agent, faculty assistant and AI generators — so a public demo can't drain the shared provider budget (requests are refused with HTTP 429 once exhausted). Nothing is metered outside demo mode. |
+| **Hidden maintenance switch** | A URL-driven operator control puts the whole app behind a maintenance page (`?live=false`) or flips it back live (`?live=true`) for everyone; the state persists globally until toggled, unlock is honoured first so a locked site can always be reopened, and the health check is never gated. |
 | **Granular RBAC** | Roles map to fine-grained permissions with time-limited grants — every action is gated and logged. |
 | **Announcements & alerts** | Broadcast to any audience and notify the right people on exams, grades and new materials. |
 | **Real-time messaging** | Students and faculty chat live in-app — online presence, typing indicators, unread counts and instant delivery, separate from the AI tutor. |
@@ -201,6 +204,9 @@ academic health.
 - AI provider settings, prompts & retrieval tuning
 - Exam-security gate: which proctoring layers faculty may use, with a built-in step-by-step layer guide
 - AI usage monitor with per-user access control
+- **User Activity panel** — who visited, referrer, device, IP-derived location, with summary stats, breakdowns, filters and a paginated feed (configurable retention, gated by view-all-analytics)
+- **Demo-mode AI cap** — every account capped at a fixed number of AI requests across all AI surfaces so a public demo can't drain the provider budget
+- **Hidden maintenance switch** — `?live=false` / `?live=true` puts the whole app into maintenance or back live for everyone, persisting until toggled
 - System monitor, departments & announcements
 - Discussion moderation queue for reported posts & comments
 - *Sample dashboard metrics:* 2.4k users · 860 docs · 99.9% uptime
@@ -371,6 +377,11 @@ How modules, services and roles connect — the platform is one loop, not isolat
 > rubric grading**, **anonymous mid-semester course feedback**, **anonymous peer review**
 > on assignments, **course prerequisites & section waitlists**, and the per-course
 > **question bank**. All live — see §4 Features & §5 Roles.
+>
+> ✅ **Operations & governance — shipped:** an Admin **User Activity panel** (visitor,
+> referrer, device and IP-derived location tracking with breakdowns, filters and a
+> paginated feed), a **demo-mode AI usage cap** across every AI surface, and a hidden
+> URL-driven **maintenance switch**. All live — see §4 Features & §5 Roles.
 
 | Feature | Stage | What it adds |
 |---|---|---|

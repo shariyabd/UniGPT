@@ -8,7 +8,7 @@ Administrators**. Built with **Laravel 11 + Inertia 2 + Vue 3 + Tailwind**, back
 mock AI provider.
 
 > **Trust code over docs.** Where any document disagrees with the source, the code
-> wins. These docs are kept current as of **2026-07-10**.
+> wins. These docs are kept current as of **2026-07-17**.
 
 ---
 
@@ -99,7 +99,9 @@ UniNexus gives a university a single, governed AI layer over its own academic co
   completed course satisfies one — and **section waitlists**: full sections queue
   FIFO, drops auto-promote), curate the document knowledge base (upload →
   approve → embed), configure the AI provider, **gate the exam-security layers**,
-  broadcast announcements, **moderate reported discussion posts/comments**, and monitor
+  broadcast announcements, **moderate reported discussion posts/comments**, review a
+  **User Activity panel** (who visited, from where, on what device, IP-derived
+  location — with device/country/page breakdowns and filters), and monitor
   the system.
 
 The differentiator: AI answers are **grounded in institution-approved documents
@@ -179,6 +181,14 @@ The login page also offers **demo-login** buttons (auto-seeds RBAC if missing). 
 requires picking a role (`student | faculty | admin`); it is validated against the
 user's assigned roles and rate-limited per email+IP.
 
+### Operations & environment
+
+| Env var | Default | What it does |
+|---|---|---|
+| `APP_MODE` | `live` | `demo` caps **every** account at a fixed number of AI requests (`User::DEMO_AI_REQUEST_LIMIT`, backed by `users.ai_request_count`) across all AI surfaces — student chat/agent, faculty assistant, AI generators — via the `demo.ai.limit` middleware on AI POST endpoints; returns **HTTP 429** when exhausted so a public demo can't drain the shared provider budget. `live` meters nothing |
+| `APP_LIVE_DEFAULT` | `true` | Default state for the **hidden maintenance switch**: any request with `?live=false` drops the whole app into **Maintenance Mode** (503 Maintenance page); `?live=true` flips it back to live. State persists globally in cache and sticks across all visitors until toggled (`?live=true` checked first, so an operator can always unlock). The test env and the `/up` health check are never gated |
+| `VISIT_RETENTION_DAYS` | `90` | Retention window for the **User Activity** `visits` table; `visits:prune` (scheduled weekly) trims older rows (`0` disables) |
+
 ---
 
 ## 4. Common Commands
@@ -193,6 +203,9 @@ npm run build
 php artisan migrate
 php artisan migrate:fresh --seed
 php artisan db:seed --class=RBACSeeder
+
+# Operations
+php artisan visits:prune                # trim User-Activity visits past retention window
 
 # Tests
 php artisan test                       # PHP feature/unit suite
@@ -213,7 +226,7 @@ php artisan optimize:clear
 | AI chat | **Streaming, agentic** RAG tutor (6 modes, **8 in-chat actions** with a live tool trail, one-tap **Agent / Answers-only** switch — answers-only enforced server-side) grounded in library **+ own notes & materials**, saved answers | **Streaming** AI teaching assistant (quiz/assignment gen, feedback) | Configures the AI provider |
 | Courses | Register for **admin-assigned** sections (**prereq badges, waitlist positions**); view materials | Manage taught sections; upload materials (auto-indexed for RAG) | Owns catalog, sections, terms, departments, **prerequisites & waitlists** |
 | Assessment | Submit assignments, take timed quizzes/tests, **self-serve AI practice quizzes** (missed → flashcards) or **question-bank quizzes**, view grades/transcript | Grade submissions (**AI-drafted rubric grades**, **similarity flags**), author timed quizzes/tests (manual, AI-generated or **question-bank** questions), mark attendance | — |
-| Visibility | Own roadmap, attendance, exams, calendar (**.ics export/subscribe**) | Per-course learning analytics + **at-risk early warning** (4 signals, high/watch levels) | Platform analytics, system monitor, audit log |
+| Visibility | Own roadmap, attendance, exams, calendar (**.ics export/subscribe**) | Per-course learning analytics + **at-risk early warning** (4 signals, high/watch levels) | Platform analytics, system monitor, audit log, **User Activity panel** (visits, device, IP location) |
 | Knowledge base | Read/download approved docs | Upload course materials | Upload + approve/reject documents (→ RAG) |
 | Search | **⌘K semantic global search** (knowledge, courses, assignments, discussions, chat history) | Same, scoped to taught sections | Same + user lookup |
 | Messaging | Real-time chat with their faculty + **group study rooms** with classmates | Real-time chat with their students | — |

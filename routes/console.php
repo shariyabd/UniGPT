@@ -17,3 +17,6 @@ Schedule::command('digests:send-weekly')->weeklyOn(1, '07:00');
 
 // Delete exam recordings/snapshots of finalised attempts past the retention window.
 Schedule::command('exam:prune-evidence')->weeklyOn(0, '03:00');
+
+// Delete tracked page visits older than the retention window (config tracking.retention_days).
+Schedule::command('visits:prune')->weeklyOn(0, '03:30');

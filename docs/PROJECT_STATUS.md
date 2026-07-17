@@ -3,7 +3,7 @@
 > The live status tracker. **Source of truth = code.** For architecture and logic see
 > [PROJECT_ANALYSIS.md](PROJECT_ANALYSIS.md); for layout see [DIRECTORY_TREE.md](DIRECTORY_TREE.md).
 >
-> **Last updated:** 2026-07-10
+> **Last updated:** 2026-07-17
 > **Contents:** [Summary](#progress-summary) · [Feature matrix](#feature-matrix-codebase-vs-spec)
 > · [Recently shipped](#recently-shipped) · [Incomplete tasks](#incomplete-tasks)
 > · [Future plans / upcoming features](#future-plans--upcoming-features)
@@ -47,6 +47,8 @@ current MVP.
 | **Semantic global search (⌘K)** — knowledge + courses/assignments/discussions/chat history | ✅ | `Domain/Search/GlobalSearchService`, `SearchController`, AppLayout palette |
 | **Agentic AI chat (tool calling)** — 8 permission-checked in-chat actions + live tool-activity trail, **Agent / Answers-only mode switch** (answers-only enforced server-side) (student chat only; mock-provider keyless) | ✅ | `Domain/Chat/Tools/ChatToolRegistry` + 8 `*Tool` classes (deadlines, courses, office hours, quiz/flashcard gen, planner tasks) |
 | **Email digests & deadline nudges** — weekly Monday digest + daily due-soon email, opt-out, admin SMTP | ✅ | `Domain/Notification/Services/EmailDigestService`, `digests:send-weekly` + `assignments:remind`, `routes/console.php` schedule |
+| **Demo-mode AI usage cap** — every account limited to `User::DEMO_AI_REQUEST_LIMIT` AI requests across all AI surfaces when `APP_MODE=demo`; charged up-front, HTTP 429 `demo_limit_reached` when exhausted; unmetered outside demo | ✅ | `EnforceDemoAiLimit` middleware (`demo.ai.limit`) on AI POST endpoints only, `users.ai_request_count`, `User::hasAiRequestQuota/hasReachedAiRequestLimit/recordAiRequest`, `config/app.php` (`demo`) |
+| **Hidden maintenance switch** — `?live=false` drops the app into Maintenance Mode (503) / `?live=true` restores; cache-persisted globally, `/up` + testing env never gated | ✅ | `HandleMaintenanceMode` global web middleware, `resources/js/pages/Maintenance.vue`, `config/app.php` (`live_default`, env `APP_LIVE_DEFAULT`) |
 | Voice / TTS / STT / predictive | ⬜ | P3 — voice is a UI mock (intentionally on hold) |
 
 ### Student
@@ -120,11 +122,47 @@ current MVP.
 | Exam Security settings (global layer availability + defaults, “How each layer works” guide offcanvas) | ✅ | `Admin/ExamSecurityController`, `exam_security` setting |
 | **Discussion moderation queue** (reported posts/comments → dismiss/remove) | ✅ | `Admin/DiscussionModerationController`, `PostReport` |
 | Activity log / audit trail | ✅ | `ActivityLog`, `ActivityLogger` |
+| **User Activity panel** (visits: who/from where/device/location; stat cards + device/country/page breakdowns; user/role/device/country/date filters, paginated) | ✅ | `Admin/UserActivityController` (`admin.user-activity`, `view_all_analytics`), `Admin/UserActivity.vue`, `App\Models\Visit`, `TrackVisit` middleware, `Services/Tracking/*`, `visits:prune` |
 | Admin transcript editing | ⬜ | not started (low priority; grades flow via grading/enrolment) |
 
 ---
 
 ## Recently shipped
+
+### User activity tracking (admin visibility)
+An **Admin → User Activity** panel (`admin.user-activity`, gated `view_all_analytics`,
+nav under **System**) surfaces who visited, from where (referrer), on what device, from
+which IP-derived location. Meaningful page views — the public landing plus every
+authenticated page — are recorded by `TrackVisit` middleware in `terminate()` (**after**
+the response is flushed, so zero request latency); only real navigations count
+(GET full-HTML + Inertia), with ajax/asset/polling noise excluded. `app/Services/Tracking/`
+holds a dependency-free `DeviceDetector` (UA parser), `GeoLocationService` (free
+ip-api.com, cached per-IP 30 days; private/loopback → "Local", failures → null),
+`VisitTracker` and `VisitReportService`. Rows land append-only in `App\Models\Visit`
+(`forRole` scope; `create_visits_table` migration). `Admin/UserActivity.vue` renders
+stat cards (total / today / unique visitors / guests), device + top-country + top-page
+breakdowns, filters (user search, role, device, country, date range) and a paginated
+table. Retention: `visits:prune` (`config/tracking.php` `retention_days`, env
+`VISIT_RETENTION_DAYS` default 90, 0 disables) scheduled weekly Sun 03:30; demo data via
+`VisitSeeder` (~380 visits, 50-row guard) wired into `DatabaseSeeder`. End-to-end
+(middleware → DB → panel); new/uncommitted, no tests yet.
+
+### Demo-mode governance & hidden maintenance switch
+Two operational guardrails for running UniNexus as a public demo. **AI usage cap:** when
+`APP_MODE=demo` (`config('app.demo')`), every account is capped at
+`User::DEMO_AI_REQUEST_LIMIT` AI requests across **all** AI surfaces (student chat/agent,
+faculty AI assistant, AI generators). `EnforceDemoAiLimit` middleware (alias
+`demo.ai.limit`) guards only the AI **POST** endpoints (send/generate) — never page loads
+or history — charging up-front and returning **HTTP 429** with `demo_limit_reached` once
+exhausted; outside demo mode nothing is metered. Backed by `users.ai_request_count` and
+`User::hasAiRequestQuota()/hasReachedAiRequestLimit()/recordAiRequest()`. **Hidden
+maintenance switch:** the `HandleMaintenanceMode` global web middleware treats `?live=false`
+as a kill switch — the whole app drops into Maintenance Mode (renders
+`resources/js/pages/Maintenance.vue`, HTTP 503) — and `?live=true` flips it back
+(evaluated first). State is persisted globally in cache; the default comes from
+`config('app.live_default')` (env `APP_LIVE_DEFAULT`, default `true` = live). The testing
+env and `/up` are never gated. Demo data via an expanded `DemoFeatureShowcaseSeeder`.
+Backed by `DemoLimitsAndMaintenanceTest`.
 
 ### Latest wave — July 2026: act, assess & connect (9 features)
 Shipped 2026-07 on the same domain-service → thin-controller → Inertia patterns,

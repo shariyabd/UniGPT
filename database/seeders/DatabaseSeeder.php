@@ -61,6 +61,9 @@ class DatabaseSeeder extends Seeder
             // snapshots, prerequisites/waitlist). Runs last: it needs the demo
             // cohort and the student's class-test attempts to already exist.
             DemoFeatureShowcaseSeeder::class,
+
+            // Demo page-visit history for Admin → User Activity (only if empty).
+            VisitSeeder::class,
         ]);
     }
 }

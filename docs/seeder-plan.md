@@ -95,6 +95,19 @@ Discussions) are populated on the demo login rather than empty:
 - `DiscussionSeeder` — posts/comments/likes across the demo student's sections first,
   then other current-term sections (`discussion_sections` × `posts_per_section`),
   plus three open `post_reports` for the admin moderation queue.
+- `DemoFeatureShowcaseSeeder` — backfills demo data so the three demo accounts
+  (`student@`, faculty, `admin@`) can showcase every feature end-to-end.
+  **Expanded (2026-07-16 wave)** to cover the recent feature waves (study planner,
+  practice quizzes, peer review, course feedback, question bank, office hours,
+  proctoring, agentic chat, etc.), keeping the demo logins populated rather than empty.
+- `VisitSeeder` (new, 2026-07-17) — seeds ~380 demo page-visit rows for the new
+  Admin → User Activity panel: authenticated visits for students/faculty/admins on
+  their own pages, plus ~120 anonymous landing/login hits from external referrers
+  (Google, Facebook, LinkedIn, …), spread over the last ~2 weeks with varied devices
+  (desktop/mobile/tablet), browsers and locations (country/city). Writes to `visits`
+  (`App\Models\Visit`). Idempotent: skips when the table already holds ≥50 rows, so it
+  populates a fresh install but never piles onto real tracked traffic. Registered
+  **last** in `DatabaseSeeder`, after `DemoFeatureShowcaseSeeder`.
 
 ## Dependency graph / insert order (`DatabaseSeeder`)
 
@@ -114,11 +127,13 @@ Discussions) are populated on the demo login rather than empty:
 13. NoteSeeder / TaskSeeder                              per bulk student
 14. FlashcardSeeder / LeaderboardSeeder / DiscussionSeeder  engagement / new-feature data
 15. KnowledgeBaseSeeder RAG documents (kept)
+16. DemoFeatureShowcaseSeeder  backfills every feature wave onto the 3 demo accounts
+17. VisitSeeder          ~380 page-visit rows for Admin → User Activity (LAST; ≥50-row skip guard)
 ```
 
 Child records never precede parents: terms → courses → faculty → sections →
 students → enrollments → attendance/materials/exams → tests → attempts →
-notes/tasks → flashcards/leaderboard/discussions.
+notes/tasks → flashcards/leaderboard/discussions → demo showcase → visits.
 
 ## Volume (config/seeder.php, env-overridable)
 

@@ -40,6 +40,7 @@ import {
     Cog6ToothIcon,
     EnvelopeIcon,
     ServerStackIcon,
+    MapPinIcon,
     Bars3Icon,
     XMarkIcon,
     ArrowRightOnRectangleIcon,
@@ -160,6 +161,7 @@ const navByRole = {
         ] },
         { section: 'System', items: [
             { label: 'Analytics', route: 'admin.analytics', icon: ChartBarIcon, permission: 'view_all_analytics' },
+            { label: 'User Activity', route: 'admin.user-activity', icon: MapPinIcon, permission: 'view_all_analytics' },
             { label: 'AI Usage', route: 'admin.ai-usage', icon: CpuChipIcon, permission: 'view_all_analytics' },
             { label: 'Announcements', route: 'admin.announcements', icon: MegaphoneIcon, permission: 'send_notifications' },
             { label: 'Settings', route: 'admin.settings', icon: Cog6ToothIcon, permission: 'configure_ai' },

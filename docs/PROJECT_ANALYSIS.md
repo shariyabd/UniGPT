@@ -1,6 +1,6 @@
 # UniNexus — Architecture & Developer Reference
 
-> **Updated:** 2026-07-10. The deep reference for the whole system — read this after
+> **Updated:** 2026-07-17. The deep reference for the whole system — read this after
 > [README.md](README.md) to build a complete mental model.
 > **Source of truth = the code.** Where older marketing docs disagree, the code wins.
 >
@@ -286,6 +286,10 @@ retrievable in chat. Visibility is scoped; downloads are logged. Documents soft-
   `assignments:remind` (daily 08:00) now emails alongside the in-app nudge with the same
   dedupe. Opt-out via `preferences.email_digest` (Settings toggle).
 - **Auditing:** `ActivityLogger` writes to `activity_logs` for key actions.
+- **Visit retention:** page-view rows in `visits` (§3.3c/§3.6) are pruned by the
+  `visits:prune` command (`PruneVisits`) — retention window `config('tracking.retention_days')`
+  (env `VISIT_RETENTION_DAYS`, default **90**; **`0` disables** pruning), with `--days` and
+  `--dry-run` overrides. It's scheduled **weekly, Sun 03:30** in `routes/console.php`.
 
 ---
 
@@ -324,9 +328,48 @@ Controller (thin: orchestrate + respond)
 ### 3.3 Authentication & middleware
 
 - Aliases registered in `bootstrap/app.php`: `role` → `RoleMiddleware`,
-  `permission` → `PermissionMiddleware`. Only **`routes/web.php`** is registered.
+  `permission` → `PermissionMiddleware`, `demo.ai.limit` → `EnforceDemoAiLimit`.
+  Only **`routes/web.php`** is registered.
 - `RoleMiddleware` / `PermissionMiddleware`: gate access, log unauthorized attempts,
   and force-logout deactivated users. Guests redirect to `/login`.
+- **Global web stack** (prepended/appended in `bootstrap/app.php`): `HandleMaintenanceMode`
+  (the hidden kill switch, §3.3a) runs on every web request; `TrackVisit` is **appended**
+  and does its work in `terminate()` (§3.3b), so page-view logging never sits on the
+  request path.
+
+#### 3.3a Hidden maintenance switch — `HandleMaintenanceMode`
+
+A URL-driven, operator-only kill switch that fronts the entire web stack. `?live=false`
+flips the app into **Maintenance Mode** (renders `Maintenance.vue`, HTTP **503**) globally;
+`?live=true` returns it to live. The state is **persisted with `Cache::forever`** so it is
+global and survives across requests (no `.env` edit, no deploy). `?live=true` is **evaluated
+first** so an operator can always unlock even while maintenance is on. The default when no
+override has ever been set is `config('app.live_default')` (env `APP_LIVE_DEFAULT`, default
+`true`). The **testing environment and `/up`** (health check) are exempt. Content
+negotiation matches the caller: JSON/AJAX callers get a JSON **503**, Inertia/page loads get
+the `Maintenance` page.
+
+#### 3.3b Demo-mode AI cap — `EnforceDemoAiLimit` (alias `demo.ai.limit`)
+
+When `APP_MODE=demo` (`config('app.demo')`), this middleware caps **each account** at
+`User::DEMO_AI_REQUEST_LIMIT` AI requests across **all** AI surfaces — student chat/agent,
+faculty assistant, and the AI generators. It is applied **only to the request-consuming AI
+POST endpoints**, and it **charges up-front**: a request is counted the moment it passes,
+regardless of whether the downstream provider call ultimately succeeds (so a failing OpenAI
+call can't be farmed for free quota). Exhaustion returns HTTP **429** with a
+`demo_limit_reached` marker. Metering is backed by `users.ai_request_count` and the
+`User` helpers `hasAiRequestQuota()` / `hasReachedAiRequestLimit()` / `recordAiRequest()`.
+**Outside demo mode the middleware is inert** — no counting, no cap.
+
+#### 3.3c User activity tracking — `TrackVisit`
+
+`TrackVisit` (appended to the web stack) records page views from `terminate()` — **after the
+response is flushed** — so it adds **zero latency to the request path**. Its `shouldTrack()`
+filter admits only genuine page navigations: **GET**, a resolved route, HTTP **200**, and
+**not** a partial Inertia reload; it accepts **Inertia visits or full `text/html` loads** and
+rejects plain ajax/JSON. A **route-name blocklist** drops high-frequency noise
+(`heartbeat`, the notifications poll, `search.global`, messenger `overview`). Assembly and
+persistence are delegated to the `app/Services/Tracking/` collaborators (§3.6).
 
 ### 3.4 AI / RAG infrastructure
 
@@ -368,6 +411,28 @@ Controller (thin: orchestrate + respond)
 | Chat/Memory, RAG/Prompts, Academic/Rules+ValueObjects | ⬜ Empty (inlined or unneeded) |
 | VectorDB, Speech infrastructure | ⬜ Empty (MySQL store; no speech) |
 
+### 3.6 Visit-tracking services (`app/Services/Tracking/`)
+
+`TrackVisit` (§3.3c) is deliberately thin; the page-view pipeline lives in four
+collaborators:
+
+- **`VisitTracker`** — assembles and persists one `Visit`: applies its own
+  ignored-routes set + a friendly-label map (route name → human label) and **drops
+  internal referrers** so the referrer field only carries real off-site origins.
+- **`DeviceDetector`** — a **dependency-free** User-Agent parser (regex) that resolves
+  `device_type` / `platform` / `browser`; no external UA library.
+- **`GeoLocationService`** — resolves IP → country via **ip-api.com**, wrapped in
+  `Cache::remember` **per-IP for 30 days**. Private/loopback addresses (detected with
+  `FILTER_FLAG_NO_PRIV_RANGE`) short-circuit to `"Local"`; any lookup failure resolves
+  to `null` (tracking never blocks on geo).
+- **`VisitReportService`** — powers the admin report: a filtered paginator built from
+  `when()`-chained query scopes, plus the stats aggregations and `filterOptions` the
+  page needs.
+
+The **`App\Models\Visit`** model is **append-only** (`UPDATED_AT = null`) and exposes a
+`forRole` scope (`whereHas` on `user.roles`). `create_visits_table` indexes the read
+paths: `(user_id, created_at)`, `created_at`, `route_name`, `country`, `device_type`.
+
 ---
 
 ## 4. Directory Structure
@@ -381,6 +446,7 @@ app/
   Infrastructure/{AI,FileStorage,Repositories}/             external adapters
   Http/{Controllers,Requests,Middleware}/                   thin HTTP layer
   Models/                                                    Eloquent entities
+  Services/Tracking/                                         page-view tracking
   Enums/  Policies/  Jobs/  Services/  Console/Commands/
 resources/js/{pages,components,Layouts,composables}/         Inertia + Vue SPA
 routes/web.php                                               the only live route file
@@ -487,7 +553,11 @@ prerequisites**), **sections, terms, departments**; **assign students** to secti
 sections queue a **FIFO waitlist** that auto-promotes on drop); curate the **document knowledge base**
 (upload + approve/reject/request-changes/comment → embed pipeline); configure & **test**
 the AI provider; broadcast **announcements**; manage **exams**; view **platform analytics**;
-**monitor** system health; review the **audit log**.
+review a **user-activity report** (page views by user/role/route/country/device, filtered +
+paginated via `Admin/UserActivityController` → `Admin/UserActivity.vue`, backed by
+`VisitReportService`); **monitor** system health; review the **audit log**. In **demo mode**
+each account's AI usage is capped globally (§3.3b), and the hidden `?live=false` maintenance
+switch (§3.3a) lets an operator freeze the whole app at will.
 **Cannot:** nothing within the app (top of hierarchy).
 **Key permissions:** all 40, incl. `manage_user_roles`, `manage_permissions`,
 `manage_departments`, `manage_terms`, `manage_sections`, `approve_document`, `configure_ai`,
@@ -558,8 +628,10 @@ How roles and components interact (all relationships below are **wired and real*
 **Chat / RAG / Documents:** `chat_sessions`, `chat_messages` (incl. `tool_activity`
 json — the agentic tool trail), `message_citations`, `saved_answers`, `documents`
 (soft-deletes), `document_chunks`, `embeddings`, `document_approvals`.
-**System:** `notifications`, `activity_logs`, `settings` + Laravel infra
-(`cache`, `jobs`, `sessions`, `password_reset_tokens`).
+**System:** `notifications`, `activity_logs`, `visits` (append-only page-view log;
+indexes on `(user_id, created_at)` / `created_at` / `route_name` / `country` /
+`device_type`), `settings` + Laravel infra (`cache`, `jobs`, `sessions`,
+`password_reset_tokens`). `users.ai_request_count` backs the demo-mode AI cap (§3.3b).
 
 Key relationships: `User ↔ Course` via `course_user`; `Course → Section → Term`;
 section-scoped models (`CourseMaterial`, `Assignment`, `Exam`, `AttendanceRecord`) use
@@ -590,6 +662,10 @@ the `BelongsToSection` trait; `Document → DocumentChunk → Embedding`;
   `NotificationService`, `EmailDigestService` (+ queued `WeeklyDigestMail` /
   `AssignmentDueMail`; commands `digests:send-weekly`, `assignments:remind`),
   `ActivityLogger`.
+- **Tracking (`app/Services/Tracking/`):** `VisitTracker`, `DeviceDetector`,
+  `GeoLocationService`, `VisitReportService` — driven by the `TrackVisit` middleware
+  (§3.3c) over the `Visit` model; retention via the `visits:prune` command; seeded by
+  `VisitSeeder` (~380 rows, guarded by a 50-row threshold) from `DatabaseSeeder`.
 
 ### 9.2 Enums (`app/Enums/`)
 `Permission` (46, categorized), `UserRole` (admin/faculty/student, lowercase),
@@ -612,7 +688,8 @@ class tests, messenger, corpus versioning, **personal corpus (RAG scoping)**,
 **study rooms**, **office hours**, **calendar export** — plus the July 2026 wave:
 **chat tools (agentic)**, **submission similarity**, **concept mastery**, **email digests**,
 **AI grade drafts**, **course feedback**, **peer review**, **prerequisites & waitlists**,
-**question bank**.
+**question bank**, and the operational wave: **demo AI cap + hidden maintenance switch**
+(`DemoLimitsAndMaintenanceTest`).
 **JS** (`resources/js/tests/`, Vitest): `AppLayout` nav gating, `usePermissions`,
 `RolePermissions` matrix, button gating.
 

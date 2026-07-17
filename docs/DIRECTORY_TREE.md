@@ -12,7 +12,8 @@ uni-chat/
 ├── app/
 │   ├── Console/Commands/                 ✅ SendAssignmentReminders (assignments:remind — in-app nudge + email),
 │   │                                        SendWeeklyDigests (digests:send-weekly — scheduled Mon 07:00),
-│   │                                        SyncPersonalCorpus (rag:sync-personal — backfills notes/materials into RAG)
+│   │                                        SyncPersonalCorpus (rag:sync-personal — backfills notes/materials into RAG),
+│   │                                        PruneVisits (visits:prune — visit-history retention)
 │   │
 │   ├── Enums/                            ✅ Type-safe constants
 │   │   ├── Permission.php                ✅ 46 permission slugs (categorized + helpers; +view/post/moderate discussions)
@@ -41,7 +42,8 @@ uni-chat/
 │   │   │   ├── Messenger/                 MessageController (1:1 chat + study-room message plumbing)
 │   │   │   ├── Admin/                     Dashboard, UserManagement, Role, Document, Analytics, AiUsage, Monitor,
 │   │   │   │                              Settings, Course, Section, Term, Department, Exam, ExamSecurity,
-│   │   │   │                              Announcement, DiscussionModeration, EmailSettings
+│   │   │   │                              Announcement, DiscussionModeration, EmailSettings, UserActivity
+│   │   │   │                              (visit-tracking dashboard)
 │   │   │   ├── Api/                       ⬜ effectively empty (no separate REST API)
 │   │   │   ├── SearchController.php       ✅ ⌘K global search (semantic + lexical, permission-scoped)
 │   │   │   ├── NotificationController.php ✅ in-app notifications (poll/read/delete)
@@ -50,6 +52,9 @@ uni-chat/
 │   │   ├── Middleware/
 │   │   │   ├── RoleMiddleware.php         ✅ role gate (`role:`) + force-logout deactivated users
 │   │   │   ├── PermissionMiddleware.php   ✅ permission gate (`permission:`)
+│   │   │   ├── TrackVisit.php             ✅ logs page views in terminate() (zero page latency)
+│   │   │   ├── EnforceDemoAiLimit.php     ✅ caps AI requests per account in demo mode (alias demo.ai.limit)
+│   │   │   ├── HandleMaintenanceMode.php  ✅ hidden ?live=false/true maintenance switch
 │   │   │   └── HandleInertiaRequests.php  ✅ shares real auth.user + notifications + flash + Ziggy
 │   │   ├── Requests/{Admin,Faculty,Student}/  ✅ ~28 permission-aware Form Requests
 │   │   └── Resources/                     (API resources)
@@ -114,6 +119,7 @@ uni-chat/
 │   │   ├── OfficeHourSlot                         ✅ single-capacity bookable slots
 │   │   ├── Role, Permission, RoleUser, PermissionRole
 │   │   ├── Notification, Note, Task, ActivityLog, Setting
+│   │   ├── Visit                                  ✅ append-only page-view record (who/where/device/location)
 │   │   ├── FlashcardDeck, Flashcard              ✅ spaced-repetition study decks
 │   │   ├── SubmissionEmbedding, SubmissionSimilarity  ✅ similarity screening (chunk vectors + flagged pairs)
 │   │   ├── PeerReview, CourseFeedback             ✅ anonymous peer review + per-section course feedback
@@ -126,7 +132,12 @@ uni-chat/
 │   │                                        ScreenSubmissionSimilarityJob (queued on every submit)
 │   ├── Mail/                             ✅ WeeklyDigestMail, AssignmentDueMail (queued mailables)
 │   ├── Policies/                         ✅ ChatSession, Course, Document, SavedAnswer
-│   ├── Services/ActivityLogger.php       ✅ audit trail writer
+│   ├── Services/
+│   │   ├── ActivityLogger.php            ✅ audit trail writer
+│   │   └── Tracking/                     ✅ DeviceDetector (UA → device/platform/browser, dependency-free),
+│   │                                        GeoLocationService (IP → country/city via ip-api.com, cached per-IP),
+│   │                                        VisitTracker (records a visit — from TrackVisit::terminate),
+│   │                                        VisitReportService (filtered feed + stats for admin panel)
 │   ├── Providers/  Support/  Livewire/   ⚠️ Livewire dirs exist but are unused
 │
 ├── bootstrap/app.php                     ✅ registers web.php + `role`/`permission` middleware aliases
@@ -136,6 +147,7 @@ uni-chat/
 │   ├── rag.php                           ✅ chunking/retrieval/citation config (+ submission_screening.flag_threshold)
 │   ├── permissions.php                   ⚠️ legacy soft map (enum is source of truth)
 │   ├── vector.php                        ⚠️ Pinecone/FAISS/Chroma config — unused (MySQL store)
+│   ├── tracking.php                      ✅ visit-history retention window
 │   └── … (standard Laravel configs)
 │
 ├── database/
@@ -143,9 +155,11 @@ uni-chat/
 │   │                                        class tests + proctoring, conversations (direct+group), practice
 │   │                                        quizzes, office hours, etc. — July-2026 wave adds tool_activity on
 │   │                                        chat_messages, submission similarity tables, course_feedback,
-│   │                                        peer_reviews, prerequisites + waitlists, question_bank_items)
+│   │                                        peer_reviews, prerequisites + waitlists, question_bank_items;
+│   │                                        Jul-17 adds visits table)
 │   ├── seeders/                          ✅ DatabaseSeeder → RBACSeeder, AcademicSeeder, KnowledgeBaseSeeder,
-│   │                                        ClassTestAttemptSeeder, FlashcardSeeder, LeaderboardSeeder, DiscussionSeeder
+│   │                                        ClassTestAttemptSeeder, FlashcardSeeder, LeaderboardSeeder, DiscussionSeeder,
+│   │                                        VisitSeeder (~380 rows of demo visit history)
 │   └── factories/
 │
 ├── resources/
@@ -153,10 +167,12 @@ uni-chat/
 │   │   ├── app.js                        ✅ Inertia + Vue 3 + Ziggy bootstrap; vue-toastification
 │   │   ├── pages/                        ✅ Inertia pages (~81)
 │   │   │   ├── Landing.vue, Dashboard.vue
+│   │   │   ├── Maintenance.vue             ✅ "we'll be right back" page (hidden maintenance switch)
 │   │   │   ├── Auth/Login.vue
 │   │   │   ├── Admin/                     18 pages (Users, Roles, Courses, Terms, Departments,
 │   │   │   │                              Documents, Approvals, Analytics, AiUsage, Monitor, AISettings,
-│   │   │   │                              Announcements, Exams, ExamSecurity, DiscussionReports, …)
+│   │   │   │                              Announcements, Exams, ExamSecurity, DiscussionReports,
+│   │   │   │                              UserActivity (visit stats/breakdowns/filters/table), …)
 │   │   │   ├── Faculty/                   15 pages (Dashboard, Courses, CourseDetail (+peer-review toggle),
 │   │   │   │                              AIAssistant (streaming), Attendance, Analytics (+at-risk), Exams,
 │   │   │   │                              Grading (+similarity badge, AI rubric draft), ClassTests/{…},

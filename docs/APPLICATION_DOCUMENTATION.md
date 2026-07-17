@@ -205,6 +205,21 @@ A live look at the server's health — processor load, memory, storage space, an
 database, background jobs, cache, and AI service are responding. Read-only; it never makes a
 billable AI call just to check status.
 
+### 3.10a User Activity
+A visitor-tracking log, under the System area, that shows who has been coming to the app. Each
+entry records the person (or an **anonymous visitor** for guests), the page they landed on, where
+they came from (the referring site), the device and browser they used, and an approximate
+location (city and country) worked out from their IP address. It captures visits to the public
+landing page and to every signed-in page, and does so **after the page has finished loading**, so
+tracking never slows anything down for the visitor.
+
+The page opens with headline numbers — total visits, visits today, unique visitors, and guest
+visits — followed by simple breakdowns of the most-used devices, the top countries, and the
+most-visited pages. Below that is a filterable, paginated feed of individual visits: search by
+user and filter by role, device, country, or date range. Old activity is **pruned automatically**
+after a configurable retention window (90 days by default), so the log stays useful without
+growing forever.
+
 ### 3.11 Announcements
 Send a broadcast notification to an audience (everyone, or just students/faculty/admins).
 Admins can see past announcements with how many people received each, and edit an announcement
@@ -245,6 +260,23 @@ API key is **write-only and stored securely** — it's never shown back on scree
 connection"** button actually contacts the provider and reports whether it's reachable. These
 settings instantly affect student chat, the faculty assistant, AI generation, and how documents
 are searched.
+
+### 3.14 Demo-Mode Governance & Maintenance Switch ⭐
+Two operator controls for when UniNexus is put up as a **public demo** — separate from the offline
+"demo" AI mode above (that one is about running the AI without an API key; these are about
+protecting a live demo deployment).
+
+- **AI usage cap.** When the app is running in demo mode, every account is limited to a fixed
+  number of AI requests **across all AI features combined** — student chat, the agent, the faculty
+  assistant, and every AI generator. Once someone reaches the cap, further AI requests are politely
+  refused with a clear message, so a room full of curious visitors can't burn through the shared AI
+  budget in an afternoon. Normal (non-demo) deployments meter nothing — everyone uses the AI freely.
+- **Hidden maintenance switch.** An operator can flip the whole site into a friendly "we'll be right
+  back" Maintenance page simply by visiting any URL with `?live=false`, and bring it back with
+  `?live=true`. The choice **sticks for everyone** until it's changed again — no redeploy needed.
+  As a safety net, `?live=true` always works even while the site is down, so an operator can never
+  accidentally lock themselves out, and the automated health check stays reachable throughout so
+  monitoring keeps working during maintenance.
 
 ---
 
@@ -763,6 +795,9 @@ into the new semester.
 - **Teachers and students can only message** when they share a class.
 - **One protected admin account** can never be locked out, so the university always retains
   access.
+- **A public demo can't run up the AI bill** — in demo mode each account has a fixed AI-request
+  cap, and an operator can flip the whole site to a Maintenance page (and back) with a hidden
+  `?live=false` / `?live=true` switch.
 
 ---
 

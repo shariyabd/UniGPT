@@ -16,6 +16,7 @@ use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\SectionController as AdminSectionController;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\TermController as AdminTermController;
+use App\Http\Controllers\Admin\UserActivityController;
 use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\Auth\AuthenticationController;
 use App\Http\Controllers\Auth\PasswordResetController;
@@ -450,6 +451,9 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/documents/{document}/comment', [AdminDocumentController::class, 'comment'])->middleware('permission:approve_document')->name('documents.comment');
 
         Route::get('/analytics', [AnalyticsController::class, 'index'])->middleware('permission:view_all_analytics')->name('analytics');
+
+        // User activity — tracked page visits (who / from where / device / location)
+        Route::get('/user-activity', [UserActivityController::class, 'index'])->middleware('permission:view_all_analytics')->name('user-activity');
 
         // AI usage monitor — per-user/per-request token tracking + AI-chat access control
         Route::get('/ai-usage', [AiUsageController::class, 'index'])->middleware('permission:view_all_analytics')->name('ai-usage');
