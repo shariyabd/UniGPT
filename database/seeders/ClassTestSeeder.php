@@ -4,15 +4,16 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
-use App\Domain\User\Models\User;
+use App\Domain\Academic\Services\ClassTestService;
 use App\Models\ClassTest;
 use App\Models\Section;
 use App\Models\Term;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Seeds faculty-authored class tests, mirroring how a real faculty member creates
- * them in the Faculty panel (see {@see \App\Domain\Academic\Services\ClassTestService}).
+ * them in the Faculty panel (see {@see ClassTestService}).
  *
  * Isolation is STRUCTURAL, not enforced by ad-hoc filtering. A ClassTest binds to a
  * single Section, and a Section is exactly one offering of one Course (the subject)
@@ -53,35 +54,52 @@ class ClassTestSeeder extends Seeder
             return;
         }
 
-        // Current-term sections that actually have an enrolled roster. A test on an
-        // empty section would reach nobody, so we skip those (e.g. CS301 section B).
+        // Current-term sections (with their course only — no student models). The
+        // roster is resolved separately as lightweight pivot rows so we never hold
+        // ~15k hydrated User models in memory (that exhausts the CLI memory_limit).
         $sections = Section::query()
             ->where('term_id', $term->id)
-            ->whereHas('students', fn ($query) => $query->where('course_user.status', 'enrolled'))
-            ->with([
-                'course.department',
-                'faculty',
-                'students' => fn ($query) => $query->wherePivot('status', 'enrolled'),
-            ])
+            ->with('course')
             ->get();
 
         if ($sections->isEmpty()) {
-            $this->command->warn('   No enrolled sections in the current term; run SectionSeeder + EnrollmentSeeder first.');
+            $this->command->warn('   No sections in the current term; run SectionSeeder first.');
 
             return;
         }
 
-        $enrolledCount = $this->enrolledSectionCountByStudent($sections);
+        // Enrolled rosters across these sections as (section_id, user_id) rows only.
+        $enrollments = DB::table('course_user')
+            ->whereIn('section_id', $sections->pluck('id'))
+            ->where('status', 'enrolled')
+            ->get(['section_id', 'user_id']);
+
+        if ($enrollments->isEmpty()) {
+            $this->command->warn('   No enrolled sections in the current term; run EnrollmentSeeder first.');
+
+            return;
+        }
+
+        // user_id => enrolled-section count, and section_id => [user_id,...].
+        $enrolledCount = [];
+        $studentIdsBySection = [];
+        foreach ($enrollments as $enrollment) {
+            $enrolledCount[$enrollment->user_id] = ($enrolledCount[$enrollment->user_id] ?? 0) + 1;
+            $studentIdsBySection[$enrollment->section_id][] = $enrollment->user_id;
+        }
 
         $testsCreated = 0;
         $sectionsTouched = 0;
 
         foreach ($sections as $section) {
-            if (! $section->course) {
+            // Skip sections with no course or no enrolled roster — a test there
+            // would reach nobody (e.g. CS301 section B).
+            $studentIds = $studentIdsBySection[$section->id] ?? [];
+            if (! $section->course || $studentIds === []) {
                 continue;
             }
 
-            $perSection = $this->testsForSection($section, $enrolledCount);
+            $perSection = $this->testsForSection($studentIds, $enrolledCount);
             $created = $this->seedSectionTests($section, $perSection);
 
             $testsCreated += $created;
@@ -94,41 +112,21 @@ class ClassTestSeeder extends Seeder
     }
 
     /**
-     * How many enrolled sections each student belongs to, counted over exactly the
-     * sections we are about to seed — so it matches what the student will actually see.
-     *
-     * @param  \Illuminate\Support\Collection<int, Section>  $sections
-     * @return array<int, int> user_id => enrolled-section count
-     */
-    private function enrolledSectionCountByStudent($sections): array
-    {
-        $counts = [];
-
-        foreach ($sections as $section) {
-            foreach ($section->students as $student) {
-                $counts[$student->id] = ($counts[$student->id] ?? 0) + 1;
-            }
-        }
-
-        return $counts;
-    }
-
-    /**
      * Per-section test count that, summed across each student's sections, clears the
      * 20-test floor. Driven by the lightest-loaded student in the section.
      *
-     * @param  array<int, int>  $enrolledCount
+     * @param  array<int, int>  $studentIds  enrolled student ids in this section
+     * @param  array<int, int>  $enrolledCount  user_id => enrolled-section count
      */
-    private function testsForSection(Section $section, array $enrolledCount): int
+    private function testsForSection(array $studentIds, array $enrolledCount): int
     {
-        $loads = $section->students
-            ->map(fn (User $student) => $enrolledCount[$student->id] ?? 1)
-            ->filter()
-            ->all();
+        $minLoad = null;
+        foreach ($studentIds as $userId) {
+            $load = $enrolledCount[$userId] ?? 1;
+            $minLoad = $minLoad === null ? $load : min($minLoad, $load);
+        }
 
-        $minLoad = $loads === [] ? 1 : min($loads);
-
-        $needed = (int) ceil(self::MIN_TESTS_PER_STUDENT / max(1, $minLoad));
+        $needed = (int) ceil(self::MIN_TESTS_PER_STUDENT / max(1, $minLoad ?? 1));
 
         return max(self::MIN_TESTS_PER_SECTION, $needed);
     }
