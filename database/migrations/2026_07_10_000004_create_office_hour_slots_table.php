@@ -13,8 +13,8 @@ return new class extends Migration
             $table->foreignId('faculty_id')
                 ->constrained('users')
                 ->cascadeOnUpdate()->cascadeOnDelete();
-            $table->timestamp('starts_at');
-            $table->timestamp('ends_at');
+            $table->dateTime('starts_at');
+            $table->dateTime('ends_at');
             $table->string('location')->nullable(); // room / meeting link
             $table->string('note')->nullable();
             // Single-capacity slot: open while null, booked when set.
