@@ -156,6 +156,103 @@
 
 ---
 
+## 9. Agent Mode — Actionable Requests (function-calling intents)
+*Tests: whether the agent maps a natural request to the right tool workflow and executes it. Unlike sections 1–8 (which expect an **answer**), these expect the agent to **take an action** on the student's behalf. Each capability lists multiple natural phrasings so intent-matching is robust to wording.*
+
+### 9.1 Upcoming deadlines → `get_upcoming_deadlines`
+87. What deadlines do I have coming up?
+88. Show me everything due this week.
+89. When is my next assignment due?
+90. Do I have any exams or class tests coming up soon?
+91. What's on my plate for the next few days?
+92. List my graded deadlines in order.
+
+### 9.2 My courses → `list_my_courses`
+93. What courses am I enrolled in right now?
+94. Show me my current course list.
+95. Which classes am I taking this semester?
+96. Remind me what I'm registered for.
+97. What are my course codes?
+
+### 9.3 See office-hour slots → `list_office_hour_slots`
+98. When are my professors' office hours?
+99. Show me open office-hour slots I can book.
+100. Is my instructor free to meet this week?
+101. What office hours are available for my courses?
+102. Find me a time to meet a lecturer.
+
+### 9.4 Book office hours → `book_office_hour_slot`
+103. Book office hours with my professor.
+104. Reserve the next open slot with my instructor.
+105. Schedule a meeting with my faculty for Thursday.
+106. Grab me an office-hour appointment for {course}.
+107. Set up a one-on-one with my lecturer.
+
+### 9.5 Cancel an office-hour booking → `cancel_office_hour_booking`
+108. Cancel my office-hour booking.
+109. I can't make my appointment — please cancel it.
+110. Drop the office hours I reserved.
+111. Remove my scheduled meeting with the professor.
+
+### 9.6 Generate a practice quiz → `generate_practice_quiz`
+112. Quiz me on {course}.
+113. Make a practice quiz about data structures.
+114. Give me 10 multiple-choice questions to test myself before the exam.
+115. Create a self-test on the topics I'm weak in.
+116. I want to practice — build me a quiz on recursion.
+117. Test my knowledge of {course} with a short quiz.
+
+### 9.7 Generate a flashcard deck → `generate_flashcard_deck`
+118. Make flashcards for {course}.
+119. Create a flashcard deck on operating-system concepts.
+120. Build me spaced-repetition cards to memorize key terms.
+121. Turn this topic into flashcards I can review.
+122. I need flashcards to study for my {course} exam.
+
+### 9.8 Add a study task → `create_study_task`
+123. Add a task to revise chapter 5 by Friday.
+124. Put "finish the DBMS assignment" on my task board.
+125. Remind me to start exam prep next Monday.
+126. Create a to-do to read the lecture notes tonight.
+127. Add studying for {course} to my planner.
+
+---
+
+## Starter Prompts (chat UI)
+<!--
+  PARSED AT RUNTIME by App\Domain\Chat\Support\StarterPromptLibrary and shown as
+  the welcome-card starter suggestions in Student/Chat.vue. This block is the
+  single source of truth for those prompts — do NOT hardcode starters elsewhere.
+  Format the parser depends on:
+    • the two "### Agent Mode" / "### Answer-Only Mode" subheadings below
+    • one prompt per "- " list item
+    • {course} / {course2} placeholders are filled from the student's enrollments
+      (a prompt whose placeholder can't be filled is skipped)
+  Keep both lists populated.
+-->
+
+### Agent Mode
+- What deadlines do I have coming up?
+- Book office hours with my professor
+- Quiz me on {course}
+- Make flashcards for {course}
+- Add a task to revise {course} this week
+- Show me open office-hour slots I can book
+- What courses am I enrolled in right now?
+- Give me a practice quiz before my next exam
+
+### Answer-Only Mode
+- Explain a key concept from {course}
+- Help me prepare for my {course} exam
+- How do I plan an effective study schedule?
+- What are good note-taking strategies?
+- Summarize the topics I should focus on this semester
+- Give me practice questions for my courses
+- How can I improve my academic writing?
+- Break down a difficult topic into simple steps
+
+---
+
 ## Coverage & Scoring Notes
 
 - **Total questions:** 86, spanning all 10 documents.

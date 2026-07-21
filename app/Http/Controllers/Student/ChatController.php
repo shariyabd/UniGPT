@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Student;
 
 use App\Domain\Chat\Services\ChatService;
 use App\Domain\Chat\Support\AiSettings;
+use App\Domain\Chat\Support\StarterPromptLibrary;
 use App\Domain\User\Models\User;
 use App\Enums\ChatMode;
 use App\Http\Concerns\StreamsServerSentEvents;
@@ -27,6 +28,7 @@ class ChatController extends Controller
     public function __construct(
         private readonly ChatService $chat,
         private readonly AiSettings $aiSettings,
+        private readonly StarterPromptLibrary $starterPrompts,
     ) {}
 
     public function index(): Response
@@ -52,6 +54,9 @@ class ChatController extends Controller
                 'currentCourses' => $courses,
             ],
             'modes' => collect(ChatMode::cases())->map(fn ($m) => ['value' => $m->value, 'label' => $m->label()]),
+            // Welcome-card starter suggestions, sourced from the RAG question
+            // bank so they stay the single source of truth (see StarterPromptLibrary).
+            'starterPrompts' => $this->starterPrompts->all(),
             'supportedLanguages' => $this->aiSettings->supportedLanguages(),
             // Prefer the student's saved language preference when it's still supported.
             'defaultLanguage' => $this->preferredLanguage($user),

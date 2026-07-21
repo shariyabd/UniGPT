@@ -58,6 +58,10 @@ const props = defineProps({
     sessions: { type: Array, default: () => [] },
     studentContext: { type: Object, default: () => ({}) },
     modes: { type: Array, default: () => [] },
+    // Welcome-card starter suggestions, sourced from the RAG question bank
+    // (single source of truth). { agent: [...], answers: [...] } — items may
+    // carry {course}/{course2} placeholders filled from the student's courses.
+    starterPrompts: { type: Object, default: () => ({ agent: [], answers: [] }) },
     supportedLanguages: { type: Array, default: () => [{ code: 'en', name: 'English' }] },
     defaultLanguage: { type: String, default: 'en' },
     aiAccess: { type: Object, default: () => ({ blocked: false, reason: null, blockedUntil: null }) },
@@ -134,62 +138,68 @@ const backendMode = computed(() =>
 // pure question-answering chat — tools are never offered to the model.
 const agentMode = ref(true);
 
-// Build the welcome message. The guiding copy is static, but anything that
-// depends on the student's data (their courses, follow-up prompts) is derived
-// from the enrollments passed by the server.
-const buildWelcomeFollowUps = () => {
-    const courses = studentContext.value.currentCourses;
-    if (courses.length === 0) {
-        return [
-            'How do I plan an effective study schedule?',
-            'Give me tips to prepare for exams',
-            'How can I improve my academic writing?',
-            'What are good note-taking strategies?'
-        ];
+// Starter suggestions come from the RAG question bank (single source of truth,
+// parsed server-side and passed as the `starterPrompts` prop) — never hardcoded
+// here. Each prompt may carry {course}/{course2} placeholders we fill from the
+// student's enrollments; a prompt we can't personalize is dropped.
+const courseName = (index) => {
+    const course = studentContext.value.currentCourses[index];
+    if (!course) return null;
+    return course.name || course.code || null;
+};
+
+const fillPlaceholders = (prompt) => {
+    const tokens = { '{course}': courseName(0), '{course2}': courseName(1) ?? courseName(0) };
+    let filled = prompt;
+    for (const [token, value] of Object.entries(tokens)) {
+        if (!filled.includes(token)) continue;
+        if (!value) return null; // no course to fill it with → skip this starter
+        filled = filled.split(token).join(value);
+    }
+    return filled;
+};
+
+// Sample up to `count` prompts for the given mode, resolving placeholders and
+// shuffling so each new chat surfaces a little variety.
+const sampleStarters = (mode, count = 4) => {
+    const pool = (props.starterPrompts?.[mode] ?? [])
+        .map(fillPlaceholders)
+        .filter(Boolean);
+
+    for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pool[i], pool[j]] = [pool[j], pool[i]];
     }
 
-    const suggestions = [];
-    const first = courses[0];
-    const second = courses[1] ?? courses[0];
-    suggestions.push(`Explain a key concept from ${first.name || first.code}`);
-    suggestions.push(`Help me prepare for my ${second.code || second.name} exam`);
-    suggestions.push('Summarize the topics I should focus on this semester');
-    suggestions.push('Give me practice questions for my courses');
-    return suggestions;
+    return pool.slice(0, count);
 };
 
-// Action-oriented starters shown while Agent mode is on.
-const buildAgentFollowUps = () => {
-    const first = studentContext.value.currentCourses[0];
+const welcomeFollowUps = () => sampleStarters(agentMode.value ? 'agent' : 'answers');
 
-    return [
-        'What deadlines do I have coming up?',
-        'Book office hours with my professor',
-        first ? `Quiz me on ${first.name || first.code}` : 'Quiz me on my weakest topic',
-        first ? `Make flashcards on ${first.name || first.code}` : 'Make flashcards for my next exam',
-    ];
-};
-
-const welcomeFollowUps = () => (agentMode.value ? buildAgentFollowUps() : buildWelcomeFollowUps());
-
-// Sync the recommended starter questions with the active mode — on the
-// welcome card currently on screen AND on the snapshot newChat() restores,
-// so a mode switch made mid-conversation still shows the right prompts on
-// the next "New chat".
-const refreshWelcomeSuggestions = () => {
+// Re-render the welcome card for the active mode — its greeting, personality
+// banner AND starter prompts — on the card currently on screen AND on the
+// snapshot newChat() restores, so a mode switch made mid-conversation still
+// shows the right welcome on the next "New chat".
+const refreshWelcome = () => {
+    const content = buildWelcomeContent();
     const fresh = welcomeFollowUps();
-    if (welcomeMessage.value) welcomeMessage.value.followUpSuggestions = fresh;
-    const welcome = messages.value.find((m) => m.id === 1);
-    if (welcome) welcome.followUpSuggestions = fresh;
+    const apply = (msg) => {
+        if (!msg) return;
+        msg.content = content;
+        msg.followUpSuggestions = fresh;
+        msg.agentMode = agentMode.value;
+    };
+    apply(welcomeMessage.value);
+    apply(messages.value.find((m) => m.id === 1));
 };
 
-// Switching modes swaps the welcome card's example prompts and refocuses the
-// composer, so the change is immediately visible.
+// Switching modes swaps the whole welcome experience (greeting, banner,
+// starters) and refocuses the composer, so the change is immediately felt.
 const setAgentMode = (value) => {
     if (agentMode.value === value) return;
     agentMode.value = value;
 
-    refreshWelcomeSuggestions();
+    refreshWelcome();
 
     nextTick(() => document.getElementById('message-input')?.focus());
 };
@@ -198,26 +208,50 @@ const composerPlaceholder = computed(() => (agentMode.value
     ? 'Ask anything — or tell me to act: "book office hours", "quiz me on recursion", "add a task"…'
     : 'Ask anything about your courses, assignments, syllabus, or policies...'));
 
-const buildWelcomeContent = () => {
+// Agent mode: lead with what the assistant can *do* for the student.
+const buildAgentWelcome = () => {
+    const coursesLine = courseLabels.value.length
+        ? `You're enrolled in **${courseLabels.value.join(', ')}** — I can act on any of them.`
+        : `Once your course enrollments are set up, I'll tailor actions to them.`;
+
+    return `Hello **${studentContext.value.name}**! ⚡
+
+I'm your **UniNexus AI Agent** — I don't just answer questions, I get things done for you.
+
+**Things I can do right now:**
+• Check your upcoming deadlines, exams & class tests
+• Book or cancel office hours with your faculty
+• Generate a practice quiz and grade it instantly
+• Build spaced-repetition flashcard decks
+• Add tasks to your study planner
+
+${coursesLine}
+
+**Just tell me what you need** — try one of the actions below, or ask me to do something.`;
+};
+
+// Answer-only mode: a traditional study assistant. No mention of taking actions.
+const buildAnswersWelcome = () => {
     const coursesLine = courseLabels.value.length
         ? `I can see you're enrolled in: **${courseLabels.value.join(', ')}**`
         : `Once your course enrollments are set up, I'll tailor answers to them.`;
 
     return `Hello **${studentContext.value.name}**! 👋
 
-I'm your **UniNexus Academic Assistant**, and I'm here to help you excel in your studies.
+I'm your **UniNexus Study Assistant**, here to help you understand concepts and learn effectively.
 
 **What I can help you with:**
-• Course-specific questions and explanations
+• Course-specific questions and clear explanations
 • Assignment guidance and problem-solving
 • Exam preparation and study strategies
 • University policies and procedures
-• **Taking actions for you** (Agent mode ⚡) — booking office hours, checking deadlines, generating practice quizzes & flashcards, adding planner tasks
 
 ${coursesLine}
 
-**How would you like to start?** You can ask me anything about your coursework, or try one of the suggestions below.`;
+**Ask me anything** about your coursework, or try one of the suggestions below.`;
 };
+
+const buildWelcomeContent = () => (agentMode.value ? buildAgentWelcome() : buildAnswersWelcome());
 
 // Current chat messages
 const messages = ref([
@@ -231,6 +265,10 @@ const messages = ref([
         contextRelevance: 'profile',
         isExpanded: false,
         saved: false,
+        // Marks the greeting card so the template can show a mode banner and
+        // mode-aware starter styling; agentMode drives that personality.
+        isWelcome: true,
+        agentMode: agentMode.value,
         followUpSuggestions: welcomeFollowUps()
     }
 ]);
@@ -765,9 +803,9 @@ const welcomeMessage = ref(null);
 
 const newChat = () => {
     messages.value = welcomeMessage.value ? [welcomeMessage.value] : [];
-    // The welcome card's example prompts must match the CURRENT mode, not the
-    // mode that was active when the snapshot was taken.
-    refreshWelcomeSuggestions();
+    // The welcome card (greeting, banner, starters) must match the CURRENT
+    // mode, not the mode that was active when the snapshot was taken.
+    refreshWelcome();
     currentSources.value = [];
     selectedChatHistory.value = null;
     currentSessionId.value = null;
@@ -1178,6 +1216,20 @@ watch(() => messages.value.length, () => {
 
                                         <!-- Message Content -->
                                         <div class="p-5">
+                                            <!-- Mode personality banner (welcome card only): makes it
+                                                 unmistakable whether this is the Agent or the Q&A experience. -->
+                                            <div v-if="message.isWelcome" class="mb-4">
+                                                <span
+                                                    :class="[
+                                                        'inline-flex items-center gap-1.5 rounded-pill px-3 py-1 text-xs font-bold uppercase tracking-wide',
+                                                        message.agentMode ? 'bg-primary text-white' : 'bg-content text-surface',
+                                                    ]"
+                                                >
+                                                    <component :is="message.agentMode ? BoltIcon : ChatBubbleBottomCenterTextIcon" class="w-3.5 h-3.5" />
+                                                    {{ message.agentMode ? 'Agent Mode' : 'Answer-only Mode' }}
+                                                </span>
+                                            </div>
+
                                             <!-- Context Relevance Badge -->
                                             <div v-if="message.contextRelevance" class="mb-4">
                                                 <div class="inline-flex items-center gap-2 px-3 py-1.5 bg-success-bg text-success-fg rounded-control text-xs font-medium">
@@ -1277,8 +1329,11 @@ watch(() => messages.value.length, () => {
                                             <!-- Follow-up Suggestions -->
                                             <div v-if="message.followUpSuggestions && message.followUpSuggestions.length > 0" class="mt-5">
                                                 <p class="text-sm font-semibold text-content mb-3 flex items-center gap-2">
-                                                    <LightBulbIcon class="w-4 h-4 text-primary" />
-                                                    Continue Learning
+                                                    <component
+                                                        :is="message.isWelcome && message.agentMode ? BoltIcon : LightBulbIcon"
+                                                        class="w-4 h-4 text-primary"
+                                                    />
+                                                    {{ message.isWelcome ? (message.agentMode ? 'Try an action' : 'Try asking') : 'Continue Learning' }}
                                                 </p>
                                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                                     <button
