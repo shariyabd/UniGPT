@@ -28,6 +28,7 @@ class Flashcard extends Model
     protected function casts(): array
     {
         return [
+            'deck_id' => 'integer',
             'ease_factor' => 'float',
             'interval_days' => 'integer',
             'repetitions' => 'integer',

@@ -45,6 +45,8 @@ class ClassTestEvent extends Model
     protected function casts(): array
     {
         return [
+            'attempt_id' => 'integer',
+            'question_id' => 'integer',
             'occurred_at' => 'datetime',
             'duration_ms' => 'integer',
             'meta' => 'array',

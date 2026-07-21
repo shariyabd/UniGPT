@@ -27,6 +27,10 @@ class AttendanceRecord extends Model
     protected function casts(): array
     {
         return [
+            'course_id' => 'integer',
+            'section_id' => 'integer',
+            'user_id' => 'integer',
+            'marked_by' => 'integer',
             'date' => 'date',
             'status' => AttendanceStatus::class,
         ];

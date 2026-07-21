@@ -27,6 +27,10 @@ class PostReport extends Model
     protected function casts(): array
     {
         return [
+            'post_id' => 'integer',
+            'post_comment_id' => 'integer',
+            'reporter_id' => 'integer',
+            'resolved_by' => 'integer',
             'resolved_at' => 'datetime',
         ];
     }

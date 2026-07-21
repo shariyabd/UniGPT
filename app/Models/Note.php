@@ -22,6 +22,8 @@ class Note extends Model
     protected function casts(): array
     {
         return [
+            'course_id' => 'integer',
+            'user_id' => 'integer',
             'is_pinned' => 'boolean',
         ];
     }

@@ -22,6 +22,11 @@ class FlashcardDeck extends Model
         'source',
     ];
 
+    protected $casts = [
+        'user_id' => 'integer',
+        'course_id' => 'integer',
+    ];
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);

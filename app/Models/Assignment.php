@@ -31,6 +31,9 @@ class Assignment extends Model
     protected function casts(): array
     {
         return [
+            'course_id' => 'integer',
+            'section_id' => 'integer',
+            'created_by' => 'integer',
             'rubric' => 'array',
             'peer_review_enabled' => 'boolean',
             'due_at' => 'datetime',

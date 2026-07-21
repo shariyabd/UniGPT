@@ -25,6 +25,8 @@ class Post extends Model
     protected function casts(): array
     {
         return [
+            'section_id' => 'integer',
+            'user_id' => 'integer',
             'is_pinned' => 'boolean',
         ];
     }

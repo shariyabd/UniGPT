@@ -20,6 +20,14 @@ class PostComment extends Model
         'body',
     ];
 
+    protected function casts(): array
+    {
+        return [
+            'user_id' => 'integer',
+            'post_id' => 'integer',
+        ];
+    }
+
     public function post(): BelongsTo
     {
         return $this->belongsTo(Post::class);

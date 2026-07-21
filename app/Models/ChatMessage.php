@@ -31,6 +31,7 @@ class ChatMessage extends Model
     protected function casts(): array
     {
         return [
+            'chat_session_id' => 'integer',
             'sources' => 'array',
             'follow_ups' => 'array',
             'tool_activity' => 'array',

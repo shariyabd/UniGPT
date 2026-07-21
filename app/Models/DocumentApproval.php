@@ -26,6 +26,14 @@ class DocumentApproval extends Model
         'comment',
     ];
 
+    protected function casts(): array
+    {
+        return [
+            'document_id' => 'integer',
+            'reviewer_id' => 'integer',
+        ];
+    }
+
     public function document(): BelongsTo
     {
         return $this->belongsTo(Document::class);

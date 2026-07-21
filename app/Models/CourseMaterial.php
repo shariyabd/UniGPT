@@ -32,6 +32,10 @@ class CourseMaterial extends Model
     protected function casts(): array
     {
         return [
+            'course_id' => 'integer',
+            'section_id' => 'integer',
+            'document_id' => 'integer',
+            'uploaded_by' => 'integer',
             'is_published' => 'boolean',
             'file_size' => 'integer',
         ];

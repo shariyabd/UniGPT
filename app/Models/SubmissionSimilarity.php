@@ -27,6 +27,9 @@ class SubmissionSimilarity extends Model
     protected function casts(): array
     {
         return [
+            'assignment_id' => 'integer',
+            'submission_id' => 'integer',
+            'matched_submission_id' => 'integer',
             'score' => 'float',
             'coverage' => 'float',
             'matched_chunks' => 'array',

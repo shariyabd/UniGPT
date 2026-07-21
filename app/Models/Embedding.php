@@ -21,6 +21,8 @@ class Embedding extends Model
     protected function casts(): array
     {
         return [
+            'document_chunk_id' => 'integer',
+            'document_id' => 'integer',
             'vector' => 'array',
         ];
     }

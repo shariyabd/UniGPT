@@ -27,6 +27,8 @@ class ActivityLog extends Model
     protected function casts(): array
     {
         return [
+            'user_id' => 'integer',
+            'subject_id' => 'integer',
             'metadata' => 'array',
             'created_at' => 'datetime',
         ];

@@ -31,6 +31,7 @@ class SavedAnswer extends Model
     protected function casts(): array
     {
         return [
+            'chat_message_id' => 'integer',
             'user_id' => 'integer',
             'tags' => 'array',
             'sources' => 'array',

@@ -19,6 +19,14 @@ class PostReaction extends Model
         'type',
     ];
 
+    protected function casts(): array
+    {
+        return [
+            'post_id' => 'integer',
+            'user_id' => 'integer',
+        ];
+    }
+
     public function post(): BelongsTo
     {
         return $this->belongsTo(Post::class);

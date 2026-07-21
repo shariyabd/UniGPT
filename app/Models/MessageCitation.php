@@ -17,6 +17,15 @@ class MessageCitation extends Model
         'relevance',
     ];
 
+    protected function casts(): array
+    {
+        return [
+            'chat_message_id' => 'integer',
+            'document_id' => 'integer',
+            'document_chunk_id' => 'integer',
+        ];
+    }
+
     public function message(): BelongsTo
     {
         return $this->belongsTo(ChatMessage::class, 'chat_message_id');

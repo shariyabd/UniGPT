@@ -32,6 +32,9 @@ class Exam extends Model
     protected function casts(): array
     {
         return [
+            'course_id' => 'integer',
+            'section_id' => 'integer',
+            'created_by' => 'integer',
             'type' => ExamType::class,
             'exam_date' => 'date',
             'duration_minutes' => 'integer',

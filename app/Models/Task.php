@@ -27,6 +27,8 @@ class Task extends Model
     protected function casts(): array
     {
         return [
+            'course_id' => 'integer',
+            'user_id' => 'integer',
             'due_date' => 'date',
             'priority' => TaskPriority::class,
             'is_completed' => 'boolean',

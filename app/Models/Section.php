@@ -42,6 +42,9 @@ class Section extends Model
     protected function casts(): array
     {
         return [
+            'course_id' => 'integer',
+            'term_id' => 'integer',
+            'faculty_id' => 'integer',
             'schedule' => 'array',
             'is_active' => 'boolean',
             'feedback_open' => 'boolean',

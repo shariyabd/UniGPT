@@ -25,6 +25,8 @@ class SubmissionEmbedding extends Model
     protected function casts(): array
     {
         return [
+            'assignment_id' => 'integer',
+            'assignment_submission_id' => 'integer',
             'vector' => 'array',
         ];
     }

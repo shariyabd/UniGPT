@@ -28,6 +28,9 @@ class PeerReview extends Model
     protected function casts(): array
     {
         return [
+            'assignment_id' => 'integer',
+            'submission_id' => 'integer',
+            'reviewer_id' => 'integer',
             'rating' => 'integer',
             'completed_at' => 'datetime',
         ];

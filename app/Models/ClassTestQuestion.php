@@ -36,6 +36,7 @@ class ClassTestQuestion extends Model
     protected function casts(): array
     {
         return [
+            'class_test_id' => 'integer',
             'options' => 'array',
             'marks' => 'integer',
             'position' => 'integer',

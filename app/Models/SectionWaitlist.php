@@ -19,6 +19,14 @@ class SectionWaitlist extends Model
         'user_id',
     ];
 
+    protected function casts(): array
+    {
+        return [
+            'section_id' => 'integer',
+            'user_id' => 'integer',
+        ];
+    }
+
     public function section(): BelongsTo
     {
         return $this->belongsTo(Section::class);

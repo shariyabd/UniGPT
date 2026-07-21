@@ -47,6 +47,7 @@ class ClassTestRecording extends Model
     protected function casts(): array
     {
         return [
+            'attempt_id' => 'integer',
             'sequence' => 'integer',
             'size_bytes' => 'integer',
             'duration_seconds' => 'integer',

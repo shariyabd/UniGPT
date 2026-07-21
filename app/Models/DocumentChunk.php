@@ -20,6 +20,13 @@ class DocumentChunk extends Model
         'token_count',
     ];
 
+    protected function casts(): array
+    {
+        return [
+            'document_id' => 'integer',
+        ];
+    }
+
     public function document(): BelongsTo
     {
         return $this->belongsTo(Document::class);

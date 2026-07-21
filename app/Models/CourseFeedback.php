@@ -26,6 +26,8 @@ class CourseFeedback extends Model
     protected function casts(): array
     {
         return [
+            'section_id' => 'integer',
+            'user_id' => 'integer',
             'rating' => 'integer',
         ];
     }

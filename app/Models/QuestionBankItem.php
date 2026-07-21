@@ -30,6 +30,8 @@ class QuestionBankItem extends Model
     protected function casts(): array
     {
         return [
+            'course_id' => 'integer',
+            'created_by' => 'integer',
             'options' => 'array',
             'marks' => 'integer',
         ];

@@ -30,6 +30,7 @@ class Course extends Model
     protected function casts(): array
     {
         return [
+            'department_id' => 'integer',
             'faculty_id' => 'integer',
             'schedule' => 'array',
             'is_active' => 'boolean',

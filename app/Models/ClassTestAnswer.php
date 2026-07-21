@@ -31,6 +31,8 @@ class ClassTestAnswer extends Model
     protected function casts(): array
     {
         return [
+            'attempt_id' => 'integer',
+            'question_id' => 'integer',
             'is_correct' => 'boolean',
             'marks_awarded' => 'integer',
         ];

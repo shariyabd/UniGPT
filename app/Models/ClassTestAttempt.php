@@ -54,6 +54,8 @@ class ClassTestAttempt extends Model
     protected function casts(): array
     {
         return [
+            'class_test_id' => 'integer',
+            'user_id' => 'integer',
             'started_at' => 'datetime',
             'submitted_at' => 'datetime',
             'score' => 'integer',

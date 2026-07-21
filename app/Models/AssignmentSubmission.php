@@ -30,6 +30,9 @@ class AssignmentSubmission extends Model
     protected function casts(): array
     {
         return [
+            'assignment_id' => 'integer',
+            'user_id' => 'integer',
+            'graded_by' => 'integer',
             'rubric_scores' => 'array',
             'grade' => 'decimal:2',
             'submitted_at' => 'datetime',

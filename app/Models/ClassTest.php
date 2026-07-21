@@ -58,6 +58,9 @@ class ClassTest extends Model
     protected function casts(): array
     {
         return [
+            'course_id' => 'integer',
+            'section_id' => 'integer',
+            'created_by' => 'integer',
             'duration_minutes' => 'integer',
             'total_marks' => 'integer',
             'pass_marks' => 'integer',
