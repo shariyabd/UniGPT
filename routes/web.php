@@ -35,6 +35,7 @@ use App\Http\Controllers\Faculty\GradingController as FacultyGradingController;
 use App\Http\Controllers\Faculty\OfficeHoursController as FacultyOfficeHoursController;
 use App\Http\Controllers\Faculty\QuestionBankController;
 use App\Http\Controllers\Faculty\StudentDirectoryController as FacultyStudentDirectoryController;
+use App\Http\Controllers\FeatureListController;
 use App\Http\Controllers\LegalController;
 use App\Http\Controllers\Messenger\MessageController;
 use App\Http\Controllers\NotificationController;
@@ -94,6 +95,9 @@ Route::get('/', fn () => Inertia::render('Landing'))->name('home');
 // Standalone product presentation / pitch deck. Renders full-screen with no
 // app chrome — the Presentation page is self-contained (no AppLayout).
 Route::get('/presentation', fn () => Inertia::render('Presentation'))->name('presentation');
+
+// Public, interactive feature index — a mirror of docs/feature-list.md.
+Route::get('/feature-list', [FeatureListController::class, 'index'])->name('feature-list');
 
 // Public, browsable library for the shared documents under public/docs
 // (reports, architecture & model, RAG question bank). Directories render a
