@@ -10,19 +10,30 @@
    ========================================================================== */
 :root {
     /* Surfaces */
-    --color-bg: 247 247 251;          /* #F7F7FB  page background */
+    --color-bg: 248 250 252;          /* #F8FAFC  page canvas */
     --color-surface: 255 255 255;     /* #FFFFFF  cards / panels */
-    --color-border: 236 236 242;      /* #ECECF2  1px hairline */
+    --color-surface-elevated: 250 250 250; /* #FAFAFA  subtle raised surface */
+    --color-surface-subtle: 250 250 250;   /* #FAFAFA  alias of elevated in light */
+    --color-surface-tint: 236 245 253;      /* #ECF5FD  blue tint */
+    --color-surface-tint-soft: 241 247 253; /* #F1F7FD  blue tint (soft) */
+    --color-border: 229 229 229;      /* #E5E5E5  1px hairline */
+    --color-border-strong: 212 212 212;/* #D4D4D4  stronger divider */
 
-    /* Primary (purple) */
-    --color-primary: 124 92 252;      /* #7C5CFC  buttons, active nav, links */
-    --color-primary-hover: 107 74 232;/* #6B4AE8  hover */
-    --color-primary-soft: 242 238 255;/* #F2EEFF  nav hover / tint */
+    /* Primary (brand blue) */
+    --color-primary: 37 99 235;       /* #2563EB  buttons, active nav, links */
+    --color-primary-hover: 59 130 246;/* #3B82F6  hover / secondary */
+    --color-primary-soft: 236 245 253;/* #ECF5FD  nav hover / tint */
+    --color-accent-navy: 7 50 101;    /* #073265  deep accent (navy) */
+
+    /* Decorative accents — use sparingly (charts, illustrations, highlights) */
+    --color-accent-cyan: 24 245 234;  /* #18F5EA */
+    --color-accent-mint: 210 238 231; /* #D2EEE7 */
+    --color-accent-lavender: 235 224 255; /* #EBE0FF */
 
     /* Text */
-    --color-text: 26 26 46;           /* #1A1A2E  primary */
-    --color-text-muted: 107 114 128;  /* #6B7280  secondary */
-    --color-text-faint: 156 163 175;  /* #9CA3AF  tertiary / placeholder */
+    --color-text: 10 10 10;           /* #0A0A0A  primary */
+    --color-text-muted: 64 64 64;     /* #404040  secondary */
+    --color-text-faint: 115 115 115;  /* #737373  tertiary / placeholder */
 
     /* Status — paired bg + foreground */
     --color-success-bg: 231 247 238;  /* #E7F7EE */
@@ -44,20 +55,31 @@
    flips automatically; no per-component `dark:` variants required.
    ========================================================================== */
 .dark {
-    /* Surfaces — near-black with a faint blue-purple cast; cards lift off bg. */
-    --color-bg: 14 15 22;             /* #0E0F16  page background */
-    --color-surface: 26 27 38;        /* #1A1B26  cards / panels */
-    --color-border: 42 43 58;         /* #2A2B3A  1px hairline */
+    /* Surfaces — true black canvas; cards and elevated panels lift off it. */
+    --color-bg: 0 0 0;                /* #000000  page canvas */
+    --color-surface: 10 10 10;        /* #0A0A0A  cards / panels */
+    --color-surface-elevated: 23 23 23;/* #171717  elevated surface */
+    --color-surface-subtle: 23 23 23; /* #171717  subtle raised surface */
+    --color-surface-tint: 11 26 46;   /* #0B1A2E  dark blue tint */
+    --color-surface-tint-soft: 9 21 36;/* #091524  dark blue tint (soft) */
+    --color-border: 38 38 38;         /* #262626  1px hairline */
+    --color-border-strong: 64 64 64;  /* #404040  stronger divider */
 
-    /* Primary (purple) — slightly brighter so it reads on dark surfaces. */
-    --color-primary: 139 111 255;     /* #8B6FFF */
-    --color-primary-hover: 156 132 255;/* #9C84FF */
-    --color-primary-soft: 38 33 64;   /* #262140  dark purple tint */
+    /* Primary (brand blue) — brighter so it reads on true black. */
+    --color-primary: 59 130 246;      /* #3B82F6 */
+    --color-primary-hover: 96 165 250;/* #60A5FA */
+    --color-primary-soft: 14 32 56;   /* #0E2038  dark blue tint */
+    --color-accent-navy: 30 78 140;   /* #1E4E8C  lifted navy for contrast */
+
+    /* Decorative accents stay vivid on dark. */
+    --color-accent-cyan: 24 245 234;  /* #18F5EA */
+    --color-accent-mint: 210 238 231; /* #D2EEE7 */
+    --color-accent-lavender: 235 224 255; /* #EBE0FF */
 
     /* Text */
-    --color-text: 232 232 240;        /* #E8E8F0  primary */
-    --color-text-muted: 161 161 181;  /* #A1A1B5  secondary */
-    --color-text-faint: 107 107 128;  /* #6B6B80  tertiary / placeholder */
+    --color-text: 255 255 255;        /* #FFFFFF  primary */
+    --color-text-muted: 212 212 212;  /* #D4D4D4  secondary */
+    --color-text-faint: 182 183 192;  /* #B6B7C0  tertiary / placeholder */
 
     /* Status — dark tinted bg, brighter foreground. */
     --color-success-bg: 20 39 28;     /* #14271C */
@@ -206,14 +228,14 @@
    Observer only (no motion library) and degrade gracefully under reduced-motion.
    ========================================================================== */
 @layer components {
-    /* Brand gradient text (purple → violet → cyan). */
+    /* Brand gradient text (blue → sky → cyan). */
     .text-gradient {
         @apply bg-clip-text text-transparent;
         background-image: linear-gradient(
             100deg,
             rgb(var(--color-primary)) 0%,
-            #8b5cf6 45%,
-            #22d3ee 100%
+            #3b82f6 45%,
+            #18f5ea 100%
         );
     }
 
@@ -247,20 +269,20 @@
     .ring-gradient {
         background:
             linear-gradient(rgb(var(--color-surface)), rgb(var(--color-surface))) padding-box,
-            linear-gradient(130deg, rgb(var(--color-primary) / 0.5), #22d3ee55) border-box;
+            linear-gradient(130deg, rgb(var(--color-primary) / 0.5), #18f5ea55) border-box;
         border: 1px solid transparent;
     }
 
-    /* Brand gradient fill (purple → violet → cyan). Primary stop flips with the
-       theme; the violet/cyan accents stay constant for a vivid marketing feel. */
+    /* Brand gradient fill (blue → sky → cyan). Primary stop flips with the
+       theme; the sky/cyan accents stay constant for a vivid marketing feel. */
     .bg-brand-gradient {
-        background-image: linear-gradient(135deg, rgb(var(--color-primary)) 0%, #8b5cf6 55%, #22d3ee 130%);
+        background-image: linear-gradient(135deg, rgb(var(--color-primary)) 0%, #3b82f6 55%, #18f5ea 130%);
     }
 
     /* Premium gradient CTA — gradient slides + glow lifts on hover. */
     .ui-btn-gradient {
         @apply ui-btn text-white;
-        background-image: linear-gradient(100deg, rgb(var(--color-primary)) 0%, #8b5cf6 55%, #22d3ee 130%);
+        background-image: linear-gradient(100deg, rgb(var(--color-primary)) 0%, #3b82f6 55%, #18f5ea 130%);
         background-size: 180% 100%;
         background-position: 0% 0%;
         transition: background-position 0.5s ease, box-shadow 0.3s ease, transform 0.2s ease;

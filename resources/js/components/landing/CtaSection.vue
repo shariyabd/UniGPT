@@ -9,7 +9,7 @@ import { ArrowRightIcon, ChatBubbleLeftRightIcon } from '@heroicons/vue/24/outli
             <div v-reveal class="reveal relative overflow-hidden rounded-card border border-line bg-primary px-6 py-16 text-center shadow-card-hover sm:px-12">
                 <!-- glow accents -->
                 <div class="aurora -left-10 -top-10 h-72 w-72 bg-white/20" style="opacity:.35"></div>
-                <div class="aurora -bottom-16 -right-10 h-72 w-72" style="background:#22d3ee; opacity:.3"></div>
+                <div class="aurora -bottom-16 -right-10 h-72 w-72" style="background:#18f5ea; opacity:.3"></div>
 
                 <div class="relative mx-auto max-w-2xl">
                     <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl lg:text-5xl">

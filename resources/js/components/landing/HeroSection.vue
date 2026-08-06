@@ -16,8 +16,8 @@ const trustedBy = ['Students', 'Faculty', 'Administrators', 'Departments'];
         <!-- Ambient aurora + grid -->
         <div class="absolute inset-0 grid-backdrop"></div>
         <div class="aurora animate-aurora -left-32 top-0 h-[28rem] w-[28rem] bg-primary/40"></div>
-        <div class="aurora animate-aurora -right-24 top-24 h-[26rem] w-[26rem]" style="background:#22d3ee66; animation-delay:-6s"></div>
-        <div class="aurora animate-aurora left-1/3 top-40 h-[22rem] w-[22rem]" style="background:#8b5cf655; animation-delay:-10s"></div>
+        <div class="aurora animate-aurora -right-24 top-24 h-[26rem] w-[26rem]" style="background:#18f5ea66; animation-delay:-6s"></div>
+        <div class="aurora animate-aurora left-1/3 top-40 h-[22rem] w-[22rem]" style="background:#3b82f655; animation-delay:-10s"></div>
 
         <div class="page-container relative">
             <div class="grid items-center gap-12 lg:grid-cols-2">

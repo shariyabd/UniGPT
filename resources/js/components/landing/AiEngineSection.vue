@@ -25,7 +25,7 @@ const highlights = [
 <template>
     <section id="ai-engine" class="relative overflow-hidden py-24">
         <div class="absolute inset-0 grid-backdrop"></div>
-        <div class="aurora animate-aurora right-0 top-10 h-80 w-80" style="background:#22d3ee55"></div>
+        <div class="aurora animate-aurora right-0 top-10 h-80 w-80" style="background:#18f5ea55"></div>
 
         <div class="page-container relative">
             <SectionHeading

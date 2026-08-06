@@ -17,8 +17,8 @@ export default {
     theme: {
         extend: {
             fontFamily: {
-                // Acadify reference uses Inter. Plus Jakarta kept as fallback
-                // until the font <link> in app.blade.php is swapped (next phase).
+                // Design system: Inter is the primary UI font (linked in
+                // app.blade.php); Plus Jakarta Sans is the declared fallback.
                 sans: ['Inter', 'Plus Jakarta Sans', ...defaultTheme.fontFamily.sans],
             },
             fontSize: {
@@ -28,16 +28,26 @@ export default {
                 'field-label': ['13px', { lineHeight: '1.4', fontWeight: '500' }],
             },
             colors: {
-                /* ----- SEMANTIC TOKENS (Acadify light theme) — prefer these ----- */
+                /* ----- SEMANTIC TOKENS (brand blue theme) — prefer these ----- */
                 // Surfaces
                 bg: 'rgb(var(--color-bg) / <alpha-value>)',
-                surface: 'rgb(var(--color-surface) / <alpha-value>)',
-                line: 'rgb(var(--color-border) / <alpha-value>)', // 1px hairline border
-                // Primary (purple)
+                surface: {
+                    DEFAULT: 'rgb(var(--color-surface) / <alpha-value>)',
+                    elevated: 'rgb(var(--color-surface-elevated) / <alpha-value>)',
+                    subtle: 'rgb(var(--color-surface-subtle) / <alpha-value>)',
+                    tint: 'rgb(var(--color-surface-tint) / <alpha-value>)',
+                    'tint-soft': 'rgb(var(--color-surface-tint-soft) / <alpha-value>)',
+                },
+                line: {
+                    DEFAULT: 'rgb(var(--color-border) / <alpha-value>)', // 1px hairline border
+                    strong: 'rgb(var(--color-border-strong) / <alpha-value>)',
+                },
+                // Primary (brand blue)
                 primary: {
                     DEFAULT: 'rgb(var(--color-primary) / <alpha-value>)',
                     hover: 'rgb(var(--color-primary-hover) / <alpha-value>)',
                     soft: 'rgb(var(--color-primary-soft) / <alpha-value>)',
+                    navy: 'rgb(var(--color-accent-navy) / <alpha-value>)',
                 },
                 // Text
                 content: {
@@ -88,12 +98,18 @@ export default {
                     900: '#312e81',
                     950: '#1e1b4b',
                 },
-                // Pastel accent system for KPI cards, soft icon tiles and highlights.
+                // Accent system.
+                //  - cyan / lavender / mint (DEFAULT) are the design-system brand
+                //    accents, token-driven so they flip with the theme.
+                //  - the *-soft / *-fg pastels + yellow/rose/lilac/sky/peach are the
+                //    legacy KPI-card palette (hardcoded), kept for existing pages.
                 accent: {
+                    cyan: 'rgb(var(--color-accent-cyan) / <alpha-value>)',
+                    lavender: 'rgb(var(--color-accent-lavender) / <alpha-value>)',
                     yellow: { DEFAULT: '#FCEAA6', soft: '#FEF7D8', fg: '#6B5B12' },
                     rose: { DEFAULT: '#FBD9D8', soft: '#FDEDEC', fg: '#9B2F2F' },
                     lilac: { DEFAULT: '#E7E3FB', soft: '#F2F0FD', fg: '#4B3FA0' },
-                    mint: { DEFAULT: '#D2EEE1', soft: '#E9F8F0', fg: '#1E6F52' },
+                    mint: { DEFAULT: 'rgb(var(--color-accent-mint) / <alpha-value>)', soft: '#E9F8F0', fg: '#1E6F52' },
                     sky: { DEFAULT: '#D9E8FB', soft: '#EDF4FD', fg: '#225C9E' },
                     peach: { DEFAULT: '#FBE3CE', soft: '#FDF1E6', fg: '#9A5A22' },
                 },
