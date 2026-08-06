@@ -21,6 +21,7 @@ use App\Models\Role;
 use App\Models\SavedAnswer;
 use App\Models\Section;
 use App\Models\Task;
+use App\Models\UserAchievement;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -383,6 +384,11 @@ class User extends Authenticatable
     public function tasks(): HasMany
     {
         return $this->hasMany(Task::class);
+    }
+
+    public function achievements(): HasMany
+    {
+        return $this->hasMany(UserAchievement::class)->latest('earned_at');
     }
 
     public function roles(): BelongsToMany

@@ -42,6 +42,7 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PresenceController;
 use App\Http\Controllers\PublicDocsController;
 use App\Http\Controllers\SearchController;
+use App\Http\Controllers\Student\AchievementController;
 use App\Http\Controllers\Student\AssignmentController as StudentAssignmentController;
 use App\Http\Controllers\Student\CalendarExportController;
 use App\Http\Controllers\Student\ChatController;
@@ -314,6 +315,9 @@ Route::middleware(['auth'])->group(function () {
         // Leaderboard — opt-in, gamified XP ranking (department / semester / section)
         Route::get('/leaderboard', [LeaderboardController::class, 'index'])->name('leaderboard');
         Route::patch('/leaderboard/settings', [LeaderboardController::class, 'updateSettings'])->name('leaderboard.settings');
+
+        // Achievements — earned/locked badges with progress (awards on view).
+        Route::get('/achievements', [AchievementController::class, 'index'])->name('achievements');
 
         // My Faculty — directory of the student's instructors, plus a dedicated
         // messenger view (real-time chat is live; see the Messenger controllers).

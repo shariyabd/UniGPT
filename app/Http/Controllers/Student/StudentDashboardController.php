@@ -7,6 +7,7 @@ use App\Domain\Academic\Services\CalendarService;
 use App\Domain\Academic\Services\CourseService;
 use App\Domain\Academic\Services\ExamService;
 use App\Domain\Academic\Services\TranscriptService;
+use App\Domain\Analytics\Services\AchievementService;
 use App\Domain\Chat\Document\Services\DocumentService;
 use App\Domain\Chat\Support\AiSettings;
 use App\Domain\User\Models\User;
@@ -45,11 +46,17 @@ class StudentDashboardController extends Controller
         private readonly ExamService $exams,
         private readonly CalendarService $calendar,
         private readonly DocumentStorageService $documentStorage,
+        private readonly AchievementService $achievements,
     ) {}
 
     public function index(): Response
     {
         $user = $this->user();
+
+        // Award (and notify) any badges the student now qualifies for. The
+        // dashboard is the most-visited page, so evaluating here means badges
+        // are earned during normal use, not only on the Achievements page.
+        $this->achievements->evaluate($user);
         // The dashboard shows the student's *current-term* courses; past-term
         // enrollments remain available via Transcript, Roadmap and Materials.
         $currentCourses = $this->courses->studentCourses($user)

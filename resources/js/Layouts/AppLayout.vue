@@ -99,6 +99,7 @@ const navByRole = {
         { section: 'Community', items: [
             { label: 'Discussions', route: 'discussions.index', icon: ChatBubbleLeftRightIcon, permission: 'view_discussions' },
             { label: 'Leaderboard', route: 'leaderboard', icon: TrophyIcon },
+            { label: 'Achievements', route: 'achievements', icon: SparklesIcon },
         ] },
         { section: 'Planner', items: [
             { label: 'Study Planner', route: 'study-planner', icon: SparklesIcon },

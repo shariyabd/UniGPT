@@ -62,6 +62,10 @@ class DatabaseSeeder extends Seeder
             // cohort and the student's class-test attempts to already exist.
             DemoFeatureShowcaseSeeder::class,
 
+            // Achievements/badges — evaluated from all the signals above, for the
+            // demo student + leaderboard opt-ins. Runs after the showcase seeder.
+            AchievementSeeder::class,
+
             // Demo page-visit history for Admin → User Activity (only if empty).
             VisitSeeder::class,
         ]);
