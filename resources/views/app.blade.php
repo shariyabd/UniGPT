@@ -22,9 +22,10 @@
         })();
     </script>
 
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.bunny.net">
-    <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700,800&display=swap" rel="stylesheet" />
+    <!-- Fonts — Satoshi (primary) is self-hosted via @font-face in app.css
+         (public/fonts/satoshi). Inter is the loaded webfont fallback. -->
+    <link rel="preconnect" href="https://fonts.bunny.net" crossorigin>
+    <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700&display=swap" rel="stylesheet" />
 
     <!-- Scripts -->
     @routes

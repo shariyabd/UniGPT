@@ -4,6 +4,7 @@ import LandingNav from '@/components/landing/LandingNav.vue';
 import HeroSection from '@/components/landing/HeroSection.vue';
 import ProblemSection from '@/components/landing/ProblemSection.vue';
 import SolutionSection from '@/components/landing/SolutionSection.vue';
+import TimelineSection from '@/components/landing/TimelineSection.vue';
 import FeaturesSection from '@/components/landing/FeaturesSection.vue';
 import RolesSection from '@/components/landing/RolesSection.vue';
 import AiEngineSection from '@/components/landing/AiEngineSection.vue';
@@ -33,6 +34,7 @@ import LandingFooter from '@/components/landing/LandingFooter.vue';
             <HeroSection />
             <ProblemSection />
             <SolutionSection />
+            <TimelineSection />
             <FeaturesSection />
             <RolesSection />
             <AiEngineSection />

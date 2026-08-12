@@ -23,7 +23,9 @@ const highlights = [
 </script>
 
 <template>
-    <section id="ai-engine" class="relative overflow-hidden py-24">
+    <!-- Dark anchor band: the `dark` class flips every child token to the dark
+         theme and `bg-bg` paints the near-black canvas, in any global theme. -->
+    <section id="ai-engine" class="dark relative overflow-hidden border-y border-line bg-bg py-24 text-content">
         <div class="absolute inset-0 grid-backdrop"></div>
         <div class="aurora animate-aurora right-0 top-10 h-80 w-80" style="background:#18f5ea55"></div>
 

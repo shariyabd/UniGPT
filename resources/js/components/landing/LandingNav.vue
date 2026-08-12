@@ -1,6 +1,7 @@
 <script setup>
 import { onMounted, ref } from 'vue';
 import { Link } from '@inertiajs/vue3';
+import { Motion, useScroll } from 'motion-v';
 import { AcademicCapIcon, SunIcon, MoonIcon, Bars3Icon, XMarkIcon } from '@heroicons/vue/24/outline';
 import { useTheme } from '@/composables/useTheme';
 
@@ -8,8 +9,12 @@ const { isDark, initTheme, toggleTheme } = useTheme();
 const scrolled = ref(false);
 const mobileOpen = ref(false);
 
+// Reading-progress bar: tracks whole-page scroll (0 → 1).
+const { scrollYProgress } = useScroll();
+
 const links = [
     { label: 'Features', href: '#features' },
+    { label: 'Journey', href: '#journey' },
     { label: 'Roles', href: '#roles' },
     { label: 'AI Engine', href: '#ai-engine' },
     { label: 'Workflow', href: '#workflow' },
@@ -41,10 +46,16 @@ onMounted(() => {
         <nav class="page-container flex h-16 items-center justify-between gap-4">
             <!-- Brand -->
             <a href="#top" class="flex items-center gap-2.5" @click.prevent="go('#top')">
-                <span class="flex h-9 w-9 items-center justify-center rounded-control bg-primary shadow-card">
+                <span
+                    class="flex h-9 w-9 items-center justify-center rounded-control shadow-card transition-colors"
+                    :class="scrolled ? 'bg-primary' : 'bg-white/15 ring-1 ring-white/25 backdrop-blur'"
+                >
                     <AcademicCapIcon class="h-5 w-5 text-white" />
                 </span>
-                <span class="text-lg font-bold tracking-tight text-content">UniNexus</span>
+                <span
+                    class="text-lg font-bold tracking-tight transition-colors"
+                    :class="scrolled ? 'text-content' : 'text-white'"
+                >UniNexus</span>
             </a>
 
             <!-- Desktop links -->
@@ -53,7 +64,8 @@ onMounted(() => {
                     v-for="link in links"
                     :key="link.href"
                     :href="link.href"
-                    class="rounded-control px-3 py-2 text-sm font-medium text-content-muted transition-colors hover:bg-primary-soft hover:text-primary"
+                    class="rounded-control px-3 py-2 text-sm font-medium transition-colors"
+                    :class="scrolled ? 'text-content-muted hover:bg-primary-soft hover:text-primary' : 'text-white/85 hover:bg-white/10 hover:text-white'"
                     @click.prevent="go(link.href)"
                 >
                     {{ link.label }}
@@ -65,6 +77,7 @@ onMounted(() => {
                 <button
                     type="button"
                     class="ui-btn-ghost h-9 w-9 p-0"
+                    :class="scrolled ? '' : 'text-white hover:bg-white/10 hover:text-white'"
                     :aria-label="isDark ? 'Switch to light mode' : 'Switch to dark mode'"
                     @click="toggleTheme"
                 >
@@ -72,12 +85,21 @@ onMounted(() => {
                     <MoonIcon v-else class="h-5 w-5" />
                 </button>
 
-                <Link href="/login" class="ui-btn-ghost hidden px-3.5 sm:inline-flex">Sign in</Link>
-                <Link href="/login" class="ui-btn-primary px-4">Get started</Link>
+                <Link
+                    href="/login"
+                    class="ui-btn-ghost hidden px-3.5 sm:inline-flex"
+                    :class="scrolled ? '' : 'text-white hover:bg-white/10 hover:text-white'"
+                >Sign in</Link>
+                <Link
+                    href="/login"
+                    class="px-4"
+                    :class="scrolled ? 'ui-btn-primary' : 'ui-btn bg-white text-primary hover:bg-white/90'"
+                >Get started</Link>
 
                 <button
                     type="button"
                     class="ui-btn-ghost h-9 w-9 p-0 md:hidden"
+                    :class="scrolled ? '' : 'text-white hover:bg-white/10 hover:text-white'"
                     aria-label="Toggle menu"
                     @click="mobileOpen = !mobileOpen"
                 >
@@ -108,5 +130,12 @@ onMounted(() => {
                 </div>
             </div>
         </Transition>
+
+        <!-- Scroll-progress indicator -->
+        <Motion
+            as="div"
+            class="absolute inset-x-0 bottom-0 h-0.5 origin-left bg-gradient-to-r from-primary via-[#3b82f6] to-[#18f5ea]"
+            :style="{ scaleX: scrollYProgress }"
+        />
     </header>
 </template>

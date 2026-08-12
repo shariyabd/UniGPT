@@ -51,7 +51,8 @@ onBeforeUnmount(() => observer?.disconnect());
 </script>
 
 <template>
-    <section ref="root" class="relative overflow-hidden py-20">
+    <!-- Dark anchor band (see AiEngineSection): `dark` + `bg-bg` in any theme. -->
+    <section ref="root" class="dark relative overflow-hidden border-y border-line bg-bg py-20 text-content">
         <div class="aurora animate-aurora left-1/4 top-0 h-72 w-72 bg-primary/30"></div>
         <div class="page-container relative">
             <div class="grid gap-6 rounded-card border border-line bg-surface p-8 shadow-card sm:grid-cols-2 lg:grid-cols-4 lg:p-10">

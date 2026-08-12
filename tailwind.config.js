@@ -17,9 +17,10 @@ export default {
     theme: {
         extend: {
             fontFamily: {
-                // Design system: Inter is the primary UI font (linked in
-                // app.blade.php); Plus Jakarta Sans is the declared fallback.
-                sans: ['Inter', 'Plus Jakarta Sans', ...defaultTheme.fontFamily.sans],
+                // Design system: Satoshi is the primary UI font (linked from
+                // Fontshare in app.blade.php); Inter is the loaded webfont fallback,
+                // then Plus Jakarta Sans / system sans.
+                sans: ['Satoshi', 'Inter', 'Plus Jakarta Sans', ...defaultTheme.fontFamily.sans],
             },
             fontSize: {
                 // Type scale from the brief.
